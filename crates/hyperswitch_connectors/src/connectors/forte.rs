@@ -167,9 +167,11 @@ impl ConnectorCommon for Forte {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -782,7 +784,8 @@ static FORTE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Forte",
     description:
         "CSG Forte offers a unified payments platform, enabling businesses to securely process credit cards, debit cards, ACH/eCheck transactions, and more, with advanced fraud prevention and seamless integration.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static FORTE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

@@ -136,5 +136,3 @@ ALTER TABLE refund
     ADD COLUMN IF NOT EXISTS internal_reference_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS refund_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(64);
-
-ALTER TABLE payment_attempt ADD COLUMN IF NOT EXISTS connector_request_reference_id VARCHAR(255);

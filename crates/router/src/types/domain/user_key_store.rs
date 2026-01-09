@@ -44,14 +44,14 @@ impl super::behaviour::Conversion for UserKeyStore {
             key: crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::Decrypt(item.key),
+                CryptoOperation::DecryptLocally(item.key),
                 identifier,
                 key.peek(),
             )
             .await
             .and_then(|val| val.try_into_operation())
             .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+                message: "Failed while decrypting user key store".to_string(),
             })?,
             user_id: item.user_id,
             created_at: item.created_at,

@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
@@ -10,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hex::encode;
@@ -49,9 +48,23 @@ use lazy_static::lazy_static;
 use masking::{Mask, Maskable, PeekInterface};
 use transformers as dlocal;
 
-use crate::{constants::headers, types::ResponseRouterData};
-#[derive(Debug, Clone)]
-pub struct Dlocal;
+use crate::{
+    connectors::dlocal::transformers::DlocalRouterData, constants::headers,
+    types::ResponseRouterData, utils::convert_amount,
+};
+
+#[derive(Clone)]
+pub struct Dlocal {
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Dlocal {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
@@ -76,16 +89,21 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let dlocal_req = self.get_request_body(req, connectors)?;
-
         let date = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
-        let sign_req: String = format!(
-            "{}{}{}",
-            auth.x_login.peek(),
-            date,
-            dlocal_req.get_inner_value().peek().to_owned()
-        );
+
+        let sign_req: String = if dlocal_req.get_inner_value().peek() == r#""{}""# {
+            format!("{}{}", auth.x_login.peek(), date)
+        } else {
+            format!(
+                "{}{}{}",
+                auth.x_login.peek(),
+                date,
+                dlocal_req.get_inner_value().peek()
+            )
+        };
+
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
             auth.secret.peek().as_bytes(),
@@ -108,7 +126,7 @@ where
             (headers::X_DATE.to_string(), date.into()),
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self.get_content_type().to_string().into(),
+                self.get_content_type().to_string().into(),
             ),
         ];
         Ok(headers)
@@ -121,7 +139,7 @@ impl ConnectorCommon for Dlocal {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -148,13 +166,15 @@ impl ConnectorCommon for Dlocal {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code.to_string(),
-            message: response.message,
-            reason: response.param,
+            message: response.message.clone(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -212,12 +232,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = DlocalRouterData::try_from((amount, req))?;
+
         let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -294,11 +316,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let sync_data = dlocal::DlocalPaymentsSyncRequest::try_from(req)?;
         Ok(format!(
             "{}payments/{}/status",
             self.base_url(connectors),
-            sync_data.authz_id,
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 
@@ -373,7 +397,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = DlocalRouterData::try_from((amount, req))?;
+        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -445,11 +476,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let cancel_data = dlocal::DlocalPaymentsCancelRequest::try_from(req)?;
         Ok(format!(
             "{}payments/{}/cancel",
             self.base_url(connectors),
-            cancel_data.cancel_id
+            req.request.connector_transaction_id.clone(),
         ))
     }
 
@@ -525,12 +555,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dlocal 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = DlocalRouterData::try_from((amount, req))?;
         let connector_req = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -602,11 +633,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let sync_data = dlocal::DlocalRefundsSyncRequest::try_from(req)?;
+        let refund_id = req.request.connector_refund_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_refund_id",
+            },
+        )?;
         Ok(format!(
-            "{}refunds/{}/status",
+            "{}refunds/{refund_id}/status",
             self.base_url(connectors),
-            sync_data.refund_id,
         ))
     }
 
@@ -687,6 +721,10 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_capture_methods2 = vec![
+            enums::CaptureMethod::Automatic,
+        ];
+
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
@@ -739,6 +777,17 @@ lazy_static! {
             },
         );
 
+        dlocal_supported_payment_methods.add(
+            enums::PaymentMethod::Voucher,
+            enums::PaymentMethodType::Oxxo,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
         dlocal_supported_payment_methods
     };
 
@@ -746,7 +795,8 @@ lazy_static! {
         display_name: "DLOCAL",
         description:
             "Dlocal is a cross-border payment processor enabling businesses to accept and send payments in emerging markets worldwide.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref DLOCAL_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

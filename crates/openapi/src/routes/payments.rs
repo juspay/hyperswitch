@@ -812,6 +812,40 @@ pub fn payments_connector_session() {}
 )]
 pub fn payments_cancel() {}
 
+/// Payments - Cancel Post Capture
+///
+/// A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/cancel_post_capture",
+    request_body (
+        content = PaymentsCancelPostCaptureRequest,
+        examples(
+            (
+                "Cancel the payment post capture with minimal fields" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Cancel the payment post capture with cancellation reason" = (
+                    value = json!({"cancellation_reason": "requested_by_customer"})
+                )
+            ),
+        )
+    ),
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment canceled post capture"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Cancel a Payment Post Capture",
+    security(("api_key" = []))
+)]
+pub fn payments_cancel_post_capture() {}
+
 /// Payments - List
 ///
 /// To list the *payments*
@@ -886,6 +920,26 @@ pub async fn profile_payments_list() {}
   security(("api_key" = []))
 )]
 pub fn payments_incremental_authorization() {}
+
+/// Payments - Extended Authorization
+///
+/// Extended authorization is available for payments currently in the `requires_capture` status
+/// Call this endpoint to increase the authorization validity period
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/extend_authorization",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Extended authorization for the payment"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Extend authorization period for a Payment",
+    security(("api_key" = []))
+)]
+pub fn payments_extend_authorization() {}
 
 /// Payments - External 3DS Authentication
 ///
@@ -977,6 +1031,24 @@ pub fn payments_post_session_tokens() {}
     security(("api_key" = []))
 )]
 pub fn payments_update_metadata() {}
+
+/// Payments - Submit Eligibility Data
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/eligibility",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    request_body=PaymentsEligibilityRequest,
+    responses(
+        (status = 200, description = "Eligbility submit is successful", body = PaymentsEligibilityResponse),
+        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Submit Eligibility data for a Payment",
+    security(("publishable_key" = []))
+)]
+pub fn payments_submit_eligibility() {}
 
 /// Payments - Create Intent
 ///
@@ -1234,3 +1306,30 @@ pub fn list_payment_methods() {}
     security(("api_key" = []), ("jwt_key" = []))
 )]
 pub fn payments_list() {}
+
+/// Payments - Check Balance and Apply PM Data
+///
+/// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    post,
+    path = "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = "pro_abcdefghijklmnop"
+        ),
+    ),
+    request_body(
+      content = ApplyPaymentMethodDataRequest,
+    ),
+    responses(
+        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
+    ),
+    tag = "Payments",
+    operation_id = "Apply Payment Method Data",
+    security(("publishable_key" = []))
+)]
+pub fn payments_apply_pm_data() {}

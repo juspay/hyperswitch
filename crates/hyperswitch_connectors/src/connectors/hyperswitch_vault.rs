@@ -240,9 +240,11 @@ impl ConnectorCommon for HyperswitchVault {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -488,4 +490,11 @@ impl webhooks::IncomingWebhook for HyperswitchVault {
     }
 }
 
-impl ConnectorSpecifications for HyperswitchVault {}
+impl ConnectorSpecifications for HyperswitchVault {
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
+    }
+}

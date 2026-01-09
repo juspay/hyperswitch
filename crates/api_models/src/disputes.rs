@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use common_utils::types::{StringMinorUnit, TimeRange};
 use masking::{Deserialize, Serialize};
 use serde::de::Error;
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -57,33 +58,45 @@ pub struct DisputeResponse {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DisputeResponsePaymentsRetrieve {
     /// The identifier for dispute
+    #[smithy(value_type = "String")]
     pub dispute_id: String,
     /// Stage of the dispute
+    #[smithy(value_type = "DisputeStage")]
     pub dispute_stage: DisputeStage,
     /// Status of the dispute
+    #[smithy(value_type = "DisputeStatus")]
     pub dispute_status: DisputeStatus,
     /// Status of the dispute sent by connector
+    #[smithy(value_type = "String")]
     pub connector_status: String,
     /// Dispute id sent by connector
+    #[smithy(value_type = "String")]
     pub connector_dispute_id: String,
     /// Reason of dispute sent by connector
+    #[smithy(value_type = "Option<String>")]
     pub connector_reason: Option<String>,
     /// Reason code of dispute sent by connector
+    #[smithy(value_type = "Option<String>")]
     pub connector_reason_code: Option<String>,
     /// Evidence deadline of dispute sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub challenge_required_by: Option<PrimitiveDateTime>,
     /// Dispute created time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub connector_created_at: Option<PrimitiveDateTime>,
     /// Dispute updated time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub connector_updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[smithy(value_type = "String")]
     pub created_at: PrimitiveDateTime,
 }
 
@@ -224,10 +237,24 @@ pub struct DeleteEvidenceRequest {
     pub evidence_type: EvidenceType,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeRetrieveRequest {
+    /// The identifier for dispute
+    pub dispute_id: String,
+    /// Decider to enable or disable the connector call for dispute retrieve request
+    pub force_sync: Option<bool>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct DisputesAggregateResponse {
     /// Different status of disputes with their count
     pub status_with_count: HashMap<DisputeStatus, i64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeRetrieveBody {
+    /// Decider to enable or disable the connector call for dispute retrieve request
+    pub force_sync: Option<bool>,
 }
 
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>

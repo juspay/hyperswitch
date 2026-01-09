@@ -15,56 +15,63 @@ use crate::{
 
 pub async fn get_evidence_request_data(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
     dispute: &diesel_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {
     let cancellation_policy_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.cancellation_policy,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     let customer_communication_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.customer_communication,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     let customer_sifnature_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.customer_signature,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     let receipt_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.receipt,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     let refund_policy_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.refund_policy,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     let service_documentation_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.service_documentation,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     let shipping_documentation_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.shipping_documentation,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -72,7 +79,8 @@ pub async fn get_evidence_request_data(
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.invoice_showing_distinct_transactions,
-            merchant_context,
+            None,
+            platform,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -80,19 +88,22 @@ pub async fn get_evidence_request_data(
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.recurring_transaction_agreement,
-            merchant_context,
+            None,
+            platform,
             api::FileDataRequired::NotRequired,
         )
         .await?;
     let uncategorized_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.uncategorized_file,
-        merchant_context,
+        None,
+        platform,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     Ok(SubmitEvidenceRequestData {
         dispute_id: dispute.dispute_id.clone(),
+        dispute_status: dispute.dispute_status,
         connector_dispute_id: dispute.connector_dispute_id.clone(),
         access_activity_log: evidence_request.access_activity_log,
         billing_address: evidence_request.billing_address,
@@ -199,14 +210,14 @@ pub fn update_dispute_evidence(
 
 pub async fn get_dispute_evidence_block(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     evidence_type: EvidenceType,
     file_id: String,
 ) -> CustomResult<api_models::disputes::DisputeEvidenceBlock, errors::ApiErrorResponse> {
     let file_metadata = state
         .store
         .find_file_metadata_by_merchant_id_file_id(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &file_id,
         )
         .await
@@ -270,7 +281,7 @@ pub fn delete_evidence_file(
 
 pub async fn get_dispute_evidence_vec(
     state: &SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     dispute_evidence: DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
     let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];
@@ -278,7 +289,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::CancellationPolicy,
                 cancellation_policy_block,
             )
@@ -289,7 +300,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::CustomerCommunication,
                 customer_communication_block,
             )
@@ -300,7 +311,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::CustomerSignature,
                 customer_signature_block,
             )
@@ -309,20 +320,15 @@ pub async fn get_dispute_evidence_vec(
     }
     if let Some(receipt_block) = dispute_evidence.receipt {
         dispute_evidence_blocks.push(
-            get_dispute_evidence_block(
-                state,
-                &merchant_context,
-                EvidenceType::Receipt,
-                receipt_block,
-            )
-            .await?,
+            get_dispute_evidence_block(state, &platform, EvidenceType::Receipt, receipt_block)
+                .await?,
         )
     }
     if let Some(refund_policy_block) = dispute_evidence.refund_policy {
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::RefundPolicy,
                 refund_policy_block,
             )
@@ -333,7 +339,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::ServiceDocumentation,
                 service_documentation_block,
             )
@@ -344,7 +350,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::ShippingDocumentation,
                 shipping_documentation_block,
             )
@@ -357,7 +363,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::InvoiceShowingDistinctTransactions,
                 invoice_showing_distinct_transactions_block,
             )
@@ -370,7 +376,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::RecurringTransactionAgreement,
                 recurring_transaction_agreement_block,
             )
@@ -381,7 +387,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &merchant_context,
+                &platform,
                 EvidenceType::UncategorizedFile,
                 uncategorized_file_block,
             )

@@ -1,13 +1,17 @@
 import {
+  connectorDetails as commonConnectorDetails,
   customerAcceptance,
-  singleUseMandateData,
   multiUseMandateData,
+  singleUseMandateData,
 } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
+
+const DUPLICATION_TIMEOUT = 30000; // 30 seconds
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
@@ -19,27 +23,9 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4111111111119903",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
-};
-
-const payment_method_data_no3ds = {
-  card: {
-    last4: "4242",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "25",
-    card_holder_name: "John Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
 };
 
 export const connectorDetails = {
@@ -179,7 +165,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -313,7 +299,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -336,7 +322,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -359,7 +345,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
         TRIGGER_SKIP: true,
       },
@@ -383,7 +369,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -430,7 +416,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -452,7 +438,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -469,7 +455,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -486,7 +472,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -504,9 +490,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -528,9 +513,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -544,10 +528,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          mandate_id: null,
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -555,9 +535,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -571,10 +550,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          mandate_id: null,
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -582,9 +557,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -598,9 +572,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -608,9 +579,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -624,9 +594,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -634,17 +601,48 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
-        currency: "BRL",
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "off_session",
+          amount: 0,
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 0,
+          setup_future_usage: "off_session",
+          payment_method_type: "credit",
         },
       },
     },
@@ -652,9 +650,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -665,11 +662,35 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          code: "IR_00",
-          message: "Setup Mandate flow for Payload is not implemented",
-          type: "invalid_request",
+          status: "succeeded",
+          amount: 0,
+        },
+      },
+    },
+
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
+    MITManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },

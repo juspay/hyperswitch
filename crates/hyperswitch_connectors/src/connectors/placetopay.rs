@@ -135,9 +135,11 @@ impl ConnectorCommon for Placetopay {
             reason: Some(response.status.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -728,7 +730,8 @@ static PLACETOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PlacetoPay",
     description:
         "PlacetoPay is a Latin American financial technology company's online payment platform, offering various payment methods and integrations for businesses",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

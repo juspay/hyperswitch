@@ -25,8 +25,9 @@ pub async fn api_key_create(
         state,
         &req,
         payload,
-        |state, auth_data, payload, _| async {
-            api_keys::create_api_key(state, payload, auth_data.key_store).await
+        |state, auth_data, payload, _| {
+            let key_store = auth_data.platform.get_processor().get_key_store().clone();
+            async move { api_keys::create_api_key(state, payload, key_store).await }
         },
         auth::auth_type(
             &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
@@ -243,7 +244,9 @@ pub async fn api_key_revoke(
         state,
         &req,
         (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
+        |state, _, (merchant_id, key_id), _| {
+            api_keys::revoke_api_key(state, merchant_id.clone(), key_id)
+        },
         auth::auth_type(
             &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
                 merchant_id_from_route: merchant_id.clone(),
@@ -265,24 +268,25 @@ pub async fn api_key_revoke(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(
-        common_utils::id_type::MerchantId,
-        common_utils::id_type::ApiKeyId,
-    )>,
+    path: web::Path<common_utils::id_type::ApiKeyId>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
-    let (merchant_id, key_id) = path.into_inner();
+    let key_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
+        &key_id,
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         key_id,
+         _| api_keys::revoke_api_key(state, merchant_account.get_id().to_owned(), key_id),
         auth::auth_type(
-            &auth::V2AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyWrite,
             },
             req.headers(),

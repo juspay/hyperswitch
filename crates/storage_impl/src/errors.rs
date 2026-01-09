@@ -288,10 +288,19 @@ pub enum RecoveryError {
     RecordBackToBillingConnectorFailed,
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
+    #[error("Failed to generate payment sync data")]
+    PaymentsResponseGenerationFailed,
+    #[error("Outgoing Webhook Failed")]
+    RevenueRecoveryOutgoingWebhookFailed,
 }
-
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum HealthCheckDecisionEngineError {
     #[error("Failed to establish Decision Engine connection")]
     FailedToCallDecisionEngineService,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckUnifiedConnectorServiceError {
+    #[error("Failed to establish Unified Connector Service connection")]
+    FailedToCallUnifiedConnectorService,
 }

@@ -24,7 +24,11 @@ use std::sync::{atomic, Arc};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use fred::interfaces::PubsubInterface;
-use fred::{interfaces::ClientLike, prelude::EventInterface};
+use fred::{
+    clients::Transaction,
+    interfaces::ClientLike,
+    prelude::{EventInterface, TransactionInterface},
+};
 
 pub use self::types::*;
 
@@ -223,12 +227,17 @@ impl RedisConnectionPool {
             })
         });
     }
+
+    pub fn get_transaction(&self) -> Transaction {
+        self.pool.next().multi()
+    }
 }
 
 pub struct RedisConfig {
     default_ttl: u32,
     default_stream_read_count: u64,
     default_hash_ttl: u32,
+    cluster_enabled: bool,
 }
 
 impl From<&RedisSettings> for RedisConfig {
@@ -237,6 +246,7 @@ impl From<&RedisSettings> for RedisConfig {
             default_ttl: config.default_ttl,
             default_stream_read_count: config.stream_read_count,
             default_hash_ttl: config.default_hash_ttl,
+            cluster_enabled: config.cluster_enabled,
         }
     }
 }

@@ -1,10 +1,17 @@
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types::MinorUnit};
-pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
+use api_models::payments::AddressDetails;
+use common_utils::{pii, request::Method, types::MinorUnit};
+pub use disputes::{
+    AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+    SubmitEvidenceResponse,
+};
+use error_stack::ResultExt;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -12,14 +19,41 @@ use crate::{
     vault::PaymentMethodVaultingData,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectorCustomerResponseData {
+    pub connector_customer_id: String,
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub billing_address: Option<AddressDetails>,
+}
+
+impl ConnectorCustomerResponseData {
+    pub fn new_with_customer_id(connector_customer_id: String) -> Self {
+        Self::new(connector_customer_id, None, None, None)
+    }
+    pub fn new(
+        connector_customer_id: String,
+        name: Option<String>,
+        email: Option<String>,
+        billing_address: Option<AddressDetails>,
+    ) -> Self {
+        Self {
+            connector_customer_id,
+            name,
+            email,
+            billing_address,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -51,9 +85,7 @@ pub enum PaymentsResponseData {
         token: String,
     },
 
-    ConnectorCustomerResponse {
-        connector_customer_id: String,
-    },
+    ConnectorCustomerResponse(ConnectorCustomerResponseData),
 
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,
@@ -83,19 +115,25 @@ pub enum PaymentsResponseData {
 }
 
 #[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckResponseData {
+    pub balance: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Debug, Clone)]
 pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, serde::Deserialize)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum CaptureSyncResponse {
     Success {
         resource_id: ResponseId,
@@ -137,6 +175,12 @@ impl PaymentsResponseData {
             | Self::PreProcessingResponse {
                 connector_metadata, ..
             } => connector_metadata.clone().map(masking::Secret::new),
+            _ => None,
+        }
+    }
+    pub fn get_network_transaction_id(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse { network_txn_id, .. } => network_txn_id.clone(),
             _ => None,
         }
     }
@@ -238,15 +282,35 @@ impl PaymentsResponseData {
             None
         }
     }
+
+    pub fn get_mandate_reference(&self) -> Option<MandateReference> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.as_ref().clone()
+        } else {
+            None
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+impl PreprocessingResponseId {
+    pub fn get_string_repr(&self) -> &String {
+        match self {
+            Self::PreProcessingId(value) => value,
+            Self::ConnectorTransactionId(value) => value,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
         endpoint: String,
@@ -255,6 +319,15 @@ pub enum RedirectForm {
     },
     Html {
         html_data: String,
+    },
+    BarclaycardAuthSetup {
+        access_token: String,
+        ddc_url: String,
+        reference_id: String,
+    },
+    BarclaycardConsumerAuth {
+        access_token: String,
+        step_up_url: String,
     },
     BlueSnap {
         payment_fields_token: String, // payment-field-token
@@ -295,6 +368,9 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    WorldpayxmlRedirectForm {
+        jwt: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -329,6 +405,22 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
             },
             RedirectForm::Html { html_data } => Self::Html { html_data },
+            RedirectForm::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            } => Self::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            },
+            RedirectForm::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            } => Self::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            },
             RedirectForm::BlueSnap {
                 payment_fields_token,
             } => Self::BlueSnap {
@@ -394,6 +486,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
 }
@@ -413,6 +506,22 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
             diesel_models::payment_attempt::RedirectForm::Html { html_data } => {
                 Self::Html { html_data }
             }
+            diesel_models::payment_attempt::RedirectForm::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            } => Self::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            } => Self::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            },
             diesel_models::payment_attempt::RedirectForm::BlueSnap {
                 payment_fields_token,
             } => Self::BlueSnap {
@@ -478,6 +587,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
+            }
         }
     }
 }
@@ -500,6 +612,7 @@ pub struct PayoutsResponseData {
     pub should_add_next_step_to_process_tracker: bool,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -538,6 +651,7 @@ pub enum AuthenticationResponseData {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         directory_server_id: Option<String>,
+        scheme_id: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
@@ -546,18 +660,18 @@ pub enum AuthenticationResponseData {
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
         eci: Option<String>,
+        challenge_code: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        message_extension: Option<pii::SecretSerdeValue>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
         authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct CompleteAuthorizeRedirectResponse {
-    pub params: Option<masking::Secret<String>>,
-    pub payload: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 /// Represents details of a payment method.
@@ -586,7 +700,9 @@ pub struct ConnectorInfo {
     /// Description of the connector.
     pub description: &'static str,
     /// Connector Type
-    pub connector_type: common_enums::PaymentConnectorCategory,
+    pub connector_type: common_enums::HyperswitchConnectorCategory,
+    /// Integration status of the connector
+    pub integration_status: common_enums::ConnectorIntegrationStatus,
 }
 
 pub trait SupportedPaymentMethodsExt {
@@ -623,7 +739,7 @@ pub enum VaultResponseData {
         client_secret: masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
-        connector_vault_id: String,
+        connector_vault_id: VaultIdType,
         fingerprint_id: String,
     },
     ExternalVaultRetrieveResponse {
@@ -634,10 +750,85 @@ pub enum VaultResponseData {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum VaultIdType {
+    SingleVaultId(String),
+    MultiVauldIds(MultiVaultIdType),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MultiVaultIdType {
+    Card {
+        tokenized_card_number: Option<masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
+        tokenized_card_cvc: Option<masking::Secret<String>>,
+    },
+    NetworkToken {
+        tokenized_network_token: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
+        tokenized_cryptogram: Option<masking::Secret<String>>,
+    },
+}
+
+impl VaultIdType {
+    pub fn get_single_vault_id(&self) -> Result<String, error_stack::Report<ApiErrorResponse>> {
+        match self {
+            Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
+            Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
+                field_name: "SingleVaultId",
+            }
+            .into()),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_auth_vault_token_data(
+        &self,
+    ) -> Result<
+        api_models::authentication::AuthenticationVaultTokenData,
+        error_stack::Report<ApiErrorResponse>,
+    > {
+        match self.clone() {
+            Self::MultiVauldIds(multi_vault_data) => match multi_vault_data {
+                MultiVaultIdType::Card {
+                    tokenized_card_number,
+                    tokenized_card_expiry_year,
+                    tokenized_card_expiry_month,
+                    tokenized_card_cvc,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::CardData {
+                        tokenized_card_number,
+                        tokenized_card_expiry_month,
+                        tokenized_card_expiry_year,
+                        tokenized_card_cvc,
+                    },
+                ),
+                MultiVaultIdType::NetworkToken {
+                    tokenized_network_token,
+                    tokenized_network_token_exp_month,
+                    tokenized_network_token_exp_year,
+                    tokenized_cryptogram,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkTokenData {
+                        tokenized_network_token,
+                        tokenized_expiry_month: tokenized_network_token_exp_month,
+                        tokenized_expiry_year: tokenized_network_token_exp_year,
+                        tokenized_cryptogram,
+                    },
+                ),
+            },
+            Self::SingleVaultId(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected Behaviour, Multi Token Data is missing"),
+        }
+    }
+}
+
 impl Default for VaultResponseData {
     fn default() -> Self {
         Self::ExternalVaultInsertResponse {
-            connector_vault_id: String::new(),
+            connector_vault_id: VaultIdType::SingleVaultId(String::new()),
             fingerprint_id: String::new(),
         }
     }

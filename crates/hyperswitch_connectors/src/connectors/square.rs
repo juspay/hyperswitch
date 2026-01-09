@@ -158,9 +158,11 @@ impl ConnectorCommon for Square {
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -922,7 +924,8 @@ lazy_static! {
         display_name: "Square",
         description:
             "Square is the largest business technology platform serving all kinds of businesses.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
     static ref SQUARE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![
@@ -997,5 +1000,8 @@ impl ConnectorSpecifications for Square {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*SQUARE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        true
     }
 }

@@ -4,6 +4,7 @@ use api_models::payments;
 use common_enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::authentication;
 
 use crate::{
     core::{
@@ -11,7 +12,7 @@ use crate::{
         payments::helpers as payments_helpers,
     },
     types::{
-        self, domain, storage,
+        self, domain,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
@@ -38,7 +39,7 @@ pub fn construct_authentication_router_data(
     message_category: types::api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: storage::Authentication,
+    authentication_data: authentication::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -87,7 +88,7 @@ pub fn construct_post_authentication_router_data(
     authentication_connector: String,
     business_profile: domain::Profile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: &storage::Authentication,
+    authentication_data: &authentication::Authentication,
     payment_id: &common_utils::id_type::PaymentId,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
     let threeds_server_transaction_id = authentication_data
@@ -167,6 +168,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address,
@@ -198,6 +200,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         frm_metadata: None,
         dispute_id: None,
         refund_id: None,
+        payout_id: None,
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
@@ -208,6 +211,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 

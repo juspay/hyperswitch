@@ -152,9 +152,11 @@ impl ConnectorCommon for Cashtocode {
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -488,7 +490,8 @@ static CASHTOCODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "CashToCode",
         description:
             "CashToCode is a payment solution that enables users to convert cash into digital vouchers for online transactions",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

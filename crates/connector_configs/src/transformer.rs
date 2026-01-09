@@ -60,7 +60,8 @@ impl DashboardRequestPayload {
                 (_, GooglePay)
                 | (_, ApplePay)
                 | (_, PaymentMethodType::SamsungPay)
-                | (_, PaymentMethodType::Paze) => {
+                | (_, PaymentMethodType::Paze)
+                | (_, PaymentMethodType::AmazonPay) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (_, PaymentMethodType::DirectCarrierBilling) => {
@@ -150,7 +151,8 @@ impl DashboardRequestPayload {
                     | PaymentMethod::GiftCard
                     | PaymentMethod::OpenBanking
                     | PaymentMethod::CardRedirect
-                    | PaymentMethod::MobilePayment => {
+                    | PaymentMethod::MobilePayment
+                    | PaymentMethod::NetworkToken => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,

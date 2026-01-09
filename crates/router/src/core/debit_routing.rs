@@ -2,9 +2,7 @@ use std::{collections::HashSet, fmt::Debug};
 
 use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
-use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, id_type, types::keymanager::KeyManagerState,
-};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -288,7 +286,6 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let db = state.store.as_ref();
-    let key_manager_state = &(state).into();
     let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
 
@@ -305,7 +302,6 @@ where
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
@@ -472,7 +468,7 @@ fn extract_card_info_from_saved_card(
     match (&card.co_badged_card_data, &card.card_isin) {
         (Some(co_badged), _) => {
             logger::debug!("Co-badged card data found in saved payment method");
-            ExtractedCardInfo::new(Some(co_badged.clone()), card.card_type.clone(), None)
+            ExtractedCardInfo::new(Some(co_badged.clone().into()), card.card_type.clone(), None)
         }
         (None, Some(card_isin)) => {
             logger::debug!("No co-badged data; using saved card ISIN");
@@ -554,7 +550,6 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let key_manager_state = &(state).into();
     let db = state.store.as_ref();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
     let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
@@ -569,7 +564,6 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
@@ -622,11 +616,9 @@ async fn build_connector_routing_data(
     eligible_connector_data_list: Vec<api::ConnectorRoutingData>,
     fee_sorted_debit_networks: Vec<common_enums::CardNetwork>,
 ) -> CustomResult<Vec<api::ConnectorRoutingData>, errors::ApiErrorResponse> {
-    let key_manager_state = &state.into();
     let debit_routing_config = &state.conf.debit_routing_config;
 
-    let mcas_for_profile =
-        fetch_merchant_connector_accounts(state, key_manager_state, profile_id, key_store).await?;
+    let mcas_for_profile = fetch_merchant_connector_accounts(state, profile_id, key_store).await?;
 
     let mut connector_routing_data = Vec::new();
     let mut has_us_local_network = false;
@@ -650,14 +642,12 @@ async fn build_connector_routing_data(
 /// Fetches merchant connector accounts for the given profile
 async fn fetch_merchant_connector_accounts(
     state: &SessionState,
-    key_manager_state: &KeyManagerState,
     profile_id: &id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
     state
         .store
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile_id,
             key_store,
             common_enums::ConnectorType::PaymentProcessor,
@@ -693,7 +683,7 @@ fn process_connector_for_networks(
     let matching_networks = find_matching_networks(
         &merchant_debit_networks,
         fee_sorted_debit_networks,
-        &connector_data.connector_data,
+        connector_data,
         debit_routing_config,
         has_us_local_network,
     );
@@ -715,26 +705,27 @@ fn find_merchant_connector_account(
 fn find_matching_networks(
     merchant_debit_networks: &HashSet<common_enums::CardNetwork>,
     fee_sorted_debit_networks: &[common_enums::CardNetwork],
-    connector_data: &api::ConnectorData,
+    connector_routing_data: &api::ConnectorRoutingData,
     debit_routing_config: &settings::DebitRoutingConfig,
     has_us_local_network: &mut bool,
 ) -> Vec<api::ConnectorRoutingData> {
     let is_routing_enabled = debit_routing_config
         .supported_connectors
-        .contains(&connector_data.connector_name);
+        .contains(&connector_routing_data.connector_data.connector_name.clone());
 
     fee_sorted_debit_networks
         .iter()
         .filter(|network| merchant_debit_networks.contains(network))
-        .filter(|network| is_routing_enabled || network.is_global_network())
+        .filter(|network| is_routing_enabled || network.is_signature_network())
         .map(|network| {
             if network.is_us_local_network() {
                 *has_us_local_network = true;
             }
 
             api::ConnectorRoutingData {
-                connector_data: connector_data.clone(),
+                connector_data: connector_routing_data.connector_data.clone(),
                 network: Some(network.clone()),
+                action_type: connector_routing_data.action_type.clone(),
             }
         })
         .collect()

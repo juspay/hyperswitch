@@ -75,6 +75,27 @@ pub async fn get_groups_and_resources_for_role_from_token(
     .await
 }
 
+pub async fn get_parent_groups_info_for_role_from_token(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetParentGroupsInfoForRoleFromToken;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| async move {
+            role_core::get_parent_groups_info_for_role_from_token(state, user).await
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+// TODO: To be deprecated
 pub async fn create_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -87,6 +108,26 @@ pub async fn create_role(
         &req,
         json_payload.into_inner(),
         role_core::create_role,
+        &auth::JWTAuth {
+            permission: Permission::MerchantUserWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn create_role_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<role_api::CreateRoleV2Request>,
+) -> HttpResponse {
+    let flow = Flow::CreateRoleV2;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        role_core::create_role_v2,
         &auth::JWTAuth {
             permission: Permission::MerchantUserWrite,
         },
@@ -274,6 +315,7 @@ pub async fn get_role_information(
 pub async fn get_parent_group_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,
+    query: web::Query<role_api::GetParentGroupsInfoQueryParams>,
 ) -> HttpResponse {
     let flow = Flow::GetParentGroupInfo;
 
@@ -281,9 +323,9 @@ pub async fn get_parent_group_info(
         flow,
         state.clone(),
         &http_req,
-        (),
-        |state, user_from_token, _, _| async move {
-            user_role_core::get_parent_group_info(state, user_from_token).await
+        query.into_inner(),
+        |state, user_from_token, request, _| async move {
+            user_role_core::get_parent_group_info(state, user_from_token, request).await
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
@@ -317,7 +359,7 @@ pub async fn list_users_in_lineage(
 pub async fn list_roles_with_info(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<role_api::ListRolesRequest>,
+    query: web::Query<role_api::ListRolesQueryParams>,
 ) -> HttpResponse {
     let flow = Flow::ListRolesV2;
 

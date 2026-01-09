@@ -5,7 +5,8 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_flow_types::authentication::{Authentication, PreAuthentication},
     router_request_types::authentication::{
-        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData, PreAuthNRequestData,
+        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData,
+        MessageExtensionAttribute, PreAuthNRequestData,
     },
     router_response_types::AuthenticationResponseData,
 };
@@ -100,6 +101,9 @@ impl
                     directory_server_id: card_range
                         .as_ref()
                         .and_then(|card_range| card_range.directory_server_id.clone()),
+                    scheme_id: card_range
+                        .as_ref()
+                        .map(|card_range| card_range.scheme_id.clone().to_string()),
                 })
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => Err(ErrorResponse {
@@ -109,9 +113,11 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         };
         Ok(Self {
@@ -153,10 +159,36 @@ impl
                             acs_trans_id: response.authentication_response.acs_trans_id,
                             three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
                             acs_signed_content: response.authentication_response.acs_signed_content,
+                            challenge_request_key: None,
                         }))
                     }
                     Some(ACSChallengeMandatedIndicator::N) | None => AuthNFlowType::Frictionless,
                 };
+
+                let challenge_code = response
+                    .authentication_request
+                    .as_ref()
+                    .and_then(|req| req.three_ds_requestor_challenge_ind.as_ref())
+                    .and_then(|ind| match ind {
+                        ThreedsRequestorChallengeInd::Single(s) => Some(s.clone()),
+                        ThreedsRequestorChallengeInd::Multiple(v) => v.first().cloned(),
+                    });
+
+                let message_extension = response
+                    .authentication_response
+                    .message_extension
+                    .as_ref()
+                    .and_then(|v| match serde_json::to_value(v) {
+                        Ok(val) => Some(Secret::new(val)),
+                        Err(e) => {
+                            router_env::logger::error!(
+                                "Failed to serialize message_extension: {:?}",
+                                e
+                            );
+                            None
+                        }
+                    });
+
                 Ok(AuthenticationResponseData::AuthNResponse {
                     authn_flow_type,
                     authentication_value: response.authentication_value,
@@ -164,6 +196,10 @@ impl
                     connector_metadata: None,
                     ds_trans_id: response.authentication_response.ds_trans_id,
                     eci: response.eci,
+                    challenge_code,
+                    challenge_cancel: None, // Note - challenge_cancel field is received in the RReq and updated in DB during external_authentication_incoming_webhook_flow
+                    challenge_code_reason: response.authentication_response.trans_status_reason,
+                    message_extension,
                 })
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(ErrorResponse {
@@ -173,9 +209,11 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         };
         Ok(Self {
@@ -432,8 +470,8 @@ pub struct NetceteraAuthenticationRequest {
     pub merchant: Option<netcetera_types::MerchantData>,
     pub broad_info: Option<String>,
     pub device_render_options: Option<netcetera_types::DeviceRenderingOptionsSupported>,
-    pub message_extension: Option<Vec<netcetera_types::MessageExtensionAttribute>>,
-    pub challenge_message_extension: Option<Vec<netcetera_types::MessageExtensionAttribute>>,
+    pub message_extension: Option<Vec<MessageExtensionAttribute>>,
+    pub challenge_message_extension: Option<Vec<MessageExtensionAttribute>>,
     pub browser_information: Option<netcetera_types::Browser>,
     #[serde(rename = "threeRIInd")]
     pub three_ri_ind: Option<String>,
@@ -637,6 +675,7 @@ pub struct NetceteraAuthenticationSuccessResponse {
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedIndicator>,
+    pub authentication_request: Option<AuthenticationRequest>,
     pub authentication_response: AuthenticationResponse,
     #[serde(rename = "base64EncodedChallengeRequest")]
     pub encoded_challenge_request: Option<String>,
@@ -650,6 +689,20 @@ pub struct NetceteraAuthenticationFailureResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AuthenticationRequest {
+    #[serde(rename = "threeDSRequestorChallengeInd")]
+    pub three_ds_requestor_challenge_ind: Option<ThreedsRequestorChallengeInd>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ThreedsRequestorChallengeInd {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthenticationResponse {
     #[serde(rename = "acsURL")]
     pub acs_url: Option<url::Url>,
@@ -659,6 +712,8 @@ pub struct AuthenticationResponse {
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub trans_status_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

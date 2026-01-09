@@ -13,7 +13,7 @@ use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
-use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
@@ -214,7 +214,6 @@ pub async fn update_merchant_active_algorithm_ref(
 
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
-        &state.into(),
         &key_store.merchant_id,
         merchant_account_update,
         key_store,
@@ -234,7 +233,6 @@ pub async fn update_merchant_active_algorithm_ref(
 #[cfg(feature = "v1")]
 pub async fn update_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
@@ -264,7 +262,6 @@ pub async fn update_profile_active_algorithm_ref(
     };
 
     db.update_profile_by_profile_id(
-        key_manager_state,
         merchant_key_store,
         current_business_profile,
         business_profile_update,
@@ -295,7 +292,6 @@ pub async fn update_profile_active_algorithm_ref(
 #[cfg(feature = "v1")]
 pub async fn update_business_profile_active_dynamic_algorithm_ref(
     db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     dynamic_routing_algorithm_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -308,7 +304,6 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
         dynamic_routing_algorithm: Some(ref_val),
     };
     db.update_profile_by_profile_id(
-        key_manager_state,
         merchant_key_store,
         current_business_profile,
         business_profile_update,
@@ -478,7 +473,6 @@ pub async fn validate_connectors_in_routing_config(
     let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             merchant_id,
             true,
             key_store,
@@ -805,7 +799,7 @@ pub async fn update_gateway_score_helper_with_open_router(
 
         let routable_connector = routing_types::RoutableConnectorChoice {
             choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-            connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+            connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to infer routable_connector from connector")?,
             merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -862,7 +856,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let routable_connector = routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -1103,7 +1097,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                state.request_id,
+                state.request_id.clone(),
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
@@ -1263,7 +1257,7 @@ pub async fn update_window_for_elimination_routing(
                 vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                        connector: common_enums::RoutableConnectors::from_str(
+                        connector: euclid::enums::RoutableConnectors::from_str(
                             payment_connector.as_str(),
                         )
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1290,7 +1284,7 @@ pub async fn update_window_for_elimination_routing(
 
             let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                state.request_id,
+                state.request_id.clone(),
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
@@ -1365,7 +1359,7 @@ pub async fn update_window_for_elimination_routing(
             routing_event.set_status_code(200);
             routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -1481,7 +1475,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                     state.tenant.tenant_id.clone(),
-                    state.request_id,
+                    state.request_id.clone(),
                     payment_attempt.payment_id.get_string_repr().to_string(),
                     profile_id.to_owned(),
                     payment_attempt.merchant_id.to_owned(),
@@ -1558,7 +1552,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                     choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                    connector: common_enums::RoutableConnectors::from_str(
+                    connector: euclid::enums::RoutableConnectors::from_str(
                         final_label_info.label.as_str(),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1691,9 +1685,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         common_enums::AttemptStatus::Charged
         | common_enums::AttemptStatus::Authorized
         | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable => {
-            common_enums::AttemptStatus::Charged
-        }
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::PartiallyAuthorized => common_enums::AttemptStatus::Charged,
         common_enums::AttemptStatus::Failure
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::AuthenticationFailed
@@ -1705,6 +1698,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::VoidFailed
@@ -1714,9 +1708,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::IntegrityFailure
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => {
-            common_enums::AttemptStatus::Pending
-        }
+        | common_enums::AttemptStatus::DeviceDataCollectionPending
+        | common_enums::AttemptStatus::Expired => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -1729,12 +1722,16 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::RouterDeclined => Self::JuspayDeclined,
             common_enums::AttemptStatus::AuthenticationPending => Self::PendingVbv,
             common_enums::AttemptStatus::AuthenticationSuccessful => Self::VBVSuccessful,
-            common_enums::AttemptStatus::Authorized => Self::Authorized,
+            common_enums::AttemptStatus::Authorized
+            | common_enums::AttemptStatus::PartiallyAuthorized => Self::Authorized,
             common_enums::AttemptStatus::AuthorizationFailed => Self::AuthorizationFailed,
             common_enums::AttemptStatus::Charged => Self::Charged,
             common_enums::AttemptStatus::Authorizing => Self::Authorizing,
             common_enums::AttemptStatus::CodInitiated => Self::CODInitiated,
-            common_enums::AttemptStatus::Voided => Self::Voided,
+            common_enums::AttemptStatus::Voided | common_enums::AttemptStatus::Expired => {
+                Self::Voided
+            }
+            common_enums::AttemptStatus::VoidedPostCharge => Self::VoidedPostCharge,
             common_enums::AttemptStatus::VoidInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
             common_enums::AttemptStatus::CaptureFailed => Self::CaptureFailed,
@@ -1793,7 +1790,6 @@ pub async fn disable_dynamic_routing_algorithm(
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let (algorithm_id, mut dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
@@ -1953,7 +1949,6 @@ pub async fn disable_dynamic_routing_algorithm(
     let response = record.foreign_into();
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        key_manager_state,
         &key_store,
         business_profile,
         dynamic_routing_algorithm,
@@ -1976,6 +1971,7 @@ pub async fn enable_dynamic_routing_algorithm(
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let mut dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
@@ -1991,6 +1987,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
+                payload,
             )
             .await
         }
@@ -2003,6 +2000,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
+                payload,
             )
             .await
         }
@@ -2015,6 +2013,7 @@ pub async fn enable_dynamic_routing_algorithm(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_specific_routing_algorithm<A>(
     state: &SessionState,
@@ -2024,10 +2023,24 @@ pub async fn enable_specific_routing_algorithm<A>(
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     algo_type: Option<A>,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
     A: routing_types::DynamicRoutingAlgoAccessor + Clone + Debug,
 {
+    //Check for payload
+    if let Some(payload) = payload {
+        return create_specific_dynamic_routing_setup(
+            state,
+            key_store,
+            business_profile,
+            feature_to_enable,
+            dynamic_routing_algo_ref,
+            dynamic_routing_type,
+            payload,
+        )
+        .await;
+    }
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {
         return default_specific_dynamic_routing_setup(
@@ -2074,7 +2087,6 @@ where
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        &state.into(),
         &key_store,
         business_profile,
         dynamic_routing_algo_ref.clone(),
@@ -2104,11 +2116,11 @@ pub async fn default_specific_dynamic_routing_setup(
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
+
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let default_success_based_routing_config =
@@ -2139,6 +2151,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 } else {
                     routing_types::EliminationRoutingConfig::default()
                 };
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2170,6 +2183,7 @@ pub async fn default_specific_dynamic_routing_setup(
             business_profile.get_id(),
             dynamic_routing_type,
             &mut dynamic_routing_algo_ref,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2189,7 +2203,123 @@ pub async fn default_specific_dynamic_routing_setup(
     );
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        key_manager_state,
+        &key_store,
+        business_profile,
+        dynamic_routing_algo_ref,
+    )
+    .await?;
+
+    let new_record = record.foreign_into();
+
+    core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+    );
+    Ok(ApplicationResponse::Json(new_record))
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn create_specific_dynamic_routing_setup(
+    state: &SessionState,
+    key_store: domain::MerchantKeyStore,
+    business_profile: domain::Profile,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
+    mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+    dynamic_routing_type: routing_types::DynamicRoutingType,
+    payload: routing_types::DynamicRoutingPayload,
+) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let profile_id = business_profile.get_id().clone();
+    let merchant_id = business_profile.merchant_id.clone();
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+
+    let algo = match dynamic_routing_type {
+        routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            let success_config = match &payload {
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in SuccessBasedRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
+                _ => {
+                    return Err((errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payload type for Success Rate Based Routing".to_string(),
+                    })
+                    .into())
+                }
+            };
+
+            routing_algorithm::RoutingAlgorithm {
+                algorithm_id: algorithm_id.clone(),
+                profile_id: profile_id.clone(),
+                merchant_id,
+                name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                description: None,
+                kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+                algorithm_data: serde_json::json!(success_config),
+                created_at: timestamp,
+                modified_at: timestamp,
+                algorithm_for: common_enums::TransactionType::Payment,
+                decision_engine_routing_id: None,
+            }
+        }
+        routing_types::DynamicRoutingType::EliminationRouting => {
+            let elimination_config = match &payload {
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in EliminationRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
+                _ => {
+                    return Err((errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payload type for Elimination Routing".to_string(),
+                    })
+                    .into())
+                }
+            };
+
+            routing_algorithm::RoutingAlgorithm {
+                algorithm_id: algorithm_id.clone(),
+                profile_id: profile_id.clone(),
+                merchant_id,
+                name: ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                description: None,
+                kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+                algorithm_data: serde_json::json!(elimination_config),
+                created_at: timestamp,
+                modified_at: timestamp,
+                algorithm_for: common_enums::TransactionType::Payment,
+                decision_engine_routing_id: None,
+            }
+        }
+
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
+        }
+    };
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
+    update_business_profile_active_dynamic_algorithm_ref(
+        db,
         &key_store,
         business_profile,
         dynamic_routing_algo_ref,
@@ -2286,20 +2416,30 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     profile_id: &id_type::ProfileId,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
         profile_id.get_string_repr()
     );
 
-    let default_engine_config_request = match dynamic_routing_type {
+    let decision_engine_config_request = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config =
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default();
+            let success_based_routing_config = payload
+                .and_then(|p| match p {
+                    routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                        Some(config)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default,
+                );
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
-                    default_success_based_routing_config
+                    success_based_routing_config
                         .get_decision_engine_configs()
                         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
@@ -2309,12 +2449,21 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_based_routing_config =
-                routing_types::EliminationRoutingConfig::open_router_config_default();
+            let elimination_based_routing_config = payload
+                .and_then(|p| match p {
+                    routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                        Some(config)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(
+                    routing_types::EliminationRoutingConfig::open_router_config_default,
+                );
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::Elimination(
-                    default_elimination_based_routing_config
+                    elimination_based_routing_config
                         .get_decision_engine_configs()
                         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
@@ -2335,11 +2484,11 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_CREATE_ENDPOINT,
-        Some(default_engine_config_request),
+        Some(decision_engine_config_request),
         None,
         None,
     )
@@ -2413,7 +2562,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_UPDATE_ENDPOINT,
@@ -2440,7 +2589,7 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
     );
     let request = open_router::GetDecisionEngineConfigRequest {
         merchant_id: profile_id.get_string_repr().to_owned(),
-        config: dynamic_routing_type,
+        algorithm: dynamic_routing_type,
     };
     let response: Option<open_router::DecisionEngineConfigSetupRequest> =
         routing_utils::ConfigApiClient::send_decision_engine_request(
@@ -2494,7 +2643,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_DELETE_ENDPOINT,
@@ -2545,7 +2694,7 @@ pub async fn create_decision_engine_merchant(
         gateway_success_rate_based_decider_input: None,
     };
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT,
@@ -2571,7 +2720,7 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Delete,
         &path,
@@ -2582,6 +2731,65 @@ pub async fn delete_decision_engine_merchant(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to delete merchant account on decision engine")?;
+
+    Ok(())
+}
+
+pub async fn redact_cgraph_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let cgraph_payouts_key = format!(
+        "cgraph_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let cgraph_payments_key = format!(
+        "cgraph_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let config_payouts_key = cache::CacheKind::CGraph(cgraph_payouts_key.clone().into());
+    let config_payments_key = cache::CacheKind::CGraph(cgraph_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [config_payouts_key, config_payments_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the cgraph cache")?;
+
+    Ok(())
+}
+
+pub async fn redact_routing_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let routing_payments_key = format!(
+        "routing_config_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+    let routing_payouts_key = format!(
+        "routing_config_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
+    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [routing_payouts_cache_key, routing_payments_cache_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the routing cache")?;
 
     Ok(())
 }

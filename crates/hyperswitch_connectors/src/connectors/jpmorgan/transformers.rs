@@ -1,13 +1,11 @@
-use std::str::FromStr;
-
 use common_enums::enums::CaptureMethod;
-use common_utils::types::MinorUnit;
-use error_stack::{report, ResultExt};
+use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCancelData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -19,9 +17,10 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        get_unimplemented_payment_method_error_message, CardData, RouterData as OtherRouterData,
+        self, get_unimplemented_payment_method_error_message, CardData,
+        RouterData as OtherRouterData,
     },
 };
 pub struct JpmorganRouterData<T> {
@@ -50,6 +49,24 @@ pub struct JpmorganAuthUpdateResponse {
     pub scope: String,
     pub token_type: String,
     pub expires_in: i64,
+}
+
+/// JPMorgan connector metadata containing merchant software information
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct JpmorganConnectorMetadataObject {
+    pub company_name: Secret<String>,
+    pub product_name: Secret<String>,
+}
+
+impl TryFrom<&Option<SecretSerdeValue>> for JpmorganConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+        Ok(metadata)
+    }
 }
 
 impl TryFrom<&RefreshTokenRouterData> for JpmorganAuthUpdateRequest {
@@ -154,12 +171,16 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let capture_method =
                     map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
 
-                let merchant_software = JpmorganMerchantSoftware {
-                    company_name: String::from("JPMC").into(),
-                    product_name: String::from("Hyperswitch").into(),
-                };
+                let connector_metadata = JpmorganConnectorMetadataObject::try_from(
+                    &item.router_data.connector_meta_data.clone(),
+                )?;
 
-                let merchant = JpmorganMerchant { merchant_software };
+                let merchant = JpmorganMerchant {
+                    merchant_software: JpmorganMerchantSoftware {
+                        company_name: connector_metadata.company_name,
+                        product_name: connector_metadata.product_name,
+                    },
+                };
 
                 let expiry: Expiry = Expiry {
                     month: Secret::new(
@@ -191,6 +212,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -373,9 +395,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCaptureRequest {
-    capture_method: Option<CapMethod>,
+    capture_method: CapMethod,
     amount: MinorUnit,
-    currency: Option<common_enums::Currency>,
+    currency: common_enums::Currency,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -392,13 +414,14 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     fn try_from(
         item: &JpmorganRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_method = Some(map_capture_method(
-            item.router_data.request.capture_method.unwrap_or_default(),
-        )?);
+        let amount_to_capture = item.amount;
+
+        // When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
+        // isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
         Ok(Self {
-            capture_method,
-            amount: item.amount,
-            currency: Some(item.router_data.request.currency),
+            capture_method: CapMethod::Now,
+            amount: amount_to_capture,
+            currency: item.router_data.request.currency,
         })
     }
 }
@@ -526,11 +549,17 @@ pub struct MerchantRefundReq {
 impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let merchant_software = JpmorganMerchantSoftware {
-            company_name: String::from("JPMC").into(),
-            product_name: String::from("Hyperswitch").into(),
+        let connector_metadata = JpmorganConnectorMetadataObject::try_from(
+            &item.router_data.connector_meta_data.clone(),
+        )?;
+
+        let merchant = MerchantRefundReq {
+            merchant_software: JpmorganMerchantSoftware {
+                company_name: connector_metadata.company_name,
+                product_name: connector_metadata.product_name,
+            },
         };
-        let merchant = MerchantRefundReq { merchant_software };
+
         let amount = item.amount;
         let currency = item.router_data.request.currency;
 
@@ -655,62 +684,17 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ReversalReason {
-    NoResponse,
-    LateResponse,
-    UnableToDeliver,
-    CardDeclined,
-    MacNotVerified,
-    MacSyncError,
-    ZekSyncError,
-    SystemMalfunction,
-    SuspectedFraud,
-}
-
-impl FromStr for ReversalReason {
-    type Err = error_stack::Report<errors::ConnectorError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_uppercase().as_str() {
-            "NO_RESPONSE" => Ok(Self::NoResponse),
-            "LATE_RESPONSE" => Ok(Self::LateResponse),
-            "UNABLE_TO_DELIVER" => Ok(Self::UnableToDeliver),
-            "CARD_DECLINED" => Ok(Self::CardDeclined),
-            "MAC_NOT_VERIFIED" => Ok(Self::MacNotVerified),
-            "MAC_SYNC_ERROR" => Ok(Self::MacSyncError),
-            "ZEK_SYNC_ERROR" => Ok(Self::ZekSyncError),
-            "SYSTEM_MALFUNCTION" => Ok(Self::SystemMalfunction),
-            "SUSPECTED_FRAUD" => Ok(Self::SuspectedFraud),
-            _ => Err(report!(errors::ConnectorError::InvalidDataFormat {
-                field_name: "cancellation_reason",
-            })),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCancelRequest {
-    pub amount: Option<i64>,
-    pub is_void: Option<bool>,
-    pub reversal_reason: Option<ReversalReason>,
+    // As per the docs, this is not a required field
+    // Since we always pass `true` in `isVoid` only during the void call, it makes more sense to have it required field
+    pub is_void: bool,
 }
 
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.router_data.request.amount,
-            is_void: Some(true),
-            reversal_reason: item
-                .router_data
-                .request
-                .cancellation_reason
-                .as_ref()
-                .map(|reason| ReversalReason::from_str(reason))
-                .transpose()?,
-        })
+    fn try_from(_item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
+        Ok(Self { is_void: true })
     }
 }
 
@@ -738,18 +722,12 @@ pub struct CardCancelResponse {
     pub card_type_name: Secret<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<JpmorganCancelResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            JpmorganCancelResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<JpmorganCancelResponse>,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.response_status {
             JpmorganResponseStatus::Success => common_enums::AttemptStatus::Voided,

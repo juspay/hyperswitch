@@ -29,7 +29,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
+        AuthenticationResponseData, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
@@ -143,9 +144,11 @@ impl ConnectorCommon for Netcetera {
             reason: response.error_details.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -214,12 +217,27 @@ impl IncomingWebhook for Netcetera {
             .body
             .parse_struct("netcetera ResultsResponseData")
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let challenge_cancel = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.get("challengeCancel").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
+        let challenge_code_reason = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.get("transStatusReason").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
         Ok(ExternalAuthenticationPayload {
             trans_status: webhook_body
                 .trans_status
                 .unwrap_or(common_enums::TransactionStatus::InformationOnly),
             authentication_value: webhook_body.authentication_value,
             eci: webhook_body.eci,
+            challenge_cancel,
+            challenge_code_reason,
         })
     }
 }
@@ -449,4 +467,23 @@ impl
 {
 }
 
-impl ConnectorSpecifications for Netcetera {}
+static NETCETERA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Netcetera",
+    description: "Netcetera authentication provider for comprehensive 3D Secure solutions including certified ACS, Directory Server, and multi-protocol EMV 3DS supports",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Netcetera {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NETCETERA_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

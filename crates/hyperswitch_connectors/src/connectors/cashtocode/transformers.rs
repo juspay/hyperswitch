@@ -8,7 +8,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm},
     types::PaymentsAuthorizeRouterData,
 };
@@ -17,7 +17,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::ResponseRouterData,
+    types::{PaymentsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
@@ -224,24 +224,12 @@ fn get_redirect_form_data(
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            CashtocodePaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<CashtocodePaymentsResponse>>
+    for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CashtocodePaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<CashtocodePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response {
             CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
@@ -253,9 +241,11 @@ impl<F>
                     reason: Some(error_data.error_description),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {

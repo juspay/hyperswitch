@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::sync::LazyLock;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
@@ -12,19 +14,25 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, CompleteAuthorize, Execute, PSync, PaymentMethodToken,
-        PreProcessing, RSync, Session, SetupMandate, Void,
+        unified_authentication_service::PreAuthenticate, AccessTokenAuth, Authorize, Capture,
+        CompleteAuthorize, Execute, PSync, PaymentMethodToken, PreProcessing, RSync, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,8 +45,8 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response,
+        PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -48,7 +56,7 @@ use transformers as nmi;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{construct_not_supported_error_report, convert_amount, get_header_key_value},
+    utils::{self, convert_amount, get_header_key_value},
 };
 
 #[derive(Clone)]
@@ -76,6 +84,7 @@ impl api::Refund for Nmi {}
 impl api::RefundExecute for Nmi {}
 impl api::RefundSync for Nmi {}
 impl api::PaymentToken for Nmi {}
+impl api::PaymentsPreAuthenticate for Nmi {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nmi
 where
@@ -126,31 +135,16 @@ impl ConnectorCommon for Nmi {
             code: response.response_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
 
 impl ConnectorValidation for Nmi {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -160,6 +154,99 @@ impl ConnectorValidation for Nmi {
     ) -> CustomResult<(), ConnectorError> {
         // in case we dont have transaction id, we can make psync using attempt id
         Ok(())
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    ) -> CustomResult<(), ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::Card,
+            utils::PaymentMethodDataType::ApplePay,
+        ]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
+}
+
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for Nmi
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(format!("{}api/transact.php", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let connector_req = nmi::NmiVaultRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(PaymentsPreAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&PaymentsPreAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsPreAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, ConnectorError> {
+        let response: nmi::NmiVaultResponse = serde_urlencoded::from_bytes(&res.response)
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -194,27 +281,23 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
+        let connector_req = nmi::NmiValidateRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        _req: &SetupMandateRouterData,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, ConnectorError> {
-        Err(ConnectorError::NotImplemented("Setup Mandate flow for Nmi".to_string()).into())
-
-        // Ok(Some(
-        //     RequestBuilder::new()
-        //         .method(Method::Post)
-        //         .url(&SetupMandateType::get_url(self, req, connectors)?)
-        //         .headers(SetupMandateType::get_headers(self, req, connectors)?)
-        //         .set_body(SetupMandateType::get_request_body(
-        //             self, req, connectors,
-        //         )?)
-        //         .build(),
-        // ))
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&SetupMandateType::get_url(self, req, connectors)?)
+                .headers(SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(SetupMandateType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
@@ -853,13 +936,15 @@ impl IncomingWebhook for Nmi {
             .captures(sig_header)
         {
             let signature = captures
-                .get(1)
+                .get(2)
                 .ok_or(ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
-            return Ok(signature.as_bytes().to_vec());
-        }
 
-        Err(report!(ConnectorError::WebhookSignatureNotFound))
+            // Decode hex signature to bytes
+            hex::decode(signature).change_context(ConnectorError::WebhookSignatureNotFound)
+        } else {
+            Err(report!(ConnectorError::WebhookSignatureNotFound))
+        }
     }
 
     fn get_webhook_source_verification_message(
@@ -877,15 +962,16 @@ impl IncomingWebhook for Nmi {
             .captures(sig_header)
         {
             let nonce = captures
-                .get(0)
+                .get(1)
                 .ok_or(ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
 
             let message = format!("{}.{}", nonce, String::from_utf8_lossy(request.body));
 
-            return Ok(message.into_bytes());
+            Ok(message.into_bytes())
+        } else {
+            Err(report!(ConnectorError::WebhookSignatureNotFound))
         }
-        Err(report!(ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_object_reference_id(
@@ -1003,4 +1089,123 @@ impl ConnectorRedirectResponse for Nmi {
     }
 }
 
-impl ConnectorSpecifications for Nmi {}
+static NMI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Maestro,
+    ];
+
+    let mut nmi_supported_payment_methods = SupportedPaymentMethods::new();
+
+    nmi_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    nmi_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network,
+                    }
+                }),
+            ),
+        },
+    );
+
+    nmi_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    nmi_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
+
+    nmi_supported_payment_methods
+});
+
+static NMI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "NMI",
+    description: "NMI is a global leader in embedded payments, powering more than $200 billion in payment volumes every year.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
+};
+
+static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
+
+impl ConnectorSpecifications for Nmi {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data: _,
+                auth_type,
+            } => *auth_type == enums::AuthenticationType::ThreeDs,
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { auth_type } => {
+                *auth_type == enums::AuthenticationType::ThreeDs
+            }
+        }
+    }
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NMI_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*NMI_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&NMI_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

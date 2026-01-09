@@ -89,7 +89,8 @@ pub async fn get_authorization_info_with_group_tag(
 pub async fn get_parent_group_info(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<role_api::ParentGroupInfo>> {
+    request: role_api::GetParentGroupsInfoQueryParams,
+) -> UserResponse<Vec<role_api::ParentGroupDescription>> {
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
@@ -102,24 +103,38 @@ pub async fn get_parent_group_info(
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
-    let parent_groups = ParentGroup::get_descriptions_for_groups(
-        role_info.get_entity_type(),
-        PermissionGroup::iter().collect(),
-    )
-    .unwrap_or_default()
-    .into_iter()
-    .map(|(parent_group, description)| role_api::ParentGroupInfo {
-        name: parent_group.clone(),
-        description,
-        scopes: PermissionGroup::iter()
-            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-            // TODO: Remove this hashset conversion when merhant access
-            // and organization access groups are removed
-            .collect::<HashSet<_>>()
+    let entity_type = request
+        .entity_type
+        .unwrap_or_else(|| role_info.get_entity_type());
+
+    if role_info.get_entity_type() < entity_type {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "Invalid operation, requestor entity type = {} cannot access entity type = {}",
+            role_info.get_entity_type(),
+            entity_type
+        ));
+    }
+
+    let parent_groups =
+        ParentGroup::get_descriptions_for_groups(entity_type, PermissionGroup::iter().collect())
+            .unwrap_or_default()
             .into_iter()
-            .collect(),
-    })
-    .collect::<Vec<_>>();
+            .map(
+                |(parent_group, description)| role_api::ParentGroupDescription {
+                    name: parent_group.clone(),
+                    description,
+                    scopes: PermissionGroup::iter()
+                        .filter_map(|group| {
+                            (group.parent() == parent_group).then_some(group.scope())
+                        })
+                        // TODO: Remove this hashset conversion when merchant access
+                        // and organization access groups are removed
+                        .collect::<HashSet<_>>()
+                        .into_iter()
+                        .collect(),
+                },
+            )
+            .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(parent_groups))
 }
@@ -1009,11 +1024,9 @@ pub async fn list_invitations_for_user(
     .into_iter()
     .collect::<HashMap<_, _>>();
 
-    let key_manager_state = &(&state).into();
-
     let merchant_name_map = state
         .store
-        .list_multiple_merchant_accounts(key_manager_state, merchant_ids)
+        .list_multiple_merchant_accounts(merchant_ids)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
@@ -1033,17 +1046,13 @@ pub async fn list_invitations_for_user(
         |(profile_id, merchant_id)| async {
             let merchant_key_store = state
                 .store
-                .get_merchant_key_store_by_merchant_id(key_manager_state, merchant_id, master_key)
+                .get_merchant_key_store_by_merchant_id(merchant_id, master_key)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
             let business_profile = state
                 .store
-                .find_business_profile_by_profile_id(
-                    key_manager_state,
-                    &merchant_key_store,
-                    profile_id,
-                )
+                .find_business_profile_by_profile_id(&merchant_key_store, profile_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 

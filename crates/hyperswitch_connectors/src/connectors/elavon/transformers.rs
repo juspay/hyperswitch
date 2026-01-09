@@ -4,9 +4,9 @@ use common_utils::{pii::Email, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -19,8 +19,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     types::{
-        PaymentsCaptureResponseRouterData, PaymentsSyncResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData,
     },
     utils::{CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _},
 };
@@ -95,36 +95,39 @@ impl TryFrom<&ElavonRouterData<&PaymentsAuthorizeRouterData>> for ElavonPayments
         item: &ElavonRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth = ElavonAuthType::try_from(&item.router_data.connector_auth_type)?;
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "Elavon",
-            })?
-        };
+
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => Ok(Self::Card(CardPaymentRequest {
-                ssl_transaction_type: match item.router_data.request.is_auto_capture()? {
-                    true => TransactionType::CcSale,
-                    false => TransactionType::CcAuthOnly,
-                },
-                ssl_account_id: auth.account_id.clone(),
-                ssl_user_id: auth.user_id.clone(),
-                ssl_pin: auth.pin.clone(),
-                ssl_amount: item.amount.clone(),
-                ssl_card_number: req_card.card_number.clone(),
-                ssl_exp_date: req_card.get_expiry_date_as_mmyy()?,
-                ssl_cvv2cvc2: req_card.card_cvc,
-                ssl_email: item.router_data.get_billing_email()?,
-                ssl_add_token: match item.router_data.request.is_mandate_payment() {
-                    true => Some("Y".to_string()),
-                    false => None,
-                },
-                ssl_get_token: match item.router_data.request.is_mandate_payment() {
-                    true => Some("Y".to_string()),
-                    false => None,
-                },
-                ssl_transaction_currency: item.router_data.request.currency,
-            })),
+            PaymentMethodData::Card(req_card) => {
+                if item.router_data.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Card 3DS".to_string(),
+                        connector: "Elavon",
+                    })?
+                };
+                Ok(Self::Card(CardPaymentRequest {
+                    ssl_transaction_type: match item.router_data.request.is_auto_capture()? {
+                        true => TransactionType::CcSale,
+                        false => TransactionType::CcAuthOnly,
+                    },
+                    ssl_account_id: auth.account_id.clone(),
+                    ssl_user_id: auth.user_id.clone(),
+                    ssl_pin: auth.pin.clone(),
+                    ssl_amount: item.amount.clone(),
+                    ssl_card_number: req_card.card_number.clone(),
+                    ssl_exp_date: req_card.get_expiry_date_as_mmyy()?,
+                    ssl_cvv2cvc2: req_card.card_cvc,
+                    ssl_email: item.router_data.get_billing_email()?,
+                    ssl_add_token: match item.router_data.request.is_mandate_payment() {
+                        true => Some("Y".to_string()),
+                        false => None,
+                    },
+                    ssl_get_token: match item.router_data.request.is_mandate_payment() {
+                        true => Some("Y".to_string()),
+                        false => None,
+                    },
+                    ssl_transaction_currency: item.router_data.request.currency,
+                }))
+            }
             PaymentMethodData::MandatePayment => Ok(Self::MandatePayment(MandatePaymentRequest {
                 ssl_transaction_type: match item.router_data.request.is_auto_capture()? {
                     true => TransactionType::CcSale,
@@ -255,19 +258,10 @@ impl<'de> Deserialize<'de> for ElavonPaymentsResponse {
         Ok(Self { result })
     }
 }
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, ElavonPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            ElavonPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<ElavonPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let status =
             get_payment_status(&item.response.result, item.data.request.is_auto_capture()?);
@@ -281,10 +275,12 @@ impl<F>
                 reason: Some(error.error_message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -294,10 +290,12 @@ impl<F>
                         reason: Some(response.ssl_result_message.clone()),
                         attempt_status: None,
                         connector_transaction_id: Some(response.ssl_txn_id.clone()),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -504,10 +502,12 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                 reason: Some(error.error_message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -517,10 +517,12 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         reason: Some(response.ssl_result_message.clone()),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -563,10 +565,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                 reason: Some(error.error_message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::RefundStatus::Failure {
@@ -576,10 +580,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                         reason: Some(response.ssl_result_message.clone()),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(RefundsResponseData {

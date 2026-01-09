@@ -1,10 +1,15 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
-use common_utils::{id_type, types as util_types};
+use common_types::primitive_wrappers;
+use common_utils::{id_type, pii, types as util_types};
 use time::PrimitiveDateTime;
 
-use crate::router_response_types::revenue_recovery::{
-    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+use crate::{
+    payments,
+    router_response_types::revenue_recovery::{
+        BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+    },
+    ApiModelToDieselModelConvertor,
 };
 
 /// Recovery payload is unified struct constructed from billing connectors
@@ -48,12 +53,12 @@ pub struct RevenueRecoveryAttemptData {
     pub retry_count: Option<u16>,
     /// Time when next invoice will be generated which will be equal to the end time of the current invoice
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
-    /// card network type
-    pub card_network: Option<common_enums::CardNetwork>,
-    /// card isin
-    pub card_isin: Option<String>,
+    /// Time at which the invoice created
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
     /// stripe specific id used to validate duplicate attempts in revenue recovery flow
     pub charge_id: Option<String>,
+    /// Additional card details
+    pub card_info: api_payments::AdditionalCardInfo,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -71,35 +76,37 @@ pub struct RevenueRecoveryInvoiceData {
     pub retry_count: Option<u16>,
     /// Ending date of the invoice or the Next billing time of the Subscription
     pub next_billing_at: Option<PrimitiveDateTime>,
+    /// Invoice Starting Time
+    pub billing_started_at: Option<PrimitiveDateTime>,
+    /// metadata of the merchant
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
-/// type of action that needs to taken after consuming recovery payload
-#[derive(Debug)]
-pub enum RecoveryAction {
-    /// Stops the process tracker and update the payment intent.
-    CancelInvoice,
-    /// Records the external transaction against payment intent.
-    ScheduleFailedPayment,
-    /// Records the external payment and stops the internal process tracker.
-    SuccessPaymentExternal,
-    /// Pending payments from billing processor.
-    PendingPayment,
-    /// No action required.
-    NoAction,
-    /// Invalid event has been received.
-    InvalidAction,
-}
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
     pub feature_metadata: Option<api_payments::FeatureMetadata>,
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    pub invoice_amount: util_types::MinorUnit,
+    pub invoice_currency: common_enums::Currency,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub billing_address: Option<api_payments::Address>,
 }
 
+#[derive(Clone, Debug)]
 pub struct RecoveryPaymentAttempt {
     pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,
     pub feature_metadata: Option<api_payments::PaymentAttemptFeatureMetadata>,
+    pub amount: util_types::MinorUnit,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub error_code: Option<String>,
+    pub created_at: PrimitiveDateTime,
 }
 
 impl RecoveryPaymentAttempt {
@@ -110,62 +117,6 @@ impl RecoveryPaymentAttempt {
                 .as_ref()
                 .map(|recovery| recovery.attempt_triggered_by)
         })
-    }
-}
-
-impl RecoveryAction {
-    pub fn get_action(
-        event_type: webhooks::IncomingWebhookEvent,
-        attempt_triggered_by: Option<common_enums::TriggeredBy>,
-    ) -> Self {
-        match event_type {
-            webhooks::IncomingWebhookEvent::PaymentIntentFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentSuccess
-            | webhooks::IncomingWebhookEvent::PaymentIntentProcessing
-            | webhooks::IncomingWebhookEvent::PaymentIntentPartiallyFunded
-            | webhooks::IncomingWebhookEvent::PaymentIntentCancelled
-            | webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
-            | webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
-            | webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
-            | webhooks::IncomingWebhookEvent::PaymentActionRequired
-            | webhooks::IncomingWebhookEvent::EventNotSupported
-            | webhooks::IncomingWebhookEvent::SourceChargeable
-            | webhooks::IncomingWebhookEvent::SourceTransactionCreated
-            | webhooks::IncomingWebhookEvent::RefundFailure
-            | webhooks::IncomingWebhookEvent::RefundSuccess
-            | webhooks::IncomingWebhookEvent::DisputeOpened
-            | webhooks::IncomingWebhookEvent::DisputeExpired
-            | webhooks::IncomingWebhookEvent::DisputeAccepted
-            | webhooks::IncomingWebhookEvent::DisputeCancelled
-            | webhooks::IncomingWebhookEvent::DisputeChallenged
-            | webhooks::IncomingWebhookEvent::DisputeWon
-            | webhooks::IncomingWebhookEvent::DisputeLost
-            | webhooks::IncomingWebhookEvent::MandateActive
-            | webhooks::IncomingWebhookEvent::MandateRevoked
-            | webhooks::IncomingWebhookEvent::EndpointVerification
-            | webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
-            | webhooks::IncomingWebhookEvent::FrmApproved
-            | webhooks::IncomingWebhookEvent::FrmRejected
-            | webhooks::IncomingWebhookEvent::PayoutSuccess
-            | webhooks::IncomingWebhookEvent::PayoutFailure
-            | webhooks::IncomingWebhookEvent::PayoutProcessing
-            | webhooks::IncomingWebhookEvent::PayoutCancelled
-            | webhooks::IncomingWebhookEvent::PayoutCreated
-            | webhooks::IncomingWebhookEvent::PayoutExpired
-            | webhooks::IncomingWebhookEvent::PayoutReversed => Self::InvalidAction,
-            webhooks::IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {
-                Some(common_enums::TriggeredBy::Internal) => Self::NoAction,
-                Some(common_enums::TriggeredBy::External) | None => Self::ScheduleFailedPayment,
-            },
-            webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess => match attempt_triggered_by {
-                Some(common_enums::TriggeredBy::Internal) => Self::NoAction,
-                Some(common_enums::TriggeredBy::External) | None => Self::SuccessPaymentExternal,
-            },
-            webhooks::IncomingWebhookEvent::RecoveryPaymentPending => Self::PendingPayment,
-            webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel => Self::CancelInvoice,
-        }
     }
 }
 
@@ -202,12 +153,12 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
             description: None,
             return_url: None,
-            setup_future_usage: None,
+            setup_future_usage: Some(common_enums::FutureUsage::OffSession),
             apply_mit_exemption: None,
             statement_descriptor: None,
             order_details: None,
             allowed_payment_method_types: None,
-            metadata: None,
+            metadata: data.metadata.clone(),
             connector_metadata: None,
             feature_metadata: None,
             payment_link_enabled: None,
@@ -218,6 +169,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             request_external_three_ds_authentication: None,
             force_3ds_challenge: None,
             merchant_connector_details: None,
+            enable_partial_authorization: data.enable_partial_authorization,
         }
     }
 }
@@ -231,6 +183,9 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             billing_address: data.billing_address.clone(),
             retry_count: data.retry_count,
             next_billing_at: data.ends_at,
+            billing_started_at: data.created_at,
+            metadata: None,
+            enable_partial_authorization: None,
         }
     }
 }
@@ -278,9 +233,9 @@ impl
             network_error_message: None,
             retry_count: invoice_details.retry_count,
             invoice_next_billing_time: invoice_details.next_billing_at,
-            card_network: billing_connector_payment_details.card_network.clone(),
-            card_isin: billing_connector_payment_details.card_isin.clone(),
             charge_id: billing_connector_payment_details.charge_id.clone(),
+            invoice_billing_started_at_time: invoice_details.billing_started_at,
+            card_info: billing_connector_payment_details.card_info.clone(),
         }
     }
 }
@@ -295,6 +250,7 @@ impl From<&RevenueRecoveryAttemptData> for api_payments::PaymentAttemptAmountDet
             amount_capturable: data.amount,
             shipping_cost: None,
             order_tax_amount: None,
+            amount_captured: None,
         }
     }
 }
@@ -311,5 +267,63 @@ impl From<&RevenueRecoveryAttemptData> for Option<api_payments::RecordAttemptErr
                 network_decline_code: data.network_decline_code.clone(),
                 network_error_message: data.network_error_message.clone(),
             })
+    }
+}
+
+impl From<&payments::PaymentIntent> for RecoveryPaymentIntent {
+    fn from(payment_intent: &payments::PaymentIntent) -> Self {
+        Self {
+            payment_id: payment_intent.id.clone(),
+            status: payment_intent.status,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .clone()
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+            invoice_amount: payment_intent.amount_details.order_amount,
+            invoice_currency: payment_intent.amount_details.currency,
+            billing_address: payment_intent
+                .billing_address
+                .clone()
+                .map(|address| api_payments::Address::from(address.into_inner())),
+            merchant_id: payment_intent.merchant_id.clone(),
+            created_at: Some(payment_intent.created_at),
+        }
+    }
+}
+
+impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt {
+    fn from(payment_attempt: &payments::payment_attempt::PaymentAttempt) -> Self {
+        Self {
+            attempt_id: payment_attempt.id.clone(),
+            attempt_status: payment_attempt.status,
+            feature_metadata: payment_attempt
+                .feature_metadata
+                .clone()
+                .map(
+                    |feature_metadata| api_payments::PaymentAttemptFeatureMetadata {
+                        revenue_recovery: feature_metadata.revenue_recovery.map(|recovery| {
+                            api_payments::PaymentAttemptRevenueRecoveryData {
+                                attempt_triggered_by: recovery.attempt_triggered_by,
+                                charge_id: recovery.charge_id,
+                            }
+                        }),
+                    },
+                ),
+            amount: payment_attempt.amount_details.get_net_amount(),
+            network_advice_code: payment_attempt
+                .error
+                .clone()
+                .and_then(|error| error.network_advice_code),
+            network_decline_code: payment_attempt
+                .error
+                .clone()
+                .and_then(|error| error.network_decline_code),
+            error_code: payment_attempt
+                .error
+                .as_ref()
+                .map(|error| error.code.clone()),
+            created_at: payment_attempt.created_at,
+        }
     }
 }

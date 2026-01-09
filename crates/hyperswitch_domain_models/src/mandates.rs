@@ -14,6 +14,8 @@ use common_utils::{
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
+use crate::router_data::RecurringMandatePaymentData;
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
@@ -54,7 +56,7 @@ pub struct MandateAmountData {
 
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Serialize)]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
@@ -172,6 +174,21 @@ pub struct PaymentsMandateReferenceRecord {
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub connector_customer_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<&PaymentsMandateReferenceRecord> for RecurringMandatePaymentData {
+    fn from(mandate_reference_record: &PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            payment_method_type: mandate_reference_record.payment_method_type,
+            original_payment_authorized_amount: mandate_reference_record
+                .original_payment_authorized_amount,
+            original_payment_authorized_currency: mandate_reference_record
+                .original_payment_authorized_currency,
+            mandate_metadata: mandate_reference_record.mandate_metadata.clone(),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -189,6 +206,7 @@ pub struct ConnectorTokenReferenceRecord {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PayoutsMandateReferenceRecord {
     pub transfer_method_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -222,6 +240,19 @@ pub struct PaymentsTokenReference(
 pub struct PaymentsMandateReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
+
+#[cfg(feature = "v1")]
+impl PaymentsMandateReference {
+    pub fn is_active_connector_mandate_available(&self) -> bool {
+        self.clone().0.into_iter().any(|detail| {
+            detail
+                .1
+                .connector_mandate_status
+                .map(|connector_mandate_status| connector_mandate_status.is_active())
+                .unwrap_or(false)
+        })
+    }
+}
 
 #[cfg(feature = "v1")]
 impl std::ops::Deref for PaymentsMandateReference {
@@ -412,6 +443,7 @@ impl From<diesel_models::PayoutsMandateReferenceRecord> for PayoutsMandateRefere
     fn from(value: diesel_models::PayoutsMandateReferenceRecord) -> Self {
         Self {
             transfer_method_id: value.transfer_method_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
@@ -420,6 +452,7 @@ impl From<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateRefere
     fn from(value: PayoutsMandateReferenceRecord) -> Self {
         Self {
             transfer_method_id: value.transfer_method_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
@@ -459,6 +492,7 @@ impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateRefe
             mandate_metadata: value.mandate_metadata,
             connector_mandate_status: value.connector_mandate_status,
             connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
@@ -498,6 +532,7 @@ impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateRefe
             mandate_metadata: value.mandate_metadata,
             connector_mandate_status: value.connector_mandate_status,
             connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }

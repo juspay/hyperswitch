@@ -182,9 +182,11 @@ impl ConnectorCommon for Bluesnap {
                             reason: Some(reason),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         }
                     }
                     bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
@@ -194,9 +196,11 @@ impl ConnectorCommon for Bluesnap {
                         reason: Some(error_res.error_description),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     },
                     bluesnap::BluesnapErrors::General(error_response) => {
                         let (error_res, attempt_status) = if res.status_code == 403
@@ -218,9 +222,11 @@ impl ConnectorCommon for Bluesnap {
                             reason: Some(error_res),
                             attempt_status,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         }
                     }
                 };
@@ -1479,7 +1485,8 @@ static BLUESNAP_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "BlueSnap",
     description:
         "BlueSnap is a payment platform that helps businesses accept payments from customers in over 200 regions ",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static BLUESNAP_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

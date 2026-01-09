@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
@@ -9,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -45,18 +46,27 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsSyncType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as gocardless;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{is_mandate_supported, PaymentMethodDataType},
+    utils::{self, is_mandate_supported, PaymentMethodDataType},
 };
 
-#[derive(Debug, Clone)]
-pub struct Gocardless;
+#[derive(Clone)]
+pub struct Gocardless {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Gocardless {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Gocardless {}
 impl api::PaymentSession for Gocardless {}
@@ -158,9 +168,11 @@ impl ConnectorCommon for Gocardless {
             reason: Some(error_reason.join("; ")),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -471,12 +483,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gocardless::GocardlessRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = gocardless::GocardlessRouterData::from((amount, req));
         let connector_req =
             gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -637,12 +650,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gocardl
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gocardless::GocardlessRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = gocardless::GocardlessRouterData::from((refund_amount, req));
+
         let connector_req = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -863,8 +878,8 @@ impl IncomingWebhook for Gocardless {
     }
 }
 
-lazy_static! {
-    static ref GOCARDLESS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static GOCARDLESS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
@@ -906,18 +921,24 @@ lazy_static! {
         );
 
         gocardless_supported_payment_methods
-    };
-    static ref GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "GoCardless",
-        description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Mandates];
-}
+    });
+
+static GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "GoCardless",
+    description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+static GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Mandates,
+];
 
 impl ConnectorSpecifications for Gocardless {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*GOCARDLESS_CONNECTOR_INFO)
+        Some(&GOCARDLESS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -925,6 +946,13 @@ impl ConnectorSpecifications for Gocardless {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
     }
 }

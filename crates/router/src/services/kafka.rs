@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
 use num_traits::ToPrimitive;
@@ -10,7 +10,6 @@ use rdkafka::{
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
 use serde_json::Value;
-use storage_impl::config::TenantConfig;
 #[cfg(feature = "payouts")]
 pub mod payout;
 use diesel_models::fraud_check::FraudCheck;
@@ -28,7 +27,8 @@ mod payment_intent;
 mod payment_intent_event;
 mod refund;
 mod refund_event;
-use diesel_models::{authentication::Authentication, refund::Refund};
+pub mod revenue_recovery;
+use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 use time::{OffsetDateTime, PrimitiveDateTime};
@@ -162,6 +162,7 @@ pub struct KafkaSettings {
     consolidated_events_topic: String,
     authentication_analytics_topic: String,
     routing_logs_topic: String,
+    revenue_recovery_topic: String,
 }
 
 impl KafkaSettings {
@@ -277,6 +278,7 @@ pub struct KafkaProducer {
     authentication_analytics_topic: String,
     ckh_database_name: Option<String>,
     routing_logs_topic: String,
+    revenue_recovery_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -327,6 +329,7 @@ impl KafkaProducer {
             authentication_analytics_topic: conf.authentication_analytics_topic.clone(),
             ckh_database_name: None,
             routing_logs_topic: conf.routing_logs_topic.clone(),
+            revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
         })
     }
 
@@ -435,8 +438,8 @@ impl KafkaProducer {
 
     pub async fn log_authentication(
         &self,
-        authentication: &Authentication,
-        old_authentication: Option<Authentication>,
+        authentication: &hyperswitch_domain_models::authentication::Authentication,
+        old_authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
         tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_authentication {
@@ -665,6 +668,7 @@ impl KafkaProducer {
             EventType::Consolidated => &self.consolidated_events_topic,
             EventType::Authentication => &self.authentication_analytics_topic,
             EventType::RoutingApiLogs => &self.routing_logs_topic,
+            EventType::RevenueRecovery => &self.revenue_recovery_topic,
         }
     }
 }

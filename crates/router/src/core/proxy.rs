@@ -3,7 +3,7 @@ use crate::{logger, routes::SessionState, services, types::domain};
 pub mod utils;
 use api_models::proxy as proxy_api_models;
 use common_utils::{
-    ext_traits::{BytesExt, Encode},
+    ext_traits::BytesExt,
     request::{self, RequestBuilder},
 };
 use error_stack::ResultExt;
@@ -12,37 +12,19 @@ use serde_json::Value;
 
 pub async fn proxy_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
     let proxy_record = req_wrapper
         .get_proxy_record(
             &state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await?;
 
-    let vault_id = proxy_record.get_vault_id()?;
-    let customer_id = proxy_record.get_customer_id()?;
-
-    let vault_response =
-        super::payment_methods::vault::retrieve_payment_method_from_vault_internal(
-            &state,
-            &merchant_context,
-            &vault_id,
-            &customer_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching data from vault")?;
-
-    let vault_data = vault_response
-        .data
-        .encode_to_value()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize vault data")?;
+    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
 
     let processed_body =
         interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;

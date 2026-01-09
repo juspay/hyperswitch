@@ -69,12 +69,6 @@ pub struct FacilitapayPaymentsRequest {
     pub transaction: FacilitapayTransactionRequest,
 }
 
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct FacilitapayRefundRequest {
-    pub amount: StringMajorUnit,
-}
-
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct FacilitapayCustomerRequest {

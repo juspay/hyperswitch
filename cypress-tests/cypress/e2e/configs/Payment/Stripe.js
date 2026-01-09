@@ -1,7 +1,7 @@
 import {
-  customerAcceptance,
   cardRequiredField,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -296,8 +296,8 @@ export const connectorDetails = {
           error_code: "card_declined",
           error_message:
             "message - Your card was declined., decline_code - generic_decline",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "UE_1000",
+          unified_message: "Issue with Payment Method details",
         },
       },
     },
@@ -390,6 +390,27 @@ export const connectorDetails = {
         },
       },
     },
+    // IncrementalAuth: { // commenting out due to credentials issue
+    //   Request: {
+    //     amount: 8000,
+    //   },
+    //   Response: {
+    //     status: 200,
+    //     body: {
+    //       status: "requires_capture",
+    //       amount: 8000,
+    //       amount_capturable: 8000,
+    //       amount_received: null,
+    //       incremental_authorizations: [
+    //         {
+    //           amount: 8000,
+    //           previously_authorized_amount: 6000,
+    //           status: "requires_capture",
+    //         },
+    //       ],
+    //     },
+    //   },
+    // },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -574,6 +595,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -780,6 +803,38 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  bank_transfer_pm: {
+    Ach: {
+      Request: {
+        amount: 333,
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        billing: {
+          address: {
+            zip: "560095",
+            country: "US",
+            first_name: "akshakaya N",
+            last_name: "sss",
+            line1: "Fasdf",
+            line2: "Fasdf",
+            city: "Fasdf",
+          },
+          email: "johndoe@mail.com",
+        },
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
+          },
+        },
       },
       Response: {
         status: 200,

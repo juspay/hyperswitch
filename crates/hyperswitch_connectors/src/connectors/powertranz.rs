@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use api_models::enums::AuthenticationType;
 use common_enums::enums;
@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -46,18 +47,30 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as powertranz;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{PaymentsAuthorizeRequestData as _, PaymentsCompleteAuthorizeRequestData as _},
+    utils::{
+        convert_amount, PaymentsAuthorizeRequestData as _,
+        PaymentsCompleteAuthorizeRequestData as _,
+    },
 };
 
-#[derive(Debug, Clone)]
-pub struct Powertranz;
+#[derive(Clone)]
+pub struct Powertranz {
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Powertranz {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Powertranz {}
 impl api::PaymentSession for Powertranz {}
@@ -147,9 +160,11 @@ impl ConnectorCommon for Powertranz {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -210,7 +225,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = powertranz::PowertranzPaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = powertranz::PowertranzRouterData::try_from((amount, req))?;
+        let connector_req =
+            powertranz::PowertranzPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -381,7 +404,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = powertranz::PowertranzRouterData::try_from((amount, req))?;
+        let connector_req = powertranz::PowertranzBaseRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -531,7 +561,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Powertr
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = powertranz::PowertranzBaseRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = powertranz::PowertranzRouterData::try_from((amount, req))?;
+        let connector_req = powertranz::PowertranzBaseRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -608,8 +645,8 @@ impl webhooks::IncomingWebhook for Powertranz {
     }
 }
 
-lazy_static! {
-    static ref POWERTRANZ_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static POWERTRANZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -619,6 +656,7 @@ lazy_static! {
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
         ];
 
         let mut powertranz_supported_payment_methods = SupportedPaymentMethods::new();
@@ -626,7 +664,7 @@ lazy_static! {
         powertranz_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -639,13 +677,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         powertranz_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -658,26 +696,24 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         powertranz_supported_payment_methods
-    };
+    });
 
-    static ref POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Powertranz",
-        description:
-            "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
+static POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Powertranz",
+    description: "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+};
 
-    static ref POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
-}
+static POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Powertranz {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*POWERTRANZ_CONNECTOR_INFO)
+        Some(&POWERTRANZ_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -685,6 +721,6 @@ impl ConnectorSpecifications for Powertranz {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

@@ -29,6 +29,7 @@ pub mod webhooks;
 pub mod authentication_v2;
 pub mod connector_mapping;
 pub mod disputes_v2;
+pub mod feature_matrix;
 pub mod files_v2;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
@@ -40,10 +41,12 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
-use common_enums::RoutableConnectors;
 use error_stack::ResultExt;
+use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
+    access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
+    mandate_revoke::MandateRevoke,
+    unified_authentication_service::*,
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::{
@@ -62,7 +65,8 @@ pub use hyperswitch_interfaces::{
             RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
-        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
+        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2,
+        ConnectorAuthenticationToken, ConnectorAuthenticationTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
         ConnectorTransactionId, ConnectorVerifyWebhookSource, ConnectorVerifyWebhookSourceV2,
         CurrencyUnit,
@@ -104,6 +108,7 @@ impl From<ConnectorData> for ConnectorRoutingData {
         Self {
             connector_data,
             network: None,
+            action_type: None,
         }
     }
 }
@@ -236,7 +241,6 @@ pub enum ConnectorChoice {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

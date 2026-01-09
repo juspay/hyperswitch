@@ -25,7 +25,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -187,9 +189,11 @@ impl ConnectorCommon for Juspaythreedsserver {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -629,4 +633,23 @@ impl webhooks::IncomingWebhook for Juspaythreedsserver {
     }
 }
 
-impl ConnectorSpecifications for Juspaythreedsserver {}
+static JUSPAYTHREEDSSERVER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Juspay 3Ds Server",
+    description: "Juspay 3DS Server provider for comprehensive 3-Domain Secure authentication, cardholder verification, and fraud prevention across card networks",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
+};
+
+impl ConnectorSpecifications for Juspaythreedsserver {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&JUSPAYTHREEDSSERVER_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

@@ -31,7 +31,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -46,11 +46,13 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
@@ -66,7 +68,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         let currency = self.payment_attempt.clone().currency;
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            merchant_id: platform.get_processor().get_account().get_id().clone(),
             tenant_id: state.tenant.tenant_id.clone(),
             customer_id,
             connector: connector_id.to_string(),
@@ -75,8 +77,9 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             status,
             payment_method: utils::OptionExt::get_required_value(
                 self.payment_attempt.payment_method,
-                "payment_method_type",
+                "payment_method",
             )?,
+            payment_method_type: self.payment_attempt.payment_method_type,
             connector_auth_type: auth_type,
             description: None,
             address: self.address.clone(),
@@ -122,6 +125,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
@@ -131,6 +135,9 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             psd2_sca_exemption_type: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
         };
 
         Ok(router_data)
@@ -144,16 +151,9 @@ impl FeatureFrm<RecordReturn, FraudCheckRecordReturnData> for FrmRecordReturnRou
         state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> RouterResult<Self> {
-        decide_frm_flow(
-            &mut self,
-            state,
-            connector,
-            call_connector_action,
-            merchant_context,
-        )
-        .await
+        decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }
 }
 
@@ -162,7 +162,7 @@ pub async fn decide_frm_flow(
     state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
 ) -> RouterResult<FrmRecordReturnRouterData> {
     let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         RecordReturn,

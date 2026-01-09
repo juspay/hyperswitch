@@ -65,14 +65,19 @@ pub struct ConnectorFeatureMatrixResponse {
     /// The name of the connector
     pub name: String,
     /// The display name of the connector
-    pub display_name: Option<String>,
+    pub display_name: String,
     /// The description of the connector
-    pub description: Option<String>,
+    pub description: String,
+    /// The base url of the connector
+    pub base_url: Option<String>,
     /// The category of the connector
-    #[schema(value_type = Option<PaymentConnectorCategory>, example = "payment_gateway")]
-    pub category: Option<common_enums::PaymentConnectorCategory>,
+    #[schema(value_type = HyperswitchConnectorCategory, example = "payment_gateway")]
+    pub category: common_enums::HyperswitchConnectorCategory,
+    /// The integration status of the connector
+    #[schema(value_type = ConnectorIntegrationStatus, example = "live")]
+    pub integration_status: common_enums::ConnectorIntegrationStatus,
     /// The list of payment methods supported by the connector
-    pub supported_payment_methods: Vec<SupportedPaymentMethod>,
+    pub supported_payment_methods: Option<Vec<SupportedPaymentMethod>>,
     /// The list of webhook flows supported by the connector
     #[schema(value_type = Option<Vec<EventClass>>)]
     pub supported_webhook_flows: Option<Vec<common_enums::EventClass>>,

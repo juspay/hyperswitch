@@ -28,7 +28,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
+        AuthenticationResponseData, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
@@ -154,9 +155,11 @@ impl ConnectorCommon for Threedsecureio {
                     reason: response.error_description,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(err) => {
@@ -486,6 +489,8 @@ impl
                 trans_status: response.trans_status.into(),
                 authentication_value: response.authentication_value,
                 eci: response.eci,
+                challenge_cancel: None,
+                challenge_code_reason: None,
             }),
             ..data.clone()
         })
@@ -509,4 +514,23 @@ impl
 {
 }
 
-impl ConnectorSpecifications for Threedsecureio {}
+static THREEDSECUREIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "3dsecure.io",
+    description: "3DSecure.io is a service that facilitates 3-D Secure verifications for online credit and debit card transactions through a simple JSON API, enhancing payment security for merchants.docs.3dsecure.io3dsecure.io",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Threedsecureio {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&THREEDSECUREIO_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

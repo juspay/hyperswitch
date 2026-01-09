@@ -10,32 +10,34 @@ license.workspace = true
 [features]
 errors = ["dep:actix-web", "dep:reqwest"]
 dummy_connector = ["euclid/dummy_connector", "common_enums/dummy_connector"]
-detailed_errors = []
 payouts = ["common_enums/payouts"]
 frm = []
 olap = []
 openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
 recon = []
 v1 = ["common_utils/v1"]
-v2 = ["common_types/v2", "common_utils/v2", "tokenization_v2", "dep:reqwest"]
+v2 = ["common_types/v2", "common_utils/v2", "tokenization_v2", "dep:reqwest", "revenue_recovery"]
 dynamic_routing = []
 control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
-revenue_recovery = []
+revenue_recovery = ["dep:actix-multipart"]
 tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
 actix-multipart = { version = "0.6.2", optional = true }
 actix-web = { version = "4.11.0", optional = true }
+csv = "1.3"
 error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.27", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
+tempfile = "3.8"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.4", features = ["serde"] }
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
 nutype = { version = "0.4.3", features = ["serde"] }
+deserialize_form_style_query_parameter = "0.2.2"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
@@ -45,6 +47,8 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+smithy = { version = "0.1.0", path = "../smithy" }
+smithy-core = { version = "0.1.0", path = "../smithy-core" }
 
 [lints]
 workspace = true

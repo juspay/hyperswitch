@@ -30,7 +30,8 @@ if (!isFramed) {
    **/
   function initializeSDK() {
     // @ts-ignore
-    var paymentDetails = window.__PAYMENT_DETAILS;
+    var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+    var paymentDetails = decodeUri(encodedPaymentDetails);
     var clientSecret = paymentDetails.client_secret;
     var sdkUiRules = paymentDetails.sdk_ui_rules;
     var labelType = paymentDetails.payment_form_label_type;
@@ -100,6 +101,7 @@ if (!isFramed) {
       hideCardNicknameField: hideCardNicknameField,
       showCardFormByDefault: paymentDetails.show_card_form_by_default,
       customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
+      paymentMethodsConfig: paymentDetails.custom_message_for_payment_method_types,
     };
     var showCardTerms = paymentDetails.show_card_terms;
     if (showCardTerms !== null && typeof showCardTerms === "string") {

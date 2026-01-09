@@ -2441,11 +2441,10 @@
             "description": "The connector to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Connector"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Connector"
+              },
               "nullable": true
             }
           },
@@ -2455,11 +2454,10 @@
             "description": "The currency to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Currency"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              },
               "nullable": true
             }
           },
@@ -2469,11 +2467,10 @@
             "description": "The payment status to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/IntentStatus"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/IntentStatus"
+              },
               "nullable": true
             }
           },
@@ -2483,11 +2480,10 @@
             "description": "The payment method type to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PaymentMethod"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
               "nullable": true
             }
           },
@@ -2497,11 +2493,10 @@
             "description": "The payment method subtype to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PaymentMethodType"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
               "nullable": true
             }
           },
@@ -2511,11 +2506,10 @@
             "description": "The authentication type to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/AuthenticationType"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/AuthenticationType"
+              },
               "nullable": true
             }
           },
@@ -2525,7 +2519,10 @@
             "description": "The merchant connector id to filter payments list",
             "required": true,
             "schema": {
-              "type": "string",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
               "nullable": true
             }
           },
@@ -2553,11 +2550,10 @@
             "description": "The card networks to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/CardNetwork"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
               "nullable": true
             }
           },
@@ -2593,6 +2589,64 @@
           },
           {
             "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Check Balance and Apply PM Data",
+        "description": "Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge",
+        "operationId": "Apply Payment Method Data",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyPaymentMethodDataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Apply the Payment Method Data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckAndApplyPaymentMethodDataResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -2837,6 +2891,47 @@
         ]
       }
     },
+    "/v2/payment-methods/{payment_method_id}/check-network-token-status": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Check Network Token Status",
+        "description": "Check the status of a network token for a saved payment method",
+        "operationId": "Check Network Token Status",
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Network Token Status Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkTokenStatusCheckResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/customers/{id}/saved-payment-methods": {
       "get": {
         "tags": [
@@ -2869,6 +2964,47 @@
           },
           "404": {
             "description": "Customer Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-methods/token/{payment_method_temporary_token}/details": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Get Payment Method Token Data",
+        "description": "Retrieve the Payment method id associated with a payment method token.",
+        "operationId": "Get Payment Method Token Data",
+        "parameters": [
+          {
+            "name": "payment_method_temporary_token",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Token Data Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodGetTokenDetailsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found | Payment method token either expired or does not exist"
           }
         },
         "security": [
@@ -3613,6 +3749,63 @@
           }
         ]
       }
+    },
+    "/v2/tokenize/{id}": {
+      "delete": {
+        "tags": [
+          "Tokenization"
+        ],
+        "summary": "Tokenization - Delete",
+        "description": "Delete a token entry with customer_id and session_id",
+        "operationId": "delete_tokenized_data_api",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteTokenDataRequest"
+              },
+              "examples": {
+                "Delete a token entry with customer_id and session_id": {
+                  "value": {
+                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "session_id": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteTokenDataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3974,6 +4167,28 @@
                 "$ref": "#/components/schemas/WalletAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "BankRedirect"
+            ],
+            "properties": {
+              "BankRedirect": {
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Passthrough"
+            ],
+            "properties": {
+              "Passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
+              }
+            }
           }
         ],
         "description": "Masked payout method details for storing in db"
@@ -4001,8 +4216,7 @@
             "type": "string",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AddressDetails": {
         "type": "object",
@@ -4070,9 +4284,15 @@
             "example": "Doe",
             "nullable": true,
             "maxLength": 255
+          },
+          "origin_zip": {
+            "type": "string",
+            "description": "The zip/postal code of the origin",
+            "example": "08807",
+            "nullable": true,
+            "maxLength": 50
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AdyenConnectorMetadata": {
         "type": "object",
@@ -4212,8 +4432,161 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmazonPayDeliveryOptions": {
+        "type": "object",
+        "required": [
+          "id",
+          "price",
+          "shipping_method",
+          "is_default"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Delivery Option identifier"
+          },
+          "price": {
+            "$ref": "#/components/schemas/AmazonPayDeliveryPrice"
+          },
+          "shipping_method": {
+            "$ref": "#/components/schemas/AmazonPayShippingMethod"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Specifies if this delivery option is the default"
+          }
+        }
+      },
+      "AmazonPayDeliveryPrice": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency_code"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "AmazonPayMerchantCredentials": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "store_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Amazon Pay merchant account identifier"
+          },
+          "store_id": {
+            "type": "string",
+            "description": "Amazon Pay store ID"
+          }
+        }
+      },
+      "AmazonPayPaymentIntent": {
+        "type": "string",
+        "enum": [
+          "Confirm",
+          "Authorize",
+          "AuthorizeWithCapture"
+        ]
+      },
       "AmazonPayRedirectData": {
         "type": "object"
+      },
+      "AmazonPaySessionTokenData": {
+        "type": "object",
+        "required": [
+          "amazon_pay"
+        ],
+        "properties": {
+          "amazon_pay": {
+            "$ref": "#/components/schemas/AmazonPayMerchantCredentials"
+          }
+        }
+      },
+      "AmazonPaySessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "ledger_currency",
+          "store_id",
+          "payment_intent",
+          "total_shipping_amount",
+          "total_tax_amount",
+          "total_base_amount",
+          "delivery_options"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Amazon Pay merchant account identifier"
+          },
+          "ledger_currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "store_id": {
+            "type": "string",
+            "description": "Amazon Pay store ID"
+          },
+          "payment_intent": {
+            "$ref": "#/components/schemas/AmazonPayPaymentIntent"
+          },
+          "total_shipping_amount": {
+            "type": "string",
+            "description": "The total shipping costs"
+          },
+          "total_tax_amount": {
+            "type": "string",
+            "description": "The total tax amount for the order"
+          },
+          "total_base_amount": {
+            "type": "string",
+            "description": "The total amount for items in the cart"
+          },
+          "delivery_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AmazonPayDeliveryOptions"
+            },
+            "description": "The delivery options available for the provided address"
+          }
+        }
+      },
+      "AmazonPayShippingMethod": {
+        "type": "object",
+        "required": [
+          "shipping_method_name",
+          "shipping_method_code"
+        ],
+        "properties": {
+          "shipping_method_name": {
+            "type": "string",
+            "description": "Name of the shipping method"
+          },
+          "shipping_method_code": {
+            "type": "string",
+            "description": "Code of the shipping method"
+          }
+        }
+      },
+      "AmazonPayWalletData": {
+        "type": "object",
+        "required": [
+          "checkout_session_id"
+        ],
+        "properties": {
+          "checkout_session_id": {
+            "type": "string",
+            "description": "Checkout Session identifier"
+          }
+        }
       },
       "AmountDetails": {
         "type": "object",
@@ -4321,6 +4694,14 @@
             "nullable": true
           },
           "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_captured": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
@@ -4467,6 +4848,101 @@
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
       },
+      "ApplePayCryptogramData": {
+        "type": "object",
+        "description": "This struct represents the cryptogram data for Apple Pay transactions",
+        "required": [
+          "online_payment_cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "online_payment_cryptogram": {
+            "type": "string",
+            "description": "The online payment cryptogram",
+            "example": "A1B2C3D4E5F6G7H8"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "The ECI (Electronic Commerce Indicator) value",
+            "example": "05"
+          }
+        }
+      },
+      "ApplePayDecrypt": {
+        "type": "object",
+        "required": [
+          "dpan",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "dpan": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Apple pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
+      },
+      "ApplePayPaymentData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          {
+            "type": "string",
+            "description": "This variant contains the encrypted Apple Pay payment data as a string."
+          }
+        ],
+        "description": "This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted."
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -4536,6 +5012,36 @@
           "immediate",
           "recurring"
         ]
+      },
+      "ApplePayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Apple Pay payment data",
+        "required": [
+          "application_primary_account_number",
+          "application_expiration_month",
+          "application_expiration_year",
+          "payment_data"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The primary account number",
+            "example": "4242424242424242"
+          },
+          "application_expiration_month": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry month)",
+            "example": "12"
+          },
+          "application_expiration_year": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry year)",
+            "example": "24"
+          },
+          "payment_data": {
+            "$ref": "#/components/schemas/ApplePayCryptogramData"
+          }
+        }
       },
       "ApplePayRecurringDetails": {
         "type": "object",
@@ -4702,7 +5208,13 @@
         }
       },
       "ApplePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayWalletData": {
         "type": "object",
@@ -4713,8 +5225,7 @@
         ],
         "properties": {
           "payment_data": {
-            "type": "string",
-            "description": "The payment data of Apple pay"
+            "$ref": "#/components/schemas/ApplePayPaymentData"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"
@@ -4764,6 +5275,18 @@
           "type": {
             "type": "string",
             "description": "The type of the payment method"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
           }
         }
       },
@@ -4819,6 +5342,43 @@
           }
         }
       },
+      "ApplyPaymentMethodDataRequest": {
+        "type": "object",
+        "required": [
+          "payment_methods"
+        ],
+        "properties": {
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+            }
+          }
+        }
+      },
+      "ApplyPaymentMethodDataSurchargeResponseItem": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AttemptStatus": {
         "type": "string",
         "description": "The status of the attempt",
@@ -4834,12 +5394,14 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -4847,7 +5409,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -4884,7 +5447,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationDetails": {
@@ -4931,6 +5495,33 @@
           "processing",
           "unresolved"
         ]
+      },
+      "BHNGiftCardDetails": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "pin",
+          "cvv2",
+          "expiration_date"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "The gift card or account number"
+          },
+          "pin": {
+            "type": "string",
+            "description": "The security PIN for gift cards requiring it"
+          },
+          "cvv2": {
+            "type": "string",
+            "description": "The CVV2 code for Open Loop/VPLN products"
+          },
+          "expiration_date": {
+            "type": "string",
+            "description": "The expiration date in MMYYYY format for Open Loop/VPLN products"
+          }
+        }
       },
       "BacsBankDebitAdditionalData": {
         "type": "object",
@@ -5057,6 +5648,21 @@
             "example": "012"
           }
         }
+      },
+      "BalanceCheckPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          }
+        ]
       },
       "BancontactBankRedirectAdditionalData": {
         "type": "object",
@@ -5186,6 +5792,17 @@
                 "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_guarenteed_debit"
+            ],
+            "properties": {
+              "sepa_guarenteed_debit": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -5284,6 +5901,41 @@
             ],
             "properties": {
               "sepa_bank_debit": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "bank_account_holder_name"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "iban": {
+                    "type": "string",
+                    "description": "International bank account number (iban) for SEPA",
+                    "example": "DE89370400440532013000"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_guarenteed_bank_debit"
+            ],
+            "properties": {
+              "sepa_guarenteed_bank_debit": {
                 "type": "object",
                 "required": [
                   "iban",
@@ -5583,6 +6235,29 @@
           "n26",
           "nationale_nederlanden"
         ]
+      },
+      "BankRedirect": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "interac"
+            ],
+            "properties": {
+              "interac": {
+                "$ref": "#/components/schemas/Interac"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectAdditionalData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/InteracAdditionalData"
+          }
+        ],
+        "description": "Masked payout method details for wallet payout method"
       },
       "BankRedirectBilling": {
         "type": "object",
@@ -6052,6 +6727,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6109,6 +6795,14 @@
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              },
+              "interac": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InteracPaymentMethod"
                   }
                 ],
                 "nullable": true
@@ -6598,13 +7292,14 @@
                   "source_bank_account_id": {
                     "type": "string",
                     "description": "Source bank account number",
-                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
                     "type": "string",
-                    "description": "Destination bank account number",
-                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
                     "nullable": true
                   },
                   "expiry_date": {
@@ -7009,7 +7704,55 @@
         "properties": {
           "social_security_number": {
             "type": "string",
-            "description": "The shopper's social security number",
+            "description": "The shopper's social security number (CPF or CNPJ)",
+            "nullable": true
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The shopper's bank account number associated with the boleto",
+            "nullable": true
+          },
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "default": "Cnpj",
+            "nullable": true
+          },
+          "fine_percentage": {
+            "type": "string",
+            "description": "The fine percentage charged if payment is overdue",
+            "nullable": true
+          },
+          "fine_quantity_days": {
+            "type": "string",
+            "description": "The number of days after the due date when the fine is applied",
+            "nullable": true
+          },
+          "interest_percentage": {
+            "type": "string",
+            "description": "The interest percentage charged on late payments",
+            "nullable": true
+          },
+          "write_off_quantity_days": {
+            "type": "string",
+            "description": "The number of days after which the boleto is written off (canceled)",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Custom messages or instructions to display on the boleto",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2025-08-22",
             "nullable": true
           }
         }
@@ -7111,6 +7854,11 @@
           "accept_language": {
             "type": "string",
             "description": "Accept-language of the browser",
+            "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
             "nullable": true
           }
         }
@@ -7382,6 +8130,11 @@
             "example": "INDIA",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
           "bank_code": {
             "type": "string",
             "example": "JP_AMEX",
@@ -7461,6 +8214,26 @@
             "type": "string",
             "description": "Card holder name",
             "example": "John Doe"
+          }
+        }
+      },
+      "CardCVCTokenStorageDetails": {
+        "type": "object",
+        "required": [
+          "is_stored"
+        ],
+        "properties": {
+          "is_stored": {
+            "type": "boolean",
+            "description": "Indicates whether the card cvc is stored or not",
+            "example": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines expiry for stored card cvc token",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
           }
         }
       },
@@ -7611,6 +8384,12 @@
             "type": "string",
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
+            "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
             "nullable": true
           }
         },
@@ -7782,6 +8561,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8029,8 +8816,47 @@
           "debit"
         ]
       },
+      "CartesBancairesParams": {
+        "type": "object",
+        "description": "Represents network-specific parameters for the Cartes Bancaires 3DS process.",
+        "required": [
+          "cb_exemption",
+          "cb_score"
+        ],
+        "properties": {
+          "cavv_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CavvAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "cb_exemption": {
+            "type": "string",
+            "description": "Exemption indicator specific to Cartes Bancaires network (e.g., \"low_value\", \"trusted_merchant\")"
+          },
+          "cb_score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cartes Bancaires risk score assigned during 3DS authentication."
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
+      },
+      "CavvAlgorithm": {
+        "type": "string",
+        "description": "This is typically provided by the card network or Access Control Server (ACS)",
+        "enum": [
+          "00",
+          "01",
+          "02",
+          "03",
+          "04",
+          "A"
+        ]
       },
       "ChargeRefunds": {
         "type": "object",
@@ -8055,6 +8881,40 @@
           }
         }
       },
+      "CheckAndApplyPaymentMethodDataResponse": {
+        "type": "object",
+        "required": [
+          "balances",
+          "remaining_amount",
+          "currency",
+          "requires_additional_pm_data"
+        ],
+        "properties": {
+          "balances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibilityBalanceCheckResponseItem"
+            }
+          },
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "requires_additional_pm_data": {
+            "type": "boolean",
+            "description": "Whether the applied payment method balance is enough for the order amount or additional PM is required"
+          },
+          "surcharge_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplyPaymentMethodDataSurchargeResponseItem"
+            },
+            "nullable": true
+          }
+        }
+      },
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
@@ -8064,7 +8924,6 @@
           "card_brands",
           "acquirer_bin",
           "acquirer_merchant_id",
-          "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
           "transaction_currency_code"
@@ -8093,7 +8952,8 @@
             "type": "string"
           },
           "merchant_category_code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "merchant_country_code": {
             "type": "string"
@@ -8225,7 +9085,9 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
+          "amazonpay",
           "archipel",
           "authorizedotnet",
           "bambora",
@@ -8235,11 +9097,16 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "blackhawknetwork",
+          "calida",
           "boku",
           "braintree",
+          "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
+          "checkbook",
           "checkout",
           "coinbase",
           "coingate",
@@ -8252,14 +9119,18 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -8273,6 +9144,7 @@
           "jpmorgan",
           "juspaythreedsserver",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -8283,6 +9155,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",
@@ -8291,8 +9164,14 @@
           "payme",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
+          "paytm",
           "payu",
+          "peachpayments",
+          "payjustnow",
+          "payjustnowinstore",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -8302,14 +9181,18 @@
           "redsys",
           "santander",
           "shift4",
+          "silverflow",
           "square",
           "stax",
           "stripe",
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tesouro",
+          "tokenex",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -8319,11 +9202,13 @@
           "worldpay",
           "worldpayvantiv",
           "worldpayxml",
+          "worldpaymodular",
           "signifyd",
           "plaid",
           "riskified",
           "xendit",
           "zen",
+          "zift",
           "zsl"
         ]
       },
@@ -8369,7 +9254,10 @@
         "type": "object",
         "required": [
           "name",
-          "supported_payment_methods"
+          "display_name",
+          "description",
+          "category",
+          "integration_status"
         ],
         "properties": {
           "name": {
@@ -8378,28 +9266,30 @@
           },
           "display_name": {
             "type": "string",
-            "description": "The display name of the connector",
-            "nullable": true
+            "description": "The display name of the connector"
           },
           "description": {
             "type": "string",
-            "description": "The description of the connector",
+            "description": "The description of the connector"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "The base url of the connector",
             "nullable": true
           },
           "category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentConnectorCategory"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/HyperswitchConnectorCategory"
+          },
+          "integration_status": {
+            "$ref": "#/components/schemas/ConnectorIntegrationStatus"
           },
           "supported_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
             },
-            "description": "The list of payment methods supported by the connector"
+            "description": "The list of payment methods supported by the connector",
+            "nullable": true
           },
           "supported_webhook_flows": {
             "type": "array",
@@ -8410,6 +9300,16 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorIntegrationStatus": {
+        "type": "string",
+        "description": "Connector Integration Status",
+        "enum": [
+          "live",
+          "sandbox",
+          "beta",
+          "alpha"
+        ]
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -8579,6 +9479,11 @@
           "apple_pay": {
             "type": "object",
             "description": "This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow",
+            "nullable": true
+          },
+          "amazon_pay": {
+            "type": "object",
+            "description": "This field contains the Amazon Pay certificates and credentials",
             "nullable": true
           },
           "samsung_pay": {
@@ -9263,6 +10168,30 @@
           }
         ]
       },
+      "Cryptogram": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cavv"
+            ],
+            "properties": {
+              "cavv": {
+                "type": "object",
+                "description": "Cardholder Authentication Verification Value (CAVV) cryptogram.",
+                "properties": {
+                  "authentication_cryptogram": {
+                    "type": "string",
+                    "description": "The authentication cryptogram provided by the issuer or ACS.",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Represents the 3DS cryptogram data returned after authentication."
+      },
       "CtpServiceDetails": {
         "type": "object",
         "properties": {
@@ -9486,6 +10415,39 @@
           }
         }
       },
+      "CustomMessage": {
+        "type": "object",
+        "description": "Custom T&C message content and display mode",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The text to be shown per payment method type",
+            "example": "I authorize Novalnet AG to debit my account."
+          },
+          "display_mode": {
+            "$ref": "#/components/schemas/SdkDisplayMode"
+          }
+        }
+      },
+      "CustomTerms": {
+        "type": "object",
+        "description": "Custom T&C message for a specific payment method type",
+        "required": [
+          "payment_method_type",
+          "message"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "message": {
+            "$ref": "#/components/schemas/CustomMessage"
+          }
+        }
+      },
       "CustomerAcceptance": {
         "type": "object",
         "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
@@ -9595,6 +10557,12 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The tax registration identifier of the customer.",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -9635,8 +10603,7 @@
       "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
-          "id",
-          "payment_token",
+          "payment_method_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
@@ -9647,12 +10614,7 @@
           "is_default"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
-          },
-          "payment_token": {
+          "payment_method_token": {
             "type": "string",
             "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
@@ -9807,6 +10769,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -9906,6 +10875,13 @@
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -9975,6 +10951,13 @@
             "description": "The unique identifier of the payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -10103,6 +11086,38 @@
           "frictionless"
         ]
       },
+      "DeleteTokenDataRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "session_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session ID associated with the tokenization request",
+            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
+      "DeleteTokenDataResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
       "DeviceChannel": {
         "type": "string",
         "description": "Device Channel indicating whether request is coming from App or Browser",
@@ -10110,6 +11125,32 @@
           "APP",
           "BRW"
         ]
+      },
+      "DeviceDetails": {
+        "type": "object",
+        "description": "Device details for collecting Device information",
+        "properties": {
+          "device_type": {
+            "type": "string",
+            "description": "Device type",
+            "nullable": true
+          },
+          "device_brand": {
+            "type": "string",
+            "description": "Device brand",
+            "nullable": true
+          },
+          "device_os": {
+            "type": "string",
+            "description": "Device OS",
+            "nullable": true
+          },
+          "device_display": {
+            "type": "string",
+            "description": "Device display",
+            "nullable": true
+          }
+        }
       },
       "DisplayAmountOnSdk": {
         "type": "object",
@@ -10300,7 +11341,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -10314,6 +11357,13 @@
           "dispute_challenged",
           "dispute_won",
           "dispute_lost"
+        ]
+      },
+      "DocumentKind": {
+        "type": "string",
+        "enum": [
+          "CNPJ",
+          "CPF"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -10440,6 +11490,21 @@
           }
         ]
       },
+      "EligibilityBalanceCheckResponseItem": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "eligibility"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/PMBalanceCheckEligibilityResponse"
+          }
+        }
+      },
       "EliminationAnalyserConfig": {
         "type": "object",
         "properties": {
@@ -10521,7 +11586,9 @@
           "processor_downtime",
           "processor_decline_unauthorized",
           "issue_with_payment_method",
-          "processor_decline_incorrect_data"
+          "processor_decline_incorrect_data",
+          "hard_decline",
+          "soft_decline"
         ]
       },
       "ErrorDetails": {
@@ -10539,6 +11606,11 @@
           "message": {
             "type": "string",
             "description": "The error message"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The detailed error reason that was returned by the connector.",
+            "nullable": true
           },
           "unified_code": {
             "type": "string",
@@ -10574,7 +11646,8 @@
           "refunds",
           "disputes",
           "mandates",
-          "payouts"
+          "payouts",
+          "subscriptions"
         ]
       },
       "EventListItemResponse": {
@@ -10678,8 +11751,11 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -10698,7 +11774,24 @@
           "payout_processing",
           "payout_cancelled",
           "payout_expired",
-          "payout_reversed"
+          "payout_reversed",
+          "invoice_paid"
+        ]
+      },
+      "ExemptionIndicator": {
+        "type": "string",
+        "description": "Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.",
+        "enum": [
+          "low_value",
+          "secure_corporate_payment",
+          "trusted_listing",
+          "transaction_risk_assessment",
+          "three_ds_outage",
+          "sca_delegation",
+          "out_of_sca_scope",
+          "other",
+          "low_risk_program",
+          "recurring_operation"
         ]
       },
       "ExtendedCardInfo": {
@@ -10851,6 +11944,53 @@
           }
         }
       },
+      "ExternalThreeDsData": {
+        "type": "object",
+        "description": "Represents external 3DS authentication data used in the payment flow.",
+        "required": [
+          "authentication_cryptogram",
+          "ds_trans_id",
+          "version",
+          "eci",
+          "transaction_status"
+        ],
+        "properties": {
+          "authentication_cryptogram": {
+            "$ref": "#/components/schemas/Cryptogram"
+          },
+          "ds_trans_id": {
+            "type": "string",
+            "description": "Directory Server Transaction ID generated during the 3DS process."
+          },
+          "version": {
+            "type": "string",
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
+          },
+          "eci": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result."
+          },
+          "transaction_status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "exemption_indicator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExemptionIndicator"
+              }
+            ],
+            "nullable": true
+          },
+          "network_params": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkParams"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ExternalVaultConnectorDetails": {
         "type": "object",
         "properties": {
@@ -10865,6 +12005,14 @@
                 "$ref": "#/components/schemas/VaultSdk"
               }
             ],
+            "nullable": true
+          },
+          "vault_token_selector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultTokenField"
+            },
+            "description": "Fields to tokenization in vault",
             "nullable": true
           }
         }
@@ -10958,6 +12106,12 @@
           {
             "type": "string",
             "enum": [
+              "user_gift_card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_card_expiry_month"
             ]
           },
@@ -10971,6 +12125,12 @@
             "type": "string",
             "enum": [
               "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_gift_card_pin"
             ]
           },
           {
@@ -11332,6 +12492,34 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_type"
+            ],
+            "properties": {
+              "user_bank_type": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_account_holder_name"
+            ]
+          },
+          {
             "type": "string",
             "enum": [
               "user_msisdn"
@@ -11493,6 +12681,42 @@
           "on_session"
         ]
       },
+      "GPayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Google Pay payment data",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "application_primary_account_number",
+          "cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The Primary Account Number (PAN) of the card",
+            "example": "4242424242424242"
+          },
+          "cryptogram": {
+            "type": "string",
+            "description": "Cryptogram generated by the Network",
+            "example": "AgAAAAAAAIR8CQrXcIhbQAAAAAA"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator",
+            "example": "07"
+          }
+        }
+      },
       "GcashRedirection": {
         "type": "object"
       },
@@ -11612,6 +12836,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -11636,6 +12871,17 @@
             "properties": {
               "pay_safe_card": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "$ref": "#/components/schemas/BHNGiftCardDetails"
               }
             }
           }
@@ -11729,6 +12975,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "PREPAID",
+          "UNKNOWN"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -11748,6 +13003,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
@@ -11790,7 +13053,7 @@
             "items": {
               "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
             },
-            "description": "List of the allowed payment meythods"
+            "description": "List of the allowed payment methods"
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"
@@ -11838,7 +13101,13 @@
         }
       },
       "GooglePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePayWalletData": {
         "type": "object",
@@ -11949,6 +13218,24 @@
           }
         }
       },
+      "GpayEcryptedTokenizationData": {
+        "type": "object",
+        "description": "This struct represents the encrypted Gpay payment data",
+        "required": [
+          "type",
+          "token"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of the token"
+          },
+          "token": {
+            "type": "string",
+            "description": "Token generated for the wallet"
+          }
+        }
+      },
       "GpayMerchantInfo": {
         "type": "object",
         "required": [
@@ -12022,21 +13309,15 @@
         }
       },
       "GpayTokenizationData": {
-        "type": "object",
-        "required": [
-          "type",
-          "token"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "The type of the token"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/GPayPredecryptData"
           },
-          "token": {
-            "type": "string",
-            "description": "Token generated for the wallet"
+          {
+            "$ref": "#/components/schemas/GpayEcryptedTokenizationData"
           }
-        }
+        ],
+        "description": "This enum is used to represent the Gpay payment data, which can either be encrypted or decrypted."
       },
       "GpayTokenizationSpecification": {
         "type": "object",
@@ -12127,7 +13408,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -12149,7 +13431,42 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
+            "nullable": true
           }
         }
       },
@@ -12157,7 +13474,6 @@
         "type": "string",
         "enum": [
           "retry",
-          "requeue",
           "do_default"
         ]
       },
@@ -12224,6 +13540,28 @@
           }
         }
       },
+      "GsmFeature": {
+        "type": "string",
+        "enum": [
+          "retry"
+        ]
+      },
+      "GsmFeatureData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "retry"
+            ],
+            "properties": {
+              "retry": {
+                "$ref": "#/components/schemas/RetryFeatureData"
+              }
+            }
+          }
+        ],
+        "description": "Contains the data relevant to the specified GSM feature, if applicable.\nFor example, if the `feature` is `Retry`, this will include configuration\ndetails specific to the retry behavior."
+      },
       "GsmResponse": {
         "type": "object",
         "required": [
@@ -12235,7 +13573,9 @@
           "status",
           "decision",
           "step_up_possible",
-          "clear_pan_possible"
+          "clear_pan_possible",
+          "feature",
+          "feature_data"
         ],
         "properties": {
           "connector": {
@@ -12268,12 +13608,12 @@
             "nullable": true
           },
           "decision": {
-            "type": "string",
-            "description": "decision to be taken for auto retries flow"
+            "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -12295,7 +13635,32 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "$ref": "#/components/schemas/GsmFeature"
+          },
+          "feature_data": {
+            "$ref": "#/components/schemas/GsmFeatureData"
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
+            "nullable": true
           }
         }
       },
@@ -12380,7 +13745,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible",
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
             "nullable": true
           },
           "unified_code": {
@@ -12403,10 +13769,59 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible",
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
+            "nullable": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
             "nullable": true
           }
         }
+      },
+      "HyperswitchConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer",
+          "payout_processor",
+          "authentication_provider",
+          "fraud_and_risk_management_provider",
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
+        ]
       },
       "HyperswitchVaultSessionDetails": {
         "type": "object",
@@ -12563,6 +13978,14 @@
           }
         }
       },
+      "Initiator": {
+        "type": "string",
+        "description": "Represents the initiator context in platform-connected setups\nUsed in payment/refund/dispute responses to indicate who initiated the operation\nNone indicates a standard merchant flow / JWT flow / Admin flow or insufficient information",
+        "enum": [
+          "platform",
+          "connected"
+        ]
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -12570,6 +13993,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -12578,8 +14002,45 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "partially_authorized_and_requires_capture",
+          "partially_captured_and_processing",
+          "conflicted",
+          "expired"
         ]
+      },
+      "Interac": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Customer email linked with interac account",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "InteracAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for interac bank redirect payout method",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with interac account",
+            "example": "john.doe@example.com",
+            "nullable": true
+          }
+        }
+      },
+      "InteracPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "customer_info": {
+            "type": "object",
+            "nullable": true
+          }
+        }
       },
       "JCSVoucherData": {
         "type": "object",
@@ -12697,8 +14158,84 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
+      },
+      "ListMethodsForPaymentMethodsRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
+            "example": "secret_k2uj3he2893eiu2d",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "accepted_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "description": "The two-letter ISO currency code",
+            "example": [
+              "US",
+              "UK",
+              "IN"
+            ],
+            "nullable": true
+          },
+          "amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "accepted_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "description": "The three-letter ISO currency code",
+            "example": [
+              "USD",
+              "EUR"
+            ],
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "example": [
+              "visa",
+              "mastercard"
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Indicates the limit of last used payment methods",
+            "example": 1,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "LocalBankTransferAdditionalData": {
         "type": "object",
@@ -13398,15 +14935,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
@@ -14007,6 +15537,11 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_tax_registration_id": {
+            "type": "string",
+            "example": "123456789",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14254,6 +15789,99 @@
           }
         }
       },
+      "NetworkParams": {
+        "type": "object",
+        "description": "Represents additional network-level parameters for 3DS processing.",
+        "properties": {
+          "cartes_bancaires": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CartesBancairesParams"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "NetworkTokenData": {
+        "type": "object",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "token_cryptogram",
+          "card_holder_name"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The network token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "token_cryptogram": {
+            "type": "string",
+            "description": "The token cryptogram"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTokenDetailsPaymentMethod": {
         "type": "object",
         "properties": {
@@ -14397,6 +16025,120 @@
           }
         }
       },
+      "NetworkTokenStatusCheckFailureResponse": {
+        "type": "object",
+        "required": [
+          "error_message"
+        ],
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "description": "Error message describing what went wrong"
+          }
+        }
+      },
+      "NetworkTokenStatusCheckResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenStatusCheckSuccessResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "success_response"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenStatusCheckFailureResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "failure_response"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "NetworkTokenStatusCheckSuccessResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "payment_method_id",
+          "customer_id"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/TokenStatus"
+          },
+          "token_expiry_month": {
+            "type": "string",
+            "description": "The expiry month of the network token if active",
+            "nullable": true
+          },
+          "token_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the network token if active",
+            "nullable": true
+          },
+          "card_last_four": {
+            "type": "string",
+            "description": "The last four digits of the card if active",
+            "nullable": true
+          },
+          "token_last_four": {
+            "type": "string",
+            "description": "The last four digits of the network token if active",
+            "nullable": true
+          },
+          "card_expiry_month": {
+            "type": "string",
+            "description": "The expiry month of the card if active",
+            "nullable": true
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the card if active",
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The payment method ID that was checked",
+            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer ID associated with the payment method",
+            "example": "12345_cus_0195dc62bb8e7312a44484536da76aef"
+          }
+        }
+      },
       "NetworkTokenization": {
         "type": "object",
         "description": "The network tokenization configuration for creating the payment method session",
@@ -14471,6 +16213,11 @@
             "example": "INDIA",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
           "bank_code": {
             "type": "string",
             "example": "JP_AMEX",
@@ -14484,17 +16231,153 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NetworkTransactionIdAndNetworkTokenDetails": {
+        "type": "object",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The Network Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },
       "NextActionCall": {
-        "type": "string",
-        "enum": [
-          "post_session_tokens",
-          "confirm",
-          "sync",
-          "complete_authorize"
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "The next action call is Post Session Tokens",
+            "enum": [
+              "post_session_tokens"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is confirm",
+            "enum": [
+              "confirm"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is sync",
+            "enum": [
+              "sync"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is Complete Authorize",
+            "enum": [
+              "complete_authorize"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action is to await for a merchant callback",
+            "enum": [
+              "await_merchant_callback"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "deny"
+            ],
+            "properties": {
+              "deny": {
+                "type": "object",
+                "description": "The next action is to deny the payment with an error message",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to perform eligibility check",
+            "enum": [
+              "eligibility_check"
+            ]
+          }
         ]
       },
       "NextActionData": {
@@ -14613,6 +16496,74 @@
                 "type": "string",
                 "enum": [
                   "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sdk_uri",
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "sdk_uri": {
+                "type": "string"
+              },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_upi_intent_sdk"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "qr_code_url",
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "qr_code_url": {
+                "type": "string"
+              },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_upi_qr_flow"
                 ]
               }
             }
@@ -14757,7 +16708,9 @@
           "display_bank_transfer_information",
           "display_wait_screen",
           "collect_otp",
-          "redirect_inside_popup"
+          "redirect_inside_popup",
+          "invoke_upi_intent_sdk",
+          "invoke_upi_qr_flow"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -15013,6 +16966,43 @@
           "product_tax_code": {
             "type": "string",
             "description": "The tax code for the product",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the item",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "description": "Stock Keeping Unit (SKU) or the item identifier for this item.",
+            "nullable": true
+          },
+          "upc": {
+            "type": "string",
+            "description": "Universal Product Code for the item.",
+            "nullable": true
+          },
+          "commodity_code": {
+            "type": "string",
+            "description": "Code describing a commodity or a group of commodities pertaining to goods classification.",
+            "nullable": true
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "description": "Unit of measure used for the item quantity.",
+            "nullable": true
+          },
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for the item.",
+            "nullable": true
+          },
+          "unit_discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Discount amount applied to this item.",
             "nullable": true
           }
         }
@@ -15356,6 +17346,97 @@
           }
         }
       },
+      "PMBalanceCheckEligibilityResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "success"
+            ],
+            "properties": {
+              "success": {
+                "$ref": "#/components/schemas/PMBalanceCheckSuccessResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "failure"
+            ],
+            "properties": {
+              "failure": {
+                "$ref": "#/components/schemas/PMBalanceCheckFailureResponse"
+              }
+            }
+          }
+        ]
+      },
+      "PMBalanceCheckFailureResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "PMBalanceCheckSuccessResponse": {
+        "type": "object",
+        "required": [
+          "balance",
+          "applicable_amount",
+          "currency"
+        ],
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "applicable_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "Passthrough": {
+        "type": "object",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "PSP token generated for the payout method",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PassthroughAddtionalData": {
+        "type": "object",
+        "description": "additional payout method details for passthrough payout method",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "Psp_token of the passthrough flow",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -15457,6 +17538,18 @@
           {
             "type": "object",
             "required": [
+              "flexiti_redirect"
+            ],
+            "properties": {
+              "flexiti_redirect": {
+                "type": "object",
+                "description": "For Flexiti Redirect as PayLater long term finance Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "walley_redirect"
             ],
             "properties": {
@@ -15485,6 +17578,28 @@
             ],
             "properties": {
               "atome_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "breadpay_redirect"
+            ],
+            "properties": {
+              "breadpay_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payjustnow_redirect"
+            ],
+            "properties": {
+              "payjustnow_redirect": {
                 "type": "object"
               }
             }
@@ -15650,6 +17765,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15695,7 +17818,9 @@
         "type": "object",
         "required": [
           "id",
-          "status"
+          "status",
+          "amount",
+          "created_at"
         ],
         "properties": {
           "id": {
@@ -15704,6 +17829,20 @@
           },
           "status": {
             "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the payment attempt",
+            "example": 6540
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecordAttemptErrorDetails"
+              }
+            ],
+            "nullable": true
           },
           "payment_intent_feature_metadata": {
             "allOf": [
@@ -15720,6 +17859,11 @@
               }
             ],
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "attempt created at timestamp"
           }
         }
       },
@@ -15895,15 +18039,6 @@
               }
             }
           }
-        ]
-      },
-      "PaymentConnectorCategory": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
         ]
       },
       "PaymentConnectorTransmission": {
@@ -16093,6 +18228,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -16263,6 +18406,14 @@
           "custom_message_for_card_terms": {
             "type": "string",
             "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
+              }
+            ],
             "nullable": true
           },
           "payment_button_colour": {
@@ -16487,7 +18638,8 @@
           "voucher",
           "gift_card",
           "open_banking",
-          "mobile_payment"
+          "mobile_payment",
+          "network_token"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -16598,6 +18750,35 @@
           }
         ]
       },
+      "PaymentMethodConfig": {
+        "type": "object",
+        "description": "Custom T&C messages for a specific payment method",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomTerms"
+            },
+            "description": "Payment Method Types",
+            "example": [
+              {
+                "message": {
+                  "display_mode": "custom",
+                  "value": "Sample message"
+                },
+                "payment_method_type": "credit"
+              }
+            ]
+          }
+        }
+      },
       "PaymentMethodCreate": {
         "type": "object",
         "required": [
@@ -16651,6 +18832,14 @@
               }
             ],
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16665,6 +18854,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/ProxyCardDetails"
               }
             }
           }
@@ -16863,6 +19063,18 @@
             "properties": {
               "mobile_payment": {
                 "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "NetworkToken",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenData"
               }
             }
           }
@@ -17082,6 +19294,17 @@
                 "$ref": "#/components/schemas/MobilePaymentResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            }
           }
         ]
       },
@@ -17120,6 +19343,25 @@
             "type": "string",
             "description": "The unique identifier of the Payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
+      "PaymentMethodGetTokenDetailsResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "payment_method_token"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The payment method ID associated with the token",
+            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+          },
+          "payment_method_token": {
+            "type": "string",
+            "description": "The token associated with the payment method",
+            "example": "token_CSum555d9YxDOpGwYq6q"
           }
         }
       },
@@ -17220,78 +19462,6 @@
             }
           }
         ]
-      },
-      "PaymentMethodListRequest": {
-        "type": "object",
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
-          },
-          "accepted_countries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CountryAlpha2"
-            },
-            "description": "The two-letter ISO currency code",
-            "example": [
-              "US",
-              "UK",
-              "IN"
-            ],
-            "nullable": true
-          },
-          "amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "description": "The three-letter ISO currency code",
-            "example": [
-              "USD",
-              "EUR"
-            ],
-            "nullable": true
-          },
-          "recurring_enabled": {
-            "type": "boolean",
-            "description": "Indicates whether the payment method supports recurring payments. Optional.",
-            "example": true,
-            "nullable": true
-          },
-          "card_networks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CardNetwork"
-            },
-            "description": "Indicates whether the payment method is eligible for card netwotks",
-            "example": [
-              "visa",
-              "mastercard"
-            ],
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Indicates the limit of last used payment methods",
-            "example": 1,
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
       },
       "PaymentMethodListResponseForPayments": {
         "type": "object",
@@ -17416,6 +19586,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
               }
             ],
             "nullable": true
@@ -17555,32 +19741,38 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
       "PaymentMethodSessionDeleteSavedPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "payment_method_token"
         ],
         "properties": {
-          "payment_method_id": {
+          "payment_method_token": {
             "type": "string",
-            "description": "The payment method id of the payment method to be updated",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "description": "The payment method token associated with the payment method to be updated",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
           }
         }
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
-        "required": [
-          "customer_id"
-        ],
         "properties": {
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -17630,7 +19822,6 @@
         "type": "object",
         "required": [
           "id",
-          "customer_id",
           "expires_at",
           "client_secret"
         ],
@@ -17642,7 +19833,8 @@
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -17716,6 +19908,22 @@
             "description": "The token-id created if there is tokenization_data present",
             "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17727,13 +19935,13 @@
           {
             "type": "object",
             "required": [
-              "payment_method_id"
+              "payment_method_token"
             ],
             "properties": {
-              "payment_method_id": {
+              "payment_method_token": {
                 "type": "string",
-                "description": "The payment method id of the payment method to be updated",
-                "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+                "description": "The payment method token associated with the payment method session",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
               }
             }
           }
@@ -17808,10 +20016,13 @@
           "benefit",
           "bizum",
           "blik",
+          "bluecode",
           "boleto",
           "bca_bank_transfer",
           "bni_va",
+          "breadpay",
           "bri_va",
+          "bhn_card_network",
           "card_redirect",
           "cimb_va",
           "classic",
@@ -17825,6 +20036,7 @@
           "efecty",
           "eft",
           "eps",
+          "flexiti",
           "fps",
           "evoucher",
           "giropay",
@@ -17856,6 +20068,7 @@
           "permata_bank_transfer",
           "open_banking_uk",
           "pay_bright",
+          "payjustnow",
           "paypal",
           "paze",
           "pix",
@@ -17868,6 +20081,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "sepa_guarenteed_debit",
           "skrill",
           "sofort",
           "swish",
@@ -17876,6 +20090,7 @@
           "twint",
           "upi_collect",
           "upi_intent",
+          "upi_qr",
           "vipps",
           "viet_qr",
           "venmo",
@@ -17895,7 +20110,9 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking",
+          "network_token"
         ]
       },
       "PaymentMethodUpdate": {
@@ -17934,6 +20151,13 @@
             }
           }
         ]
+      },
+      "PaymentMethodsConfig": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PaymentMethodConfig"
+        },
+        "description": "List of custom T&C messages grouped by payment method"
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -18105,6 +20329,12 @@
             "description": "Invoice Next billing time",
             "nullable": true
           },
+          "invoice_billing_started_at_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice Next billing time",
+            "nullable": true
+          },
           "first_payment_attempt_pg_error_code": {
             "type": "string",
             "description": "First Payment Attempt Payment Gateway Error Code",
@@ -18142,14 +20372,6 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -18161,6 +20383,11 @@
             "format": "int64",
             "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540,
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         }
@@ -18210,6 +20437,14 @@
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          },
+          "split_payment_method_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitPaymentMethodDataRequest"
+            },
+            "description": "The payment instrument data to be used for the payment in case of split payments",
+            "nullable": true
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -18262,6 +20497,12 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "The webhook endpoint URL to receive payment status notifications",
+            "example": "https://merchant.example.com/webhooks/payment",
             "nullable": true
           }
         },
@@ -18468,6 +20709,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18581,6 +20828,11 @@
             "description": "Challenge request which should be sent to acs_url",
             "nullable": true
           },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
+            "nullable": true
+          },
           "acs_reference_number": {
             "type": "string",
             "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
@@ -18608,6 +20860,11 @@
           "three_ds_requestor_app_url": {
             "type": "string",
             "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any",
             "nullable": true
           }
         }
@@ -18646,8 +20903,10 @@
           "apply_mit_exemption",
           "payment_link_enabled",
           "request_incremental_authorization",
+          "split_txns_enabled",
           "expires_on",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "payment_type"
         ],
         "properties": {
           "id": {
@@ -18796,6 +21055,14 @@
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
           },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
+          },
           "expires_on": {
             "type": "string",
             "format": "date-time",
@@ -18808,6 +21075,15 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          },
+          "payment_type": {
+            "$ref": "#/components/schemas/PaymentType"
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18822,7 +21098,8 @@
           "amount",
           "created",
           "attempt_count",
-          "return_url"
+          "return_url",
+          "is_split_payment"
         ],
         "properties": {
           "id": {
@@ -19020,6 +21297,10 @@
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
+          },
+          "is_split_payment": {
+            "type": "boolean",
+            "description": "Indicates if the payment amount is split across multiple payment methods"
           }
         }
       },
@@ -19267,6 +21548,18 @@
             "type": "boolean",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "The webhook endpoint URL to receive payment status notifications",
+            "example": "https://merchant.example.com/webhooks/payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19279,7 +21572,9 @@
           "status",
           "amount",
           "customer_id",
-          "created"
+          "processor_merchant_id",
+          "created",
+          "modified_at"
         ],
         "properties": {
           "id": {
@@ -19302,6 +21597,20 @@
             "maxLength": 64,
             "minLength": 32
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the processor merchant account. In platform-connected setups,\nthis is the connected merchant ID. For standard merchants, this is same as merchant_id.",
+            "example": "merchant_1689512302",
+            "maxLength": 255
+          },
+          "initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The connector used for the payment",
@@ -19312,6 +21621,12 @@
             "type": "string",
             "format": "date-time",
             "description": "Time when the payment was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payment was last modified",
             "example": "2022-09-10T10:11:12Z"
           },
           "payment_method_data": {
@@ -19463,6 +21778,11 @@
                 "$ref": "#/components/schemas/FeatureMetadata"
               }
             ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
         }
@@ -19728,6 +22048,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19840,11 +22166,16 @@
           "adyenplatform",
           "cybersource",
           "ebanx",
+          "gigadat",
+          "loonio",
           "nomupay",
+          "nuvei",
           "payone",
           "paypal",
           "stripe",
-          "wise"
+          "wise",
+          "worldpay",
+          "worldpayxml"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -20138,6 +22469,14 @@
           "payout_method_id": {
             "type": "string",
             "description": "Identifier for payout method",
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           }
         },
@@ -20650,6 +22989,28 @@
                 "$ref": "#/components/schemas/Wallet"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirect"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/Passthrough"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -20686,6 +23047,28 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
               }
             }
           }
@@ -20805,7 +23188,8 @@
         "enum": [
           "card",
           "bank",
-          "wallet"
+          "wallet",
+          "bank_redirect"
         ]
       },
       "Paypal": {
@@ -20857,6 +23241,12 @@
           }
         }
       },
+      "PaypalFlow": {
+        "type": "string",
+        "enum": [
+          "checkout"
+        ]
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -20887,6 +23277,40 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "client_token": {
+            "type": "string",
+            "description": "Authorization token used by client to initiate sdk",
+            "nullable": true
+          },
+          "transaction_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalTransactionInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaypalTransactionInfo": {
+        "type": "object",
+        "required": [
+          "flow",
+          "currency_code",
+          "total_price"
+        ],
+        "properties": {
+          "flow": {
+            "$ref": "#/components/schemas/PaypalFlow"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total_price": {
+            "type": "string",
+            "description": "Total price",
+            "example": "38.02"
           }
         }
       },
@@ -21026,7 +23450,8 @@
           },
           "destination_bank_account_id": {
             "type": "string",
-            "description": "Partially masked destination bank account number",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
           },
@@ -21403,6 +23828,25 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip",
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21436,7 +23880,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
-          "is_clear_pan_retries_enabled"
+          "is_clear_pan_retries_enabled",
+          "split_txns_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -21688,6 +24133,32 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
+          },
+          "revenue_recovery_retry_algorithm_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
           }
         }
       },
@@ -21729,6 +24200,82 @@
           "metadata": {
             "type": "object",
             "additionalProperties": {}
+          }
+        }
+      },
+      "ProxyCardDetails": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "Tokenized Card Number",
+            "example": "tok_sjfowhoejsldj"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "First Six Digit of Card Number",
+            "nullable": true
+          },
+          "last_four": {
+            "type": "string",
+            "description": "Last Four Digit of Card Number",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card Type",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Issuing Country of the Card",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
+            "example": "242"
           }
         }
       },
@@ -21904,6 +24451,39 @@
           "disabled"
         ]
       },
+      "RecordAttemptErrorDetails": {
+        "type": "object",
+        "description": "Error details for the payment",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "error code sent by billing connector."
+          },
+          "message": {
+            "type": "string",
+            "description": "error message sent by billing connector."
+          },
+          "network_advice_code": {
+            "type": "string",
+            "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "nullable": true
+          },
+          "network_decline_code": {
+            "type": "string",
+            "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "nullable": true
+          },
+          "network_error_message": {
+            "type": "string",
+            "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
+            "nullable": true
+          }
+        }
+      },
       "RecurringDetails": {
         "oneOf": [
           {
@@ -21975,6 +24555,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_transaction_id_and_network_token_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
               }
             }
           }
@@ -22235,6 +24833,11 @@
             "type": "string",
             "description": "The reference id of the connector for the refund",
             "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains raw connector response",
+            "nullable": true
           }
         }
       },
@@ -22319,6 +24922,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
@@ -22514,7 +25122,8 @@
             "type": "object",
             "required": [
               "payment_method_type",
-              "payment_method_subtype"
+              "payment_method_subtype",
+              "required_fields"
             ],
             "properties": {
               "payment_method_type": {
@@ -22532,12 +25141,7 @@
                 "nullable": true
               },
               "required_fields": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/RequiredFieldInfo"
-                  }
-                ],
-                "nullable": true
+                "$ref": "#/components/schemas/RequiredFieldInfo"
               },
               "surcharge_details": {
                 "allOf": [
@@ -22704,6 +25308,41 @@
           "requeue"
         ]
       },
+      "RetryFeatureData": {
+        "type": "object",
+        "description": "Represents the data associated with a retry feature in GSM.",
+        "required": [
+          "step_up_possible",
+          "clear_pan_possible",
+          "alternate_network_possible",
+          "decision"
+        ],
+        "properties": {
+          "step_up_possible": {
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
+          },
+          "alternate_network_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with alternate network possible"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          }
+        }
+      },
+      "RevenueRecoveryAlgorithmType": {
+        "type": "string",
+        "enum": [
+          "monitoring",
+          "smart",
+          "cascading"
+        ]
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -22754,11 +25393,13 @@
           "schedule_time_for_payment": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "schedule_time_for_psync": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "status": {
@@ -22851,7 +25492,9 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
+          "amazonpay",
           "archipel",
           "authorizedotnet",
           "bankofamerica",
@@ -22859,14 +25502,18 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
+          "calida",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
           "custombilling",
+          "checkbook",
           "checkout",
           "coinbase",
           "coingate",
@@ -22876,14 +25523,18 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -22894,6 +25545,7 @@
           "itaubank",
           "jpmorgan",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -22903,6 +25555,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",
@@ -22911,8 +25564,14 @@
           "payload",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
+          "paytm",
           "payu",
+          "peachpayments",
+          "payjustnow",
+          "payjustnowinstore",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -22924,11 +25583,14 @@
           "santander",
           "shift4",
           "signifyd",
+          "silverflow",
           "square",
           "stax",
           "stripe",
           "stripebilling",
+          "tesouro",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
@@ -22936,12 +25598,20 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpaymodular",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",
           "zen",
+          "zift",
           "plaid",
-          "zsl"
+          "zsl",
+          "juspaythreedsserver",
+          "ctp_mastercard",
+          "ctp_visa",
+          "netcetera",
+          "cardinal",
+          "threedsecureio"
         ]
       },
       "RoutingAlgorithmId": {
@@ -23385,6 +26055,15 @@
           "transaction_risk_analysis"
         ]
       },
+      "SdkDisplayMode": {
+        "type": "string",
+        "description": "Display mode options for controlling how messages are shown.",
+        "enum": [
+          "default_sdk_message",
+          "custom_message",
+          "hidden"
+        ]
+      },
       "SdkInformation": {
         "type": "object",
         "description": "SDK Information if request is from SDK",
@@ -23430,6 +26109,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
+          },
+          "device_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeviceDetails"
               }
             ],
             "nullable": true
@@ -23805,6 +26492,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AmazonPaySessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "amazon_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -23898,6 +26606,25 @@
           "created"
         ]
       },
+      "SplitPaymentMethodDataRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -23973,6 +26700,63 @@
           }
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
+      },
+      "SplitTxnsEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "StandardisedCode": {
+        "type": "string",
+        "enum": [
+          "account_closed_or_invalid",
+          "authentication_failed",
+          "authentication_required",
+          "authorization_missing_or_revoked",
+          "card_lost_or_stolen",
+          "card_not_supported_restricted",
+          "cfg_pm_not_enabled_or_misconfigured",
+          "compliance_or_sanctions_restriction",
+          "configuration_issue",
+          "credit_limit_exceeded",
+          "currency_or_corridor_not_enabled",
+          "do_not_honor",
+          "downstream_technical_issue",
+          "duplicate_request",
+          "generic_unknown_error",
+          "incorrect_authentication_code",
+          "insufficient_funds",
+          "integ_cryptographic_issue",
+          "integration_issue",
+          "invalid_card_number",
+          "invalid_credentials",
+          "invalid_cvv",
+          "invalid_expiry_date",
+          "invalid_state",
+          "issuer_unavailable",
+          "merchant_inactive",
+          "missing_or_invalid_param",
+          "operation_not_allowed",
+          "payment_cancelled_by_user",
+          "payment_method_issue",
+          "payment_session_timeout",
+          "pm_address_mismatch",
+          "psp_acquirer_error",
+          "psp_fraud_engine_decline",
+          "rate_limit",
+          "stored_credential_or_mit_not_enabled",
+          "subscription_plan_inactive",
+          "suspected_fraud",
+          "three_ds_authentication_service_issue",
+          "three_ds_configuration_issue",
+          "three_ds_data_or_protocol_invalid",
+          "transaction_not_permitted",
+          "transaction_timed_out",
+          "velocity_limit_exceeded",
+          "wallet_or_token_config_issue"
+        ]
       },
       "StaticRoutingAlgorithm": {
         "oneOf": [
@@ -24076,6 +26860,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StorageType": {
+        "type": "string",
+        "enum": [
+          "volatile",
+          "persistent"
+        ]
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
@@ -24481,6 +27272,13 @@
           "calculate"
         ]
       },
+      "TaxStatus": {
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt"
+        ]
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -24557,6 +27355,19 @@
             "type": "string",
             "description": "Directory Server ID",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "three_ds_connector": {
+            "type": "string",
+            "description": "Prefered 3ds Connector",
+            "nullable": true
           }
         }
       },
@@ -24566,7 +27377,7 @@
             "type": "object",
             "required": [
               "three_ds_method_data_submission",
-              "three_ds_method_key"
+              "consume_post_message_for_three_ds_method_completion"
             ],
             "properties": {
               "three_ds_method_data_submission": {
@@ -24584,17 +27395,27 @@
                 "nullable": true
               },
               "three_ds_method_key": {
-                "type": "string",
-                "enum": [
-                  "threeDSMethodData"
-                ]
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreeDsMethodKey"
+                  }
+                ],
+                "nullable": true
+              },
+              "consume_post_message_for_three_ds_method_completion": {
+                "type": "boolean",
+                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
               }
             }
           }
-        ],
-        "discriminator": {
-          "propertyName": "three_ds_method_key"
-        }
+        ]
+      },
+      "ThreeDsMethodKey": {
+        "type": "string",
+        "enum": [
+          "threeDSMethodData",
+          "JWT"
+        ]
       },
       "TimeRange": {
         "type": "object",
@@ -24697,11 +27518,30 @@
           }
         ]
       },
+      "TokenStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "INACTIVE",
+          "SUSPENDED",
+          "EXPIRED",
+          "DELETED"
+        ]
+      },
       "TokenType": {
         "type": "string",
         "enum": [
           "tokenization_id",
-          "payment_method_id"
+          "payment_method_id",
+          "volatile_payment_method_id"
+        ]
+      },
+      "Tokenization": {
+        "type": "string",
+        "description": "The type of tokenization to use for the payment method",
+        "enum": [
+          "skip_psp",
+          "tokenize_at_psp"
         ]
       },
       "TokenizationType": {
@@ -24754,6 +27594,11 @@
             "nullable": true
           },
           "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
             "type": "string",
             "description": "Card Issuing Country",
             "nullable": true
@@ -24961,6 +27806,17 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
@@ -25008,10 +27864,24 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
       "UpiIntentData": {
+        "type": "object"
+      },
+      "UpiQrData": {
         "type": "object"
       },
       "UpiResponse": {
@@ -25210,6 +28080,33 @@
           }
         ]
       },
+      "VaultTokenField": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultTokenType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "VaultTokenType": {
+        "type": "string",
+        "description": "Fields that can be tokenized with vault",
+        "enum": [
+          "card_number",
+          "card_cvc",
+          "card_expiry_year",
+          "card_expiry_month",
+          "network_token",
+          "network_token_expiry_year",
+          "network_token_expiry_month",
+          "network_token_cryptogram"
+        ]
+      },
       "Venmo": {
         "type": "object",
         "required": [
@@ -25405,6 +28302,17 @@
           {
             "type": "object",
             "required": [
+              "apple_pay_decrypt"
+            ],
+            "properties": {
+              "apple_pay_decrypt": {
+                "$ref": "#/components/schemas/ApplePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -25433,6 +28341,9 @@
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
@@ -25456,6 +28367,18 @@
             "type": "string",
             "description": "The type of payment method",
             "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "03",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
           }
         }
       },
@@ -25463,28 +28386,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ali_pay_qr"
-            ],
-            "properties": {
-              "ali_pay_qr": {
-                "$ref": "#/components/schemas/AliPayQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ali_pay_redirect"
-            ],
-            "properties": {
-              "ali_pay_redirect": {
-                "$ref": "#/components/schemas/AliPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "AliPayHkRedirect",
             "required": [
               "ali_pay_hk_redirect"
             ],
@@ -25496,6 +28398,43 @@
           },
           {
             "type": "object",
+            "title": "AliPayQr",
+            "required": [
+              "ali_pay_qr"
+            ],
+            "properties": {
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AliPayRedirect",
+            "required": [
+              "ali_pay_redirect"
+            ],
+            "properties": {
+              "ali_pay_redirect": {
+                "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AmazonPay",
+            "required": [
+              "amazon_pay"
+            ],
+            "properties": {
+              "amazon_pay": {
+                "$ref": "#/components/schemas/AmazonPayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AmazonPayRedirect",
             "required": [
               "amazon_pay_redirect"
             ],
@@ -25507,72 +28446,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "skrill"
-            ],
-            "properties": {
-              "skrill": {
-                "$ref": "#/components/schemas/SkrillData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "paysera"
-            ],
-            "properties": {
-              "paysera": {
-                "$ref": "#/components/schemas/PayseraData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "momo_redirect"
-            ],
-            "properties": {
-              "momo_redirect": {
-                "$ref": "#/components/schemas/MomoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "go_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "ApplePay",
             "required": [
               "apple_pay"
             ],
@@ -25584,6 +28458,7 @@
           },
           {
             "type": "object",
+            "title": "ApplePayRedirect",
             "required": [
               "apple_pay_redirect"
             ],
@@ -25595,6 +28470,7 @@
           },
           {
             "type": "object",
+            "title": "ApplePayThirdPartySdk",
             "required": [
               "apple_pay_third_party_sdk"
             ],
@@ -25606,6 +28482,32 @@
           },
           {
             "type": "object",
+            "title": "BluecodeRedirect",
+            "required": [
+              "bluecode_redirect"
+            ],
+            "properties": {
+              "bluecode_redirect": {
+                "type": "object",
+                "description": "The wallet data for Bluecode QR Code Redirect"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CashappQr",
+            "required": [
+              "cashapp_qr"
+            ],
+            "properties": {
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "DanaRedirect",
             "required": [
               "dana_redirect"
             ],
@@ -25618,6 +28520,31 @@
           },
           {
             "type": "object",
+            "title": "GcashRedirect",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GoPayRedirect",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GooglePay",
             "required": [
               "google_pay"
             ],
@@ -25629,6 +28556,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayRedirect",
             "required": [
               "google_pay_redirect"
             ],
@@ -25640,6 +28568,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayThirdPartySdk",
             "required": [
               "google_pay_third_party_sdk"
             ],
@@ -25651,6 +28580,19 @@
           },
           {
             "type": "object",
+            "title": "KakaoPayRedirect",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MbWayRedirect",
             "required": [
               "mb_way_redirect"
             ],
@@ -25662,6 +28604,19 @@
           },
           {
             "type": "object",
+            "title": "Mifinity",
+            "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayRedirect",
             "required": [
               "mobile_pay_redirect"
             ],
@@ -25673,6 +28628,19 @@
           },
           {
             "type": "object",
+            "title": "MomoRedirect",
+            "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PaypalRedirect",
             "required": [
               "paypal_redirect"
             ],
@@ -25684,6 +28652,7 @@
           },
           {
             "type": "object",
+            "title": "PaypalSdk",
             "required": [
               "paypal_sdk"
             ],
@@ -25695,6 +28664,19 @@
           },
           {
             "type": "object",
+            "title": "Paysera",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Paze",
             "required": [
               "paze"
             ],
@@ -25706,6 +28688,19 @@
           },
           {
             "type": "object",
+            "title": "RevolutPay",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SamsungPay",
             "required": [
               "samsung_pay"
             ],
@@ -25717,6 +28712,43 @@
           },
           {
             "type": "object",
+            "title": "Skrill",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SwishQr",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TouchNGoRedirect",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TwintRedirect",
             "required": [
               "twint_redirect"
             ],
@@ -25729,6 +28761,7 @@
           },
           {
             "type": "object",
+            "title": "VippsRedirect",
             "required": [
               "vipps_redirect"
             ],
@@ -25741,28 +28774,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "touch_n_go_redirect"
-            ],
-            "properties": {
-              "touch_n_go_redirect": {
-                "$ref": "#/components/schemas/TouchNGoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "we_chat_pay_redirect"
-            ],
-            "properties": {
-              "we_chat_pay_redirect": {
-                "$ref": "#/components/schemas/WeChatPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "WeChatPayQr",
             "required": [
               "we_chat_pay_qr"
             ],
@@ -25774,45 +28786,13 @@
           },
           {
             "type": "object",
+            "title": "WeChatPayRedirect",
             "required": [
-              "cashapp_qr"
+              "we_chat_pay_redirect"
             ],
             "properties": {
-              "cashapp_qr": {
-                "$ref": "#/components/schemas/CashappQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "swish_qr"
-            ],
-            "properties": {
-              "swish_qr": {
-                "$ref": "#/components/schemas/SwishQrData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mifinity"
-            ],
-            "properties": {
-              "mifinity": {
-                "$ref": "#/components/schemas/MifinityData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "revolut_pay"
-            ],
-            "properties": {
-              "revolut_pay": {
-                "$ref": "#/components/schemas/RevolutPayData"
+              "we_chat_pay_redirect": {
+                "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
           }

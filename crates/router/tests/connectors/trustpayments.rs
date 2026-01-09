@@ -1,6 +1,7 @@
-use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
+use std::str::FromStr;
+
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, api, domain, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -13,7 +14,7 @@ impl utils::Connector for TrustpaymentsTest {
         use router::connector::Trustpayments;
         utils::construct_connector_data_old(
             Box::new(Trustpayments::new()),
-            types::Connector::Plaid,
+            types::Connector::Trustpayments,
             api::GetToken::Connector,
             None,
         )
@@ -36,11 +37,59 @@ impl utils::Connector for TrustpaymentsTest {
 static CONNECTOR: TrustpaymentsTest = TrustpaymentsTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
+    Some(utils::PaymentInfo {
+        address: Some(types::PaymentAddress::new(
+            None,
+            None,
+            Some(hyperswitch_domain_models::address::Address {
+                address: Some(hyperswitch_domain_models::address::AddressDetails {
+                    country: Some(common_enums::CountryAlpha2::US),
+                    city: Some("New York".to_string()),
+                    zip: Some(Secret::new("10001".to_string())),
+                    line1: Some(Secret::new("123 Main St".to_string())),
+                    line2: None,
+                    line3: None,
+                    state: Some(Secret::new("NY".to_string())),
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    origin_zip: None,
+                }),
+                phone: Some(hyperswitch_domain_models::address::PhoneDetails {
+                    number: Some(Secret::new("1234567890".to_string())),
+                    country_code: Some("+1".to_string()),
+                }),
+                email: None,
+            }),
+            None,
+        )),
+        ..Default::default()
+    })
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
+            card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2025".to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: Some(Secret::new("John Doe".to_string())),
+            co_badged_card_data: None,
+        }),
+        confirm: true,
+        amount: 100,
+        minor_amount: common_utils::types::MinorUnit::new(100),
+        currency: enums::Currency::USD,
+        capture_method: Some(enums::CaptureMethod::Manual),
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
@@ -303,7 +352,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -325,7 +374,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -347,7 +396,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: PaymentMethodData::Card(Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

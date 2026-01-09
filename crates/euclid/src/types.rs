@@ -11,7 +11,10 @@ use crate::{
     frontend::{
         ast,
         dir::{
-            enums::{CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType},
+            enums::{
+                CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType,
+                TransactionInitiator,
+            },
             DirKeyKind, DirValue, EuclidDirFilter,
         },
     },
@@ -35,6 +38,8 @@ pub enum EuclidKey {
     PaymentMethod,
     #[strum(serialize = "card_bin")]
     CardBin,
+    #[strum(serialize = "extended_card_bin")]
+    ExtendedCardBin,
     #[strum(serialize = "metadata")]
     Metadata,
     #[strum(serialize = "mandate_type")]
@@ -55,6 +60,9 @@ pub enum EuclidKey {
     PaymentAmount,
     #[strum(serialize = "currency")]
     PaymentCurrency,
+    #[cfg(feature = "payouts")]
+    #[strum(serialize = "payout_currency")]
+    PayoutCurrency,
     #[strum(serialize = "country", to_string = "business_country")]
     BusinessCountry,
     #[strum(serialize = "billing_country")]
@@ -77,6 +85,8 @@ pub enum EuclidKey {
     CustomerDeviceDisplaySize,
     #[strum(serialize = "customer_device_platform")]
     CustomerDevicePlatform,
+    #[strum(serialize = "transaction_initiator")]
+    TransactionInitiator,
 }
 
 impl EuclidDirFilter for DummyOutput {
@@ -88,6 +98,7 @@ impl EuclidDirFilter for DummyOutput {
         DirKeyKind::CaptureMethod,
         DirKeyKind::AuthenticationType,
         DirKeyKind::CardBin,
+        DirKeyKind::ExtendedCardBin,
         DirKeyKind::PayLaterType,
         DirKeyKind::PaymentAmount,
         DirKeyKind::MetaData,
@@ -95,6 +106,7 @@ impl EuclidDirFilter for DummyOutput {
         DirKeyKind::MandateType,
         DirKeyKind::PaymentType,
         DirKeyKind::SetupFutureUsage,
+        DirKeyKind::TransactionInitiator,
     ];
 }
 impl EuclidAnalysable for DummyOutput {
@@ -142,6 +154,7 @@ impl EuclidKey {
         match self {
             Self::PaymentMethod => DataType::EnumVariant,
             Self::CardBin => DataType::StrValue,
+            Self::ExtendedCardBin => DataType::StrValue,
             Self::Metadata => DataType::MetadataValue,
             Self::PaymentMethodType => DataType::EnumVariant,
             Self::CardNetwork => DataType::EnumVariant,
@@ -149,6 +162,8 @@ impl EuclidKey {
             Self::CaptureMethod => DataType::EnumVariant,
             Self::PaymentAmount => DataType::Number,
             Self::PaymentCurrency => DataType::EnumVariant,
+            #[cfg(feature = "payouts")]
+            Self::PayoutCurrency => DataType::EnumVariant,
             Self::BusinessCountry => DataType::EnumVariant,
             Self::BillingCountry => DataType::EnumVariant,
             Self::MandateType => DataType::EnumVariant,
@@ -163,6 +178,7 @@ impl EuclidKey {
             Self::CustomerDeviceType => DataType::EnumVariant,
             Self::CustomerDeviceDisplaySize => DataType::EnumVariant,
             Self::CustomerDevicePlatform => DataType::EnumVariant,
+            Self::TransactionInitiator => DataType::EnumVariant,
         }
     }
 }
@@ -264,6 +280,7 @@ impl NumValue {
 pub enum EuclidValue {
     PaymentMethod(enums::PaymentMethod),
     CardBin(StrValue),
+    ExtendedCardBin(StrValue),
     Metadata(MetadataValue),
     PaymentMethodType(enums::PaymentMethodType),
     CardNetwork(enums::CardNetwork),
@@ -274,6 +291,8 @@ pub enum EuclidValue {
     MandateType(enums::MandateType),
     PaymentAmount(NumValue),
     PaymentCurrency(enums::Currency),
+    #[cfg(feature = "payouts")]
+    PayoutCurrency(enums::Currency),
     BusinessCountry(enums::Country),
     BillingCountry(enums::Country),
     BusinessLabel(StrValue),
@@ -285,6 +304,7 @@ pub enum EuclidValue {
     CustomerDeviceType(CustomerDeviceType),
     CustomerDeviceDisplaySize(CustomerDeviceDisplaySize),
     CustomerDevicePlatform(CustomerDevicePlatform),
+    TransactionInitiator(TransactionInitiator),
 }
 
 impl EuclidValue {
@@ -299,6 +319,7 @@ impl EuclidValue {
         match self {
             Self::PaymentMethod(_) => EuclidKey::PaymentMethod,
             Self::CardBin(_) => EuclidKey::CardBin,
+            Self::ExtendedCardBin(_) => EuclidKey::ExtendedCardBin,
             Self::Metadata(_) => EuclidKey::Metadata,
             Self::PaymentMethodType(_) => EuclidKey::PaymentMethodType,
             Self::MandateType(_) => EuclidKey::MandateType,
@@ -309,6 +330,8 @@ impl EuclidValue {
             Self::CaptureMethod(_) => EuclidKey::CaptureMethod,
             Self::PaymentAmount(_) => EuclidKey::PaymentAmount,
             Self::PaymentCurrency(_) => EuclidKey::PaymentCurrency,
+            #[cfg(feature = "payouts")]
+            Self::PayoutCurrency(_) => EuclidKey::PayoutCurrency,
             Self::BusinessCountry(_) => EuclidKey::BusinessCountry,
             Self::BillingCountry(_) => EuclidKey::BillingCountry,
             Self::BusinessLabel(_) => EuclidKey::BusinessLabel,
@@ -320,6 +343,7 @@ impl EuclidValue {
             Self::CustomerDeviceType(_) => EuclidKey::CustomerDeviceType,
             Self::CustomerDeviceDisplaySize(_) => EuclidKey::CustomerDeviceDisplaySize,
             Self::CustomerDevicePlatform(_) => EuclidKey::CustomerDevicePlatform,
+            Self::TransactionInitiator(_) => EuclidKey::TransactionInitiator,
         }
     }
 }

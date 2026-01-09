@@ -11,6 +11,7 @@ const connectorName = normalize(globalState.get("connectorId"));
 
 function normalize(input) {
   const exceptions = {
+    adyen: "Adyen",
     archipel: "Archipel",
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
@@ -124,6 +125,8 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
+  OpenBankingUk: "GBP", // Great British Pound payment method
+  OnlineBankingFpx: "MYR", // Malaysian payment methods
 };
 
 export const getCurrency = (paymentMethodType) => {

@@ -93,6 +93,21 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentOffSession: {
+      Request: {
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -458,6 +473,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,

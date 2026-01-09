@@ -33,7 +33,7 @@ const successfulNo3DSCardDetails = {
 
 const successfulThreeDSTestCardDetails = {
   ...successfulNo3DSCardDetails,
-  card_number: "4000000000003063", // Using standard test card with authentication_type: "three_ds"
+  card_number: "4012001800000016", // Using standard test card with authentication_type: "three_ds"
 };
 
 const failedNo3DSCardDetails = {
@@ -43,11 +43,11 @@ const failedNo3DSCardDetails = {
 
 const payment_method_data_3ds = {
   card: {
-    last4: "3063",
+    last4: "0016",
     card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
+    card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
+    card_issuing_country: "UNITEDSTATES",
     card_isin: "401200",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -267,6 +267,9 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // Partial Capture is not supported in Shift4
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -363,6 +366,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         payment_type: "setup_mandate",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,

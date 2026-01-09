@@ -28,7 +28,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -234,9 +236,11 @@ impl ConnectorCommon for Payone {
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             None => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -245,9 +249,11 @@ impl ConnectorCommon for Payone {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -430,4 +436,23 @@ impl ConnectorErrorTypeMapping for Payone {
     }
 }
 
-impl ConnectorSpecifications for Payone {}
+static PAYONE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Payone",
+    description: "Payone payout connector for European market disbursements and automated fund distribution with comprehensive compliance support",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Payone {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYONE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

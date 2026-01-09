@@ -73,6 +73,13 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         amount: None,
         currency: enums::Currency::USD,
         split_payments: None,
+        mandate_id: None,
+        setup_future_usage: None,
+        customer_acceptance: None,
+        setup_mandate_details: None,
+        payment_method_type: None,
+        router_return_url: None,
+        capture_method: None,
     })
 }
 
@@ -88,9 +95,9 @@ async fn create_customer_and_get_token() -> Option<String> {
         .await
         .expect("Authorize payment response");
     let connector_customer_id = match customer_response.response.unwrap() {
-        PaymentsResponseData::ConnectorCustomerResponse {
-            connector_customer_id,
-        } => Some(connector_customer_id),
+        PaymentsResponseData::ConnectorCustomerResponse(customer_data) => {
+            Some(customer_data.connector_customer_id)
+        }
         _ => None,
     };
 
@@ -464,9 +471,9 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .expect("Authorize payment response");
     let connector_customer_id = match customer_response.response.unwrap() {
-        PaymentsResponseData::ConnectorCustomerResponse {
-            connector_customer_id,
-        } => Some(connector_customer_id),
+        PaymentsResponseData::ConnectorCustomerResponse(customer_data) => {
+            Some(customer_data.connector_customer_id)
+        }
         _ => None,
     };
 
@@ -484,6 +491,13 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 amount: None,
                 currency: enums::Currency::USD,
                 split_payments: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                setup_mandate_details: None,
+                payment_method_type: None,
+                router_return_url: None,
+                capture_method: None,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -503,9 +517,9 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .expect("Authorize payment response");
     let connector_customer_id = match customer_response.response.unwrap() {
-        PaymentsResponseData::ConnectorCustomerResponse {
-            connector_customer_id,
-        } => Some(connector_customer_id),
+        PaymentsResponseData::ConnectorCustomerResponse(customer_data) => {
+            Some(customer_data.connector_customer_id)
+        }
         _ => None,
     };
 
@@ -523,6 +537,13 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 amount: None,
                 currency: enums::Currency::USD,
                 split_payments: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                setup_mandate_details: None,
+                payment_method_type: None,
+                router_return_url: None,
+                capture_method: None,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -542,9 +563,9 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .expect("Authorize payment response");
     let connector_customer_id = match customer_response.response.unwrap() {
-        PaymentsResponseData::ConnectorCustomerResponse {
-            connector_customer_id,
-        } => Some(connector_customer_id),
+        PaymentsResponseData::ConnectorCustomerResponse(customer_data) => {
+            Some(customer_data.connector_customer_id)
+        }
         _ => None,
     };
 
@@ -562,6 +583,13 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 amount: None,
                 currency: enums::Currency::USD,
                 split_payments: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                setup_mandate_details: None,
+                payment_method_type: None,
+                router_return_url: None,
+                capture_method: None,
             }),
             get_default_payment_info(connector_customer_id, None),
         )

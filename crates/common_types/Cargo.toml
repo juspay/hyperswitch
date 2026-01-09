@@ -22,8 +22,11 @@ error-stack = "0.4.1"
 
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils"}
+cards = { version = "0.1.0", path = "../cards"}
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking" }
+smithy = { version = "0.1.0", path = "../smithy" }
+smithy-core = { version = "0.1.0", path = "../smithy-core" }
 
 [lints]
 workspace = true

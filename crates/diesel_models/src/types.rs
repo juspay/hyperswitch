@@ -39,6 +39,20 @@ pub struct OrderDetailsWithAmount {
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
     pub total_tax_amount: Option<MinorUnit>,
+    /// description of the product
+    pub description: Option<String>,
+    /// stock keeping unit of the product
+    pub sku: Option<String>,
+    /// universal product code of the product
+    pub upc: Option<String>,
+    /// commodity code of the product
+    pub commodity_code: Option<String>,
+    /// unit of measure of the product
+    pub unit_of_measure: Option<String>,
+    /// total amount of the product
+    pub total_amount: Option<MinorUnit>,
+    /// discount amount on the unit
+    pub unit_discount_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
@@ -87,7 +101,7 @@ impl FeatureMetadata {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -96,6 +110,8 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// The system that the gateway is integrated with, e.g., `Direct`(through hyperswitch), `UnifiedConnectorService`(through ucs), etc.
+    pub gateway_system: Option<common_enums::GatewaySystem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -117,10 +133,10 @@ pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
     /// The date of the first payment
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_start_date: Option<time::PrimitiveDateTime>,
     /// The date of the final payment
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_end_date: Option<time::PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
@@ -174,6 +190,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+    /// Time at which invoice started
+    pub invoice_billing_started_at_time: Option<time::PrimitiveDateTime>,
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// First Payment Attempt Payment Gateway Error Code

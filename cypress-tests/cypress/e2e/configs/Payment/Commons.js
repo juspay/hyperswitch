@@ -1,14 +1,41 @@
 // This file is the default. To override, add to connector.js
-import { getCustomExchange, getCurrency } from "./Modifiers";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
   online: {
     ip_address: "127.0.0.1",
-    user_agent: "amet irure esse",
+    user_agent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22F76 [FBAN/FBIOS;FBAV/520.0.0.38.101;FBBV/756351453;FBDV/iPhone14,7;FBMD/iPhone;FBSN/iOS;FBSV/18.5;FBSS/3;FBID/phone;FBLC/fr_FR;FBOP/5;FBRV/760683563;IABMV/1]",
   },
 };
+
+export const cardCreditEnabled = [
+  {
+    payment_method: "card",
+    payment_method_types: [
+      {
+        payment_method_type: "credit",
+        card_networks: [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "Discover",
+          "JCB",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+          "Interac",
+        ],
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -16,6 +43,15 @@ const successfulNo3DSCardDetails = {
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
+};
+
+const blocklistedCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "2050",
+  card_holder_name: "John Smith",
+  card_cvc: "349",
+  card_network: "Visa",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -33,7 +69,7 @@ const PaymentMethodCardDetails = {
   card_holder_name: "Joseph Doe",
 };
 
-const singleUseMandateData = {
+export const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
@@ -43,13 +79,31 @@ const singleUseMandateData = {
   },
 };
 
-const multiUseMandateData = {
+export const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
       currency: "USD",
     },
+  },
+};
+
+export const standardBillingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "CA",
+    zip: "94122",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "8056594427",
+    country_code: "+91",
   },
 };
 
@@ -168,6 +222,28 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking_uk",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "online_banking_fpx",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "sofort",
         payment_experience: null,
         card_networks: null,
@@ -189,6 +265,12 @@ export const payment_methods_enabled = [
         maximum_amount: 68607706,
         recurring_enabled: false,
         installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "ach",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
       },
       {
         payment_method_type: "instant_bank_transfer_finland",
@@ -324,6 +406,57 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "invoke_sdk_client",
       },
+      {
+        payment_method_type: "skrill",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "reward",
+    payment_method_types: [
+      {
+        payment_method_type: "evoucher",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "classic",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "crypto",
+    payment_method_types: [
+      {
+        payment_method_type: "crypto_currency",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
     ],
   },
 ];
@@ -342,6 +475,7 @@ export const connectorDetails = {
           },
         },
       }),
+
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -349,6 +483,31 @@ export const connectorDetails = {
         payment_method_data: {
           bank_transfer: {
             pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
           },
         },
         billing: {
@@ -456,6 +615,35 @@ export const connectorDetails = {
             last_name: "doe",
           },
         },
+      },
+    }),
+    OpenBankingUk: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "citi",
+              country: "GB",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    OnlineBankingFpx: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+        billing: standardBillingAddress,
       },
     }),
     Giropay: getCustomExchange({
@@ -584,6 +772,34 @@ export const connectorDetails = {
       },
     }),
   },
+  real_time_payment_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "MYR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DuitNow: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "duit_now",
+        payment_method_data: {
+          real_time_payment: {
+            duit_now: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+  },
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
@@ -695,6 +911,62 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {},
+      },
+    }),
+    ManualRetryPaymentDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    }),
+    ManualRetryPaymentEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    }),
+    ManualRetryPaymentCutoffExpired: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
       },
     }),
     Capture: getCustomExchange({
@@ -887,6 +1159,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({
@@ -1523,6 +1797,123 @@ export const connectorDetails = {
         },
       },
     },
+    InvalidPublishableKey: {
+      Request: {},
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
+    DDCRaceConditionServerSide: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      DDCConfig: {
+        completeUrlPath: "/redirect/complete/default",
+        collectionReferenceParam: "collectionReference",
+        firstSubmissionValue: "",
+        secondSubmissionValue: "race_condition_test_ddc_123",
+        expectedError: {
+          status: 400,
+          body: {
+            error: {
+              code: "IR_07",
+              type: "invalid_request",
+              message:
+                "Invalid value provided: collection_reference not allowed in AuthenticationPending state",
+            },
+          },
+        },
+      },
+    }),
+    DDCRaceConditionClientSide: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      DDCConfig: {
+        redirectUrlPath: "/payments/redirect",
+        collectionReferenceParam: "collectionReference",
+        delayBeforeSubmission: 2000,
+        raceConditionScript: `
+          <script>
+            console.log("INJECTING_RACE_CONDITION_TEST");
+            
+            // Track submission attempts and ddcProcessed flag behavior
+            window.testResults = {
+              submissionAttempts: 0,
+              actualSubmissions: 0,
+              blockedSubmissions: 0
+            };
+            
+            // Override the submitCollectionReference function to test race conditions
+            var originalSubmit = window.submitCollectionReference;
+            
+            window.submitCollectionReference = function(collectionReference) {
+              window.testResults.submissionAttempts++;
+              console.log("SUBMISSION_ATTEMPT_" + window.testResults.submissionAttempts + ": " + collectionReference);
+              
+              // Check if ddcProcessed flag would block this
+              if (window.ddcProcessed) {
+                window.testResults.blockedSubmissions++;
+                console.log("SUBMISSION_BLOCKED_BY_DDC_PROCESSED_FLAG");
+                return;
+              }
+              
+              window.testResults.actualSubmissions++;
+              console.log("SUBMISSION_PROCEEDING: " + collectionReference);
+              
+              if (originalSubmit) {
+                return originalSubmit(collectionReference);
+              }
+            };
+            
+            // Submit first value at configured timing
+            setTimeout(function() {
+              console.log("FIRST_SUBMISSION_TRIGGERED_AT_100MS");
+              window.submitCollectionReference("");
+            }, 100);
+            
+            // Submit second value at configured timing (should be blocked)
+            setTimeout(function() {
+              console.log("SECOND_SUBMISSION_ATTEMPTED_AT_200MS");
+              window.submitCollectionReference("test_ddc_123");
+            }, 200);
+          </script>
+        `,
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -1558,6 +1949,95 @@ export const connectorDetails = {
             upi_intent: {},
           },
         },
+      },
+    }),
+  },
+  reward_pm: {
+    PaymentIntentUSD: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntentEUR: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Evoucher: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: "reward",
+        billing: standardBillingAddress,
+      },
+    }),
+    Classic: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic",
+        payment_method_data: "reward",
+        billing: standardBillingAddress,
+      },
+    }),
+  },
+  crypto_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    CryptoCurrency: getCustomExchange({
+      Request: {
+        payment_method: "crypto",
+        payment_method_type: "crypto_currency",
+        payment_method_data: {
+          crypto: {
+            network: "bitcoin",
+            pay_currency: "BTC",
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    CryptoCurrencyManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "crypto",
+        payment_method_type: "crypto_currency",
+        payment_method_data: {
+          crypto: {
+            network: "bitcoin",
+            pay_currency: "BTC",
+          },
+        },
+        billing: standardBillingAddress,
       },
     }),
   },
@@ -1655,6 +2135,56 @@ export const connectorDetails = {
             code: "IR_06",
             error_type: "invalid_request",
           },
+        },
+      },
+    }),
+  },
+  eligibility_api: {
+    PaymentIntentForBlocklist: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    BlocklistedCardDenied: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: blocklistedCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          sdk_next_action: {
+            next_action: {
+              deny: {
+                message: "Card number is blocklisted",
+              },
+            },
+          },
+        },
+      },
+    }),
+    NonBlocklistedCardAllowed: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          // Should not have deny action for non-blocklisted cards
         },
       },
     }),

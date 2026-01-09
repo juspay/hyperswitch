@@ -10,7 +10,7 @@ use super::app::AppState;
 use crate::{
     core::disputes,
     services::{api, authentication as auth},
-    types::{api::disputes as dispute_types, domain},
+    types::api::disputes as dispute_types,
 };
 
 #[cfg(feature = "v1")]
@@ -34,21 +34,22 @@ pub async fn retrieve_dispute(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    json_payload: web::Query<dispute_models::DisputeRetrieveBody>,
 ) -> HttpResponse {
     let flow = Flow::DisputesRetrieve;
-    let dispute_id = dispute_types::DisputeId {
+    let payload = dispute_models::DisputeRetrieveRequest {
         dispute_id: path.into_inner(),
+        force_sync: json_payload.force_sync,
     };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        dispute_id,
+        payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::retrieve_dispute(state, merchant_context, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::retrieve_dispute(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -64,6 +65,42 @@ pub async fn retrieve_dispute(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
+pub async fn fetch_disputes(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Query<dispute_types::DisputeFetchQueryData>,
+) -> HttpResponse {
+    let flow = Flow::DisputesList;
+    let connector_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            disputes::connector_sync_disputes(state, auth.platform, connector_id.clone(), req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileDisputeRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Disputes - List Disputes
 #[utoipa::path(
     get,
@@ -102,10 +139,7 @@ pub async fn retrieve_disputes_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::retrieve_disputes_list(state, merchant_context, None, req)
+            disputes::retrieve_disputes_list(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -161,13 +195,10 @@ pub async fn retrieve_disputes_list_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             disputes::retrieve_disputes_list(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
@@ -207,10 +238,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::get_filters_for_disputes(state, merchant_context, None)
+            disputes::get_filters_for_disputes(state, auth.platform, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -251,13 +279,10 @@ pub async fn get_disputes_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             disputes::get_filters_for_disputes(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
         auth::auth_type(
@@ -307,10 +332,8 @@ pub async fn accept_dispute(
         &req,
         dispute_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::accept_dispute(state, merchant_context, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::accept_dispute(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -354,10 +377,8 @@ pub async fn submit_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::submit_evidence(state, merchant_context, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::submit_evidence(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -408,10 +429,8 @@ pub async fn attach_dispute_evidence(
         &req,
         attach_evidence_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::attach_evidence(state, merchant_context, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::attach_evidence(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -460,10 +479,8 @@ pub async fn retrieve_dispute_evidence(
         &req,
         dispute_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::retrieve_dispute_evidence(state, merchant_context, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::retrieve_dispute_evidence(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -508,10 +525,7 @@ pub async fn delete_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::delete_evidence(state, merchant_context, req)
+            disputes::delete_evidence(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -543,10 +557,7 @@ pub async fn get_disputes_aggregate(
         &req,
         query_param,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            disputes::get_aggregates_for_disputes(state, merchant_context, None, req)
+            disputes::get_aggregates_for_disputes(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -579,13 +590,10 @@ pub async fn get_disputes_aggregate_profile(
         &req,
         query_param,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             disputes::get_aggregates_for_disputes(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },

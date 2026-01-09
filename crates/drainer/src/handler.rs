@@ -241,6 +241,7 @@ async fn drainer(
     );
 
     let session_id = common_utils::generate_id_with_default_len("drainer_session");
+    tracing::Span::current().record("session_id", &session_id);
 
     let mut last_processed_id = String::new();
 
@@ -261,7 +262,6 @@ async fn drainer(
 
         tracing::Span::current().record("request_id", data.request_id);
         tracing::Span::current().record("global_id", data.global_id);
-        tracing::Span::current().record("session_id", &session_id);
 
         match data.typed_sql.execute_query(&store, data.pushed_at).await {
             Ok(_) => {
@@ -277,9 +277,15 @@ async fn drainer(
                 _ => break,
             },
         }
+
+        if store.use_legacy_version() {
+            store
+                .delete_from_stream(stream_name, &last_processed_id)
+                .await?;
+        }
     }
 
-    if !last_processed_id.is_empty() {
+    if !(last_processed_id.is_empty() || store.use_legacy_version()) {
         let entries_trimmed = store
             .trim_from_stream(stream_name, &last_processed_id)
             .await?;

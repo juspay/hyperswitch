@@ -210,6 +210,18 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError>;
 
+    /// fn get_status_update_object
+    #[cfg(feature = "payouts")]
+    fn get_payout_webhook_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, errors::ConnectorError> {
+        Ok(api_models::webhooks::PayoutWebhookUpdate {
+            error_code: None,
+            error_message: None,
+        })
+    }
+
     /// fn get_webhook_event_type
     fn get_webhook_event_type(
         &self,
@@ -273,6 +285,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(None)
     }
 
+    /// fn to get additional payment method data from connector if any
+    fn get_additional_payment_method_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
+
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     /// get revenue recovery invoice details
     fn get_revenue_recovery_attempt_details(
@@ -298,6 +321,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     > {
         Err(errors::ConnectorError::NotImplemented(
             "get_revenue_recovery_invoice_details method".to_string(),
+        )
+        .into())
+    }
+
+    /// get subscription MIT payment data from webhook
+    fn get_subscription_mit_payment_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_subscription_mit_payment_data method".to_string(),
         )
         .into())
     }

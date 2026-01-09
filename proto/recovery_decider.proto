@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package decider;
+
+import "google/protobuf/timestamp.proto";
+
+service Decider {
+  rpc Decide (DeciderRequest) returns (DeciderResponse);
+}
+
+message DeciderRequest {
+  string first_error_message = 1;
+  optional string billing_state = 2;
+  optional string card_funding = 3;
+  optional string card_network = 4;
+  optional string card_issuer = 5;
+  google.protobuf.Timestamp invoice_start_time = 6;
+  optional int64 retry_count = 7;
+  optional string merchant_id = 8;
+  optional int64 invoice_amount = 9;
+  optional string invoice_currency = 10;
+  optional google.protobuf.Timestamp invoice_due_date = 11;
+  optional string billing_country = 12;
+  optional string billing_city = 13;
+  optional string attempt_currency = 14;
+  optional string attempt_status = 15;
+  optional int64 attempt_amount = 16;
+  optional string pg_error_code = 17;
+  optional string network_advice_code = 18;
+  optional string network_error_code = 19;
+  optional string first_pg_error_code = 20;
+  optional string first_network_advice_code = 21;
+  optional string first_network_error_code = 22;
+  optional google.protobuf.Timestamp attempt_response_time = 23;
+  optional string payment_method_type = 24;
+  optional string payment_gateway = 25;
+  optional int64 retry_count_left = 26;
+  optional int64 total_retry_count_within_network = 27;
+  optional google.protobuf.Timestamp first_error_msg_time = 28;
+  optional google.protobuf.Timestamp wait_time = 29;
+  optional string payment_id= 30;
+  map<string, int32> hourly_retry_history = 31;
+  optional double previous_threshold= 32;
+}
+
+message DeciderResponse {
+  bool retry_flag = 1;
+  google.protobuf.Timestamp retry_time = 2;
+  optional double decision_threshold= 3;
+}

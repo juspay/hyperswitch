@@ -138,9 +138,11 @@ impl ConnectorCommon for Stax {
             ),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1001,7 +1003,8 @@ static STAX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Stax",
     description:
         "Stax is a payment processing platform that helps businesses accept payments and manage their payment ecosystem ",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static STAX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
@@ -1018,5 +1021,12 @@ impl ConnectorSpecifications for Stax {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&STAX_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
     }
 }

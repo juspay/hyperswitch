@@ -1,20 +1,22 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{request::Method, types::StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, PaymentsAuthorizeRequestData},
+};
 
-//TODO: Fill the struct with respective fields
 pub struct BreadpayRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -22,7 +24,6 @@ pub struct BreadpayRouterData<T> {
 
 impl<T> From<(StringMinorUnit, T)> for BreadpayRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -30,93 +31,170 @@ impl<T> From<(StringMinorUnit, T)> for BreadpayRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct BreadpayPaymentsRequest {
-    amount: StringMinorUnit,
-    card: BreadpayCard,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreadpayCartRequest {
+    custom_total: StringMinorUnit,
+    options: Option<BreadpayCartOptions>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BreadpayCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreadpayCartOptions {
+    order_ref: Option<String>,
+    complete_url: String,
+    callback_url: String,
+    // billing_contact: Option<BillingContact>,
 }
 
-impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayPaymentsRequest {
+// #[derive(Debug, Serialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct BillingContact {
+//     first_name: Secret<String>,
+//     last_name: Secret<String>,
+//     email: Option<Email>,
+//     address: Secret<String>,
+//     city: Secret<String>,
+//     state: Secret<String>,
+// }
+
+impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCartRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &BreadpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
+        let request = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::PayLater(pay_later_data) => match pay_later_data{
+                hyperswitch_domain_models::payment_method_data::PayLaterData::BreadpayRedirect {  } => {
+                                // let billing_contact = BillingContact {
+                                //     first_name: item.router_data.get_billing_first_name()?,
+                                //     last_name: item.router_data.get_billing_last_name()?,
+                                //     email: item.router_data.get_optional_billing_email(),
+                                //     address: item.router_data.get_billing_line1()?,
+                                //     city: item.router_data.get_billing_city()?.into(),
+                                //     state: item.router_data.get_billing_state()?,
+                                // };
+                                let options = Some({
+                                    BreadpayCartOptions {
+                                        order_ref: item.router_data.request.merchant_order_reference_id.clone(),
+                                        complete_url: item.router_data.request.get_complete_authorize_url()?,
+                                        callback_url: item.router_data.request.get_router_return_url()?
+                                        // billing_contact: Some(billing_contact)
+                                    }
+                                });
+                                Self{
+                                    custom_total: item.amount.clone(),
+                                    options,
+                                }
+                            },
+                hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } |
+                hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaSdk { .. } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::FlexitiRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::PayBrightRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::AlmaRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::PayjustnowRedirect {  } => {
+                                Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("breadpay"),
+                            ))
+                            }?,
+            },
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(
+                _,
             )
-            .into()),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::MobilePayment(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("breadpay"),
+                ))
+            }?
+        };
+        Ok(request)
     }
 }
 
-//TODO: Fill the struct with respective fields
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreadpayTransactionRequest {
+    #[serde(rename = "type")]
+    pub transaction_type: BreadpayTransactionType,
+}
+
+#[derive(Debug, Serialize)]
+pub enum BreadpayTransactionType {
+    Authorize,
+    Settle,
+    Cancel,
+    Refund,
+}
+
 // Auth Struct
 pub struct BreadpayAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for BreadpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
+                api_secret: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum BreadpayPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BreadpayTransactionResponse {
+    status: TransactionStatus,
+    bread_transactin_id: String,
+    merchant_order_id: String,
 }
 
-impl From<BreadpayPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: BreadpayPaymentStatus) -> Self {
-        match item {
-            BreadpayPaymentStatus::Succeeded => Self::Charged,
-            BreadpayPaymentStatus::Failed => Self::Failure,
-            BreadpayPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransactionStatus {
+    Pending,
+    Canceled,
+    Refunded,
+    Expired,
+    Authorized,
+    Settled,
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BreadpayPaymentsResponse {
-    status: BreadpayPaymentStatus,
-    id: String,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, BreadpayTransactionResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, BreadpayTransactionResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.bread_transactin_id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -130,12 +208,65 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsRe
     }
 }
 
-//TODO: Fill the struct with respective fields
+impl From<TransactionStatus> for enums::AttemptStatus {
+    fn from(item: TransactionStatus) -> Self {
+        match item {
+            TransactionStatus::Pending => Self::Pending,
+            TransactionStatus::Authorized => Self::Authorized,
+            TransactionStatus::Canceled => Self::Voided,
+            TransactionStatus::Refunded => Self::AutoRefunded,
+            TransactionStatus::Expired => Self::Failure,
+            TransactionStatus::Settled => Self::Charged,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BreadpayPaymentsResponse {
+    url: url::Url,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            // As per documentation, the first call is cart creation where we don't get any status only get the customer redirection url.
+            status: common_enums::AttemptStatus::AuthenticationPending,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(Some(RedirectForm::from((
+                    item.response.url,
+                    Method::Get,
+                )))),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CallBackResponse {
+    pub transaction_id: String,
+    pub order_ref: String,
+}
+
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct BreadpayRefundRequest {
     pub amount: StringMinorUnit,
+    #[serde(rename = "type")]
+    pub transaction_type: BreadpayTransactionType,
 }
 
 impl<F> TryFrom<&BreadpayRouterData<&RefundsRouterData<F>>> for BreadpayRefundRequest {
@@ -143,6 +274,7 @@ impl<F> TryFrom<&BreadpayRouterData<&RefundsRouterData<F>>> for BreadpayRefundRe
     fn try_from(item: &BreadpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
+            transaction_type: BreadpayTransactionType::Refund,
         })
     }
 }
@@ -206,14 +338,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreadpayErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
+    /// Human-readable error description
+    pub description: String,
+
+    /// Error type classification
+    #[serde(rename = "type")]
+    pub error_type: String,
 }

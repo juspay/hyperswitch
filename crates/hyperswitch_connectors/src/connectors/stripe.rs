@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{
@@ -22,24 +22,27 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute, PSync,
-        PaymentMethodToken, RSync, Retrieve, Session, SetupMandate, UpdateMetadata, Upload, Void,
+        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
+        IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Retrieve, Session,
+        SetupMandate, UpdateMetadata, Upload, Void,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData, TokenizationRouterData,
+        PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -58,7 +61,7 @@ use hyperswitch_interfaces::{
         disputes::SubmitEvidence,
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorSpecifications, ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation, PaymentIncrementalAuthorization,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -66,9 +69,10 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        ConnectorCustomerType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        ConnectorCustomerType, IncrementalAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
+        TokenizationType, UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -80,6 +84,7 @@ use self::transformers as stripe;
 #[cfg(feature = "payouts")]
 use crate::utils::{PayoutsData as OtherPayoutsData, RouterData as OtherRouterData};
 use crate::{
+    connectors::stripe::transformers::get_stripe_compatible_connect_account_header,
     constants::headers::{AUTHORIZATION, CONTENT_TYPE, STRIPE_COMPATIBLE_CONNECT_ACCOUNT},
     types::{
         ResponseRouterData, RetrieveFileRouterData, SubmitEvidenceRouterData, UploadFileRouterData,
@@ -174,18 +179,20 @@ impl ConnectorCommon for Stripe {
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -224,6 +231,7 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::Sofort,
             PaymentMethodDataType::Ideal,
             PaymentMethodDataType::BancontactCard,
+            PaymentMethodDataType::MandatePayment,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -367,11 +375,11 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -385,9 +393,11 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -438,8 +448,14 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         if matches!(
-            req.request.split_payments,
-            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+            (
+                req.request.split_payments.as_ref(),
+                req.request.payment_method_data.clone()
+            ),
+            (
+                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
+                PaymentMethodData::Card(_)
+            )
         ) {
             return Ok(format!(
                 "{}{}",
@@ -518,11 +534,11 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -536,9 +552,11 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -556,6 +574,18 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             Self::common_get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
+        }
+
         header.append(&mut api_key);
         Ok(header)
     }
@@ -665,11 +695,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -683,9 +713,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -832,11 +864,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -850,9 +882,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -874,33 +908,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
-
-        // if the request has split payment object, then append the transfer account id in headers in charge_type is Direct
-        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-            stripe_split_payment,
-        )) = &req.request.split_payments
-        {
-            if stripe_split_payment.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                let mut customer_account_header = vec![(
-                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    stripe_split_payment
-                        .transfer_account_id
-                        .clone()
-                        .into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-        }
-        // if request doesn't have transfer_account_id, but stripe_split_payment_metadata has it, append it
-        else if let Some(transfer_account_id) =
-            stripe_split_payment_metadata.transfer_account_id.clone()
-        {
+        if let Some(id) = get_stripe_compatible_connect_account_header(req)? {
             let mut customer_account_header = vec![(
                 STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                transfer_account_id.into_masked(),
+                id.into_masked(),
             )];
             header.append(&mut customer_account_header);
         }
@@ -1005,11 +1016,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1023,9 +1034,157 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
+        })
+    }
+}
+
+impl PaymentIncrementalAuthorization for Stripe {}
+
+impl
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(format!(
+            "{}v1/payment_intents/{}/increment_authorization",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.total_amount),
+            req.request.currency,
+        )?;
+        let connector_req = stripe::StripeIncrementalAuthRequest { amount }; // Incremental authorization can be done a maximum of 10 times in Stripe
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&IncrementalAuthorizationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(IncrementalAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(IncrementalAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsIncrementalAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        let response: stripe::PaymentIntentResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .message
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .clone()
+                    .map(|decline_code| {
+                        format!("message - {message}, decline_code - {decline_code}")
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1125,6 +1284,18 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             PaymentsVoidType::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
+        }
+
         header.append(&mut api_key);
         Ok(header)
     }
@@ -1210,11 +1381,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1228,9 +1399,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1247,6 +1420,17 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             Verify::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
+        }
         header.append(&mut api_key);
         Ok(header)
     }
@@ -1340,11 +1524,11 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1358,9 +1542,11 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1505,11 +1691,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1523,9 +1709,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1636,11 +1824,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1654,9 +1842,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1720,8 +1910,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
         req: &UploadFileRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::FormData(connector_req))
+        transformers::construct_file_upload_request(req.clone())
     }
 
     fn build_request(
@@ -1780,11 +1969,11 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1798,9 +1987,11 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1880,11 +2071,11 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1898,9 +2089,11 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -2005,11 +2198,11 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             code: response
                 .error
                 .code
-                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -2023,9 +2216,11 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -2764,4 +2959,385 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
     }
 }
 
-impl ConnectorSpecifications for Stripe {}
+static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let default_capture_methods = vec![
+        CaptureMethod::Automatic,
+        CaptureMethod::Manual,
+        CaptureMethod::SequentialAutomatic,
+    ];
+
+    let automatic_capture_supported =
+        vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut stripe_supported_payment_methods = SupportedPaymentMethods::new();
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        PaymentMethodType::Klarna,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        PaymentMethodType::Affirm,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        PaymentMethodType::AfterpayClearpay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::AliPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::AmazonPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::WeChatPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::Cashapp,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::RevolutPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Becs,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Sepa,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Bacs,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::BancontactCard,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Blik,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::SepaBankTransfer,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Bacs,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Multibanco,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Giropay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::NotSupported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Ideal,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Przelewy24,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Eps,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingFpx,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Sofort,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods
+});
+
+static STRIPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Stripe",
+    description: "Stripe is a payment processing platform that provides businesses with tools and APIs to accept payments online and manage their financial infrastructure",
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Live,
+};
+
+static STRIPE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 3] = [
+    common_enums::EventClass::Payments,
+    common_enums::EventClass::Refunds,
+    common_enums::EventClass::Disputes,
+];
+
+impl ConnectorSpecifications for Stripe {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&STRIPE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*STRIPE_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&STRIPE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
+    }
+}

@@ -45,7 +45,7 @@ where
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, D>> {
         Ok(*self)
     }
     fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
@@ -61,7 +61,7 @@ where
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, D>> {
         Ok(self)
     }
     fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
@@ -167,7 +167,7 @@ where
         _req_state: ReqState,
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
@@ -181,14 +181,14 @@ where
         _req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            merchant_context,
+            platform,
             customer,
         )
         .await?;
@@ -217,14 +217,14 @@ where
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            merchant_context,
+            platform,
             customer,
         )
         .await?;

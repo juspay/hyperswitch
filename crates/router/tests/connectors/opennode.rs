@@ -14,7 +14,7 @@ impl utils::Connector for OpennodeTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Opennode;
         utils::construct_connector_data_old(
-            Box::new(&Opennode),
+            Box::new(Opennode::new()),
             types::Connector::Opennode,
             api::GetToken::Connector,
             None,
@@ -74,8 +74,6 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             network: None,
         }),
         confirm: true,
-        statement_descriptor_suffix: None,
-        statement_descriptor: None,
         setup_future_usage: None,
         mandate_id: None,
         off_session: None,
@@ -101,6 +99,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         metadata: None,
         authentication_data: None,
         customer_acceptance: None,
+        billing_descriptor: None,
         ..utils::PaymentAuthorizeType::default().0
     })
 }

@@ -1,0 +1,4 @@
+-- Your SQL goes here
+ALTER TABLE gateway_status_map
+ADD COLUMN IF NOT EXISTS feature_data JSONB DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS feature VARCHAR(64) DEFAULT NULL;

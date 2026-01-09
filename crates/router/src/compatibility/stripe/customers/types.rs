@@ -116,6 +116,7 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
             first_name: None,
             line3: None,
             last_name: None,
+            origin_zip: None,
         }
     }
 }

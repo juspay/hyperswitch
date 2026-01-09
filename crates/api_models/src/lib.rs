@@ -25,12 +25,14 @@ pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
+pub mod oidc;
 pub mod open_router;
 pub mod organization;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod platform;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
@@ -41,7 +43,10 @@ pub mod proxy;
 pub mod recon;
 pub mod refunds;
 pub mod relay;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_data_backfill;
 pub mod routing;
+pub mod subscription;
 pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]

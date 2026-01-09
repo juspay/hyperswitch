@@ -1,6 +1,12 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use base64::Engine;
+use common_utils::{
+    consts,
+    crypto::{self, GenerateDigest},
+    errors::CustomResult,
+    ext_traits::ValueExt,
+};
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
 use router_env::tracing;
@@ -67,7 +73,7 @@ pub async fn construct_webhook_router_data(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
@@ -79,7 +85,7 @@ pub async fn construct_webhook_router_data(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
         tenant_id: state.tenant.tenant_id.clone(),
@@ -89,6 +95,7 @@ pub async fn construct_webhook_router_data(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -126,6 +133,7 @@ pub async fn construct_webhook_router_data(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -135,6 +143,9 @@ pub async fn construct_webhook_router_data(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -144,18 +155,28 @@ pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
     event_type: types::storage::enums::EventType,
     delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
-) -> String {
+) -> Result<String, Report<errors::WebhooksFlowError>> {
     use crate::types::storage::enums::WebhookDeliveryAttempt;
 
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
 
     let common_prefix = format!("{primary_object_id}_{event_type}");
-    match delivery_attempt {
-        WebhookDeliveryAttempt::InitialAttempt => common_prefix,
+
+    // Hash the common prefix with SHA256 and encode with URL-safe base64 without padding
+    let digest = crypto::Sha256
+        .generate_digest(common_prefix.as_bytes())
+        .change_context(errors::WebhooksFlowError::IdGenerationFailed)
+        .attach_printable("Failed to generate idempotent event ID")?;
+    let base_encoded = consts::BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest);
+
+    let result = match delivery_attempt {
+        WebhookDeliveryAttempt::InitialAttempt => base_encoded,
         WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
-            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
+            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &base_encoded)
         }
-    }
+    };
+
+    Ok(result)
 }
 
 #[inline]

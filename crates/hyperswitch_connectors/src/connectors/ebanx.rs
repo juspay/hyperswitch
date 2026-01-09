@@ -26,7 +26,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::{PayoutCancelType, PayoutCreateType, PayoutFulfillType};
@@ -146,9 +148,11 @@ impl ConnectorCommon for Ebanx {
             reason: response.message,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -448,4 +452,23 @@ impl IncomingWebhook for Ebanx {
     }
 }
 
-impl ConnectorSpecifications for Ebanx {}
+static EBANX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Ebanx",
+    description: "EBANX payout connector for cross-border disbursements and local currency payouts across Latin America, Africa, and emerging markets",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Ebanx {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&EBANX_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

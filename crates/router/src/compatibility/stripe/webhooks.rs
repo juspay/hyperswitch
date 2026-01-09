@@ -90,6 +90,7 @@ pub enum StripeWebhookObject {
     Mandate(StripeMandateResponse),
     #[cfg(feature = "payouts")]
     Payout(StripePayoutResponse),
+    Subscriptions,
 }
 
 #[derive(Serialize, Debug)]
@@ -269,8 +270,11 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
     match event_type {
         api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
         api_models::enums::EventType::PaymentFailed => "payment_intent.payment_failed",
-        api_models::enums::EventType::PaymentProcessing => "payment_intent.processing",
-        api_models::enums::EventType::PaymentCancelled => "payment_intent.canceled",
+        api_models::enums::EventType::PaymentProcessing
+        | api_models::enums::EventType::PaymentPartiallyAuthorized => "payment_intent.processing",
+        api_models::enums::EventType::PaymentCancelled
+        | api_models::enums::EventType::PaymentCancelledPostCapture
+        | api_models::enums::EventType::PaymentExpired => "payment_intent.canceled",
 
         // the below are not really stripe compatible because stripe doesn't provide this
         api_models::enums::EventType::ActionRequired => "action.required",
@@ -299,6 +303,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PayoutProcessing => "payout.created",
         api_models::enums::EventType::PayoutExpired => "payout.failed",
         api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
+        api_models::enums::EventType::InvoicePaid => "invoice.paid",
     }
 }
 
@@ -341,6 +346,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             }
             #[cfg(feature = "payouts")]
             api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout((*payout).into()),
+            api_models::webhooks::OutgoingWebhookContent::SubscriptionDetails(_) => {
+                Self::Subscriptions
+            }
         }
     }
 }

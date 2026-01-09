@@ -6,7 +6,6 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
-use masking;
 use router_env::{
     instrument,
     tracing::{self, Instrument},
@@ -48,7 +47,9 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
-        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt);
+        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to generate idempotent event ID")?;
     let webhook_url_result = business_profile
         .get_webhook_url_from_profile()
         .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured);
@@ -119,7 +120,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(key_manager_state, new_event, merchant_key_store)
+        .insert_event(new_event, merchant_key_store)
         .await;
 
     let event = match event_insert_result {
@@ -396,12 +397,7 @@ async fn build_and_send_request(
 
     state
         .api_client
-        .send_request(
-            state,
-            request,
-            Some(types::OUTGOING_WEBHOOK_TIMEOUT_SECS),
-            false,
-        )
+        .send_request(state, request, None, false)
         .await
 }
 
@@ -492,7 +488,6 @@ async fn update_event_in_storage(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            key_manager_state,
             merchant_id,
             event_id,
             event_update,
@@ -508,8 +503,6 @@ async fn update_overall_delivery_status_in_storage(
     merchant_id: &common_utils::id_type::MerchantId,
     updated_event: &domain::Event,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let key_manager_state = &(&state).into();
-
     let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
         is_overall_delivery_successful: true,
     };
@@ -526,7 +519,6 @@ async fn update_overall_delivery_status_in_storage(
         state
             .store
             .update_event_by_merchant_id_event_id(
-                key_manager_state,
                 merchant_id,
                 initial_attempt_id.as_str(),
                 update_overall_delivery_status,
@@ -660,6 +652,16 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
             } => Self::Mandate {
                 payment_method_id,
                 mandate_id,
+                content: serde_json::Value::Null,
+            },
+            diesel_models::EventMetadata::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
+            } => Self::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
                 content: serde_json::Value::Null,
             },
         }

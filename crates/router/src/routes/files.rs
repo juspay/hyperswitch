@@ -1,5 +1,6 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::files as file_types;
 use router_env::{instrument, tracing, Flow};
 
 use crate::core::api_locking;
@@ -9,7 +10,7 @@ use super::app::AppState;
 use crate::{
     core::files::*,
     services::{api, authentication as auth},
-    types::{api::files, domain},
+    types::api::files,
 };
 
 #[cfg(feature = "v1")]
@@ -46,10 +47,7 @@ pub async fn files_create(
         &req,
         create_file_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            files_create_core(state, merchant_context, req)
+            files_create_core(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -98,10 +96,7 @@ pub async fn files_delete(
         &req,
         file_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            files_delete_core(state, merchant_context, req)
+            files_delete_core(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -139,10 +134,12 @@ pub async fn files_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    json_payload: web::Query<file_types::FileRetrieveQuery>,
 ) -> HttpResponse {
     let flow = Flow::RetrieveFile;
-    let file_id = files::FileId {
+    let file_id = files::FileRetrieveRequest {
         file_id: path.into_inner(),
+        dispute_id: json_payload.dispute_id.clone(),
     };
     Box::pin(api::server_wrap(
         flow,
@@ -150,10 +147,7 @@ pub async fn files_retrieve(
         &req,
         file_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            files_retrieve_core(state, merchant_context, req)
+            files_retrieve_core(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

@@ -27,6 +27,9 @@ pub struct PSync;
 pub struct Void;
 
 #[derive(Debug, Clone)]
+pub struct PostCaptureVoid;
+
+#[derive(Debug, Clone)]
 pub struct Reject;
 
 #[derive(Debug, Clone)]
@@ -46,6 +49,9 @@ pub struct PreProcessing;
 
 #[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
+
+#[derive(Debug, Clone)]
+pub struct ExtendAuthorization;
 
 #[derive(Debug, Clone)]
 pub struct PostProcessing;
@@ -79,3 +85,9 @@ pub struct CreateOrder;
 
 #[derive(Debug, Clone)]
 pub struct PaymentGetListAttempts;
+
+#[derive(Debug, Clone)]
+pub struct ExternalVaultProxy;
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheck;

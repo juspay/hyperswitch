@@ -171,10 +171,15 @@ pub async fn create_api_key(
         if api_key.expires_at.is_some() {
             let expiry_reminder_days = state.conf.api_keys.get_inner().expiry_reminder_days.clone();
 
-            add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to insert API key expiry reminder to process tracker")?;
+            add_api_key_expiry_task(
+                store,
+                &api_key,
+                expiry_reminder_days,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to insert API key expiry reminder to process tracker")?;
         }
     }
 
@@ -193,6 +198,7 @@ pub async fn add_api_key_expiry_task(
     store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
+    application_source: common_enums::ApplicationSource,
 ) -> Result<(), errors::ProcessTrackerError> {
     let current_time = date_time::now();
 
@@ -231,6 +237,7 @@ pub async fn add_api_key_expiry_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct API key expiry process tracker task")?;
@@ -346,12 +353,15 @@ pub async fn update_api_key(
         else if api_key.expires_at.is_some() {
             // Process doesn't exist in process_tracker table, so create new entry with
             // schedule_time based on new expiry set.
-            add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to insert API key expiry reminder task to process tracker",
-                )?;
+            add_api_key_expiry_task(
+                store,
+                &api_key,
+                expiry_reminder_days,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to insert API key expiry reminder task to process tracker")?;
         }
     }
 
@@ -425,18 +435,18 @@ pub async fn update_api_key_expiry_task(
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     key_id: &common_utils::id_type::ApiKeyId,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
 
     let api_key = store
-        .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
+        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
     let revoked = store
-        .revoke_api_key(merchant_id, key_id)
+        .revoke_api_key(&merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
@@ -566,7 +576,6 @@ impl From<storage::HashedApiKey> for HashedApiKey {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
 
     #[tokio::test]

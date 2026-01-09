@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
         ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{BrowserInformation, PaymentsAuthorizeData, ResponseId},
+    router_request_types::{BrowserInformation, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -30,7 +30,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
     unimplemented_payment_method,
     utils::{self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData as _},
@@ -349,19 +350,10 @@ pub struct HipayMaintenanceResponse<S> {
     message: String,
     transaction_reference: String,
 }
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, HipayPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            HipayPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<HipayPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status);
         let response = if status == enums::AttemptStatus::Failure {
@@ -371,10 +363,12 @@ impl<F>
                 reason: Some(item.response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_reference),
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -723,10 +717,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     reason: Some(message.clone()),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     status_code: item.http_code,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 });
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
@@ -751,9 +747,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {

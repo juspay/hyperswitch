@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
+use common_enums;
 use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -20,19 +21,24 @@ use external_services::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
     },
+    superposition::SuperpositionClientConfig,
 };
-pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::{
+pub use hyperswitch_interfaces::{
+    configs::{
+        Connectors, GlobalTenant, InternalMerchantIdProfileIdAuthSettings, InternalServicesConfig,
+        Tenant, TenantUserConfig,
+    },
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
-    types::Proxy,
+    types::{ComparisonServiceConfig, Proxy},
 };
-use masking::Secret;
+use masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
-    ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
+    Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -50,6 +56,7 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    headers, logger,
     routes::app,
     AppState,
 };
@@ -68,9 +75,10 @@ pub struct CmdLineConf {
 #[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
+    pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: ChatSettings,
+    pub chat: SecretStateContainer<ChatSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -102,11 +110,13 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -117,6 +127,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub l2_l3_data_config: L2L3DataConfig,
     pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
@@ -160,8 +171,32 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
+    pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub enhancement: Option<HashMap<String, String>>,
+    pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    pub proxy_status_mapping: ProxyStatusMapping,
+    pub trace_header: TraceHeaderConfig,
+    pub internal_services: InternalServicesConfig,
+    pub comparison_service: Option<ComparisonServiceConfig>,
+    pub save_payment_method_on_session: OnSessionConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OnSessionConfig {
+    pub unsupported_payment_methods:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PreProcessingFlowConfig {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub authentication_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub order_create_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -201,6 +236,7 @@ pub struct Platform {
 pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
+    pub encryption_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -252,14 +288,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_storage_interface();
             (tenant_name.clone(), store)
@@ -285,14 +321,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_accounts_storage_interface();
             (tenant_name.clone(), store)
@@ -317,67 +353,9 @@ impl TenantConfig {
         .collect()
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct Tenant {
-    pub tenant_id: id_type::TenantId,
-    pub base_url: String,
-    pub schema: String,
-    pub accounts_schema: String,
-    pub redis_key_prefix: String,
-    pub clickhouse_database: String,
-    pub user: TenantUserConfig,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct TenantUserConfig {
-    pub control_center_url: String,
-}
-
-impl storage_impl::config::TenantConfig for Tenant {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-    fn get_accounts_schema(&self) -> &str {
-        self.accounts_schema.as_str()
-    }
-    fn get_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
-    }
-}
-
-// Todo: Global tenant should not be part of tenant config(https://github.com/juspay/hyperswitch/issues/7237)
-#[derive(Debug, Deserialize, Clone)]
-pub struct GlobalTenant {
-    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
-    pub tenant_id: id_type::TenantId,
-    pub schema: String,
-    pub redis_key_prefix: String,
-    pub clickhouse_database: String,
-}
-// Todo: Global tenant should not be part of tenant config
-impl storage_impl::config::TenantConfig for GlobalTenant {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-    fn get_accounts_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
-    }
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct L2L3DataConfig {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -522,8 +500,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
@@ -594,6 +570,13 @@ pub struct NetworkTransactionIdSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+/// Connectors that support only dispute list API for syncing disputes with Hyperswitch
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ListDiputeSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTokenizationSupportedCardNetworks {
     #[serde(deserialize_with = "deserialize_hashset")]
@@ -617,14 +600,31 @@ pub struct NetworkTokenizationService {
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
+    pub allowed_card_authentication_type: Option<common_enums::AuthenticationType>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub google_pay_pre_decrypt_flow: Option<GooglePayPreDecryptFlow>,
+    pub flow: Option<PaymentFlow>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum PaymentFlow {
+    Mandates,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum GooglePayPreDecryptFlow {
     #[default]
     ConnectorTokenization,
     NetworkTokenization,
@@ -650,17 +650,6 @@ pub enum PaymentMethodTypeTokenFilter {
     DisableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[default]
     AllAccepted,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct BankRedirectConfig(pub HashMap<enums::PaymentMethodType, ConnectorBankNames>);
-#[derive(Debug, Deserialize, Clone)]
-pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct BanksVector {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<common_enums::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -724,17 +713,57 @@ pub struct UserSettings {
     pub force_cookies: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.client.values().find(|c| c.client_id == client_id)
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        self.key.values().next()
+    }
+
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+}
+
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -763,7 +792,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
@@ -833,6 +861,66 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct MerchantIdAuthSettings {
     pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ProxyStatusMapping {
+    pub proxy_connector_http_status_code: bool,
+}
+
+impl ProxyStatusMapping {
+    pub fn extract_connector_http_status_code(
+        &self,
+        response_headers: &[(String, Maskable<String>)],
+    ) -> Option<actix_web::http::StatusCode> {
+        self.proxy_connector_http_status_code
+            .then_some(response_headers)
+            .and_then(|headers| {
+                headers
+                    .iter()
+                    .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+            })
+            .and_then(|(_, value)| {
+                value
+                    .clone()
+                    .into_inner()
+                    .parse::<u16>()
+                    .map_err(|err| {
+                        logger::error!(
+                            "Failed to parse connector_http_status_code from header: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+            .and_then(|code| {
+                actix_web::http::StatusCode::from_u16(code)
+                    .map_err(|err| {
+                        logger::error!(
+                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct TraceHeaderConfig {
+    pub header_name: String,
+    pub id_reuse_strategy: router_env::IdReuse,
+}
+
+impl Default for TraceHeaderConfig {
+    fn default() -> Self {
+        Self {
+            header_name: common_utils::consts::X_REQUEST_ID.to_string(),
+            id_reuse_strategy: router_env::IdReuse::IgnoreIncoming,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -986,9 +1074,14 @@ impl Settings<SecuredSecret> {
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config)
+        let mut settings: Self = serde_path_to_error::deserialize(config)
             .attach_printable("Unable to deserialize application configuration")
-            .change_context(ApplicationError::ConfigurationError)
+            .change_context(ApplicationError::ConfigurationError)?;
+        #[cfg(feature = "v1")]
+        {
+            settings.required_fields = RequiredFields::new(&settings.bank_config);
+        }
+        Ok(settings)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
@@ -1024,8 +1117,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.validate()?;
-
+        self.chat.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1091,6 +1183,20 @@ impl Settings<SecuredSecret> {
         self.platform.validate()?;
 
         self.open_router.validate()?;
+
+        // Validate gRPC client settings
+        #[cfg(feature = "revenue_recovery")]
+        self.grpc_client
+            .recovery_decider_client
+            .as_ref()
+            .map(|config| config.validate())
+            .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.superposition
+            .get_inner()
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())
     }
@@ -1404,7 +1510,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
 
 #[cfg(test)]
 mod hashmap_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::{HashMap, HashSet};
 
     use serde::de::{
@@ -1497,7 +1602,6 @@ mod hashmap_deserialization_test {
 
 #[cfg(test)]
 mod hashset_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::HashSet;
 
     use serde::de::{

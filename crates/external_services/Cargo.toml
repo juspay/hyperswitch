@@ -12,7 +12,18 @@ aws_kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 hashicorp-vault = ["dep:vaultrs"]
+superposition = ["dep:open-feature", "dep:superposition_provider"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
+v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
+revenue_recovery = [
+    "dep:prost",
+    "dep:router_env",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+    "dep:hyper-util",
+    "dep:http-body-util",
+    "dep:prost-types",
+]
 dynamic_routing = [
     "dep:prost",
     "dep:api_models",
@@ -41,23 +52,31 @@ lettre = "0.11.16"
 once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
+serde_json = "1.0.140"
+serde_urlencoded = "0.7.1"
 vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.13", optional = true }
-tokio = "1.45.1"
+prost-types = { version = "0.13", optional = true }
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+tokio = "1.48.0"
 tonic = "0.13.1"
 tonic-reflection = "0.13.1"
 tonic-types = "0.13.1"
+typed-builder = "0.21.2"
 hyper-util = { version = "0.1.12", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
 reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "4918efedd5ea6c33e4a1600b988b2cf4948bed10", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "3dcfd30ef1405c81ba711c370397cabba277e854", package = "rust-grpc-client" }
+open-feature = { version = "0.2.5", optional = true }
+superposition_provider = { version = "0.88.1", optional = true }
 
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = [

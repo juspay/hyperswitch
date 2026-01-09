@@ -52,12 +52,12 @@ pub struct TsysPaymentAuthSaleRequest {
     card_number: cards::CardNumber,
     expiration_date: Secret<String>,
     cvv2: Secret<String>,
+    order_number: String,
     terminal_capability: String,
     terminal_operating_environment: String,
     cardholder_authentication_method: String,
     #[serde(rename = "developerID")]
     developer_id: Secret<String>,
-    order_number: String,
 }
 
 impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData>> for TsysPaymentsRequest {
@@ -80,11 +80,11 @@ impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData>> for TsysPayme
                     expiration_date: ccard
                         .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvv2: ccard.card_cvc,
+                    order_number: item.connector_request_reference_id.clone(),
                     terminal_capability: "ICC_CHIP_READ_ONLY".to_string(),
                     terminal_operating_environment: "ON_MERCHANT_PREMISES_ATTENDED".to_string(),
                     cardholder_authentication_method: "NOT_AUTHENTICATED".to_string(),
                     developer_id: connector_auth.developer_id,
-                    order_number: item.connector_request_reference_id.clone(),
                 };
                 if item.request.is_auto_capture()? {
                     Ok(Self::Sale(auth_data))
@@ -109,7 +109,8 @@ impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData>> for TsysPayme
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("tsys"),
                 ))?
@@ -238,9 +239,11 @@ fn get_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 

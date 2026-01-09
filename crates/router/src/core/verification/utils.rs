@@ -1,4 +1,7 @@
-use common_utils::{errors::CustomResult, id_type::PaymentId};
+use common_utils::{
+    errors::CustomResult,
+    id_type::{PaymentId, PayoutId},
+};
 use error_stack::{Report, ResultExt};
 
 use crate::{
@@ -8,8 +11,7 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    services::authentication::AuthenticationData,
-    types::{self, storage},
+    types::{self, domain, storage},
 };
 
 pub async fn check_existence_and_add_domain_to_db(
@@ -19,11 +21,9 @@ pub async fn check_existence_and_add_domain_to_db(
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
-    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -34,7 +34,6 @@ pub async fn check_existence_and_add_domain_to_db(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -43,12 +42,11 @@ pub async fn check_existence_and_add_domain_to_db(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     #[cfg(feature = "v2")]
-    let merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount = {
-        let _ = merchant_connector_id;
-        let _ = key_store;
-        let _ = domain_from_req;
-        todo!()
-    };
+    let merchant_connector_account = state
+        .store
+        .find_merchant_connector_account_by_id(&merchant_connector_id, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &merchant_connector_account,
@@ -103,7 +101,6 @@ pub async fn check_existence_and_add_domain_to_db(
     state
         .store
         .update_merchant_connector_account(
-            key_manager_state,
             merchant_connector_account,
             updated_mca.into(),
             &key_store,
@@ -136,28 +133,91 @@ pub fn log_applepay_verification_response_if_error(
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
-    auth_data: &AuthenticationData,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     todo!()
+}
+
+#[cfg(feature = "v2")]
+pub async fn check_if_profile_id_is_present_in_intent_table(
+    payment_id: Option<PaymentId>,
+    payout_id: Option<PayoutId>,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v2")]
+pub async fn check_if_profile_id_is_present_in_payouts(
+    payout_id: PayoutId,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn check_if_profile_id_is_present_in_intent_table(
+    payment_id: Option<PaymentId>,
+    payout_id: Option<PayoutId>,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match (payment_id, payout_id) {
+        (Some(payment_id), _) => {
+            check_if_profile_id_is_present_in_payment_intent(
+                payment_id, state, processor, profile_id,
+            )
+            .await
+        }
+        (None, Some(payout_id)) => {
+            check_if_profile_id_is_present_in_payouts(payout_id, state, processor, profile_id).await
+        }
+        (None, None) => Err(errors::ApiErrorResponse::Unauthorized.into()),
+    }
 }
 
 #[cfg(feature = "v1")]
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
-    auth_data: &AuthenticationData,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &state.into(),
             &payment_id,
-            auth_data.merchant_account.get_id(),
-            &auth_data.key_store,
-            auth_data.merchant_account.storage_scheme,
+            processor.get_account().get_id(),
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+    utils::validate_profile_id_from_auth_layer(profile_id, &payment_intent)
+}
+
+#[cfg(feature = "v1")]
+pub async fn check_if_profile_id_is_present_in_payouts(
+    payout_id: PayoutId,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let payouts = db
+        .find_payout_by_merchant_id_payout_id(
+            processor.get_account().get_id(),
+            &payout_id,
+            processor.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
+    utils::validate_profile_id_from_auth_layer(profile_id, &payouts)
 }

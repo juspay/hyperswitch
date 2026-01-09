@@ -32,14 +32,14 @@ pub enum AvsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayloadCardsResponseData {
-    pub amount: f64,
+    pub amount: Option<f64>,
     pub avs: Option<AvsResponse>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<Secret<String>>,
     #[serde(rename = "id")]
     pub transaction_id: String,
-    pub payment_method_id: Option<Secret<String>>,
-    // Connector customer id
-    pub processing_id: Option<String>,
+    #[serde(rename = "payment_method_id")]
+    pub connector_payment_method_id: Option<Secret<String>>,
+    pub processing_id: Option<Secret<String>>,
     pub processing_method_id: Option<String>,
     pub ref_number: Option<String>,
     pub status: PayloadPaymentStatus,
@@ -48,15 +48,10 @@ pub struct PayloadCardsResponseData {
     #[serde(rename = "type")]
     pub response_type: Option<String>,
 }
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayloadCardResponse {
-    pub card_brand: String,
-    pub card_number: String, // Masked card number like "xxxxxxxxxxxx4242"
-    pub card_type: String,
-    pub expiry: Secret<String>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerResponse {
+    pub id: String,
 }
-
 // Type definition for Refund Response
 // Added based on assumptions since this is not provided in the documentation
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
@@ -80,13 +75,13 @@ pub struct RefundsLedger {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PayloadRefundResponse {
-    pub amount: f64,
+    pub amount: Option<f64>,
     #[serde(rename = "id")]
     pub transaction_id: String,
     pub ledger: Vec<RefundsLedger>,
-    pub payment_method_id: Option<Secret<String>>,
-    // Connector customer id
-    pub processing_id: Option<String>,
+    #[serde(rename = "payment_method_id")]
+    pub connector_payment_method_id: Option<Secret<String>>,
+    pub processing_id: Option<Secret<String>>,
     pub ref_number: Option<String>,
     pub status: RefundStatus,
     pub status_code: Option<String>,

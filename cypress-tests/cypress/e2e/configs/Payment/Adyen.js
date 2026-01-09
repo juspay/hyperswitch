@@ -192,8 +192,8 @@ export const connectorDetails = {
           status: "failed",
           error_code: "2",
           error_message: "Refused",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "UE_3000",
+          unified_message: "Technical issue with PSP",
         },
       },
     },
@@ -207,11 +207,24 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: null,
         },
       },
     },
-
+    Overcapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null, // Amount is updated via webhooks
+        },
+      },
+    },
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -222,7 +235,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: null,
         },
       },
     },
@@ -487,6 +500,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

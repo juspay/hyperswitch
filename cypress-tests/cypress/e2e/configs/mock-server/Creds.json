@@ -1,0 +1,23 @@
+{
+  "celero": {
+    "connector_account_details": {
+      "auth_type": "HeaderKey",
+      "api_key": "celero-test-api-key-123"
+    }
+  },
+  "silverflow": {
+    "connector_account_details": {
+      "auth_type": "SignatureKey",
+      "api_key": "apk-testkey123",
+      "key1": "testsecret456",
+      "api_secret": "testsecret456"
+    }
+  },
+  "affirm": {
+    "connector_account_details": {
+      "auth_type": "BodyKey",
+      "api_key": "affirm-testkey123",
+      "key1": "affirm-testsecret456"
+    }
+  }
+}

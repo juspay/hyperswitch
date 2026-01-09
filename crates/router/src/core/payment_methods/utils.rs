@@ -14,15 +14,18 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 use masking::ExposeInterface;
+#[cfg(feature = "v1")]
+use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::{configs::settings, routes::SessionState};
+use crate::{configs::settings, db::StorageInterface, routes::SessionState};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
         errors,
         storage::{self, enums as storage_enums},
     },
+    routes::payment_methods as pm_routes,
     services::logger,
 };
 
@@ -811,11 +814,45 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
+pub async fn get_merchant_config_for_eligibility_check(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &merchant_id.get_should_perform_eligibility_check_key(),
+            Some("false".to_string()),
+        )
+        .await;
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
+pub async fn get_sdk_next_action_for_payment_method_list(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> api_models::payments::SdkNextAction {
+    let should_perform_eligibility_check =
+        get_merchant_config_for_eligibility_check(db, merchant_id).await;
+    let next_action_call = if should_perform_eligibility_check {
+        api_models::payments::NextActionCall::EligibilityCheck
+    } else {
+        api_models::payments::NextActionCall::Confirm
+    };
+    api_models::payments::SdkNextAction {
+        next_action: next_action_call,
+    }
+}
+
 #[cfg(feature = "v2")]
 pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
-    payment_method: Option<&storage_enums::PaymentMethod>,
 ) -> errors::RouterResult<storage::PaymentTokenData> {
     let redis_conn = state
         .store
@@ -823,14 +860,7 @@ pub(super) async fn retrieve_payment_token_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_{}_hyperswitch",
-        token,
-        payment_method
-            .get_required_value("payment_method")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment method is required")?
-    );
+    let key = format!("pm_token_{}_hyperswitch", token);
 
     let token_data_string = redis_conn
         .get_key::<Option<String>>(&key.into())
@@ -848,6 +878,32 @@ pub(super) async fn retrieve_payment_token_data(
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data")
+}
+
+#[cfg(feature = "v2")]
+pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
+    state: &SessionState,
+    token: String,
+) -> errors::RouterResult<common_utils::id_type::GlobalPaymentMethodId> {
+    let payment_method_token_data =
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&token)
+            .get_data_for_token(state)
+            .await
+            .attach_printable("Failed to retrieve payment method token data")?;
+
+    let payment_method_id = match payment_method_token_data {
+        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
+            Some(card.payment_method_id)
+        }
+        _ => None,
+    }
+    .get_required_value("payment_method_id from payment method token data")
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "payment_method_id".to_string(),
+    })
+    .attach_printable("Failed to get payment method id from payment method token data")?;
+
+    Ok(payment_method_id)
 }
 
 #[cfg(feature = "v2")]

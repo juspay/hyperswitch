@@ -148,9 +148,11 @@ impl ConnectorCommon for Zen {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -865,7 +867,8 @@ static ZEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
 static ZEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Zen",
         description: "Zen Payment Gateway is a secure and scalable payment solution that enables businesses to accept online payments globally with various methods and currencies.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static ZEN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

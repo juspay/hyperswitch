@@ -11,7 +11,8 @@ key1 = "MerchantId"
 api_secret = "Secondary key"
 
 [amazonpay]
-api_key="API Key"
+api_key="Private Key"
+key1="Public Key"
 
 [archipel]
 api_key="CA Certificate PEM"
@@ -191,7 +192,10 @@ api_key="API Key"
 api_key="API Key"
 
 [volt]
-api_key="API Key"
+api_key = "Username"
+api_secret = "Password"
+key1 = "Client ID"
+key2 = "Client Secret"
 
 [prophetpay]
 api_key="API Key"
@@ -289,6 +293,7 @@ api_key = "API Key"
 [nordea]
 api_key = "Client Secret"
 key1 = "Client ID"
+api_secret = "eIDAS Private Key"
 
 [novalnet]
 api_key="API Key"
@@ -362,3 +367,23 @@ key1="Client Secret"
 [payload]
 api_key="API Key"
 
+[calida]
+api_key="EOrder Token"
+
+[peachpayments]
+api_key="API Key"
+key1="Tenant ID"
+
+[tesouro]
+api_key="Client ID"
+key1="Client Secret"
+
+[finix]
+api_key = "Username"
+key1 = "Merchant Id"
+key2 = "Merchant Identity Id"
+api_secret = "Password"
+
+[payjustnowinstore]
+api_key = "Merchant API Key"
+key1 = "Merchant Terminal Id"

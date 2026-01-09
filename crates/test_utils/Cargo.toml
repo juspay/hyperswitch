@@ -26,11 +26,12 @@ serde_urlencoded = "0.7.1"
 serial_test = "3.2.0"
 thirtyfour = "0.31.0"
 time = { version = "0.3.41", features = ["macros"] }
-tokio = "1.45.1"
+tokio = "1.48.0"
 toml = "0.8.22"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 
 [lints]
 workspace = true

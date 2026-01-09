@@ -1,0 +1,33 @@
+[package]
+name = "injector"
+description = "Token injection and payload processing for payment connectors"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde", "tracing-actix-web"]
+
+serde = []
+tracing-actix-web = []
+
+[dependencies]
+common_utils = { version = "0.1.0", path = "../common_utils" }
+masking = { version = "0.1.0", path = "../masking" }
+router_env = { version = "0.1.0", path = "../router_env" }
+
+async-trait = { version = "0.1.88" }
+base64 = { version = "0.22.1" }
+error-stack = { version = "0.4.1" }
+nom = { version = "7.1.3" }
+reqwest = { version = "0.12.0", features = ["json", "stream", "rustls-tls"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.140" }
+thiserror = { version = "1.0.69" }
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+tracing = { version = "0.1.40" }
+url = { version = "2.5.4", features = ["serde"] }
+
+[lints]
+workspace = true

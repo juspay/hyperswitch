@@ -1,7 +1,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 pub mod access_token;
 pub mod consts;
@@ -14,11 +14,15 @@ pub mod errors;
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+/// Used for hashing
+pub mod hashing;
 pub mod id_type;
 #[cfg(feature = "keymanager")]
 pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
+#[cfg(feature = "metrics")]
+pub mod metrics;
 pub mod new_type;
 pub mod payout_method_utils;
 pub mod pii;
@@ -28,12 +32,13 @@ pub mod request;
 pub mod signals;
 pub mod transformers;
 pub mod types;
+/// Unified Connector Service (UCS) interface definitions.
+///
+/// This module defines types and traits for interacting with the Unified Connector Service.
+/// It includes reference ID types for payments and refunds, and a trait for extracting
+/// UCS reference information from requests.
+pub mod ucs_types;
 pub mod validation;
-
-/// Used for hashing
-pub mod hashing;
-#[cfg(feature = "metrics")]
-pub mod metrics;
 
 pub use base64_serializer::Base64Serializer;
 
@@ -108,6 +113,17 @@ pub mod date_time {
             })
             .encode();
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
+    }
+
+    /// Return the current date and time in UTC formatted as "ddd, DD MMM YYYY HH:mm:ss GMT".
+    pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
+        let now_utc = OffsetDateTime::now_utc();
+        // Desired format: ddd, DD MMM YYYY HH:mm:ss GMT
+        // Example: Fri, 23 May 2025 06:19:35 GMT
+        let format = time::macros::format_description!(
+            "[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT"
+        );
+        now_utc.format(&format)
     }
 
     impl From<DateFormat> for &[BorrowedFormatItem<'_>] {
@@ -293,7 +309,7 @@ pub trait DbConnectionParams {
     fn get_dbname(&self) -> &str;
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),
@@ -313,9 +329,40 @@ mod base64_serializer {
     base64_serde_type!(pub Base64Serializer, crate::consts::BASE64_ENGINE);
 }
 
+/// Merges two optional JSON values into a single JSON object.
+/// If both values are objects, their key-value pairs are merged.
+/// If only one value exists, it is returned.
+/// If neither exists, None is returned.
+pub fn merge_json_values(
+    first: Option<pii::SecretSerdeValue>,
+    second: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    match first.clone().zip(second.clone()) {
+        Some((first, second)) => {
+            let first_value = first.expose();
+            let second_value = second.expose();
+
+            match (first_value, second_value) {
+                (
+                    serde_json::Value::Object(mut first_map),
+                    serde_json::Value::Object(second_map),
+                ) => {
+                    // if the first and second has the same keys then the value will be updated with that of the second
+                    first_map.extend(second_map);
+                    Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
+                        first_map,
+                    )))
+                }
+                // ideally both Value should of variant Object but if one of them is not an object, it follows the previous behaviour i.e pass payment method metadata
+                (first_val, _) => Some(pii::SecretSerdeValue::new(first_val)),
+            }
+        }
+        None => first.or(second),
+    }
+}
+
 #[cfg(test)]
 mod nanoid_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::{
         consts::{

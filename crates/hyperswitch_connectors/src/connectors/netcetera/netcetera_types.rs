@@ -354,7 +354,7 @@ pub enum ThreeDSRequestorDecoupledRequestIndicator {
     B,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, strum::Display)]
 pub enum SchemeId {
     Visa,
     Mastercard,
@@ -1711,15 +1711,6 @@ pub struct SplitSdkType {
     ///      • Y = Limited
     ///    - Only present if value = Y
     limited_ind: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct MessageExtensionAttribute {
-    id: String,
-    name: String,
-    criticality_indicator: bool,
-    data: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

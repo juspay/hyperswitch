@@ -2,6 +2,7 @@ use common_enums::{enums, CountryAlpha2, UsStatesAbbreviation};
 use common_utils::{
     id_type,
     pii::{self, IpAddress},
+    types::MinorUnit,
 };
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -9,18 +10,22 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::Execute,
     router_request_types::{
-        ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsSyncData, ResponseId, SetupMandateRequestData,
+        ConnectorCustomerData, PaymentMethodTokenizationData, ResponseId, SetupMandateRequestData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
+    },
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CustomerData, ForeignTryFrom,
         PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _,
@@ -28,19 +33,16 @@ use crate::{
 };
 
 pub struct GocardlessRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for GocardlessRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for GocardlessRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -154,9 +156,11 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.customers.id.expose(),
-            }),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(
+                    item.response.customers.id.expose(),
+                ),
+            )),
             ..item.data
         })
     }
@@ -256,7 +260,8 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 )
@@ -313,10 +318,12 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                 };
                 Ok(Self::InternationalBankAccount(international_bank_account))
             }
-            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Gocardless"),
-            )
-            .into()),
+            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -428,7 +435,8 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -468,6 +476,7 @@ fn get_ip_if_required(
     match bank_debit_data {
         BankDebitData::AchBankDebit { .. } => Ok(Some(ip_address)),
         BankDebitData::SepaBankDebit { .. }
+        | BankDebitData::SepaGuarenteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
         | BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
@@ -480,10 +489,12 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
             BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
-            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-            )
-            .into()),
+            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+                )
+                .into())
+            }
         }
     }
 }
@@ -547,7 +558,7 @@ pub struct GocardlessPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 pub struct GocardlessPayment {
-    amount: i64,
+    amount: MinorUnit,
     currency: enums::Currency,
     description: Option<String>,
     metadata: PaymentMetaData,
@@ -583,7 +594,7 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
             .into())
         }?;
         let payments = GocardlessPayment {
-            amount: item.router_data.request.amount,
+            amount: item.router_data.request.minor_amount,
             currency: item.router_data.request.currency,
             description: item.router_data.description.clone(),
             metadata: PaymentMetaData {
@@ -652,24 +663,12 @@ pub struct PaymentResponse {
     id: String,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<GocardlessPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let mandate_reference = MandateReference {
             connector_mandate_id: Some(item.data.request.get_connector_mandate_id()?),
@@ -694,19 +693,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, GocardlessPaymentsResponse, PaymentsSyncData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
+    for types::PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),
@@ -733,7 +725,7 @@ pub struct GocardlessRefundRequest {
 
 #[derive(Default, Debug, Serialize)]
 pub struct GocardlessRefund {
-    amount: i64,
+    amount: MinorUnit,
     metadata: RefundMetaData,
     links: RefundLink,
 }

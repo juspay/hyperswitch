@@ -263,38 +263,38 @@ impl DisputeInterface for MockDb {
                     && dispute_constraints
                         .dispute_id
                         .as_ref()
-                        .map_or(true, |id| &dispute.dispute_id == id)
+                        .is_none_or(|id| &dispute.dispute_id == id)
                     && dispute_constraints
                         .payment_id
                         .as_ref()
-                        .map_or(true, |id| &dispute.payment_id == id)
+                        .is_none_or(|id| &dispute.payment_id == id)
                     && dispute_constraints
                         .profile_id
                         .as_ref()
-                        .map_or(true, |profile_ids| {
+                        .is_none_or(|profile_ids| {
                             dispute
                                 .profile_id
                                 .as_ref()
-                                .map_or(true, |id| profile_ids.contains(id))
+                                .is_none_or(|id| profile_ids.contains(id))
                         })
                     && dispute_constraints
                         .dispute_status
                         .as_ref()
-                        .map_or(true, |statuses| statuses.contains(&dispute.dispute_status))
+                        .is_none_or(|statuses| statuses.contains(&dispute.dispute_status))
                     && dispute_constraints
                         .dispute_stage
                         .as_ref()
-                        .map_or(true, |stages| stages.contains(&dispute.dispute_stage))
-                    && dispute_constraints.reason.as_ref().map_or(true, |reason| {
+                        .is_none_or(|stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().is_none_or(|reason| {
                         dispute
                             .connector_reason
                             .as_ref()
-                            .map_or(true, |d_reason| d_reason == reason)
+                            .is_none_or(|d_reason| d_reason == reason)
                     })
                     && dispute_constraints
                         .connector
                         .as_ref()
-                        .map_or(true, |connectors| {
+                        .is_none_or(|connectors| {
                             connectors
                                 .iter()
                                 .any(|connector| dispute.connector.as_str() == *connector)
@@ -302,13 +302,11 @@ impl DisputeInterface for MockDb {
                     && dispute_constraints
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(true, |id| {
-                            dispute.merchant_connector_id.as_ref() == Some(id)
-                        })
+                        .is_none_or(|id| dispute.merchant_connector_id.as_ref() == Some(id))
                     && dispute_constraints
                         .currency
                         .as_ref()
-                        .map_or(true, |currencies| {
+                        .is_none_or(|currencies| {
                             currencies.iter().any(|currency| {
                                 dispute
                                     .dispute_currency
@@ -316,16 +314,13 @@ impl DisputeInterface for MockDb {
                                     .unwrap_or(dispute.currency.as_str() == currency.to_string())
                             })
                         })
-                    && dispute_constraints
-                        .time_range
-                        .as_ref()
-                        .map_or(true, |range| {
-                            let dispute_time = dispute.created_at;
-                            dispute_time >= range.start_time
-                                && range
-                                    .end_time
-                                    .map_or(true, |end_time| dispute_time <= end_time)
-                        })
+                    && dispute_constraints.time_range.as_ref().is_none_or(|range| {
+                        let dispute_time = dispute.created_at;
+                        dispute_time >= range.start_time
+                            && range
+                                .end_time
+                                .is_none_or(|end_time| dispute_time <= end_time)
+                    })
             })
             .skip(offset_usize)
             .take(limit_usize)
@@ -428,15 +423,13 @@ impl DisputeInterface for MockDb {
                     && time_range
                         .end_time
                         .as_ref()
-                        .map(|received_end_time| received_end_time >= &d.created_at)
-                        .unwrap_or(true)
+                        .is_none_or(|received_end_time| received_end_time >= &d.created_at)
                     && profile_id_list
                         .as_ref()
                         .zip(d.profile_id.as_ref())
-                        .map(|(received_profile_list, received_profile_id)| {
+                        .is_none_or(|(received_profile_list, received_profile_id)| {
                             received_profile_list.contains(received_profile_id)
                         })
-                        .unwrap_or(true)
             })
             .cloned()
             .collect::<Vec<storage::Dispute>>();
@@ -459,12 +452,13 @@ impl DisputeInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
 
         use common_enums::enums::Currency;
-        use common_utils::types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector};
+        use common_utils::types::{
+            keymanager::KeyManagerState, AmountConvertor, MinorUnit, StringMinorUnitForConnector,
+        };
         use diesel_models::{
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
@@ -519,7 +513,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
                 .await
                 .expect("Failed to create a mock DB");
 
@@ -558,7 +552,7 @@ mod tests {
             let merchant_id =
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -613,7 +607,7 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -655,7 +649,7 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -702,7 +696,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(1, found_disputes.len());
+            assert_eq!(2, found_disputes.len());
 
             assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
@@ -715,7 +709,7 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -746,7 +740,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(1, found_disputes.len());
+            assert_eq!(2, found_disputes.len());
 
             assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
@@ -778,9 +772,12 @@ mod tests {
                 let payment_id =
                     common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                    .await
-                    .expect("Failed to create Mock store");
+                let mockdb = MockDb::new(
+                    &redis_interface::RedisSettings::default(),
+                    common_utils::types::keymanager::KeyManagerState::new(),
+                )
+                .await
+                .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -862,9 +859,12 @@ mod tests {
                 let payment_id =
                     common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                    .await
-                    .expect("Failed to create Mock store");
+                let mockdb = MockDb::new(
+                    &redis_interface::RedisSettings::default(),
+                    common_utils::types::keymanager::KeyManagerState::new(),
+                )
+                .await
+                .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -941,9 +941,12 @@ mod tests {
                 let payment_id =
                     common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                    .await
-                    .expect("Failed to create Mock store");
+                let mockdb = MockDb::new(
+                    &redis_interface::RedisSettings::default(),
+                    common_utils::types::keymanager::KeyManagerState::new(),
+                )
+                .await
+                .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {

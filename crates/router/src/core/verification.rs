@@ -93,20 +93,14 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     errors::ApiErrorResponse,
 > {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
         .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -117,11 +111,12 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .unwrap_or_default();
 
     #[cfg(feature = "v2")]
-    let verified_domains = {
-        let _ = merchant_connector_id;
-        let _ = key_store;
-        todo!()
-    };
+    let verified_domains = db
+        .find_merchant_connector_account_by_id(&merchant_connector_id, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?
+        .applepay_verified_domains
+        .unwrap_or_default();
 
     Ok(services::api::ApplicationResponse::Json(
         verifications::ApplepayVerifiedDomainsResponse { verified_domains },

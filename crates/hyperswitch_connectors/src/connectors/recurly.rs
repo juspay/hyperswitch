@@ -9,13 +9,46 @@ use error_stack::report;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_data_v2::UasFlowData,
-    router_flow_types::unified_authentication_service::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    router_data_v2::{
+        flow_common_types::{
+            GetSubscriptionEstimateData, GetSubscriptionItemPricesData, GetSubscriptionItemsData,
+            InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
+            SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
+        },
+        UasFlowData,
     },
-    router_request_types::unified_authentication_service::{
-        UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
-        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+    router_flow_types::{
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
+        },
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
+        CreateConnectorCustomer, InvoiceRecordBack,
+    },
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
+        },
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
+        ConnectorCustomerData,
+    },
+    router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
+        },
+        PaymentsResponseData,
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -131,6 +164,107 @@ impl
 }
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::GetSubscriptionPlansV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionRecordBackV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionConnectorCustomerV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionItems,
+        GetSubscriptionItemsData,
+        GetSubscriptionItemsRequest,
+        GetSubscriptionItemsResponse,
+    > for Recurly
+{
+}
+
+#[cfg(feature = "v1")]
+impl
+    ConnectorIntegrationV2<
+        InvoiceRecordBack,
+        InvoiceRecordBackData,
+        InvoiceRecordBackRequest,
+        InvoiceRecordBackResponse,
+    > for Recurly
+{
+}
+impl
+    ConnectorIntegrationV2<
+        CreateConnectorCustomer,
+        SubscriptionCustomerData,
+        ConnectorCustomerData,
+        PaymentsResponseData,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::GetSubscriptionPlanPricesV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionItemPrices,
+        GetSubscriptionItemPricesData,
+        GetSubscriptionItemPricesRequest,
+        GetSubscriptionItemPricesResponse,
+    > for Recurly
+{
+}
+impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionCreate,
+        SubscriptionCreateData,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::GetSubscriptionEstimateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionEstimate,
+        GetSubscriptionEstimateData,
+        GetSubscriptionEstimateRequest,
+        GetSubscriptionEstimateResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::SubscriptionCancelV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionCancel,
+        SubscriptionCancelData,
+        SubscriptionCancelRequest,
+        SubscriptionCancelResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::SubscriptionPauseV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionPause,
+        SubscriptionPauseData,
+        SubscriptionPauseRequest,
+        SubscriptionPauseResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::SubscriptionResumeV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionResume,
+        SubscriptionResumeData,
+        SubscriptionResumeRequest,
+        SubscriptionResumeResponse,
+    > for Recurly
+{
+}
+
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -200,9 +334,11 @@ impl ConnectorCommon for Recurly {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -299,15 +435,15 @@ impl
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegrationV2<
-        recovery_router_flows::RecoveryRecordBack,
-        recovery_flow_common_types::RevenueRecoveryRecordBackData,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+        InvoiceRecordBack,
+        InvoiceRecordBackData,
+        InvoiceRecordBackRequest,
+        InvoiceRecordBackResponse,
     > for Recurly
 {
     fn get_headers(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -320,7 +456,7 @@ impl
 
     fn get_url(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
     ) -> CustomResult<String, errors::ConnectorError> {
         let invoice_id = req
             .request
@@ -343,16 +479,14 @@ impl
 
     fn build_request_v2(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Put)
-                .url(&types::RevenueRecoveryRecordBackTypeV2::get_url(self, req)?)
+                .url(&types::InvoiceRecordBackTypeV2::get_url(self, req)?)
                 .attach_default_headers()
-                .headers(types::RevenueRecoveryRecordBackTypeV2::get_headers(
-                    self, req,
-                )?)
+                .headers(types::InvoiceRecordBackTypeV2::get_headers(self, req)?)
                 .header("Content-Length", "0")
                 .build(),
         ))
@@ -360,11 +494,11 @@ impl
 
     fn handle_response_v2(
         &self,
-        data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        data: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        recovery_router_data_types::InvoiceRecordBackRouterDataV2,
         errors::ConnectorError,
     > {
         let response: recurly::RecurlyRecordBackResponse = res
@@ -373,13 +507,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2::try_from(
-            ResponseRouterDataV2 {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        )
+        recovery_router_data_types::InvoiceRecordBackRouterDataV2::try_from(ResponseRouterDataV2 {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response_v2(

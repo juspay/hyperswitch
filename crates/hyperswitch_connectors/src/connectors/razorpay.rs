@@ -162,9 +162,11 @@ impl ConnectorCommon for Razorpay {
                             reason: error_response.error.reason,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     }
                     razorpay::ErrorResponse::RazorpayError(error_response) => Ok(ErrorResponse {
@@ -174,9 +176,11 @@ impl ConnectorCommon for Razorpay {
                         reason: Some(error_response.message),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     razorpay::ErrorResponse::RazorpayStringError(error_string) => {
                         Ok(ErrorResponse {
@@ -186,9 +190,11 @@ impl ConnectorCommon for Razorpay {
                             reason: Some(error_string.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     }
                 }
@@ -809,7 +815,8 @@ lazy_static! {
         display_name: "RAZORPAY",
         description:
             "Razorpay helps you accept online payments from customers across Desktop, Mobile web, Android & iOS. Additionally by using Razorpay Payment Links, you can collect payments across multiple channels like SMS, Email, Whatsapp, Chatbots & Messenger.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
@@ -832,10 +839,14 @@ impl ConnectorSpecifications for Razorpay {
     #[cfg(feature = "v2")]
     fn generate_connector_request_reference_id(
         &self,
-        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
         // The length of receipt for Razorpay order request should not exceed 40 characters.
-        uuid::Uuid::now_v7().to_string()
+        payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_else(|| uuid::Uuid::now_v7().to_string())
     }
 }

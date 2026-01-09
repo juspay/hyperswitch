@@ -8,6 +8,7 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
+use hyperswitch_interfaces::api::gateway;
 use masking::{ExposeInterface, ExposeOptionInterface};
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -15,7 +16,10 @@ use crate::{
     consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, customers, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, gateway::context as gateway_context, helpers,
+            transformers, PaymentData,
+        },
     },
     headers, logger,
     routes::{self, app::settings, metrics},
@@ -38,7 +42,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -48,7 +52,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -68,11 +72,13 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
@@ -81,11 +87,13 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            payment_method,
+            payment_method_type,
         ))
         .await
     }
@@ -102,6 +110,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -114,6 +123,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             call_connector_action,
             business_profile,
             header_payload,
+            gateway_context,
         )
         .await
     }
@@ -122,23 +132,32 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+            gateway_context,
+        ))
+        .await
     }
 
     async fn create_connector_customer<'a>(
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
+            gateway_context,
         )
         .await
     }
@@ -1079,6 +1098,21 @@ fn create_gpay_session_token(
                             billing_address_parameters: billing_address_parameters.clone(),
                             ..allowed_payment_methods.parameters
                         },
+                        tokenization_specification: payment_types::GpayTokenizationSpecification {
+                            parameters: payment_types::GpayTokenParameters {
+                                stripe_publishable_key: construct_stripe_publishable_key(
+                                    &allowed_payment_methods
+                                        .tokenization_specification
+                                        .parameters,
+                                    router_data,
+                                )
+                                .expose_option(),
+                                ..allowed_payment_methods
+                                    .tokenization_specification
+                                    .parameters
+                            },
+                            ..allowed_payment_methods.tokenization_specification
+                        },
                         ..allowed_payment_methods
                     },
                 )
@@ -1171,6 +1205,31 @@ fn get_allowed_payment_methods_from_cards(
     })
 }
 
+fn construct_stripe_publishable_key(
+    gpay_token_specific_parameters: &payment_types::GpayTokenParameters,
+    router_data: &types::PaymentsSessionRouterData,
+) -> Option<masking::Secret<String>> {
+    let suffix =
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe)) =
+            &router_data.request.split_payments
+        {
+            if stripe.charge_type
+                == common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+            {
+                format!("/{}", stripe.transfer_account_id)
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+    gpay_token_specific_parameters
+        .stripe_publishable_key
+        .clone()
+        .map(|key| masking::Secret::new(format!("{}{}", key, suffix)))
+}
+
 fn is_session_response_delayed(
     state: &routes::SessionState,
     connector: &api::ConnectorData,
@@ -1200,6 +1259,7 @@ pub trait RouterDataSession
 where
     Self: Sized,
 {
+    #[allow(clippy::too_many_arguments)]
     async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::SessionState,
@@ -1208,6 +1268,7 @@ where
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self>;
 }
 
@@ -1240,6 +1301,151 @@ fn create_paypal_sdk_session_token(
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
+                    client_token: None,
+                    transaction_info: None,
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
+async fn create_amazon_pay_session_token(
+    router_data: &types::PaymentsSessionRouterData,
+    state: &routes::SessionState,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let amazon_pay_session_token_data = router_data
+        .connector_wallets_details
+        .clone()
+        .parse_value::<payment_types::AmazonPaySessionTokenData>("AmazonPaySessionTokenData")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_id or store_id",
+        })?;
+    let amazon_pay_metadata = amazon_pay_session_token_data.data;
+    let merchant_id = amazon_pay_metadata.merchant_id;
+    let store_id = amazon_pay_metadata.store_id;
+    let amazonpay_supported_currencies =
+        payments::cards::list_countries_currencies_for_connector_payment_method_util(
+            state.conf.pm_filters.clone(),
+            enums::Connector::Amazonpay,
+            enums::PaymentMethodType::AmazonPay,
+        )
+        .await
+        .currencies;
+    // currently supports only the US region hence USD is the only supported currency
+    payment_types::AmazonPayDeliveryOptions::validate_currency(
+        router_data.request.currency,
+        amazonpay_supported_currencies.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
+        message: "USD is the only supported currency.".to_string(),
+    })?;
+    let ledger_currency = router_data.request.currency;
+    // currently supports only the 'automatic' capture_method
+    let payment_intent = payment_types::AmazonPayPaymentIntent::AuthorizeWithCapture;
+    let required_amount_type = StringMajorUnitForConnector;
+    let total_tax_amount = required_amount_type
+        .convert(
+            router_data.request.order_tax_amount.unwrap_or_default(),
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+    let total_base_amount = required_amount_type
+        .convert(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+
+    let delivery_options_request = router_data
+        .request
+        .metadata
+        .clone()
+        .and_then(|metadata| {
+            metadata
+                .expose()
+                .get("delivery_options")
+                .and_then(|value| value.as_array().cloned())
+        })
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "metadata.delivery_options",
+        })?;
+
+    let mut delivery_options =
+        payment_types::AmazonPayDeliveryOptions::parse_delivery_options_request(
+            &delivery_options_request,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "delivery_options".to_string(),
+            expected_format: r#""delivery_options": [{"id": String, "price": {"amount": Number, "currency_code": String}, "shipping_method":{"shipping_method_name": String, "shipping_method_code": String}, "is_default": Boolean}]"#.to_string(),
+        })?;
+
+    let default_amount = payment_types::AmazonPayDeliveryOptions::get_default_delivery_amount(
+        delivery_options.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "is_default",
+    })?;
+
+    for option in &delivery_options {
+        payment_types::AmazonPayDeliveryOptions::validate_currency(
+            option.price.currency_code,
+            amazonpay_supported_currencies.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
+            message: "USD is the only supported currency.".to_string(),
+        })?;
+    }
+
+    payment_types::AmazonPayDeliveryOptions::insert_display_amount(
+        &mut delivery_options,
+        router_data.request.currency,
+    )
+    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+        amount_type: "StringMajorUnit",
+    })?;
+
+    let total_shipping_amount = match router_data.request.shipping_cost {
+        Some(shipping_cost) => {
+            if shipping_cost == default_amount {
+                required_amount_type
+                    .convert(shipping_cost, router_data.request.currency)
+                    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "StringMajorUnit",
+                    })?
+            } else {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "shipping_cost",
+                })
+                .attach_printable(format!(
+                    "Provided shipping_cost ({shipping_cost}) does not match the default delivery amount ({default_amount})"
+                ));
+            }
+        }
+        None => {
+            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "shipping_cost",
+            }
+            .into());
+        }
+    };
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::AmazonPay(Box::new(
+                payment_types::AmazonPaySessionTokenResponse {
+                    merchant_id,
+                    ledger_currency,
+                    store_id,
+                    payment_intent,
+                    total_shipping_amount,
+                    total_tax_amount,
+                    total_base_amount,
+                    delivery_options,
                 },
             )),
         }),
@@ -1257,6 +1463,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {
@@ -1289,19 +1496,21 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
+                let resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     self,
                     call_connector_action,
                     None,
                     None,
+                    gateway_context,
                 )
                 .await
                 .to_payment_failed_response()?;
 
                 Ok(resp)
             }
+            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self, state).await,
         }
     }
 }

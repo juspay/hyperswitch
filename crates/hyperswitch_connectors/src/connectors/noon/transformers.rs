@@ -288,7 +288,10 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
-                                payment_method_data: GooglePayWalletData::from(google_pay_data),
+                                payment_method_data: GooglePayWalletData::try_from(google_pay_data)
+                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "google_pay_data",
+                                    })?,
                             }))
                         }
                         WalletData::ApplePay(apple_pay_data) => {
@@ -320,9 +323,11 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                         WalletData::AliPayQr(_)
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -365,7 +370,8 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
@@ -599,9 +605,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(order.id.to_string()),
+                    connector_response_reference_id: order.reference,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -828,13 +836,15 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
-                message: response.class_description.clone(),
+                message: response.message.clone(),
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(response.result.transaction.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -897,13 +907,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
-                message: response.class_description.clone(),
+                message: response.message.clone(),
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(noon_transaction.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {

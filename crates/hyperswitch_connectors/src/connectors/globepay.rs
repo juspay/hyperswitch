@@ -159,9 +159,11 @@ impl ConnectorCommon for Globepay {
             reason: Some(response.return_msg),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -601,7 +603,8 @@ static GLOBEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static GLOBEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Globepay",
         description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static GLOBEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

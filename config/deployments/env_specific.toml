@@ -1,5 +1,10 @@
 # For explanantion of each config, please refer to the `config/config.example.toml` file
 
+# This is used to identify the running application instance
+# Check common_enums::ApplicationSource for available options
+# For more details - https://github.com/juspay/hyperswitch/issues/10489
+application_source = "main"
+
 [analytics.clickhouse]
 username = "clickhouse_username"     # Clickhouse username
 password = "clickhouse_password"     # Clickhouse password (optional)
@@ -23,6 +28,10 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key.
+
+[internal_merchant_id_profile_id_auth]
+enabled = false
+internal_api_key = "test_internal_api_key"
 
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         # Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
@@ -94,6 +103,7 @@ consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidat
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
+revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events
 
 # File storage configuration
 [file_storage]
@@ -113,7 +123,6 @@ redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redi
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
-rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in rust locker
 
 # Locker settings contain details for accessing a card locker, a
@@ -121,7 +130,6 @@ vault_private_key = ""          # private key in pem format, corresponding publi
 # like card details
 [locker]
 host = ""                                                             # Locker host
-host_rs = ""                                                          # Rust Locker host
 mock_locker = true                                                    # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
@@ -244,6 +252,7 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 dispute_function = "report_download_config_dispute_function" # Config to download dispute report
 payment_function = "report_download_config_payment_function" # Config to download payment report
 refund_function = "report_download_config_refund_function"   # Config to download refund report
+payout_function = "report_download_config_payout_function"   # Config to download payout report
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
@@ -261,6 +270,7 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+payouts = "hyperswitch-payout-events"
 sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
 sessionizer_payment_intents = "sessionizer-payment-intent-events"
 sessionizer_refunds = "sessionizer-refund-events"
@@ -353,6 +363,9 @@ host = "localhost" # Client Host
 port = 7000        # Client Port
 service = "dynamo" # Service name
 
+[grpc_client.recovery_decider_client] # Revenue recovery client base url
+base_url = "http://127.0.0.1:8080"  #Base URL
+
 [theme.storage]
 file_storage_backend = "aws_s3" # Theme storage backend to be used
 
@@ -378,10 +391,74 @@ merchant_ids = "merchant_ids"           # Comma-separated list of allowed mercha
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
 
 [grpc_client.unified_connector_service]
-host = "localhost"                      # Unified Connector Service Client Host
-port = 8000                             # Unified Connector Service Client Port
+base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
+
+[revenue_recovery]
+# monitoring threshold -  120 days
+monitoring_threshold_in_seconds = 10368000
+retry_algorithm_type = "cascading"
+redis_ttl_in_seconds=3888000
+
+# Card specific configuration for Revenue Recovery
+[revenue_recovery.card_config.amex]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.mastercard]
+max_retries_per_day = 10
+max_retry_count_for_thirty_day = 35
+
+[revenue_recovery.card_config.visa]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.discover]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
+initial_timestamp_in_seconds = 3600        # number of seconds added to start time for Decider service of Revenue Recovery
+job_schedule_buffer_time_in_seconds = 3600 # time in seconds to be added in schedule time as a buffer
+reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in scheduling for calculate workflow
+max_random_schedule_delay_in_seconds = 300 # max random delay in seconds to schedule the payment for Revenue Recovery
+redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
 [chat]
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
+encryption_key = ""                            # Key to encrypt and decrypt chats
+
+[proxy_status_mapping]
+proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
+
+[internal_services] # Internal services base urls and configs
+payments_base_url = "http://localhost:8080"
+
+[superposition]
+enabled = false                                  # Enable or disable Superposition integration (default: false)
+endpoint = "http://superposition:8080"          # Superposition service endpoint URL
+token = "your_superposition_token"              # Superposition token
+org_id = "your_org_id"                          # Organization ID in Superposition
+workspace_id = "your_workspace_id"              # Workspace ID in Superposition
+polling_interval = 15                           # Polling interval in seconds for configuration updates
+# request_timeout =                              # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[trace_header]
+header_name = "x-request-id"    # HTTP header name for request tracing
+id_reuse = "ignore_incoming"    # Policy for handling incoming request IDs: "use_incoming" or "ignore_incoming"
+
+[oidc.key.k1]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 4096)
+
+[oidc.key.k2]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 4096)
+
+[oidc.client.c1]
+client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
+client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
+redirect_uri = ""  # Redirect URI registered for the OIDC client 

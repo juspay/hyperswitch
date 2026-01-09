@@ -127,9 +127,10 @@ impl LockerMockUpInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    #[allow(clippy::unwrap_used)]
     mod mockdb_locker_mock_up_interface {
-        use common_utils::{generate_customer_id_of_default_length, id_type};
+        use common_utils::{
+            generate_customer_id_of_default_length, id_type, types::keymanager::KeyManagerState,
+        };
 
         use crate::{
             db::{locker_mock_up::LockerMockUpInterface, MockDb},
@@ -164,10 +165,12 @@ mod tests {
 
         #[tokio::test]
         async fn find_locker_by_card_id() {
-            #[allow(clippy::expect_used)]
-            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                .await
-                .expect("Failed to create Mock store");
+            let mockdb = MockDb::new(
+                &redis_interface::RedisSettings::default(),
+                KeyManagerState::new(),
+            )
+            .await
+            .expect("Failed to create Mock store");
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
@@ -195,10 +198,12 @@ mod tests {
 
         #[tokio::test]
         async fn insert_locker_mock_up() {
-            #[allow(clippy::expect_used)]
-            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                .await
-                .expect("Failed to create Mock store");
+            let mockdb = MockDb::new(
+                &redis_interface::RedisSettings::default(),
+                KeyManagerState::new(),
+            )
+            .await
+            .expect("Failed to create Mock store");
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
@@ -225,10 +230,12 @@ mod tests {
 
         #[tokio::test]
         async fn delete_locker_mock_up() {
-            #[allow(clippy::expect_used)]
-            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                .await
-                .expect("Failed to create Mock store");
+            let mockdb = MockDb::new(
+                &redis_interface::RedisSettings::default(),
+                KeyManagerState::new(),
+            )
+            .await
+            .expect("Failed to create Mock store");
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {

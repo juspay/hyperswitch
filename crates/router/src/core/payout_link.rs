@@ -28,7 +28,7 @@ use crate::{
 #[cfg(feature = "v2")]
 pub async fn initiate_payout_link(
     _state: SessionState,
-    _merchant_context: domain::MerchantContext,
+    _platform: domain::Platform,
     _req: payouts::PayoutLinkInitiateRequest,
     _request_headers: &header::HeaderMap,
     _locale: String,
@@ -39,18 +39,18 @@ pub async fn initiate_payout_link(
 #[cfg(feature = "v1")]
 pub async fn initiate_payout_link(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = platform.get_processor().get_account().get_id();
     // Fetch payout
     let payout = db
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &req.payout_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -58,7 +58,7 @@ pub async fn initiate_payout_link(
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
             &get_payout_attempt_id(payout.payout_id.get_string_repr(), payout.attempt_count),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -138,11 +138,10 @@ pub async fn initiate_payout_link(
             // Fetch customer
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
-                    &(&state).into(),
                     &customer_id,
                     &req.merchant_id,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -157,9 +156,8 @@ pub async fn initiate_payout_link(
                 .as_ref()
                 .async_map(|address_id| async {
                     db.find_address_by_address_id(
-                        &(&state).into(),
                         address_id,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                     )
                     .await
                 })
@@ -174,7 +172,7 @@ pub async fn initiate_payout_link(
                 })?;
 
             let enabled_payout_methods =
-                filter_payout_methods(&state, &merchant_context, &payout, address.as_ref()).await?;
+                filter_payout_methods(&state, &platform, &payout, address.as_ref()).await?;
             // Fetch default enabled_payout_methods
             let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
             for (payment_method, payment_method_types) in
@@ -219,8 +217,9 @@ pub async fn initiate_payout_link(
 
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: masking::Secret::new(
-                    merchant_context
-                        .get_merchant_account()
+                    platform
+                        .get_processor()
+                        .get_account()
                         .clone()
                         .publishable_key,
                 ),
@@ -328,21 +327,19 @@ pub async fn initiate_payout_link(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn filter_payout_methods(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
     address: Option<&domain::Address>,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
     use masking::ExposeInterface;
 
     let db = &*state.store;
-    let key_manager_state = &state.into();
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             false,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -360,6 +357,7 @@ pub async fn filter_payout_methods(
     let mut bank_transfer_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut bank_redirect_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let payout_filter_config = &state.conf.payout_method_filters.clone();
     for mca in &filtered_mcas {
         let payout_methods = match &mca.payment_methods_enabled {
@@ -408,9 +406,14 @@ pub async fn filter_payout_methods(
                                 payment_method_list_hm
                                     .insert(payment_method, bank_transfer_hash_set.clone());
                             }
+                            common_enums::PaymentMethod::BankRedirect => {
+                                bank_redirect_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, bank_redirect_hash_set.clone());
+                            }
                             common_enums::PaymentMethod::CardRedirect
                             | common_enums::PaymentMethod::PayLater
-                            | common_enums::PaymentMethod::BankRedirect
                             | common_enums::PaymentMethod::Crypto
                             | common_enums::PaymentMethod::BankDebit
                             | common_enums::PaymentMethod::Reward
@@ -419,7 +422,8 @@ pub async fn filter_payout_methods(
                             | common_enums::PaymentMethod::Upi
                             | common_enums::PaymentMethod::Voucher
                             | common_enums::PaymentMethod::OpenBanking
-                            | common_enums::PaymentMethod::GiftCard => continue,
+                            | common_enums::PaymentMethod::GiftCard
+                            | common_enums::PaymentMethod::NetworkToken => continue,
                         }
                     }
                 }

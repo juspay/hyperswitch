@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{disputes, enums as api_enums, mandates, payments, refunds};
+use crate::{disputes, enums as api_enums, mandates, payments, refunds, subscription};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -20,8 +20,11 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCancelFailure,
     PaymentIntentAuthorizationSuccess,
     PaymentIntentAuthorizationFailure,
+    PaymentIntentExtendAuthorizationSuccess,
+    PaymentIntentExtendAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
+    PaymentIntentExpired,
     PaymentActionRequired,
     EventNotSupported,
     SourceChargeable,
@@ -65,6 +68,69 @@ pub enum IncomingWebhookEvent {
     RecoveryPaymentPending,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
+    SetupWebhook,
+    InvoiceGenerated,
+}
+
+impl IncomingWebhookEvent {
+    /// Convert UCS event type integer to IncomingWebhookEvent
+    /// Maps from proto WebhookEventType enum values to IncomingWebhookEvent variants
+    pub fn from_ucs_event_type(event_type: i32) -> Self {
+        match event_type {
+            0 => Self::EventNotSupported,
+            // Payment intent events
+            1 => Self::PaymentIntentFailure,
+            2 => Self::PaymentIntentSuccess,
+            3 => Self::PaymentIntentProcessing,
+            4 => Self::PaymentIntentPartiallyFunded,
+            5 => Self::PaymentIntentCancelled,
+            6 => Self::PaymentIntentCancelFailure,
+            7 => Self::PaymentIntentAuthorizationSuccess,
+            8 => Self::PaymentIntentAuthorizationFailure,
+            9 => Self::PaymentIntentCaptureSuccess,
+            10 => Self::PaymentIntentCaptureFailure,
+            11 => Self::PaymentIntentExpired,
+            12 => Self::PaymentActionRequired,
+            // Source events
+            13 => Self::SourceChargeable,
+            14 => Self::SourceTransactionCreated,
+            // Refund events
+            15 => Self::RefundFailure,
+            16 => Self::RefundSuccess,
+            // Dispute events
+            17 => Self::DisputeOpened,
+            18 => Self::DisputeExpired,
+            19 => Self::DisputeAccepted,
+            20 => Self::DisputeCancelled,
+            21 => Self::DisputeChallenged,
+            22 => Self::DisputeWon,
+            23 => Self::DisputeLost,
+            // Mandate events
+            24 => Self::MandateActive,
+            25 => Self::MandateRevoked,
+            // Miscellaneous events
+            26 => Self::EndpointVerification,
+            27 => Self::ExternalAuthenticationARes,
+            28 => Self::FrmApproved,
+            29 => Self::FrmRejected,
+            // Payout events
+            #[cfg(feature = "payouts")]
+            30 => Self::PayoutSuccess,
+            #[cfg(feature = "payouts")]
+            31 => Self::PayoutFailure,
+            #[cfg(feature = "payouts")]
+            32 => Self::PayoutProcessing,
+            #[cfg(feature = "payouts")]
+            33 => Self::PayoutCancelled,
+            #[cfg(feature = "payouts")]
+            34 => Self::PayoutCreated,
+            #[cfg(feature = "payouts")]
+            35 => Self::PayoutExpired,
+            #[cfg(feature = "payouts")]
+            36 => Self::PayoutReversed,
+            _ => Self::EventNotSupported,
+        }
+    }
 }
 
 pub enum WebhookFlow {
@@ -81,6 +147,7 @@ pub enum WebhookFlow {
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     Recovery,
+    Setup,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -110,7 +177,7 @@ pub enum WebhookResponseTracker {
     #[cfg(feature = "v2")]
     Refund {
         payment_id: common_utils::id_type::GlobalPaymentId,
-        refund_id: String,
+        refund_id: common_utils::id_type::GlobalRefundId,
         status: common_enums::RefundStatus,
     },
     #[cfg(feature = "v1")]
@@ -156,6 +223,14 @@ impl WebhookResponseTracker {
     }
 
     #[cfg(feature = "v1")]
+    pub fn get_refund_id(&self) -> Option<String> {
+        match self {
+            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "v1")]
     pub fn get_payment_method_id(&self) -> Option<String> {
         match self {
             Self::PaymentMethod {
@@ -184,6 +259,14 @@ impl WebhookResponseTracker {
             Self::Relay { .. } => None,
         }
     }
+
+    #[cfg(feature = "v2")]
+    pub fn get_refund_id(&self) -> Option<common_utils::id_type::GlobalRefundId> {
+        match self {
+            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
+            _ => None,
+        }
+    }
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -199,7 +282,10 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
             | IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
-            | IncomingWebhookEvent::PaymentIntentCaptureFailure => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentCaptureFailure
+            | IncomingWebhookEvent::PaymentIntentExpired
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund
@@ -234,38 +320,40 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
+            IncomingWebhookEvent::SetupWebhook => Self::Setup,
+            IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
         }
     }
 }
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum RefundIdType {
     RefundId(String),
     ConnectorRefundId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum MandateIdType {
     MandateId(String),
     ConnectorMandateId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum AuthenticationIdType {
     AuthenticationId(common_utils::id_type::AuthenticationId),
     ConnectorAuthenticationId(String),
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum PayoutIdType {
     PayoutAttemptId(String),
     ConnectorPayoutId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
@@ -275,10 +363,11 @@ pub enum ObjectReferenceId {
     PayoutId(PayoutIdType),
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
+    SubscriptionId(common_utils::id_type::SubscriptionId),
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
 }
@@ -322,7 +411,12 @@ impl ObjectReferenceId {
                 common_utils::errors::ValidationError::IncorrectValueProvided {
                     field_name: "PaymentId is required but received InvoiceId",
                 },
-            )
+            ),
+            Self::SubscriptionId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received SubscriptionId",
+                },
+            ),
         }
     }
 }
@@ -330,6 +424,12 @@ impl ObjectReferenceId {
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
+}
+
+#[cfg(feature = "payouts")]
+pub struct PayoutWebhookUpdate {
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -368,6 +468,8 @@ pub enum OutgoingWebhookContent {
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
+    #[schema(value_type = ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
+    SubscriptionDetails(Box<subscription::ConfirmSubscriptionResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]

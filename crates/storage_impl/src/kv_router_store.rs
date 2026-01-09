@@ -17,8 +17,8 @@ use serde::de;
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
+pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
-    config::TenantConfig,
     database::store::PgPool,
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt, StorageResult},
@@ -29,18 +29,26 @@ use crate::{
         RedisConnInterface,
     },
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
-    RouterStore, UniqueConstraints,
+    RouterStore, TenantConfig, UniqueConstraints,
 };
-pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
     pub router_store: RouterStore<T>,
+    pub key_manager_state: Option<KeyManagerState>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
     pub ttl_for_kv: u32,
     pub request_id: Option<String>,
     pub soft_kill_mode: bool,
+}
+
+impl<T: DatabaseStore> KVRouterStore<T> {
+    pub fn get_keymanager_state(&self) -> Result<&KeyManagerState, errors::StorageError> {
+        self.key_manager_state
+            .as_ref()
+            .ok_or_else(|| errors::StorageError::DecryptionError)
+    }
 }
 
 pub struct InsertResourceParams<'a> {
@@ -110,6 +118,7 @@ where
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
+        key_manager_state: Option<KeyManagerState>,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
@@ -119,6 +128,7 @@ where
             drainer_num_partitions,
             ttl_for_kv,
             soft_kill_mode,
+            key_manager_state,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -150,6 +160,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         drainer_num_partitions: u8,
         ttl_for_kv: u32,
         soft_kill: Option<bool>,
+        key_manager_state: Option<KeyManagerState>,
     ) -> Self {
         let request_id = store.request_id.clone();
 
@@ -160,6 +171,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             ttl_for_kv,
             request_id,
             soft_kill_mode: soft_kill.unwrap_or(false),
+            key_manager_state,
         }
     }
 
@@ -205,7 +217,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn find_resource_by_id<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
@@ -264,7 +275,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         res()
             .await?
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -274,7 +286,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn find_optional_resource_by_id<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
@@ -335,7 +346,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             Some(resource) => Ok(Some(
                 resource
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -348,7 +360,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn insert_resource<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         create_resource_fut: R,
@@ -417,7 +428,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             }
         }?
         .convert(
-            state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -427,7 +439,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn update_resource<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         update_resource_fut: R,
@@ -483,7 +494,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             _ => Err(errors::StorageError::KVError.into()),
         }?
         .convert(
-            state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -492,7 +504,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     }
     pub async fn filter_resources<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         filter_resource_db_fut: R,
@@ -535,7 +546,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .into_iter()
             .map(|pm| async {
                 pm.convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

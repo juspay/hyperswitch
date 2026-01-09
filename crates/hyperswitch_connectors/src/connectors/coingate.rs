@@ -154,9 +154,11 @@ impl ConnectorCommon for Coingate {
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -640,7 +642,8 @@ static COINGATE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static COINGATE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Coingate",
     description: "CoinGate's online payment solution makes it easy for businesses to accept Bitcoin, Ethereum, stablecoins and other cryptocurrencies for payments on any website.",
-    connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static COINGATE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

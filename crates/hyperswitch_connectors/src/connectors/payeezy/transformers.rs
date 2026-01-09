@@ -77,6 +77,7 @@ impl TryFrom<CardIssuer> for PayeezyCardType {
             | CardIssuer::DinersClub
             | CardIssuer::JCB
             | CardIssuer::CarteBlanche
+            | CardIssuer::UnionPay
             | CardIssuer::CartesBancaires => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),
             ))?,
@@ -151,7 +152,8 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
             | PaymentMethod::OpenBanking
-            | PaymentMethod::GiftCard => {
+            | PaymentMethod::GiftCard
+            | PaymentMethod::NetworkToken => {
                 Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -273,7 +275,8 @@ fn get_payment_method_data(
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
             Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),
             ))?

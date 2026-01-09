@@ -14,6 +14,7 @@ pub struct RouterHealthCheckResponse {
     pub grpc_health_check: HealthCheckMap,
     #[cfg(feature = "dynamic_routing")]
     pub decision_engine: bool,
+    pub unified_connector_service: Option<bool>,
 }
 
 impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}

@@ -154,9 +154,11 @@ impl ConnectorCommon for Mifinity {
                 reason: Some(CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             let response: Result<
@@ -192,9 +194,11 @@ impl ConnectorCommon for Mifinity {
                         ),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 }
 
@@ -534,7 +538,8 @@ lazy_static! {
         display_name: "MIFINITY",
         description:
             "Mifinity is a payment gateway empowering you to pay online, receive funds, and send money globally, the MiFinity eWallet supports super-low fees, offering infinite possibilities to do more of the things you love.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
     static ref MIFINITY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

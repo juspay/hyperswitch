@@ -173,9 +173,11 @@ impl ConnectorCommon for Deutschebank {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -306,9 +308,11 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 reason: Some(response.message),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             deutschebank::DeutschebankError::AccessTokenErrorResponse(response) => {
                 Ok(ErrorResponse {
@@ -318,9 +322,11 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                     reason: Some(response.description),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
         }
@@ -1073,7 +1079,8 @@ static DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Deutsche Bank",
     description:
         "Deutsche Bank is a German multinational investment bank and financial services company ",
-    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+    connector_type: enums::HyperswitchConnectorCategory::BankAcquirer,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

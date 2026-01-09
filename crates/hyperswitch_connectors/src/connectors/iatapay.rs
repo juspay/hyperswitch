@@ -155,9 +155,11 @@ impl ConnectorCommon for Iatapay {
                 reason: Some(CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }
         } else {
             let response: iatapay::IatapayErrorResponse = res
@@ -174,9 +176,11 @@ impl ConnectorCommon for Iatapay {
                 reason: response.reason,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }
         };
         Ok(response_error_message)
@@ -294,9 +298,11 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -762,7 +768,8 @@ lazy_static! {
         display_name: "Iatapay",
         description:
             "IATA Pay is a payment method for travellers to pay for air tickets purchased online by directly debiting their bank account.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
     static ref IATAPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {

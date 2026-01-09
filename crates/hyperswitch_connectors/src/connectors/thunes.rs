@@ -19,7 +19,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -144,9 +146,11 @@ impl ConnectorCommon for Thunes {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -568,4 +572,23 @@ impl webhooks::IncomingWebhook for Thunes {
     }
 }
 
-impl ConnectorSpecifications for Thunes {}
+static THUNES_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Thunes",
+    description: "Thunes Payouts is a global payment solution that enables businesses to send instant, secure, and cost-effective cross-border payments to bank accounts, mobile wallets, and cards in over 130 countries using a single API",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Thunes {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&THUNES_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

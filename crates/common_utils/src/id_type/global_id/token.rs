@@ -1,3 +1,9 @@
+use std::borrow::Cow;
+
+use error_stack::ResultExt;
+
+use crate::errors::{CustomResult, ValidationError};
+
 crate::global_id_type!(
     GlobalTokenId,
     "A global id that can be used to identify a token.
@@ -15,6 +21,15 @@ impl GlobalTokenId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+
+    ///Get GlobalTokenId from a string
+    pub fn from_string(token_string: &str) -> CustomResult<Self, ValidationError> {
+        let token = super::GlobalId::from_string(Cow::Owned(token_string.to_string()))
+            .change_context(ValidationError::IncorrectValueProvided {
+                field_name: "GlobalTokenId",
+            })?;
+        Ok(Self(token))
     }
 
     /// Generate a new GlobalTokenId from a cell id

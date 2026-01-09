@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
@@ -27,8 +29,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefreshTokenRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,12 +39,12 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PaymentsAuthorizeType, RefreshTokenType, Response},
+    types::{self, PaymentsAuthorizeType, PaymentsVoidType, RefreshTokenType, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as volt;
 
@@ -52,6 +54,11 @@ use crate::{
     types::ResponseRouterData,
     utils::{self},
 };
+
+const X_VOLT_API_VERSION: &str = "X-Volt-Api-Version";
+const X_VOLT_INITIATION_CHANNEL: &str = "X-Volt-Initiation-Channel";
+const VOLT_VERSION: &str = "1";
+const VOLT_INITIATION_CHANNEL: &str = "hosted";
 
 #[derive(Clone)]
 pub struct Volt {
@@ -94,21 +101,33 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
         let access_token = req
             .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_header = (
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token.peek()).into_masked(),
-        );
-        header.push(auth_header);
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.peek()).into_masked(),
+            ),
+            (
+                headers::IDEMPOTENCY_KEY.to_string(),
+                uuid::Uuid::new_v4().to_string().into(),
+            ),
+            (X_VOLT_API_VERSION.to_string(), VOLT_VERSION.into()),
+            (
+                X_VOLT_INITIATION_CHANNEL.to_string(),
+                VOLT_INITIATION_CHANNEL.into(),
+            ),
+        ];
         Ok(header)
     }
 }
@@ -155,25 +174,27 @@ impl ConnectorCommon for Volt {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let reason = match &response.exception.error_list {
+        let reason = match &response.errors {
             Some(error_list) => error_list
                 .iter()
                 .map(|error| error.message.clone())
                 .collect::<Vec<String>>()
                 .join(" & "),
-            None => response.exception.message.clone(),
+            None => response.message.clone(),
         };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.exception.message.to_string(),
-            message: response.exception.message.clone(),
+            code: response.code.unwrap_or(NO_ERROR_CODE.to_string()),
+            message: response.message.clone(),
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -192,11 +213,11 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}oauth", self.base_url(connectors)))
+        Ok(format!("{}/oauth", self.base_url(connectors)))
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        self.common_get_content_type()
     }
     fn get_headers(
         &self,
@@ -216,7 +237,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = volt::VoltAuthUpdateRequest::try_from(req)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -278,9 +299,11 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -316,7 +339,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v2/payments", self.base_url(connectors)))
+        Ok(format!("{}/payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -406,7 +429,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Vol
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}payments/{connector_payment_id}",
+            "{}/payments/{connector_payment_id}",
             self.base_url(connectors)
         ))
     }
@@ -457,9 +480,23 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Vol
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Volt {
+    fn build_request(
+        &self,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Capture".to_string(),
+            connector: "Volt",
+        }
+        .into())
+    }
+}
+
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Volt {
     fn get_headers(
         &self,
-        req: &PaymentsCaptureRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -471,59 +508,50 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}/payments/{}/cancel",
+            self.base_url(connectors),
+            id
+        ))
     }
 
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .url(&PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &PaymentsCaptureRouterData,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: volt::VoltPaymentsResponse = res
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: volt::VoltCancelResponse = res
             .response
-            .parse_struct("Volt PaymentsCaptureResponse")
+            .parse_struct("VoltCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -534,8 +562,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         self.build_error_response(res, event_builder)
     }
 }
-
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Volt {}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Volt {
     fn get_headers(
@@ -555,10 +581,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Volt {
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = connectors.volt.secondary_base_url.clone();
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/{connector_payment_id}/request-refund",
-            self.base_url(connectors),
+            "{base_url}/payments/{connector_payment_id}/request-refund",
         ))
     }
 
@@ -742,39 +768,49 @@ impl webhooks::IncomingWebhook for Volt {
     }
 }
 
-lazy_static! {
-    static ref VOLT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static VOLT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-        let mut volt_supported_payment_methods = SupportedPaymentMethods::new();
-        volt_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::OpenBankingUk,
-            PaymentMethodDetails{
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods,
-                specific_features: None,
-            },
-        );
+    let mut volt_supported_payment_methods = SupportedPaymentMethods::new();
+    volt_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::OpenBankingUk,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        volt_supported_payment_methods
-    };
+    volt_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::OpenBanking,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
 
-    static ref VOLT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "VOLT",
-        description:
-            "Volt is a payment gateway operating in China, specializing in facilitating local bank transfers",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
+    volt_supported_payment_methods
+});
 
-    static ref VOLT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+static VOLT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "VOLT",
+    description:
+        "Volt is a payment gateway operating in China, specializing in facilitating local bank transfers",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
+};
 
-}
+static VOLT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Volt {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*VOLT_CONNECTOR_INFO)
+        Some(&VOLT_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -782,6 +818,6 @@ impl ConnectorSpecifications for Volt {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*VOLT_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&VOLT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

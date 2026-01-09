@@ -2,56 +2,62 @@ import { customerAcceptance } from "./Commons";
 import { getCurrency } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "08",
+  card_number: "4444333322221111",
+  card_exp_month: "12",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "999",
+  card_cvc: "123",
 };
 // Test card details based on Nuvei test cards (from Rust tests)
 const successfulThreeDSCardDetails = {
   card_number: "4000027891380961",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
-// Payment method data objects for responses
-const payment_method_data_no3ds = {
-  card: {
-    last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "08",
-    card_exp_year: "30",
-    card_holder_name: "joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
   },
-  billing: null,
 };
 
-const payment_method_data_3ds = {
-  card: {
-    last4: "0961",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "RIVER VALLEY CREDIT UNION",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "400002",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "25",
-    card_holder_name: "CL-BRW1",
-    payment_checks: null,
-    authentication_data: null,
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
   },
-  billing: null,
 };
+
+// Billing address for manual capture flows
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Francisco",
+    state: "CA",
+    zip: "94122",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+1",
+  },
+  email: "test@example.com",
+};
+
+// Note: payment_method_data object removed as Nuvei returns dynamic card metadata
+// Tests validate that payment_method_data exists and is not empty (via commands.js)
 
 export const connectorDetails = {
   card_pm: {
@@ -126,17 +132,23 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
     // No 3DS manual capture
     No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing: billingAddress,
         amount: 11500,
         currency: "USD",
         customer_acceptance: null,
@@ -148,7 +160,7 @@ export const connectorDetails = {
           status: "requires_capture",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          // payment_method_data removed - Nuvei returns dynamic card metadata (issuer, country) that varies per transaction
         },
       },
     },
@@ -169,17 +181,24 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
+          // we are removing payment_method_data from the response as authentication_data is different every time.
         },
       },
     },
     // 3DS manual capture
     "3DSManualCapture": {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
         },
+        billing: billingAddress,
         amount: 11500,
         currency: "USD",
         customer_acceptance: null,
@@ -190,12 +209,17 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
         },
       },
     },
     // Capture payment
     Capture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         amount_to_capture: 11500,
       },
@@ -211,6 +235,12 @@ export const connectorDetails = {
     },
     // Partial capture
     PartialCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         amount_to_capture: 5000,
       },
@@ -226,6 +256,12 @@ export const connectorDetails = {
     },
     // Void payment
     Void: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -236,6 +272,12 @@ export const connectorDetails = {
     },
     // Refund payment
     Refund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         amount: 11500,
       },
@@ -265,6 +307,12 @@ export const connectorDetails = {
     },
     // Manual payment refund
     manualPaymentRefund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         amount: 11500,
       },
@@ -301,7 +349,25 @@ export const connectorDetails = {
         },
       },
     },
-
+    ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     ZeroAuthPaymentIntent: {
       Request: {
         amount: 0,
@@ -317,9 +383,6 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -327,13 +390,114 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
-        error: {
-          type: "invalid_request",
-          message: "Setup Mandate flow for Nuvei is not implemented",
-          code: "IR_00",
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          // Note: payment_method_data removed from response validation as Nuvei returns dynamic card metadata
+          payment_method: "card",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -356,11 +520,18 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing: billingAddress,
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
@@ -461,9 +632,6 @@ export const connectorDetails = {
     },
     // Payment method ID mandate scenarios
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -609,11 +777,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
-        currency: "EUR", // iDEAL requires EUR currency
+        currency: "EUR",
         payment_method_data: {
           bank_redirect: {
             ideal: {
-              bank_name: "ing", // Maps to INGBNL2A in Nuvei
+              bank_name: "ing",
             },
           },
         },
@@ -625,7 +793,7 @@ export const connectorDetails = {
             city: "Amsterdam",
             state: "North Holland",
             zip: "1012",
-            country: "NL", // Netherlands required for iDEAL
+            country: "NL",
             first_name: "John",
             last_name: "Doe",
           },
@@ -638,7 +806,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action", // Bank redirect requires customer action
+          status: "requires_customer_action",
           error_code: null,
           error_message: null,
         },
@@ -728,11 +896,11 @@ export const connectorDetails = {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
         amount: 11500,
-        currency: "EUR", // EPS requires EUR currency
+        currency: "EUR",
         payment_method_data: {
           bank_redirect: {
             eps: {
-              country: "AT", // Austria required for EPS
+              country: "AT",
             },
           },
         },
@@ -744,7 +912,7 @@ export const connectorDetails = {
             city: "Vienna",
             state: "Vienna",
             zip: "1010",
-            country: "AT", // Austria required for EPS
+            country: "AT",
             first_name: "John",
             last_name: "Doe",
           },
@@ -758,6 +926,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          error_code: null,
+          error_message: null,
         },
       },
     },

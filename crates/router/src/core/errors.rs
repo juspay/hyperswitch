@@ -157,6 +157,8 @@ pub enum WebhooksFlowError {
     OutgoingWebhookRetrySchedulingFailed,
     #[error("Outgoing webhook response encoding failed")]
     OutgoingWebhookResponseEncodingFailed,
+    #[error("ID generation failed")]
+    IdGenerationFailed,
 }
 
 impl WebhooksFlowError {
@@ -174,7 +176,8 @@ impl WebhooksFlowError {
             | Self::DisputeWebhookValidationFailed
             | Self::OutgoingWebhookEncodingFailed
             | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
-            | Self::OutgoingWebhookRetrySchedulingFailed => true,
+            | Self::OutgoingWebhookRetrySchedulingFailed
+            | Self::IdGenerationFailed => true,
         }
     }
 }
@@ -256,46 +259,6 @@ pub enum GooglePayDecryptionError {
     #[error("Failed to parse the given value")]
     ParsingFailed,
 }
-
-#[cfg(feature = "detailed_errors")]
-pub mod error_stack_parsing {
-
-    #[derive(serde::Deserialize)]
-    pub struct NestedErrorStack<'a> {
-        context: std::borrow::Cow<'a, str>,
-        attachments: Vec<std::borrow::Cow<'a, str>>,
-        sources: Vec<NestedErrorStack<'a>>,
-    }
-
-    #[derive(serde::Serialize, Debug)]
-    struct LinearErrorStack<'a> {
-        context: std::borrow::Cow<'a, str>,
-        #[serde(skip_serializing_if = "Vec::is_empty")]
-        attachments: Vec<std::borrow::Cow<'a, str>>,
-    }
-
-    #[derive(serde::Serialize, Debug)]
-    pub struct VecLinearErrorStack<'a>(Vec<LinearErrorStack<'a>>);
-
-    impl<'a> From<Vec<NestedErrorStack<'a>>> for VecLinearErrorStack<'a> {
-        fn from(value: Vec<NestedErrorStack<'a>>) -> Self {
-            let multi_layered_errors: Vec<_> = value
-                .into_iter()
-                .flat_map(|current_error| {
-                    [LinearErrorStack {
-                        context: current_error.context,
-                        attachments: current_error.attachments,
-                    }]
-                    .into_iter()
-                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
-                })
-                .collect();
-            Self(multi_layered_errors)
-        }
-    }
-}
-#[cfg(feature = "detailed_errors")]
-pub use error_stack_parsing::*;
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum RoutingError {
@@ -486,6 +449,8 @@ pub enum RevenueRecoveryError {
     BillingConnectorPaymentsSyncFailed,
     #[error("Billing connector invoice sync call failed")]
     BillingConnectorInvoiceSyncFailed,
+    #[error("Failed to fetch connector customer ID")]
+    CustomerIdNotFound,
     #[error("Failed to get the retry count for payment intent")]
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
@@ -496,4 +461,6 @@ pub enum RevenueRecoveryError {
     RetryAlgorithmUpdationFailed,
     #[error("Failed to create the revenue recovery attempt data")]
     RevenueRecoveryAttemptDataCreateFailed,
+    #[error("Failed to insert the revenue recovery payment method data in redis")]
+    RevenueRecoveryRedisInsertFailed,
 }

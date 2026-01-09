@@ -1,9 +1,15 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+    sync::LazyLock,
+};
 
 use api_models::{
     open_router as or_types,
     routing::{
-        self as api_routing, ConnectorSelection, ConnectorVolumeSplit, RoutableConnectorChoice,
+        self as api_routing, ComparisonType, ConnectorSelection, ConnectorVolumeSplit,
+        DeRoutableConnectorChoice, MetadataValue, NumberComparison, RoutableConnectorChoice,
+        RoutingEvaluateRequest, RoutingEvaluateResponse, ValueType,
     },
 };
 use async_trait::async_trait;
@@ -16,18 +22,23 @@ use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
     backend::BackendInput,
-    frontend::ast::{self},
+    enums::RoutableConnectors,
+    frontend::{
+        ast::{self},
+        dir::{self, transformers::IntoDirValue},
+    },
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
     core::errors,
+    db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
     types::transformers::ForeignInto,
@@ -299,7 +310,7 @@ pub async fn perform_decision_euclid_routing(
     created_by: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
     fallback_output: Vec<RoutableConnectorChoice>,
-) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+) -> RoutingResult<RoutingEvaluateResponse> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
@@ -346,8 +357,254 @@ pub async fn perform_decision_euclid_routing(
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
+    Ok(euclid_response)
+}
 
-    Ok(euclid_response.evaluated_output)
+/// This function transforms the decision_engine response in a way that's usable for further flows:
+/// It places evaluated_output connectors first, followed by remaining output connectors (no duplicates).
+pub fn transform_de_output_for_router(
+    de_output: Vec<ConnectorInfo>,
+    de_evaluated_output: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    let mut seen = HashSet::new();
+
+    // evaluated connectors on top, to ensure the fallback is based on other connectors.
+    let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
+    for eval_conn in de_evaluated_output {
+        if seen.insert(eval_conn.connector) {
+            ordered.push(eval_conn);
+        }
+    }
+
+    // Add remaining connectors from de_output (only if not already seen), for fallback
+    for conn in de_output {
+        let key = RoutableConnectors::from_str(&conn.gateway_name).map_err(|_| {
+            errors::RoutingError::GenericConversionError {
+                from: "String".to_string(),
+                to: "RoutableConnectors".to_string(),
+            }
+        })?;
+        if seen.insert(key) {
+            let de_choice = DeRoutableConnectorChoice::try_from(conn)?;
+            ordered.push(RoutableConnectorChoice::from(de_choice));
+        }
+    }
+    Ok(ordered)
+}
+
+pub async fn decision_engine_routing(
+    state: &SessionState,
+    backend_input: BackendInput,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    merchant_fallback_config: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    let routing_events_wrapper = RoutingEventsWrapper::new(
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+        payment_id,
+        business_profile.get_id().to_owned(),
+        business_profile.merchant_id.to_owned(),
+        "DecisionEngine: Euclid Static Routing".to_string(),
+        None,
+        true,
+        false,
+    );
+
+    let de_euclid_evaluate_response = perform_decision_euclid_routing(
+        state,
+        backend_input.clone(),
+        business_profile.get_id().get_string_repr().to_string(),
+        routing_events_wrapper,
+        merchant_fallback_config,
+    )
+    .await;
+
+    let Ok(de_euclid_response) = de_euclid_evaluate_response else {
+        logger::error!("decision_engine_euclid_evaluation_error: error in evaluation of rule");
+        return Ok(Vec::default());
+    };
+
+    let de_output_connector = extract_de_output_connectors(de_euclid_response.output)
+            .map_err(|e| {
+                logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
+                e
+            })?;
+
+    transform_de_output_for_router(
+            de_output_connector.clone(),
+            de_euclid_response.evaluated_output.clone(),
+        )
+        .map_err(|e| {
+            logger::error!(error=?e, "decision_engine_euclid_evaluation_error: failed to transform connector from de-output");
+            e
+        })
+}
+
+/// Custom deserializer for output from decision_engine, this is required as untagged enum is
+/// stored but the enum requires tagged deserialization, hence deserializing it into specific
+/// variants
+pub fn extract_de_output_connectors(
+    output_value: serde_json::Value,
+) -> RoutingResult<Vec<ConnectorInfo>> {
+    const SINGLE: &str = "straight_through";
+    const PRIORITY: &str = "priority";
+    const VOLUME_SPLIT: &str = "volume_split";
+    const VOLUME_SPLIT_PRIORITY: &str = "volume_split_priority";
+
+    let obj = output_value.as_object().ok_or_else(|| {
+        logger::error!("decision_engine_euclid_error: output is not a JSON object");
+        errors::RoutingError::OpenRouterError("Expected output to be a JSON object".into())
+    })?;
+
+    let type_str = obj.get("type").and_then(|v| v.as_str()).ok_or_else(|| {
+        logger::error!("decision_engine_euclid_error: missing or invalid 'type' in output");
+        errors::RoutingError::OpenRouterError("Missing or invalid 'type' field in output".into())
+    })?;
+
+    match type_str {
+        SINGLE => {
+            let connector_value = obj.get("connector").ok_or_else(|| {
+                logger::error!(
+                    "decision_engine_euclid_error: missing 'connector' field for type=single"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Missing 'connector' field for single output".into(),
+                )
+            })?;
+            let connector: ConnectorInfo = serde_json::from_value(connector_value.clone())
+                .map_err(|e| {
+                    logger::error!(
+                        ?e,
+                        "decision_engine_euclid_error: Failed to parse single connector"
+                    );
+                    errors::RoutingError::OpenRouterError(
+                        "Failed to deserialize single connector".into(),
+                    )
+                })?;
+            Ok(vec![connector])
+        }
+
+        PRIORITY => {
+            let connectors_value = obj.get("connectors").ok_or_else(|| {
+                logger::error!(
+                    "decision_engine_euclid_error: missing 'connectors' field for type=priority"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Missing 'connectors' field for priority output".into(),
+                )
+            })?;
+            let connectors: Vec<ConnectorInfo> = serde_json::from_value(connectors_value.clone())
+                .map_err(|e| {
+                logger::error!(
+                    ?e,
+                    "decision_engine_euclid_error: Failed to parse connectors for priority"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Failed to deserialize priority connectors".into(),
+                )
+            })?;
+            Ok(connectors)
+        }
+
+        VOLUME_SPLIT => {
+            let splits_value = obj.get("splits").ok_or_else(|| {
+                logger::error!(
+                    "decision_engine_euclid_error: missing 'splits' field for type=volume_split"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Missing 'splits' field for volume_split output".into(),
+                )
+            })?;
+
+            // Transform each {connector, split} into {output, split}
+            let fixed_splits: Vec<_> = splits_value
+                .as_array()
+                .ok_or_else(|| {
+                    logger::error!("decision_engine_euclid_error: 'splits' is not an array");
+                    errors::RoutingError::OpenRouterError("'splits' field must be an array".into())
+                })?
+                .iter()
+                .map(|entry| {
+                    let mut entry_map = entry.as_object().cloned().ok_or_else(|| {
+                        logger::error!(
+                            "decision_engine_euclid_error: invalid split entry in volume_split"
+                        );
+                        errors::RoutingError::OpenRouterError(
+                            "Invalid entry in splits array".into(),
+                        )
+                    })?;
+                    if let Some(connector) = entry_map.remove("connector") {
+                        entry_map.insert("output".to_string(), connector);
+                    }
+                    Ok::<_, error_stack::Report<errors::RoutingError>>(serde_json::Value::Object(
+                        entry_map,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let splits: Vec<VolumeSplit<ConnectorInfo>> =
+                serde_json::from_value(serde_json::Value::Array(fixed_splits)).map_err(|e| {
+                    logger::error!(
+                        ?e,
+                        "decision_engine_euclid_error: Failed to parse volume_split"
+                    );
+                    errors::RoutingError::OpenRouterError(
+                        "Failed to deserialize volume_split connectors".into(),
+                    )
+                })?;
+
+            Ok(splits.into_iter().map(|s| s.output).collect())
+        }
+
+        VOLUME_SPLIT_PRIORITY => {
+            let splits_value = obj.get("splits").ok_or_else(|| {
+                logger::error!("decision_engine_euclid_error: missing 'splits' field for type=volume_split_priority");
+                errors::RoutingError::OpenRouterError("Missing 'splits' field for volume_split_priority output".into())
+            })?;
+
+            // Transform each {connector: [...], split} into {output: [...], split}
+            let fixed_splits: Vec<_> = splits_value
+                .as_array()
+                .ok_or_else(|| {
+                    logger::error!("decision_engine_euclid_error: 'splits' is not an array");
+                    errors::RoutingError::OpenRouterError("'splits' field must be an array".into())
+                })?
+                .iter()
+                .map(|entry| {
+                    let mut entry_map = entry.as_object().cloned().ok_or_else(|| {
+                        logger::error!("decision_engine_euclid_error: invalid split entry in volume_split_priority");
+                        errors::RoutingError::OpenRouterError("Invalid entry in splits array".into())
+                    })?;
+                    if let Some(connector) = entry_map.remove("connector") {
+                        entry_map.insert("output".to_string(), connector);
+                    }
+                    Ok::<_, error_stack::Report<errors::RoutingError>>(serde_json::Value::Object(entry_map))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let splits: Vec<VolumeSplit<Vec<ConnectorInfo>>> =
+                serde_json::from_value(serde_json::Value::Array(fixed_splits)).map_err(|e| {
+                    logger::error!(
+                        ?e,
+                        "decision_engine_euclid_error: Failed to parse volume_split_priority"
+                    );
+                    errors::RoutingError::OpenRouterError(
+                        "Failed to deserialize volume_split_priority connectors".into(),
+                    )
+                })?;
+
+            Ok(splits.into_iter().flat_map(|s| s.output).collect())
+        }
+
+        other => {
+            logger::error!(type_str=%other, "decision_engine_euclid_error: unknown output type");
+            Err(
+                errors::RoutingError::OpenRouterError(format!("Unknown output type: {other}"))
+                    .into(),
+            )
+        }
+    }
 }
 
 pub async fn create_de_euclid_routing_algo(
@@ -458,17 +715,25 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     result: Vec<T>,
     flow: String,
 ) {
-    let is_equal = de_result.len() == result.len()
-        && de_result
+    let is_equal = if de_result.is_empty() && result.is_empty() {
+        true
+    } else {
+        de_result
             .iter()
             .zip(result.iter())
-            .all(|(a, b)| T::is_equal(a, b));
+            .all(|(a, b)| T::is_equal(a, b))
+    };
 
-    if is_equal {
-        router_env::logger::info!(routing_flow=?flow, is_equal=?is_equal, "decision_engine_euclid");
-    } else {
-        router_env::logger::debug!(routing_flow=?flow, is_equal=?is_equal, de_response=?to_json_string(&de_result), hs_response=?to_json_string(&result), "decision_engine_euclid");
-    }
+    let is_equal_in_length = de_result.len() == result.len();
+
+    router_env::logger::debug!(
+        routing_flow=?flow,
+        is_equal=?is_equal,
+        is_equal_length=?is_equal_in_length,
+        de_response=?to_json_string(&de_result),
+        hs_response=?to_json_string(&result),
+        "decision_engine_euclid"
+    );
 }
 
 pub trait RoutingEq<T> {
@@ -551,6 +816,12 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(auth_type.to_string())),
         );
     }
+    if let Some(extended_bin) = input.payment.extended_card_bin {
+        params.insert(
+            "extended_card_bin".to_string(),
+            Some(ValueType::StrValue(extended_bin)),
+        );
+    }
     if let Some(bin) = input.payment.card_bin {
         params.insert("card_bin".to_string(), Some(ValueType::StrValue(bin)));
     }
@@ -591,6 +862,17 @@ pub fn convert_backend_input_to_routing_eval(
             "payment_method".to_string(),
             Some(ValueType::EnumVariant(pm.to_string())),
         );
+        if let Some(pmt) = input.payment_method.payment_method_type {
+            match (pmt, pm).into_dir_value() {
+                Ok(dv) => insert_dirvalue_param(&mut params, dv),
+                Err(e) => logger::debug!(
+                    ?e,
+                    ?pmt,
+                    ?pm,
+                    "decision_engine_euclid: into_dir_value failed; skipping subset param"
+                ),
+            }
+        }
     }
     if let Some(pmt) = input.payment_method.payment_method_type {
         params.insert(
@@ -645,6 +927,116 @@ pub fn convert_backend_input_to_routing_eval(
     })
 }
 
+// All the independent variants of payment method types, configured via dashboard
+fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: dir::DirValue) {
+    match dv {
+        dir::DirValue::RewardType(v) => {
+            params.insert(
+                "reward".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CardType(v) => {
+            params.insert(
+                "card".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::PayLaterType(v) => {
+            params.insert(
+                "pay_later".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::WalletType(v) => {
+            params.insert(
+                "wallet".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::VoucherType(v) => {
+            params.insert(
+                "voucher".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankRedirectType(v) => {
+            params.insert(
+                "bank_redirect".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankDebitType(v) => {
+            params.insert(
+                "bank_debit".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankTransferType(v) => {
+            params.insert(
+                "bank_transfer".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::RealTimePaymentType(v) => {
+            params.insert(
+                "real_time_payment".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::UpiType(v) => {
+            params.insert(
+                "upi".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::GiftCardType(v) => {
+            params.insert(
+                "gift_card".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CardRedirectType(v) => {
+            params.insert(
+                "card_redirect".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::OpenBankingType(v) => {
+            params.insert(
+                "open_banking".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::MobilePaymentType(v) => {
+            params.insert(
+                "mobile_payment".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CryptoType(v) => {
+            params.insert(
+                "crypto".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::NetworkTokenType(v) => {
+            params.insert(
+                "network_token".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        other => {
+            // all other values can be ignored for now as they don't converge with
+            // payment method type
+            logger::warn!(
+                ?other,
+                "decision_engine_euclid: unmapped dir::DirValue; add a mapping here"
+            );
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 struct DeErrorResponse {
     code: String,
@@ -683,98 +1075,7 @@ impl DecisionEngineErrorsInterface for or_types::ErrorResponse {
     }
 }
 
-//TODO: temporary change will be refactored afterwards
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct RoutingEvaluateRequest {
-    pub created_by: String,
-    pub parameters: HashMap<String, Option<ValueType>>,
-    pub fallback_output: Vec<DeRoutableConnectorChoice>,
-}
-impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct RoutingEvaluateResponse {
-    pub status: String,
-    pub output: serde_json::Value,
-    #[serde(deserialize_with = "deserialize_connector_choices")]
-    pub evaluated_output: Vec<RoutableConnectorChoice>,
-    #[serde(deserialize_with = "deserialize_connector_choices")]
-    pub eligible_connectors: Vec<RoutableConnectorChoice>,
-}
-impl common_utils::events::ApiEventMetric for RoutingEvaluateResponse {}
-/// Routable Connector chosen for a payment
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DeRoutableConnectorChoice {
-    pub gateway_name: common_enums::RoutableConnectors,
-    pub gateway_id: Option<id_type::MerchantConnectorAccountId>,
-}
-
-fn deserialize_connector_choices<'de, D>(
-    deserializer: D,
-) -> Result<Vec<RoutableConnectorChoice>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let infos = Vec::<DeRoutableConnectorChoice>::deserialize(deserializer)?;
-    Ok(infos
-        .into_iter()
-        .map(RoutableConnectorChoice::from)
-        .collect())
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MetadataValue {
-    pub key: String,
-    pub value: String,
-}
-
-/// Represents a value in the DSL
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
-pub enum ValueType {
-    /// Represents a number literal
-    Number(u64),
-    /// Represents an enum variant
-    EnumVariant(String),
-    /// Represents a Metadata variant
-    MetadataVariant(MetadataValue),
-    /// Represents a arbitrary String value
-    StrValue(String),
-    /// Represents a global reference, which is a reference to a global variable
-    GlobalRef(String),
-    /// Represents an array of numbers. This is basically used for
-    /// "one of the given numbers" operations
-    /// eg: payment.method.amount = (1, 2, 3)
-    NumberArray(Vec<u64>),
-    /// Similar to NumberArray but for enum variants
-    /// eg: payment.method.cardtype = (debit, credit)
-    EnumVariantArray(Vec<String>),
-    /// Like a number array but can include comparisons. Useful for
-    /// conditions like "500 < amount < 1000"
-    /// eg: payment.amount = (> 500, < 1000)
-    NumberComparisonArray(Vec<NumberComparison>),
-}
-
 pub type Metadata = HashMap<String, serde_json::Value>;
-/// Represents a number comparison for "NumberComparisonArrayValue"
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct NumberComparison {
-    pub comparison_type: ComparisonType,
-    pub number: u64,
-}
-
-/// Conditional comparison type
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ComparisonType {
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanEqual,
-    GreaterThan,
-    GreaterThanEqual,
-}
 
 /// Represents a single comparison condition.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -815,7 +1116,7 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     // #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
-    pub nested: Option<Vec<IfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 /// Represents a rule
@@ -866,21 +1167,41 @@ pub struct ConnectorInfo {
     pub gateway_id: Option<String>,
 }
 
+impl TryFrom<ConnectorInfo> for DeRoutableConnectorChoice {
+    type Error = error_stack::Report<errors::RoutingError>;
+
+    fn try_from(c: ConnectorInfo) -> Result<Self, Self::Error> {
+        let gateway_id = c
+            .gateway_id
+            .map(|mca| {
+                id_type::MerchantConnectorAccountId::wrap(mca)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")
+            })
+            .transpose()?;
+
+        let gateway_name = RoutableConnectors::from_str(&c.gateway_name)
+            .map_err(|_| errors::RoutingError::GenericConversionError {
+                from: "String".to_string(),
+                to: "RoutableConnectors".to_string(),
+            })
+            .attach_printable("unable to convert connector name to RoutableConnectors")?;
+
+        Ok(Self {
+            gateway_name,
+            gateway_id,
+        })
+    }
+}
+
 impl ConnectorInfo {
     pub fn new(gateway_name: String, gateway_id: Option<String>) -> Self {
         Self {
             gateway_name,
             gateway_id,
-        }
-    }
-}
-
-impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
-    fn from(choice: DeRoutableConnectorChoice) -> Self {
-        Self {
-            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-            connector: choice.gateway_name,
-            merchant_connector_id: choice.gateway_id,
         }
     }
 }
@@ -1182,7 +1503,10 @@ pub async fn select_routing_result<T>(
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,
     de_result: T,
-) -> T {
+) -> T
+where
+    T: Clone + IntoIterator,
+{
     let routing_result_source: Option<api_routing::RoutingResultSource> = state
         .store
         .find_config_by_key(&format!(
@@ -1191,15 +1515,33 @@ pub async fn select_routing_result<T>(
         ))
         .await
         .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None); //Ignore errors so that we can use the hyperswitch result as a fallback
+        .unwrap_or(None);
+
     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
-        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
-        de_result
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: Using Decision Engine routing result"
+        );
+
+        let is_de_result_empty = de_result.clone().into_iter().next().is_none();
+        if is_de_result_empty {
+            logger::debug!(
+                business_profile_id=?business_profile.get_id(),
+                "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+            );
+            hyperswitch_result
+        } else {
+            de_result
+        }
     } else {
-        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: Using Hyperswitch routing result"
+        );
         hyperswitch_result
     }
 }
+
 pub trait DecisionEngineErrorsInterface {
     fn get_error_message(&self) -> String;
     fn get_error_code(&self) -> String;
@@ -1320,7 +1662,7 @@ where
             wrapper.payment_id.clone(),
             wrapper.profile_id.clone(),
             wrapper.merchant_id.clone(),
-            wrapper.request_id,
+            wrapper.request_id.clone(),
             routing_engine,
         );
 
@@ -1861,4 +2203,96 @@ impl TryFrom<&ir_client::contract_routing_client::UpdateContractResponse>
 pub enum ContractUpdationStatusEventResponse {
     ContractUpdationSucceeded,
     ContractUpdationFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreRoutingSkipRule {
+    /// The payment method for which specific payment method types should skip pre-routing.
+    /// IMPORTANT:
+    /// - Do NOT add multiple entries with the same `payment_method`.
+    /// - Each `payment_method` should appear **only once** in the config.
+    ///
+    /// Example:
+    ///     {
+    ///         bank_redirect: ["interac", "ach", "blik"]
+    ///     }
+    ///
+    pub payment_method: common_enums::PaymentMethod,
+
+    /// The list of payment method types under this payment method
+    /// for which pre-routing must be skipped.
+    ///
+    /// This is a Vec because a single PM can have many PMTs
+    /// that need to skip pre-routing:
+    ///
+    /// Example:
+    ///     payment_method_types = ["interac", "ach", "blik"]
+    ///
+    pub payment_method_types: Vec<common_enums::PaymentMethodType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MerchantPreRoutingConfig {
+    pub skip_rules: Vec<PreRoutingSkipRule>,
+}
+
+/// Loads the merchant's pre-routing skip configuration and converts it into:
+///     HashMap<PaymentMethod, HashSet<PaymentMethodType>>
+///
+/// Example output:
+///     {
+///         bank_redirect: { interac, ach, blik },
+///         bank_debit: { sepa_debit }
+///     }
+pub async fn load_skip_pre_routing_config(
+    state: &SessionState,
+    pre_routing_disabled_pm_pmt_key: String,
+) -> HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> {
+    let merchant_cfg = state
+        .store
+        .find_config_by_key_from_db(&pre_routing_disabled_pm_pmt_key)
+        .await
+        .ok()
+        .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
+        .unwrap_or_default();
+
+    let mut skip_map: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> =
+        HashMap::new();
+
+    for rule in merchant_cfg.skip_rules.iter() {
+        skip_map
+            .entry(rule.payment_method)
+            .or_default()
+            .extend(rule.payment_method_types.iter().copied());
+    }
+
+    skip_map
+}
+
+/// Returns `true` if pre-routing should be skipped for
+/// the given (payment_method, payment_method_type) pair.
+pub fn should_skip_prerouting(
+    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    pm: &enums::PaymentMethod,
+    pmt: &enums::PaymentMethodType,
+) -> bool {
+    skip_map
+        .get(pm)
+        .map(|set| set.contains(pmt))
+        .unwrap_or(false)
+}
+
+pub fn perform_pre_routing(
+    allowed_pm_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethod>>,
+    allowed_pmt_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethodType>>,
+    payment_method: &enums::PaymentMethod,
+    payment_method_type: &enums::PaymentMethodType,
+    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+) -> bool {
+    let should_skip_prerouting =
+        should_skip_prerouting(skip_map, payment_method, payment_method_type);
+
+    let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
+    let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
+    (pm_allowed || pmt_allowed) && !should_skip_prerouting
 }

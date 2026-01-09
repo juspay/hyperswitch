@@ -136,6 +136,7 @@ pub struct BankAccountDetail {
     pub routing_number: Option<Secret<String>>,
     pub pix_info: Option<PixInfo>,
     pub owner_name: Option<Secret<String>>,
+    pub owner_document_type: Option<String>,
     pub owner_document_number: Option<Secret<String>>,
     pub owner_company: Option<OwnerCompany>,
     pub internal: Option<bool>,
@@ -176,7 +177,7 @@ pub struct TransactionData {
     pub subject_is_receiver: Option<bool>,
 
     // Source identification (potentially redundant with subject or card/bank info)
-    pub source_name: Secret<String>,
+    pub source_name: Option<Secret<String>>,
     pub source_document_type: DocumentType,
     pub source_document_number: Secret<String>,
 
@@ -204,14 +205,124 @@ pub struct TransactionData {
     pub meta: Option<serde_json::Value>,
 }
 
+// Void response structures (for /refund endpoint)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RefundData {
+pub struct VoidBankTransaction {
     #[serde(rename = "id")]
-    pub refund_id: String,
-    pub status: FacilitapayPaymentStatus,
+    pub transaction_id: String,
+    pub value: StringMajorUnit,
+    pub currency: api_models::enums::Currency,
+    pub iof_value: Option<StringMajorUnit>,
+    pub fx_value: Option<StringMajorUnit>,
+    pub exchange_rate: Option<StringMajorUnit>,
+    pub exchange_currency: api_models::enums::Currency,
+    pub exchanged_value: StringMajorUnit,
+    pub exchange_approved: bool,
+    pub wire_id: Option<String>,
+    pub exchange_id: Option<String>,
+    pub movement_date: String,
+    pub source_name: Secret<String>,
+    pub source_document_number: Secret<String>,
+    pub source_document_type: String,
+    pub source_id: String,
+    pub source_type: String,
+    pub source_description: String,
+    pub source_bank: Option<String>,
+    pub source_branch: Option<String>,
+    pub source_account: Option<String>,
+    pub source_bank_ispb: Option<String>,
+    pub company_id: String,
+    pub company_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoidData {
+    #[serde(rename = "id")]
+    pub void_id: String,
+    pub reason: Option<String>,
+    pub inserted_at: String,
+    pub status: FacilitapayPaymentStatus,
+    pub transaction_kind: String,
+    pub bank_transaction: VoidBankTransaction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FacilitapayVoidResponse {
+    pub data: VoidData,
+}
+
+// Refund response uses the same TransactionData structure as payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacilitapayRefundResponse {
-    pub data: RefundData,
+    pub data: TransactionData,
+}
+
+// Webhook structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FacilitapayWebhookNotification {
+    pub notification: FacilitapayWebhookBody,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct FacilitapayWebhookBody {
+    #[serde(rename = "type")]
+    pub event_type: FacilitapayWebhookEventType,
+    pub secret: Secret<String>,
+    #[serde(flatten)]
+    pub data: FacilitapayWebhookData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum FacilitapayWebhookEventType {
+    ExchangeCreated,
+    Identified,
+    PaymentApproved,
+    PaymentExpired,
+    PaymentFailed,
+    PaymentRefunded,
+    WireCreated,
+    WireWaitingCorrection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FacilitapayWebhookErrorCode {
+    /// Creditor account number invalid or missing (branch_number or account_number incorrect)
+    Ac03,
+    /// Creditor account type missing or invalid (account_type incorrect)
+    Ac14,
+    /// Value in Creditor Identifier is incorrect (owner_document_number incorrect)
+    Ch11,
+    /// Transaction type not supported/authorized on this account (account rejected the payment)
+    Ag03,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FacilitapayWebhookData {
+    CardPayment {
+        transaction_id: String,
+        checkout_id: Option<String>,
+    },
+    Exchange {
+        exchange_id: String,
+        transaction_ids: Vec<String>,
+    },
+    Transaction {
+        transaction_id: String,
+    },
+    Wire {
+        wire_id: String,
+        transaction_ids: Vec<String>,
+    },
+    WireError {
+        error_code: FacilitapayWebhookErrorCode,
+        error_description: String,
+        bank_account_owner_id: String,
+        bank_account_id: String,
+        transaction_ids: Vec<String>,
+        wire_id: String,
+    },
 }

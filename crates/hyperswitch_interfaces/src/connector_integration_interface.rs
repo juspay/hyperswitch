@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
 use crate::{
     api,
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
-        ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
+        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
+        ConnectorCommon, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
         ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
@@ -312,6 +312,17 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn get_payout_webhook_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payout_webhook_details(request),
+            Self::New(connector) => connector.get_payout_webhook_details(request),
+        }
+    }
+
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -389,6 +400,19 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_additional_payment_method_data(request),
+            Self::New(connector) => connector.get_additional_payment_method_data(request),
+        }
+    }
+
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,
@@ -414,6 +438,18 @@ impl IncomingWebhook for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_revenue_recovery_attempt_details(request),
             Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
+        }
+    }
+    fn get_subscription_mit_payment_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_subscription_mit_payment_data(request),
+            Self::New(connector) => connector.get_subscription_mit_payment_data(request),
         }
     }
 }
@@ -496,6 +532,49 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
+            Self::New(connector) => connector.is_order_create_flow_required(current_flow),
+        }
+    }
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
+        }
+    }
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match self {
+            Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+            Self::New(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+        }
+    }
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match self {
+            Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),
+            Self::New(connector) => connector.get_alternate_flow_if_needed(current_flow),
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         match self {
             Self::Old(connector) => connector.get_supported_payment_methods(),
@@ -516,6 +595,57 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_connector_about(),
             Self::New(connector) => connector.get_connector_about(),
+        }
+    }
+
+    /// Check if connector supports authentication token
+    fn authentication_token_for_token_creation(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.authentication_token_for_token_creation(),
+            Self::New(connector) => connector.authentication_token_for_token_creation(),
+        }
+    }
+
+    /// If connector supports session token generation
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_sdk_client_token_generation_enabled(),
+            Self::New(connector) => connector.is_sdk_client_token_generation_enabled(),
+        }
+    }
+
+    /// Supported payment methods for session token generation
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<common_enums::PaymentMethodType> {
+        match self {
+            Self::Old(connector) => {
+                connector.supported_payment_method_types_for_sdk_client_token_generation()
+            }
+            Self::New(connector) => {
+                connector.supported_payment_method_types_for_sdk_client_token_generation()
+            }
+        }
+    }
+
+    /// Validate whether session token is generated for payment payment type
+    fn validate_sdk_session_token_for_payment_method(
+        &self,
+        current_core_payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector
+                .validate_sdk_session_token_for_payment_method(current_core_payment_method_type),
+            Self::New(connector) => connector
+                .validate_sdk_session_token_for_payment_method(current_core_payment_method_type),
+        }
+    }
+
+    /// Check if the connector needs authorize session token call
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authorize_session_token_call_required(),
+            Self::New(connector) => connector.is_authorize_session_token_call_required(),
         }
     }
 
@@ -554,6 +684,49 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => {
                 connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
             }
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        match self {
+            Self::Old(connector) => {
+                connector.generate_connector_customer_id(customer_id, merchant_id)
+            }
+            Self::New(connector) => {
+                connector.generate_connector_customer_id(customer_id, merchant_id)
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        todo!()
+    }
+
+    /// Check if connector requires create customer call
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
+            Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+        }
+    }
+
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
+            Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
 }
@@ -605,6 +778,23 @@ impl ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.build_error_response(res, event_builder),
             Self::New(connector) => connector.build_error_response(res, event_builder),
+        }
+    }
+}
+
+impl ConnectorAccessTokenSuffix for ConnectorEnum {
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
         }
     }
 }

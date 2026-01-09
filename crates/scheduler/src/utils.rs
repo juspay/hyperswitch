@@ -22,12 +22,18 @@ pub async fn divide_and_append_tasks<T>(
     flow: SchedulerFlow,
     tasks: Vec<storage::ProcessTracker>,
     settings: &SchedulerSettings,
+    application_source: enums::ApplicationSource,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
     T: SchedulerInterface + Send + Sync + ?Sized,
 {
-    let batches = divide(tasks, settings);
+    let batches = divide(tasks, settings, application_source);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
+    logger::info!(
+        "Adding {} batches for application_source: {:?}",
+        batches.len(),
+        application_source
+    );
     #[allow(clippy::as_conversions)]
     metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
@@ -147,10 +153,11 @@ where
 pub fn divide(
     tasks: Vec<storage::ProcessTracker>,
     conf: &SchedulerSettings,
+    application_source: enums::ApplicationSource,
 ) -> Vec<ProcessTrackerBatch> {
     let now = common_utils::date_time::now();
     let batch_size = conf.producer.batch_size;
-    divide_into_batches(batch_size, tasks, now, conf)
+    divide_into_batches(batch_size, tasks, now, conf, application_source)
 }
 
 pub fn divide_into_batches(
@@ -158,8 +165,14 @@ pub fn divide_into_batches(
     tasks: Vec<storage::ProcessTracker>,
     batch_creation_time: time::PrimitiveDateTime,
     conf: &SchedulerSettings,
+    application_source: enums::ApplicationSource,
 ) -> Vec<ProcessTrackerBatch> {
     let batch_id = Uuid::new_v4().to_string();
+
+    let stream_name = match application_source {
+        enums::ApplicationSource::Main => &conf.stream,
+        enums::ApplicationSource::Cug => &conf.cug_stream,
+    };
 
     tasks
         .chunks(batch_size)
@@ -167,7 +180,7 @@ pub fn divide_into_batches(
             let batch = ProcessTrackerBatch {
                 id: batch_id.clone(),
                 group_name: conf.consumer.consumer_group.clone(),
-                stream_name: conf.stream.clone(),
+                stream_name: stream_name.to_string(),
                 connection_name: String::new(),
                 created_time: batch_creation_time,
                 rule: String::new(), // is it required?
@@ -255,6 +268,23 @@ pub fn get_process_tracker_id<'a>(
 ) -> String {
     format!(
         "{runner}_{task_name}_{txn_id}_{}",
+        merchant_id.get_string_repr()
+    )
+}
+
+pub fn get_process_tracker_id_for_dispute_list<'a>(
+    runner: storage::ProcessTrackerRunner,
+    merchant_connector_account_id: &'a common_utils::id_type::MerchantConnectorAccountId,
+    created_from: time::PrimitiveDateTime,
+    merchant_id: &'a common_utils::id_type::MerchantId,
+) -> String {
+    format!(
+        "{runner}_{:04}{}{:02}{:02}_{}_{}",
+        created_from.year(),
+        created_from.month(),
+        created_from.day(),
+        created_from.hour(),
+        merchant_connector_account_id.get_string_repr(),
         merchant_id.get_string_repr()
     )
 }
@@ -362,6 +392,23 @@ pub fn get_pcr_payments_retry_schedule_time(
     // TODO: check if the current scheduled time is not more than the configured timerange
 
     // For first try, get the `start_after` time
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(retry_count, &mapping.frequencies)
+    }
+}
+
+pub fn get_subscription_invoice_sync_retry_schedule_time(
+    mapping: process_data::SubscriptionInvoiceSyncPTMapping,
+    merchant_id: &common_utils::id_type::MerchantId,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
