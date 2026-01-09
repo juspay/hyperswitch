@@ -1511,13 +1511,11 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
-        amount: Some(
-            payment_data
-                .payment_attempt
-                .amount_details
-                .get_net_amount()
-                .get_amount_as_i64(),
-        ),
+        amount: payment_data
+            .payment_attempt
+            .amount_details
+            .get_net_amount()
+            .get_amount_as_i64(),
         confirm: true,
         customer_acceptance: None,
         mandate_id: None,
@@ -1539,7 +1537,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata,
-        minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
+        minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         capture_method: Some(payment_data.payment_intent.capture_method),
         complete_authorize_url,
@@ -2429,7 +2427,8 @@ where
             connector_http_status_code,
             external_latency,
             is_latency_header_enabled,
-            platform,
+            platform.get_processor(),
+            platform.get_initiator(),
         )
     }
 }
@@ -3423,7 +3422,8 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     connector_http_status_code: Option<u16>,
     external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -3914,10 +3914,8 @@ where
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
-            processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-            initiator: platform
-                .get_initiator()
-                .and_then(|initiator| initiator.to_api_initiator()),
+            processor_merchant_id: processor.get_account().get_id().clone(),
+            initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
@@ -5967,8 +5965,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
-            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
-            minor_amount: Some(amount),
+            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            minor_amount: amount,
             payment_method_data: (payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?),
@@ -6264,8 +6262,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
-            minor_amount: Some(amount),
+            amount: amount.get_amount_as_i64(), // need to change this once we move to connector module
+            minor_amount: amount,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,

@@ -17,7 +17,7 @@ use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, Intermed
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct SmtpServer {
     /// sender email id
-    pub sender: String,
+    pub sender: pii::Email,
     /// SMTP server specific configs
     pub smtp_config: SmtpServerConfig,
 }
@@ -156,7 +156,7 @@ impl EmailClient for SmtpServer {
 
         let email = Message::builder()
             .to(Self::to_mail_box(recipient.peek().to_string())?)
-            .from(Self::to_mail_box(self.sender.clone())?)
+            .from(Self::to_mail_box(self.sender.peek().to_string())?)
             .subject(subject)
             .header(ContentType::TEXT_HTML)
             .body(body)

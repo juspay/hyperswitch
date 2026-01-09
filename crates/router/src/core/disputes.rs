@@ -935,7 +935,7 @@ pub async fn update_dispute_data(
 
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        platform,
+        platform.get_processor().clone(),
         business_profile,
         event_type,
         storage_enums::EventClass::Disputes,

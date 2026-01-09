@@ -913,14 +913,12 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        if let Some(amount) = item.request.amount {
-            if amount > 0 {
-                return Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Setup Mandate with non zero amount".to_string(),
-                    connector: "Zift".to_string(),
-                }
-                .into());
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "Zift".to_string(),
             }
+            .into());
         }
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
 

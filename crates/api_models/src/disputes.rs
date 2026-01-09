@@ -56,7 +56,7 @@ pub struct DisputeResponse {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    /// Shows if the disputed amount is already refunded in the payment
+    /// Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount
     pub is_already_refunded: bool,
 }
 

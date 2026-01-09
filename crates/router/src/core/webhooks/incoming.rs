@@ -1443,7 +1443,7 @@ async fn payments_incoming_webhook_flow(
                 let primary_object_created_at = payments_response.created;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    platform,
+                    platform.get_processor().clone(),
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
@@ -1738,7 +1738,7 @@ async fn payout_incoming_webhook_update_status(
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform,
+            platform.get_processor().clone(),
             business_profile,
             outgoing_event_type,
             enums::EventClass::Payouts,
@@ -2007,8 +2007,8 @@ async fn refunds_incoming_webhook_flow(
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
-            state.clone(),
-            platform.clone(),
+            state,
+            platform.get_processor().clone(),
             business_profile,
             outgoing_event_type,
             enums::EventClass::Refunds,
@@ -2349,7 +2349,7 @@ async fn external_authentication_incoming_webhook_flow(
                             let primary_object_created_at = payments_response.created;
                             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                                 state,
-                                platform,
+                                platform.get_processor().clone(),
                                 business_profile,
                                 outgoing_event_type,
                                 enums::EventClass::Payments,
@@ -2447,7 +2447,7 @@ async fn mandates_incoming_webhook_flow(
         if let Some(outgoing_event_type) = event_type {
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
-                platform,
+                platform.get_processor().clone(),
                 business_profile,
                 outgoing_event_type,
                 enums::EventClass::Mandates,
@@ -2552,7 +2552,7 @@ async fn frm_incoming_webhook_flow(
                     let primary_object_created_at = payments_response.created;
                     Box::pin(super::create_event_and_trigger_outgoing_webhook(
                         state,
-                        platform,
+                        platform.get_processor().clone(),
                         business_profile,
                         outgoing_event_type,
                         enums::EventClass::Payments,
@@ -2669,7 +2669,7 @@ async fn disputes_incoming_webhook_flow(
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform,
+            platform.get_processor().clone(),
             business_profile,
             event_type,
             enums::EventClass::Disputes,
@@ -2756,7 +2756,7 @@ async fn bank_transfer_webhook_flow(
                 let primary_object_created_at = payments_response.created;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    platform,
+                    platform.get_processor().clone(),
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,

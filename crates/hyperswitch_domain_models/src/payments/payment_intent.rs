@@ -247,6 +247,7 @@ pub struct PaymentIntentUpdateFields {
     pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -463,6 +464,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 }
 
@@ -1242,6 +1244,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                shipping_cost: None,
             },
         }
     }
@@ -1342,6 +1345,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
+                    shipping_cost: value.shipping_cost,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1511,6 +1515,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            shipping_cost,
             state_metadata,
         } = value;
         Self {
@@ -1562,6 +1567,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            shipping_cost,
             state_metadata,
         }
     }
