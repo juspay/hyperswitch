@@ -7898,10 +7898,6 @@ api_key = "API Key"
   api_secret="Vault Id"
 
 [worldpaymodular]
-[[worldpaymodular.wallet]]
-  payment_method_type = "google_pay"
-[[worldpaymodular.wallet]]
-  payment_method_type = "apple_pay"
 [worldpaymodular.connector_auth.SignatureKey]
 key1="Username"
 api_key="Password"

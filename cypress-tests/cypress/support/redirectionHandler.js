@@ -687,40 +687,6 @@ function bankRedirectRedirection(
             }
             break;
 
-          case "volt":
-            if (paymentMethodType === "open_banking_uk") {
-              cy.log("Handling Volt OpenBankingUk redirect flow");
-              const clickableSelector =
-                "button, [role='button'], div[role='option'], li, span, label";
-              const selectBank = () =>
-                cy
-                  .contains(clickableSelector, /Barclays Sandbox/i, {
-                    timeout: constants.TIMEOUT,
-                  })
-                  .scrollIntoView()
-                  .should("be.visible")
-                  .then(($el) => {
-                    const candidate = $el.closest(clickableSelector);
-                    if (candidate.length) {
-                      cy.wrap(candidate).click();
-                    } else {
-                      cy.wrap($el).click();
-                    }
-                  });
-              selectBank();
-              cy.contains("button, a", /Continue on Desktop/i, {
-                timeout: constants.TIMEOUT,
-              })
-                .should("be.visible")
-                .click();
-              verifyUrl = true;
-            } else {
-              throw new Error(
-                `Unsupported Volt payment method type: ${paymentMethodType}`
-              );
-            }
-            break;
-
           case "fiuu":
             if (paymentMethodType === "online_banking_fpx") {
               cy.log("Handling FIUU OnlineBankingFpx redirect flow");

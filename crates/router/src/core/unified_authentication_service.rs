@@ -54,7 +54,7 @@ use crate::{
     core::{
         authentication::utils as auth_utils,
         errors::utils::StorageErrorExt,
-        metrics, payment_methods,
+        payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
@@ -1812,7 +1812,7 @@ pub async fn authentication_sync_core(
     let (updated_authentication, payment_method_data, vault_token_data) =
         if !authentication.authentication_status.is_terminal_status() {
             let post_auth_response = if authentication_connector.is_click_to_pay() {
-                let response = ClickToPay::post_authentication(
+                ClickToPay::post_authentication(
                     &state,
                     &business_profile,
                     None,
@@ -1823,9 +1823,7 @@ pub async fn authentication_sync_core(
                     merchant_id,
                     None,
                 )
-                .await?;
-                metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
-                response
+                .await?
             } else {
                 ExternalAuthentication::post_authentication(
                     &state,
@@ -1859,15 +1857,13 @@ pub async fn authentication_sync_core(
                 // Do not tokenize if the disable flag is present in the config
                 None
             } else {
-                let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
+                Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
                     &platform,
                     &business_profile,
                     &post_auth_response,
                 ))
-                .await?;
-                metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
-                response
+                .await?
             };
 
             let payment_method_data =

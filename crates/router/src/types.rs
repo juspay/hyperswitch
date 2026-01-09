@@ -1245,10 +1245,10 @@ impl ForeignFrom<&ExternalVaultProxyPaymentsRouterData> for AuthorizeSessionToke
 impl<'a> ForeignFrom<&'a SetupMandateRouterData> for AuthorizeSessionTokenData {
     fn foreign_from(data: &'a SetupMandateRouterData) -> Self {
         Self {
-            amount_to_capture: Some(data.request.amount),
+            amount_to_capture: data.request.amount,
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: Some(data.request.amount),
+            amount: data.request.amount,
         }
     }
 }

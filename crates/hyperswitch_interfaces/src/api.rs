@@ -405,12 +405,6 @@ pub enum CurrentFlowInfo<'a> {
         /// The payment method that is used
         payment_method: Option<PaymentMethod>,
     },
-
-    /// SetupMandate flow information
-    SetupMandate {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-    },
 }
 
 /// Alternate API flow that must be made instead of the current flow.

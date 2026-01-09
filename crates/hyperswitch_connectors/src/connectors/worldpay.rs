@@ -241,7 +241,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.minor_amount,
+            req.request.minor_amount.unwrap_or_default(),
             req,
         ))?;
         let connector_req =
@@ -295,7 +295,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 http_code: res.status_code,
             },
             optional_correlation_id,
-            data.request.amount,
+            data.request.amount.unwrap_or(0),
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }

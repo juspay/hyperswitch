@@ -244,27 +244,28 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
 impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        if item.request.amount > 0 {
-            Err(errors::ConnectorError::FlowNotSupported {
+        match item.request.amount {
+            Some(amount) if amount > 0 => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Setup mandate with non zero amount".to_string(),
                 connector: "Payload".to_string(),
             }
-            .into())
-        } else {
-            let billing_address = item.get_billing_address()?;
-            let is_mandate = item.request.is_customer_initiated_mandate_payment();
+            .into()),
+            _ => {
+                let billing_address = item.get_billing_address()?;
+                let is_mandate = item.request.is_customer_initiated_mandate_payment();
 
-            build_payload_payment_request_data(
-                &item.request.payment_method_data,
-                &item.connector_auth_type,
-                item.request.currency,
-                StringMajorUnit::zero(),
-                billing_address,
-                item.request.capture_method,
-                is_mandate,
-                item.get_connector_customer_id()?.into(),
-                item.is_three_ds(),
-            )
+                build_payload_payment_request_data(
+                    &item.request.payment_method_data,
+                    &item.connector_auth_type,
+                    item.request.currency,
+                    StringMajorUnit::zero(),
+                    billing_address,
+                    item.request.capture_method,
+                    is_mandate,
+                    item.get_connector_customer_id()?.into(),
+                    item.is_three_ds(),
+                )
+            }
         }
     }
 }

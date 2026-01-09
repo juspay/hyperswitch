@@ -49,7 +49,7 @@ use crate::{
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     business_profile: domain::Profile,
     event_type: enums::EventType,
     event_class: enums::EventClass,
@@ -91,7 +91,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     };
 
     let request_content =
-        get_outgoing_webhook_request(&processor, outgoing_webhook, &business_profile)
+        get_outgoing_webhook_request(&platform, outgoing_webhook, &business_profile)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to construct outgoing webhook request content")?;
 
@@ -121,8 +121,13 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                         .attach_printable("Failed to encode outgoing webhook request content")
                         .map(Secret::new)?,
                 ),
-                Identifier::Merchant(processor.get_key_store().merchant_id.clone()),
-                processor.get_key_store().key.get_inner().peek(),
+                Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone()),
+                platform
+                    .get_processor()
+                    .get_key_store()
+                    .key
+                    .get_inner()
+                    .peek(),
             )
             .await
             .and_then(|val| val.try_into_operation())
@@ -138,7 +143,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let lock_value = utils::perform_redis_lock(
         &state,
         &idempotent_event_id,
-        processor.get_account().get_id().to_owned(),
+        platform.get_processor().get_account().get_id().to_owned(),
     )
     .await?;
 
@@ -151,7 +156,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         .find_event_by_merchant_id_idempotent_event_id(
             &merchant_id,
             &idempotent_event_id,
-            processor.get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await)
         .is_ok()
@@ -162,7 +167,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         utils::free_redis_lock(
             &state,
             &idempotent_event_id,
-            processor.get_account().get_id().to_owned(),
+            platform.get_processor().get_account().get_id().to_owned(),
             lock_value,
         )
         .await?;
@@ -171,7 +176,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(new_event, processor.get_key_store())
+        .insert_event(new_event, platform.get_processor().get_key_store())
         .await;
 
     let event = match event_insert_result {
@@ -187,7 +192,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     utils::free_redis_lock(
         &state,
         &idempotent_event_id,
-        processor.get_account().get_id().to_owned(),
+        platform.get_processor().get_account().get_id().to_owned(),
         lock_value,
     )
     .await?;
@@ -207,7 +212,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     })
     .ok();
 
-    let cloned_key_store = processor.get_key_store().clone();
+    let cloned_key_store = platform.get_processor().get_key_store().clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
@@ -639,7 +644,7 @@ fn get_webhook_url_from_business_profile(
 }
 
 pub(crate) fn get_outgoing_webhook_request(
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     outgoing_webhook: api::OutgoingWebhook,
     business_profile: &domain::Profile,
 ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
@@ -695,7 +700,11 @@ pub(crate) fn get_outgoing_webhook_request(
         })
     }
 
-    match processor.get_account().get_compatible_connector() {
+    match platform
+        .get_processor()
+        .get_account()
+        .get_compatible_connector()
+    {
         #[cfg(feature = "stripe")]
         Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
             stripe_webhooks::StripeOutgoingWebhook,

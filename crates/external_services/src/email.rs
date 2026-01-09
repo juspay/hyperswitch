@@ -151,7 +151,7 @@ pub struct EmailSettings {
     pub allowed_unverified_days: i64,
 
     /// Sender email
-    pub sender_email: pii::Email,
+    pub sender_email: String,
 
     #[serde(flatten)]
     /// The client specific configurations

@@ -1773,7 +1773,7 @@ pub struct TemporaryVaultCvc {
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
-    payment_method_id: &id_type::GlobalPaymentMethodId,
+    payment_method_token: &String,
     card_cvc: masking::Secret<String>,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
@@ -1784,10 +1784,7 @@ pub async fn insert_cvc_using_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_hyperswitch_cvc",
-        payment_method_id.get_string_repr()
-    );
+    let key = format!("pm_token_{payment_method_token}_hyperswitch_cvc");
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
@@ -1870,9 +1867,9 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_token(
     state: &routes::SessionState,
-    payment_method_id: id_type::GlobalPaymentMethodId,
+    payment_method_token: String,
 ) -> RouterResult<i64> {
     let redis_conn = state
         .store
@@ -1880,10 +1877,7 @@ pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_id(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_hyperswitch_cvc",
-        payment_method_id.get_string_repr()
-    );
+    let key = format!("pm_token_{payment_method_token}_hyperswitch_cvc",);
 
     // check if key exists and get ttl
     redis_conn

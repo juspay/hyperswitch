@@ -667,7 +667,6 @@ pub struct PaymentIntentUpdateFields {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
-    pub shipping_cost: Option<MinorUnit>,
 }
 
 // TODO: uncomment fields as necessary
@@ -904,7 +903,6 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
-    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -959,7 +957,6 @@ impl PaymentIntentUpdate {
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
-            shipping_cost,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -1021,7 +1018,6 @@ impl PaymentIntentUpdate {
             enable_partial_authorization: enable_partial_authorization
                 .or(source.enable_partial_authorization),
             enable_overcapture: enable_overcapture.or(source.enable_overcapture),
-            shipping_cost: shipping_cost.or(source.shipping_cost),
             ..source
         }
     }
@@ -1083,7 +1079,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1122,7 +1117,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 incremental_authorization_allowed: None,
                 authorization_count: None,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
-                tax_details: value.tax_details,
+                tax_details: None,
                 force_3ds_challenge: value.force_3ds_challenge,
                 is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                 extended_return_url: value.return_url,
@@ -1135,7 +1130,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: value.duty_amount,
                 enable_partial_authorization: value.enable_partial_authorization,
                 enable_overcapture: value.enable_overcapture,
-                shipping_cost: value.shipping_cost,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1194,7 +1188,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1250,7 +1243,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1306,7 +1298,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1370,7 +1361,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1425,7 +1415,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1481,7 +1470,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1536,7 +1524,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1591,7 +1578,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1645,7 +1631,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1696,7 +1681,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1749,7 +1733,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1802,7 +1785,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1853,7 +1835,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1909,7 +1890,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost: None,
             },
         }
     }

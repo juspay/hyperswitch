@@ -1028,7 +1028,12 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                 field_name: "currency",
             })?,
         };
-        let amount = data.request.minor_amount;
+        let amount = match data.request.minor_amount {
+            Some(amount) => amount,
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?,
+        };
 
         let amount = convert_amount(self.amount_converter, amount, currency)?;
 

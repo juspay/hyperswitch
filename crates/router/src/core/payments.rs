@@ -1209,8 +1209,7 @@ where
         .await?;
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        platform.clone(),
         business_profile,
         cloned_payment_data,
         cloned_customer,
@@ -1436,8 +1435,7 @@ where
     let cloned_payment_data = payment_data.clone();
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        platform.clone(),
         business_profile,
         cloned_payment_data,
         None,
@@ -4177,8 +4175,8 @@ where
                 .authentication_bloated_connectors
                 .contains(&connector.connector_name)
                 && payment_data
-                    .get_payment_intent()
-                    .request_external_three_ds_authentication
+                    .get_payment_attempt()
+                    .external_three_ds_authentication_attempted
                     != Some(true)
         }) {
         logger::info!(
@@ -4223,19 +4221,6 @@ where
         // So skip calling complete_preprocessing_steps_if_required function
         logger::info!(
             "skipping preprocessing steps for connector: {}",
-            connector.connector_name
-        );
-        (router_data, should_continue_further)
-    } else if state
-        .conf
-        .tokenization
-        .0
-        .contains_key(&connector.connector_name.to_string())
-    {
-        // If payment method tokenization flow is enabled for the current connector
-        // Skip calling complete_preprocessing_steps_if_required function
-        logger::info!(
-            "skipping preprocessing steps for connector as tokenization flow is enabled: {}",
             connector.connector_name
         );
         (router_data, should_continue_further)
@@ -7348,7 +7333,6 @@ fn is_payment_method_tokenization_enabled_for_connector(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
     mandate_flow_enabled: Option<storage_enums::FutureUsage>,
-    authentication_type: Option<common_enums::AuthenticationType>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -7376,31 +7360,9 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     mandate_flow_enabled,
                     connector_filter.flow.clone(),
                 )
-                && is_card_authentication_type_allowed_for_connector(
-                    payment_method,
-                    authentication_type,
-                    connector_filter.allowed_card_authentication_type,
-                )
         })
         .unwrap_or(false))
 }
-
-fn is_card_authentication_type_allowed_for_connector(
-    payment_method: storage_enums::PaymentMethod,
-    authentication_type: Option<common_enums::AuthenticationType>,
-    allowed_authentication_type: Option<common_enums::AuthenticationType>,
-) -> bool {
-    if payment_method == storage_enums::PaymentMethod::Card {
-        match (authentication_type, allowed_authentication_type) {
-            (Some(auth_type), Some(allowed_type)) => auth_type == allowed_type,
-            (Some(_), None) | (None, Some(_)) | (None, None) => true,
-        }
-    } else {
-        // If non card payment method, always return true
-        true
-    }
-}
-
 #[cfg(feature = "v1")]
 fn is_payment_flow_allowed_for_connector(
     mandate_flow_enabled: Option<storage_enums::FutureUsage>,
@@ -7764,7 +7726,6 @@ where
                     payment_method_type,
                     payment_data.get_payment_method_token(),
                     mandate_flow_enabled,
-                    payment_data.get_payment_attempt().authentication_type,
                 )?;
 
             let payment_method_action = decide_payment_method_tokenize_action(

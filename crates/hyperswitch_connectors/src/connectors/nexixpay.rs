@@ -1253,7 +1253,6 @@ impl ConnectorSpecifications for Nexixpay {
                         .and_then(|redirect_response| redirect_response.payload.as_ref())
                         .is_some()
             }
-            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 
