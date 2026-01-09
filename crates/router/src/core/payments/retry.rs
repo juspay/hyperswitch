@@ -443,6 +443,7 @@ where
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
@@ -463,6 +464,7 @@ where
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
