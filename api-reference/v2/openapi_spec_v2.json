@@ -8363,27 +8363,33 @@
           },
           "last4_digits": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "4242"
           },
           "expiry_month": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "12"
           },
           "expiry_year": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "25"
           },
           "card_holder_name": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "John Doe"
           },
           "card_fingerprint": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "a1b2c3d4e5f6g7h8i9j0"
           },
           "nick_name": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "Personal Card"
           },
           "card_network": {
             "allOf": [
@@ -8395,18 +8401,22 @@
           },
           "card_isin": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "33100509"
           },
           "card_issuer": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "CHASE BANK USA"
           },
           "card_type": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "CREDIT"
           },
           "saved_to_locker": {
-            "type": "boolean"
+            "type": "boolean",
+            "example": true
           }
         }
       },
@@ -14550,7 +14560,8 @@
         ],
         "properties": {
           "mask": {
-            "type": "string"
+            "type": "string",
+            "example": "1111"
           }
         }
       },
@@ -15928,7 +15939,8 @@
         "properties": {
           "last4_digits": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "0787"
           },
           "issuer_country": {
             "allOf": [
@@ -15940,27 +15952,33 @@
           },
           "network_token_expiry_month": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "05"
           },
           "network_token_expiry_year": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "24"
           },
           "nick_name": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "card"
           },
           "card_holder_name": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "John Doe"
           },
           "card_isin": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "78331005"
           },
           "card_issuer": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "chase"
           },
           "card_network": {
             "allOf": [
@@ -15968,14 +15986,17 @@
                 "$ref": "#/components/schemas/CardNetwork"
               }
             ],
-            "nullable": true
+            "nullable": true,
+            "example": "Visa"
           },
           "card_type": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "Credit"
           },
           "saved_to_locker": {
-            "type": "boolean"
+            "type": "boolean",
+            "example": "true"
           }
         }
       },
