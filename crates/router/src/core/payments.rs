@@ -7715,6 +7715,7 @@ fn check_apple_pay_metadata(
                         }
                     }
                     Err(_) => {
+                        // In the case were only predecrypted token in enabled donot throw error , just skip decryption
                         if apple_pay_combined.is_predecrypted_token_supported() {
                             Some(domain::ApplePayFlow::SkipDecryption)
                         } else {
