@@ -4005,9 +4005,9 @@ fn construct_zero_auth_payments_request(
         amount_details: payments::AmountDetails::new_for_zero_auth_payment(
             common_enums::Currency::USD,
         ),
-        payment_method_data: confirm_request.payment_method_data.clone(),
-        payment_method_type: confirm_request.payment_method_type,
-        payment_method_subtype: confirm_request.payment_method_subtype,
+        payment_method_data: Some(confirm_request.payment_method_data.clone()),
+        payment_method_type: Some(confirm_request.payment_method_type),
+        payment_method_subtype: Some(confirm_request.payment_method_subtype),
         customer_id: payment_method_session.customer_id.clone(),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),

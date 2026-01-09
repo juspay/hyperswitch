@@ -1699,7 +1699,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &platform, false)?;
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -1775,7 +1775,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &platform, false)?;
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -2282,7 +2282,7 @@ where
 {
     operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &platform, false)?;
 
     let get_tracker_response = operation
         .to_get_tracker()?
@@ -2361,7 +2361,7 @@ where
 {
     operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &platform, false)?;
 
     let get_tracker_response = operation
         .to_get_tracker()?
@@ -2432,7 +2432,7 @@ pub async fn record_attempt_core(
 
     let _validate_result = boxed_operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &platform, false)?;
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -2791,6 +2791,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    is_create_and_confirm: bool,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -2822,7 +2823,7 @@ where
     // Validate the request fields
     operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &platform, is_create_and_confirm)?;
 
     // Get the tracker related information. This includes payment intent and payment attempt
     let get_tracker_response = operation
@@ -2931,6 +2932,7 @@ pub(crate) async fn payments_execute_wrapper(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
+            false,
         ))
         .await
     } else {
@@ -3044,6 +3046,7 @@ async fn decide_authorize_or_setup_intent_flow(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
+            true,
         ))
         .await
     } else {
@@ -3064,6 +3067,7 @@ async fn decide_authorize_or_setup_intent_flow(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
+            true,
         ))
         .await
     }

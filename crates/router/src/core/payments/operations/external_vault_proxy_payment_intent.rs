@@ -149,6 +149,7 @@ impl<F: Send + Clone + Sync>
         &'b self,
         _request: &ExternalVaultProxyPaymentsRequest,
         platform: &'a domain::Platform,
+        is_create_and_confirm: bool,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

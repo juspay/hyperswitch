@@ -1,5 +1,7 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
+#[cfg(feature = "v2")]
+use common_enums::PaymentMethodType;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use common_types::payments as common_payments_types;
@@ -556,6 +558,8 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        payment_method_type: Option<storage_enums::PaymentMethod>,
+        payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -583,6 +587,7 @@ impl PaymentAttempt {
         });
 
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
+        
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -621,10 +626,10 @@ impl PaymentAttempt {
             customer_acceptance: request.customer_acceptance.clone().map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
-            payment_method_type: request.payment_method_type,
+            payment_method_type: payment_method_type.unwrap_or(request.payment_method_type.unwrap_or(common_enums::PaymentMethod::Card)),
             payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
-            payment_method_subtype: request.payment_method_subtype,
+            payment_method_subtype: payment_method_subtype.unwrap_or(request.payment_method_subtype.unwrap_or(common_enums::PaymentMethodType::Credit)),
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,

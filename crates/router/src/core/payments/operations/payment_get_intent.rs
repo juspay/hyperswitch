@@ -150,6 +150,7 @@ impl<F: Send + Clone + Sync>
         &'b self,
         _request: &PaymentsGetIntentRequest,
         platform: &'a domain::Platform,
+        _is_create_and_confirm: bool,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

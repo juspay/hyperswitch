@@ -182,6 +182,7 @@ pub trait ValidateRequest<F, R, D> {
         &self,
         request: &R,
         platform: &domain::Platform,
+        is_create_and_confirm: bool,
     ) -> RouterResult<ValidateResult>;
 }
 

@@ -128,6 +128,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentCon
         &'b self,
         _request: &ProxyPaymentsRequest,
         platform: &'a domain::Platform,
+        _is_create_and_confirm: bool,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

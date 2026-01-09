@@ -7829,18 +7829,19 @@ pub struct PaymentsConfirmIntentRequest {
     pub return_url: Option<common_utils::types::Url>,
 
     /// The payment instrument data to be used for the payment
-    pub payment_method_data: PaymentMethodDataRequest,
+    #[schema(value_type = PaymentMethodDataRequest, example = "apple_pay")]
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment instrument data to be used for the payment in case of split payments
     pub split_payment_method_data: Option<Vec<SplitPaymentMethodDataRequest>>,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method_type: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
@@ -8061,15 +8062,15 @@ pub struct PaymentsRequest {
         Option<common_enums::External3dsAuthenticationRequest>,
 
     /// The payment instrument data to be used for the payment
-    pub payment_method_data: PaymentMethodDataRequest,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method_type: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]

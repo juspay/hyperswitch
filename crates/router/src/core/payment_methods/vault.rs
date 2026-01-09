@@ -1792,13 +1792,13 @@ pub async fn insert_cvc_using_payment_token(
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
-    let payload = payload_to_be_encrypted
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    // let payload = payload_to_be_encrypted
+    //     .encode_to_string_of_json()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Encrypt the CVC and store it in Redis
     let encrypted_payload: Encryption =
-        pm_cards::create_encrypted_data(&(state.into()), key_store, payload.clone())
+        pm_cards::create_encrypted_data(&(state.into()), key_store, payload_to_be_encrypted.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
@@ -1856,9 +1856,9 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     let cvc_data: TemporaryVaultCvc = pm_cards::decrypt_generic_data(state, Some(resp), key_store)
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to decrypt volatile payment method vault data")?.get_required_value("PaymentMethodVaultingData")
+                            .attach_printable("Failed to decrypt cvc")?.get_required_value("TemporaryVaultCvc")
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
+                            .attach_printable("Failed to get required decrypted cvc")?;
 
     // // decrypt the cvc data
     // let decrypted_payload = GcmAes256

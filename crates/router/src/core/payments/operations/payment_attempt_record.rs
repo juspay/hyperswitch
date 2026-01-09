@@ -305,6 +305,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsAttemptRecordRequest, PaymentAt
         &'b self,
         _request: &PaymentsAttemptRecordRequest,
         platform: &'a domain::Platform,
+        _is_create_and_confirm: bool,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

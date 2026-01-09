@@ -1618,6 +1618,7 @@ pub async fn payments_cancel(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                false,
             ))
             .await
         },
@@ -3442,6 +3443,7 @@ pub async fn payment_status(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                false,
             ))
             .await
         },
@@ -3542,6 +3544,7 @@ pub async fn payments_status_with_gateway_creds(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                false,
             ))
             .await
         },
@@ -3699,6 +3702,7 @@ pub async fn payments_capture(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                false,
             ))
             .await
         },

@@ -88,13 +88,18 @@ async fn get_payment_method_amount_split(
     let payment_method_data = SplitPaymentMethodDataRequest {
         payment_method_data: request
             .payment_method_data
-            .payment_method_data
             .clone()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data",
+            .get_required_value("payment_method_data")
+            .change_context(errors::ApiErrorResponse::InvalidRequestData{
+                message: "payment_method_data is required for split payments".to_string(),
+            })?
+            .payment_method_data
+            .get_required_value("payment_method_data")
+            .change_context(errors::ApiErrorResponse::InvalidRequestData{
+                message: "payment_method_data is required for split payments".to_string(),
             })?,
-        payment_method_type: request.payment_method_type,
-        payment_method_subtype: request.payment_method_subtype,
+        payment_method_type: request.payment_method_type.unwrap_or(common_enums::PaymentMethod::Card),
+        payment_method_subtype: request.payment_method_subtype.unwrap_or(common_enums::PaymentMethodType::Credit),
     };
 
     let combined_pm_data: Vec<_> = split_payment_method_data

@@ -136,6 +136,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, Pa
         &'b self,
         request: &PaymentsConfirmIntentRequest,
         platform: &'a domain::Platform,
+        is_create_and_confirm: bool,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -143,7 +144,33 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, Pa
             requeue: false,
         };
 
-        Ok(validate_result)
+        // Validate payment_method_data and payment_method_id based on is_create_and_confirm flag
+        match (
+            is_create_and_confirm,
+            &request.payment_method_data,
+            &request.payment_method_id,
+        ) {
+            // When is_create_and_confirm is true
+            (true, Some(pmd), payment_method_id) => {
+                // If pmd.payment_method_data is None, payment_method_id must be Some
+                match (&pmd.payment_method_data, payment_method_id) {
+                    (None, None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "payment_method_data",
+                    }
+                    .into()),
+                    _ => Ok(validate_result),
+                }
+            }
+            // When is_create_and_confirm is true and payment_method_data is None, it's valid
+            (true, None, _) => Ok(validate_result),
+            // When is_create_and_confirm is false
+            (false, Some(_), _) => Ok(validate_result),
+            // When is_create_and_confirm is false and payment_method_data is None, it's invalid
+            (false, None, _) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_data",
+            }
+            .into()),
+        }
     }
 }
 
@@ -187,7 +214,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
-                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                        payment_method_billing_address: request.payment_method_data.as_ref().and_then(|pmd| pmd.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address").ok()?.map(masking::Secret::new)),
                     },
                 ),
             ),
@@ -204,13 +231,36 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
 
+        // let payment_method_id = request.payment_method_id;
+        let payment_method = match &request.payment_method_id {
+            Some(payment_method_id) => {
+                let payment_method = db
+                    .find_payment_method(
+                        platform.get_processor().get_key_store(),
+                        &payment_method_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                Some(payment_method)
+            }
+            _ => None,
+        };
+
+        let (payment_method_type, payment_method_subtype) = match payment_method {
+            Some(pm) => (pm.payment_method_type, pm.payment_method_subtype),
+            None => (request.payment_method_type, request.payment_method_subtype),
+        };
+
         let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
                 &payment_intent,
                 cell_id,
                 storage_scheme,
                 request,
-                encrypted_data
+                encrypted_data,
+                payment_method_type,
+                payment_method_subtype
             )
             .await?;
 
@@ -224,11 +274,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
 
-        let payment_method_data = request
-            .payment_method_data
-            .payment_method_data
-            .clone()
-            .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
+        // let payment_method_data = request
+        //     .payment_method_data
+        //     .payment_method_data
+        //     .clone()
+        //     .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
+
+        let payment_method_data = match request.payment_method_data {
+            Some(ref data) => data
+                .payment_method_data
+                .clone()
+                .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from),
+            None => None,
+        };
 
         if request.payment_token.is_some() {
             when(
@@ -324,7 +382,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
-                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                        payment_method_billing_address: request.payment_method_data.as_ref().and_then(|pmd| pmd.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address").ok()?.map(masking::Secret::new)),
                     },
                 ),
             ),
@@ -552,11 +610,74 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             &payment_data.payment_attempt.payment_token,
             &payment_data.payment_method_data,
             &payment_data.payment_attempt.customer_acceptance,
+            &payment_data.payment_attempt.payment_method_id,
         ) {
+            (None, None, _, Some(pm_id)) => {
+                
+                let db = &*state.store;
+
+                let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+                let payment_method = db
+                    .find_payment_method(
+                        platform.get_processor().get_key_store(),
+                        pm_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                let card_cvc = payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                    state,
+                                    &payment_method.get_id().get_string_repr().to_string(),
+                                    platform.get_processor().get_key_store(),
+                                )
+                                .await.change_context(errors::ApiErrorResponse::InvalidRequestData{
+                                    message:"card_cvc not found / expired for the payment method".to_string(),
+                                })?;
+
+                let vault_data =
+                    payment_methods::vault::retrieve_payment_method_from_vault(state, platform, business_profile, &payment_method)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to retrieve payment method from vault")?
+                        .data;
+                // let (payment_method, vault_data) =
+                //     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
+                //         state,
+                //         platform,
+                //         business_profile,
+                //         payment_token,
+                //         &payment_data.payment_attempt.payment_method_type,
+                //     )
+                //     .await
+                //     .change_context(errors::ApiErrorResponse::InternalServerError)
+                //     .attach_printable("Failed to retrieve payment method from vault")?;
+                match vault_data {
+                    domain::vault::PaymentMethodVaultingData::Card(card_detail) => {
+                        let pm_data_from_vault =
+                            domain::payment_method_data::PaymentMethodData::Card(
+                                domain::payment_method_data::Card::from((
+                                    card_detail.clone(),
+                                    card_cvc,
+                                    card_detail.card_holder_name,
+                                )),
+                            );
+
+                        (Some(payment_method), Some(pm_data_from_vault))
+                    }
+                    _ => Err(errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(
+                            "Non-card Tokenization not implemented".to_string(),
+                        ),
+                    })?,
+                }
+            }
             (
                 Some(payment_token),
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
+                _,
             ) => {
                 let (payment_method, vault_data) =
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
@@ -612,12 +733,12 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 }
             }
 
-            (Some(_payment_token), _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
+            (Some(_payment_token), _, _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })
             .attach_printable("payment_method_data should be card_token when a token is passed")?,
 
-            (None, Some(domain::PaymentMethodData::Card(card)), Some(_customer_acceptance)) => {
+            (None, Some(domain::PaymentMethodData::Card(card)), Some(_customer_acceptance), _) => {
                 let customer_id = match &payment_data.payment_intent.customer_id {
                     Some(customer_id) => customer_id.clone(),
                     None => {
