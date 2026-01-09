@@ -24672,6 +24672,14 @@
             "type": "string",
             "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
