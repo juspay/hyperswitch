@@ -37,7 +37,8 @@ const multiUseMandateData = {
   },
 };
 
-const billingAddress = {
+// Base billing address structure
+const baseBillingAddress = {
   address: {
     line1: "1467",
     line2: "Harrison Street",
@@ -45,8 +46,8 @@ const billingAddress = {
     state: "California",
     zip: "94122",
     country: "US",
-    first_name: "Test",
-    last_name: "User",
+    first_name: "John",
+    last_name: "Doe",
   },
   phone: {
     number: "9123456789",
@@ -54,90 +55,62 @@ const billingAddress = {
   },
 };
 
-const billingAddressNL = {
+const billingAddress = {
+  ...baseBillingAddress,
   address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    city: "San Francisco",
-    state: "California",
-    zip: "94122",
+    ...baseBillingAddress.address,
+    first_name: "Test",
+    last_name: "User",
+  },
+};
+
+const billingAddressNL = {
+  ...baseBillingAddress,
+  address: {
+    ...baseBillingAddress.address,
     country: "NL",
-    first_name: "John",
-    last_name: "Doe",
   },
   phone: {
-    number: "9123456789",
+    ...baseBillingAddress.phone,
     country_code: "+31",
   },
 };
 
 const billingAddressAT = {
+  ...baseBillingAddress,
   address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    city: "Vienna",
-    state: "Vienna",
-    zip: "1010",
+    ...baseBillingAddress.address,
     country: "AT",
-    first_name: "John",
-    last_name: "Doe",
   },
   phone: {
-    number: "9123456789",
+    ...baseBillingAddress.phone,
     country_code: "+43",
   },
 };
 
 const billingAddressDE = {
+  ...baseBillingAddress,
   address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    city: "Berlin",
-    state: "Berlin",
-    zip: "10115",
+    ...baseBillingAddress.address,
     country: "DE",
-    first_name: "John",
-    last_name: "Doe",
   },
   phone: {
-    number: "9123456789",
+    ...baseBillingAddress.phone,
     country_code: "+49",
   },
 };
 
 const billingAddressPL = {
+  ...baseBillingAddress,
   address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    city: "Warsaw",
-    state: "Mazovia",
-    zip: "00-001",
+    ...baseBillingAddress.address,
     country: "PL",
-    first_name: "John",
-    last_name: "Doe",
   },
   phone: {
-    number: "9123456789",
+    ...baseBillingAddress.phone,
     country_code: "+48",
   },
   email: "test@example.com",
-};
-
-const billingAddressBE = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    city: "Brussels",
-    state: "Brussels",
-    zip: "1000",
-    country: "BE",
-    first_name: "John",
-    last_name: "Doe",
-  },
-  phone: {
-    number: "9123456789",
-    country_code: "+32",
-  },
 };
 
 export const connectorDetails = {
@@ -835,7 +808,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "Unprocessable Entity",
-          error_message: "method"
+          error_message: "method",
         },
       },
     },

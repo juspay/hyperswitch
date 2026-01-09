@@ -773,7 +773,9 @@ function bankRedirectRedirection(
                     .click()
                     .log("Selected: Authorized");
                 } else {
-                  cy.log("No payment status selector found, page may auto-redirect");
+                  cy.log(
+                    "No payment status selector found, page may auto-redirect"
+                  );
                 }
               });
 
