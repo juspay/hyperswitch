@@ -1278,6 +1278,96 @@ fn transform_response_for_pre_authenticate_flow(
                 },
             )
         }
+        // TODO: Temporary solution for Redsys 3DS invoke flow via UCS
+        //
+        // Currently, UCS returns 3DS invoke data in `redirection_data.form_fields` instead of
+        // `connector_metadata`. This workaround extracts the invoke data from form_fields and
+        // constructs `PaymentsConnectorThreeDsInvokeData` to populate `connector_metadata`,
+        // enabling the `invoke_hidden_iframe` next_action to be correctly generated.
+        //
+        // For 3DS invoke: form_fields contains threeDsMethodData, threeDSServerTransID, etc.
+        //   -> Extract and set as connector_metadata, clear redirection_data
+        // For 3DS exempt/challenge: No invoke data in form_fields
+        //   -> Keep redirection_data as-is, connector_metadata remains None
+        //
+        // A permanent solution requires redesigning how UCS passes 3DS invoke data back to
+        // Hyperswitch, potentially through dedicated fields in the gRPC response or a unified
+        // authentication data structure that covers all 3DS scenarios.
+        (
+            enums::connector_enums::Connector::Redsys,
+            router_response_types::PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data,
+                mandate_reference,
+                connector_metadata: _,
+                network_txn_id,
+                connector_response_reference_id,
+                incremental_authorization_allowed,
+                charges,
+            },
+        ) => {
+            // Check if this is a 3DS invoke response by looking at form_fields
+            let (connector_metadata, redirection_data) =
+                if let Some(ref redirect_form) = *redirection_data {
+                    if let router_response_types::RedirectForm::Form {
+                        endpoint,
+                        form_fields,
+                        ..
+                    } = redirect_form
+                    {
+                        // Check for 3DS invoke - has threeDsMethodData and threeDSServerTransID
+                        if form_fields.contains_key("threeDsMethodData")
+                            && form_fields.contains_key("threeDSServerTransID")
+                        {
+                            // This is 3DS invoke - construct PaymentsConnectorThreeDsInvokeData
+                            let invoke_data =
+                                api_models::payments::PaymentsConnectorThreeDsInvokeData {
+                                    directory_server_id: form_fields
+                                        .get("threeDSServerTransID")
+                                        .cloned()
+                                        .unwrap_or_default(),
+                                    three_ds_method_url: form_fields
+                                        .get("threeDsMethodUrl")
+                                        .cloned()
+                                        .unwrap_or_else(|| endpoint.clone()),
+                                    three_ds_method_data: form_fields
+                                        .get("threeDsMethodData")
+                                        .cloned()
+                                        .unwrap_or_default(),
+                                    message_version: form_fields.get("messageVersion").cloned(),
+                                    three_ds_method_data_submission: form_fields
+                                        .get("threeDsMethodDataSubmission")
+                                        .map(|v| v == "true")
+                                        .unwrap_or(true),
+                                };
+                            // Set connector_metadata with invoke data, clear redirection_data
+                            (serde_json::to_value(&invoke_data).ok(), Box::new(None))
+                        } else {
+                            // 3DS exempt or challenge - keep redirection_data, no special connector_metadata
+                            (None, redirection_data)
+                        }
+                    } else {
+                        // Not a Form type redirect
+                        (None, redirection_data)
+                    }
+                } else {
+                    // No redirection data
+                    (None, redirection_data)
+                };
+
+            Ok(
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charges,
+                },
+            )
+        }
         _ => Ok(response_data),
     }
 }
@@ -1390,26 +1480,30 @@ pub async fn call_unified_connector_service_pre_authenticate(
 
             let router_data_response = match router_data_response {
                 Ok(response) => {
-                    // Store authentication_data in connector_metadata so it can be used in authenticate step
                     let response_with_auth_data = match response {
                         router_response_types::PaymentsResponseData::TransactionResponse {
                             resource_id,
                             redirection_data,
                             mandate_reference,
-                            connector_metadata: _,
+                            connector_metadata,
                             network_txn_id,
                             connector_response_reference_id,
                             incremental_authorization_allowed,
                             charges,
                         } => {
-                            let auth_metadata = domain_authentication_data
-                                .as_ref()
-                                .and_then(|auth_data| serde_json::to_value(auth_data).ok());
+                            // If connector_metadata is already set (e.g., by transform_response_for_pre_authenticate_flow for Redsys invoke),
+                            // preserve it. Otherwise, use auth_metadata.
+                            let connector_metadata = connector_metadata.or_else(|| {
+                                domain_authentication_data
+                                    .as_ref()
+                                    .and_then(|auth_data| serde_json::to_value(auth_data).ok())
+                            });
+
                             router_response_types::PaymentsResponseData::TransactionResponse {
                                 resource_id,
                                 redirection_data,
                                 mandate_reference,
-                                connector_metadata: auth_metadata,
+                                connector_metadata,
                                 network_txn_id,
                                 connector_response_reference_id,
                                 incremental_authorization_allowed,
@@ -1418,7 +1512,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                         }
                         other => other,
                     };
-                    Ok(transform_response_for_pre_authenticate_flow(connector, response_with_auth_data)?)
+                    Ok(response_with_auth_data)
                 },
                 Err(err) => Err(err)
             };
