@@ -201,6 +201,7 @@ impl
             metadata: HashMap::new(),
             connector_metadata: HashMap::new(),
             return_url: router_data.request.router_return_url.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -301,6 +302,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
 
             session_token: router_data.session_token.clone(),
             order_tax_amount: router_data
@@ -502,6 +504,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
 
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
@@ -1210,6 +1213,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: None,
             customer_name: None,
@@ -1350,6 +1354,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1512,6 +1517,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1716,6 +1722,8 @@ impl
             state,
             order_id: None,
             connector_metadata: HashMap::new(),
+            locale: None,
+            connector_testing_data: None,
             enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
             billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
             payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
@@ -1905,6 +1913,10 @@ impl
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             authentication_data,
             connector_metadata: HashMap::new(),
+            locale: None,
+            connector_testing_data: None,
+            merchant_account_id: None,
+            merchant_configered_currency: None,
         })
     }
 }
@@ -3409,6 +3421,8 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
             acs_transaction_id: authentication_data.acs_trans_id,
             transaction_id: None,
             ucaf_collection_indicator: None,
+            exemption_indicator: None,
+            network_params: None,
         })
     }
 }
@@ -3440,6 +3454,8 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             acs_transaction_id: authentication_data.acs_trans_id,
             transaction_id: authentication_data.transaction_id,
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
+            exemption_indicator: None,
+            network_params: None,
         })
     }
 }
@@ -3626,6 +3642,8 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             acs_transaction_id,
             transaction_id,
             ucaf_collection_indicator,
+            exemption_indicator: _,
+            network_params: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
