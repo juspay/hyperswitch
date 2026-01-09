@@ -1352,55 +1352,6 @@ impl ConnectorMetadata<'_> {
             })?;
         Ok(())
     }
-
-    fn validate_flow_enabled_for_googlepay(&self) -> RouterResult<()> {
-        match self
-            .connector_metadata
-            .clone()
-            .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
-            .ok()
-        {
-            Some(gpay_metadata) => {
-                if gpay_metadata.google_pay.data.is_none()
-                    && !gpay_metadata.google_pay.is_predecrypted_token_supported()
-                {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "metadata.google_pay : no flow is enabled for googlepay"
-                            .to_string(),
-                    }
-                    .into());
-                }
-                Ok(())
-            }
-            None => Ok(()),
-        }
-    }
-    // if apple_pay_combined is present validate atleast one flow is enabled i.e predecrypted or (combined flows)
-    fn validate_flow_enabled_for_applepay(&self) -> RouterResult<()> {
-        match self
-            .connector_metadata
-            .clone()
-            .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-                "ApplepayCombinedSessionTokenData",
-            )
-            .ok()
-        {
-            Some(apple_pay_metadata) => {
-                let applepay_combined = apple_pay_metadata.apple_pay_combined;
-                if applepay_combined.data.is_none()
-                    && !applepay_combined.is_predecrypted_token_supported()
-                {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "metadata.apple_pay_combined: no flow is enabled for applepay "
-                            .to_string(),
-                    }
-                    .into());
-                }
-                Ok(())
-            }
-            None => Ok(()),
-        }
-    }
 }
 
 struct PMAuthConfigValidation<'a> {
@@ -2500,8 +2451,6 @@ pub async fn create_connector(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
-    connector_metadata.validate_flow_enabled_for_applepay()?;
-    connector_metadata.validate_flow_enabled_for_googlepay()?;
 
     #[cfg(feature = "v1")]
     helpers::validate_business_details(
@@ -2837,8 +2786,6 @@ pub async fn update_connector(
         connector_metadata: &req.metadata,
     };
     connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
-    connector_metadata.validate_flow_enabled_for_applepay()?;
-    connector_metadata.validate_flow_enabled_for_googlepay()?;
 
     let mca = req
         .clone()
