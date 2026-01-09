@@ -171,6 +171,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             network_error_message: None,
                             encrypted_payment_method_data: None,
                             recommended_action: None,
+                            card_network: payment_data.payment_attempt.extract_card_network(),
                         };
 
                     payment_data.payment_attempt = db

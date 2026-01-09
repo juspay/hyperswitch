@@ -514,10 +514,11 @@ impl NetworkErrorDetails {
     fn new(
         network_details: Option<&NetworkDetails>,
         network_error_message: Option<&String>,
+        card_network: Option<storage_enums::CardNetwork>,
     ) -> Option<Self> {
         if network_details.is_some() || network_error_message.is_some() {
             Some(Self {
-                name: None,
+                name: card_network,
                 advice_code: network_details.and_then(|n| n.network_advice_code.clone()),
                 advice_message: network_error_message.cloned(),
             })
@@ -1865,6 +1866,7 @@ pub enum PaymentAttemptUpdate {
         network_details: Option<NetworkDetails>,
         network_error_message: Option<Option<String>>,
         recommended_action: Option<storage_enums::RecommendedAction>,
+        card_network: Option<storage_enums::CardNetwork>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1904,6 +1906,7 @@ pub enum PaymentAttemptUpdate {
         network_details: Option<NetworkDetails>,
         network_error_message: Option<String>,
         recommended_action: Option<storage_enums::RecommendedAction>,
+        card_network: Option<storage_enums::CardNetwork>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -2198,6 +2201,7 @@ impl PaymentAttemptUpdate {
                 network_details,
                 network_error_message,
                 recommended_action,
+                card_network,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.as_ref().and_then(|o| o.as_ref()),
@@ -2215,6 +2219,7 @@ impl PaymentAttemptUpdate {
                 let network_error_details = NetworkErrorDetails::new(
                     network_details.as_ref(),
                     network_error_message.as_ref().and_then(|o| o.as_ref()),
+                    card_network,
                 );
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.as_ref().and_then(|o| o.as_ref()),
@@ -2336,6 +2341,7 @@ impl PaymentAttemptUpdate {
                 network_error_message,
                 encrypted_payment_method_data,
                 recommended_action,
+                card_network,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.as_ref().and_then(|o| o.as_ref()),
@@ -2353,6 +2359,7 @@ impl PaymentAttemptUpdate {
                 let network_error_details = NetworkErrorDetails::new(
                     network_details.as_ref(),
                     network_error_message.as_ref(),
+                    card_network,
                 );
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.as_ref(),

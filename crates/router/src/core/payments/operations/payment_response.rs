@@ -1664,6 +1664,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     .connector_response_reference_id
                                     .clone(),
                                 recommended_action,
+                                card_network: payment_data.payment_attempt.extract_card_network(),
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
                         )
@@ -1712,6 +1713,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             network_error_message: None,
                             connector_response_reference_id: None,
                             recommended_action: None,
+                            card_network: payment_data.payment_attempt.extract_card_network(),
                         }),
                         None,
                     )
@@ -2056,6 +2058,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         network_details: None,
                                         network_error_message: error_status,
                                         recommended_action: None,
+                                        card_network: payment_data
+                                            .payment_attempt
+                                            .extract_card_network(),
                                     }),
                                 ),
                             };

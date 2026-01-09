@@ -594,6 +594,7 @@ where
                 network_details: None,
                 network_error_message: None,
                 recommended_action: None,
+                card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 
             #[cfg(feature = "v1")]
@@ -676,6 +677,7 @@ where
                 network_details: Some(ForeignFrom::foreign_from(error_response)),
                 network_error_message: error_response.network_error_message.clone(),
                 recommended_action,
+                card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 
             #[cfg(feature = "v1")]
