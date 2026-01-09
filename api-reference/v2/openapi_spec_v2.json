@@ -4215,8 +4215,7 @@
           },
           "email": {
             "type": "string",
-            "nullable": true,
-            "example": "customer@gmail.com"
+            "nullable": true
           }
         }
       },
@@ -7825,55 +7824,47 @@
             "format": "int32",
             "description": "Color depth supported by the browser",
             "nullable": true,
-            "minimum": 0,
-            "example": 24
+            "minimum": 0
           },
           "java_enabled": {
             "type": "boolean",
             "description": "Whether java is enabled in the browser",
-            "nullable": true,
-            "example": true
+            "nullable": true
           },
           "java_script_enabled": {
             "type": "boolean",
             "description": "Whether javascript is enabled in the browser",
-            "nullable": true,
-            "example": true
+            "nullable": true
           },
           "language": {
             "type": "string",
             "description": "Language supported",
-            "nullable": true,
-            "example": "en-US"
+            "nullable": true
           },
           "screen_height": {
             "type": "integer",
             "format": "int32",
             "description": "The screen height in pixels",
             "nullable": true,
-            "minimum": 0,
-            "example": 1080
+            "minimum": 0
           },
           "screen_width": {
             "type": "integer",
             "format": "int32",
             "description": "The screen width in pixels",
             "nullable": true,
-            "minimum": 0,
-            "example": 1920
+            "minimum": 0
           },
           "time_zone": {
             "type": "integer",
             "format": "int32",
             "description": "Time zone of the client",
-            "nullable": true,
-            "example": -120
+            "nullable": true
           },
           "ip_address": {
             "type": "string",
             "description": "Ip address of the client",
-            "nullable": true,
-            "example": "192.168.0.1"
+            "nullable": true
           },
           "accept_header": {
             "type": "string",
@@ -7884,38 +7875,32 @@
           "user_agent": {
             "type": "string",
             "description": "User-agent of the browser",
-            "nullable": true,
-            "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+            "nullable": true
           },
           "os_type": {
             "type": "string",
             "description": "The os type of the client device",
-            "nullable": true,
-            "example": "Windows"
+            "nullable": true
           },
           "os_version": {
             "type": "string",
             "description": "The os version of the client device",
-            "nullable": true,
-            "example": "10"
+            "nullable": true
           },
           "device_model": {
             "type": "string",
             "description": "The device model of the client",
-            "nullable": true,
-            "example": "Dell XPS 15"
+            "nullable": true
           },
           "accept_language": {
             "type": "string",
             "description": "Accept-language of the browser",
-            "nullable": true,
-            "example": "en-US,en;q=0.9"
+            "nullable": true
           },
           "referer": {
             "type": "string",
             "description": "Identifier of the source that initiated the request.",
-            "nullable": true,
-            "example": "https://www.example.com"
+            "nullable": true
           }
         }
       },
@@ -11657,49 +11642,41 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "The error code",
-            "example": "400"
+            "description": "The error code"
           },
           "message": {
             "type": "string",
-            "description": "The error message",
-            "example": "Invalid request parameters."
+            "description": "The error message"
           },
           "reason": {
             "type": "string",
             "description": "The detailed error reason that was returned by the connector.",
-            "nullable": true,
-            "example": "The card has expired."
+            "nullable": true
           },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
-            "nullable": true,
-            "example": "card_expired"
+            "nullable": true
           },
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
-            "nullable": true,
-            "example": "The card has expired."
+            "nullable": true
           },
           "network_advice_code": {
             "type": "string",
             "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
-            "nullable": true,
-            "example": "01"
+            "nullable": true
           },
           "network_decline_code": {
             "type": "string",
             "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
-            "nullable": true,
-            "example": "05"
+            "nullable": true
           },
           "network_error_message": {
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
-            "nullable": true,
-            "example": "Error validating request."
+            "nullable": true
           }
         }
       },
@@ -16455,12 +16432,10 @@
             ],
             "properties": {
               "redirect_to_url": {
-                "type": "string",
-                "example": "https://redirect.url.com"
+                "type": "string"
               },
               "type": {
                 "type": "string",
-                "example": "redirect_to_url",
                 "enum": [
                   "redirect_to_url"
                 ]
@@ -19893,8 +19868,7 @@
           },
           "tokenization_data": {
             "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
-            "nullable": true,
-            "example": "{nt_token}"
+            "nullable": true
           }
         }
       },
@@ -19952,14 +19926,12 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret",
-            "example": "cs_0195b34da95d75239c6a4bf514458896"
+            "description": "Client Secret"
           },
           "return_url": {
             "type": "string",
             "description": "The return url to which the user should be redirected to",
-            "nullable": true,
-            "example": "https://example.com/return_url"
+            "nullable": true
           },
           "next_action": {
             "allOf": [
@@ -24432,8 +24404,7 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization",
-            "example": "mca_qF0IiyMWK7ZiVL4GBJIE"
+            "description": "The merchant connector id to be used for tokenization"
           }
         }
       },
