@@ -6889,7 +6889,6 @@ pub fn validate_payment_link_request(
     Ok(())
 }
 
-
 #[allow(clippy::too_many_arguments)]
 pub async fn get_gsm_record(
     state: &SessionState,
@@ -6904,11 +6903,7 @@ pub async fn get_gsm_record(
     // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
     let issuer_result =
         if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
-            let issuer_lookup_key = format!(
-                "Network:{}|IssuerCode:{:0>2}",
-                network,
-                issuer_code
-            );
+            let issuer_lookup_key = format!("Network:{}|IssuerCode:{:0>2}", network, issuer_code);
             perform_gsm_lookup(
                 state,
                 Some(issuer_lookup_key.clone()),
@@ -7036,8 +7031,7 @@ pub async fn lookup_merchant_advice_code_config(
 ) -> Option<common_enums::RecommendedAction> {
     let merchant_advice_lookup_key = format!(
         "Network:{}|MerchantAdviceCode:{:0>2}",
-        card_network,
-        network_advice_code
+        card_network, network_advice_code
     );
 
     let config = state
