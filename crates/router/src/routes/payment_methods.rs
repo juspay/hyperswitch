@@ -116,11 +116,10 @@ pub async fn get_pm_nt_eligibility_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _req_state| async move {
-            let platform = auth.clone().into();
             Box::pin(payment_methods_routes::get_card_nt_eligibility(
                 &state,
                 req,
-                &platform,
+                &auth.platform,
                 &auth.profile,
             ))
             .await
