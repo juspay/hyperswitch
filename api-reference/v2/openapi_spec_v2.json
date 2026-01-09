@@ -8363,33 +8363,33 @@
           },
           "last4_digits": {
             "type": "string",
-            "nullable": true,
-            "example": "4242"
+            "example": "4242",
+            "nullable": true
           },
           "expiry_month": {
             "type": "string",
-            "nullable": true,
-            "example": "12"
+            "example": "10",
+            "nullable": true
           },
           "expiry_year": {
             "type": "string",
-            "nullable": true,
-            "example": "25"
+            "example": "25",
+            "nullable": true
           },
           "card_holder_name": {
             "type": "string",
-            "nullable": true,
-            "example": "John Doe"
+            "example": "John Doe",
+            "nullable": true
           },
           "card_fingerprint": {
             "type": "string",
-            "nullable": true,
-            "example": "a1b2c3d4e5f6g7h8i9j0"
+            "example": "fingerprint_12345",
+            "nullable": true
           },
           "nick_name": {
             "type": "string",
-            "nullable": true,
-            "example": "Personal Card"
+            "example": "Card",
+            "nullable": true
           },
           "card_network": {
             "allOf": [
@@ -8401,18 +8401,18 @@
           },
           "card_isin": {
             "type": "string",
-            "nullable": true,
-            "example": "33100509"
+            "example": "4567890",
+            "nullable": true
           },
           "card_issuer": {
             "type": "string",
-            "nullable": true,
-            "example": "CHASE BANK USA"
+            "example": "Issuer Bank",
+            "nullable": true
           },
           "card_type": {
             "type": "string",
-            "nullable": true,
-            "example": "CREDIT"
+            "example": "Credit",
+            "nullable": true
           },
           "saved_to_locker": {
             "type": "boolean",
@@ -11652,40 +11652,48 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "The error code"
+            "description": "The error code",
+            "example": "card_declined"
           },
           "message": {
             "type": "string",
-            "description": "The error message"
+            "description": "The error message",
+            "example": "The card was declined."
           },
           "reason": {
             "type": "string",
             "description": "The detailed error reason that was returned by the connector.",
+            "example": "The card was declined.",
             "nullable": true
           },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
+            "example": "card_declined",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
+            "example": "The card was declined.",
             "nullable": true
           },
           "network_advice_code": {
             "type": "string",
             "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "example": "01",
             "nullable": true
           },
           "network_decline_code": {
             "type": "string",
             "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "example": "05",
             "nullable": true
           },
           "network_error_message": {
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
+            "example": "Do not retry",
             "nullable": true
           }
         }
@@ -14560,8 +14568,7 @@
         ],
         "properties": {
           "mask": {
-            "type": "string",
-            "example": "1111"
+            "type": "string"
           }
         }
       },
@@ -15939,8 +15946,8 @@
         "properties": {
           "last4_digits": {
             "type": "string",
-            "nullable": true,
-            "example": "0787"
+            "example": "4242",
+            "nullable": true
           },
           "issuer_country": {
             "allOf": [
@@ -15952,33 +15959,33 @@
           },
           "network_token_expiry_month": {
             "type": "string",
-            "nullable": true,
-            "example": "05"
+            "example": "05",
+            "nullable": true
           },
           "network_token_expiry_year": {
             "type": "string",
-            "nullable": true,
-            "example": "24"
+            "example": "27",
+            "nullable": true
           },
           "nick_name": {
             "type": "string",
-            "nullable": true,
-            "example": "card"
+            "example": "Card",
+            "nullable": true
           },
           "card_holder_name": {
             "type": "string",
-            "nullable": true,
-            "example": "John Doe"
+            "example": "John Doe",
+            "nullable": true
           },
           "card_isin": {
             "type": "string",
-            "nullable": true,
-            "example": "78331005"
+            "example": "16712672",
+            "nullable": true
           },
           "card_issuer": {
             "type": "string",
-            "nullable": true,
-            "example": "chase"
+            "example": "Bank of America",
+            "nullable": true
           },
           "card_network": {
             "allOf": [
@@ -15986,17 +15993,15 @@
                 "$ref": "#/components/schemas/CardNetwork"
               }
             ],
-            "nullable": true,
-            "example": "Visa"
+            "nullable": true
           },
           "card_type": {
             "type": "string",
-            "nullable": true,
-            "example": "Credit"
+            "example": "Credit",
+            "nullable": true
           },
           "saved_to_locker": {
-            "type": "boolean",
-            "example": "true"
+            "type": "boolean"
           }
         }
       },
@@ -16453,7 +16458,8 @@
             ],
             "properties": {
               "redirect_to_url": {
-                "type": "string"
+                "type": "string",
+                "example": "https://example.com/redirect"
               },
               "type": {
                 "type": "string",
@@ -19947,11 +19953,13 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "example": "cs_9wcXDRVkfEtLEsSnYKgQ"
           },
           "return_url": {
             "type": "string",
             "description": "The return url to which the user should be redirected to",
+            "example": "https://merchant-website.com/return",
             "nullable": true
           },
           "next_action": {
@@ -24425,7 +24433,8 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization"
+            "description": "The merchant connector id to be used for tokenization",
+            "example": "mca_28a7367sad8239s67"
           }
         }
       },
