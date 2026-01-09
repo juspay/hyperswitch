@@ -558,28 +558,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
             ) => {
-                let (card_cvc, card_holder_name) = {
-                    (
-                        card_token
-                            .card_cvc
-                            .clone()
-                            .ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "card_cvc",
-                            })
-                            .or(
-                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
-                                    state,
-                                    payment_token,
-                                    payment_data.payment_attempt.payment_method_type,
-                                    platform.get_processor().get_key_store().key.get_inner(),
-                                )
-                                .await,
-                            )
-                            .attach_printable("card_cvc not provided")?,
-                        card_token.card_holder_name.clone(),
-                    )
-                };
-
                 let (payment_method, vault_data) =
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                         state,
@@ -591,6 +569,27 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve payment method from vault")?;
+
+                let (card_cvc, card_holder_name) = {
+                    (
+                        card_token
+                            .card_cvc
+                            .clone()
+                            .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "card_cvc",
+                            })
+                            .or(
+                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                    state,
+                                    &payment_method.get_id().get_string_repr().to_string(),
+                                    platform.get_processor().get_key_store(),
+                                )
+                                .await,
+                            )
+                            .attach_printable("card_cvc not provided")?,
+                        card_token.card_holder_name.clone(),
+                    )
+                };
 
                 match vault_data {
                     domain::vault::PaymentMethodVaultingData::Card(card_detail) => {
