@@ -2017,7 +2017,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         error_message: error_status.clone(),
                                         error_reason: error_status.clone(),
                                         unified_code: error_status.clone(),
-                                        unified_message: error_status,
+                                        unified_message: error_status.clone(),
                                         standardised_code: None,
                                         description: None,
                                         user_guidance_message: None,
@@ -2033,10 +2033,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         capture_before,
                                         extended_authorization_applied,
                                         extended_authorization_last_applied_at,
-                                        connector_mandate_detail: payment_data
-                                            .payment_attempt
-                                            .connector_mandate_detail
-                                            .clone(),
+                                        connector_mandate_detail: Box::new(
+                                            payment_data
+                                                .payment_attempt
+                                                .connector_mandate_detail
+                                                .clone(),
+                                        ),
                                         charges,
                                         setup_future_usage_applied: payment_data
                                             .payment_attempt
@@ -2049,6 +2051,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .clone()
                                             .get_tokenization_strategy(),
+                                        issuer_error_code: error_status.clone(),
+                                        issuer_error_message: error_status.clone(),
+                                        network_details: None,
+                                        network_error_message: error_status,
+                                        recommended_action: None,
                                     }),
                                 ),
                             };

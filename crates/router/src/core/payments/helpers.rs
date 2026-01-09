@@ -6919,36 +6919,41 @@ pub async fn get_gsm_record(
     card_network: Option<String>,
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
-    if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
-        let issuer_lookup_key = format!(
-            "network:{}|issuer_code:{:0>2}",
-            to_snake_case(network),
-            issuer_code
-        );
-        if let Some(result) = perform_gsm_lookup(
-            state,
-            Some(issuer_lookup_key.clone()),
-            Some(issuer_lookup_key),
-            connector_name.clone(),
-            flow,
-            sub_flow,
-        )
-        .await
-        {
-            return Some(result);
+    let issuer_result =
+        if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
+            let issuer_lookup_key = format!(
+                "network:{}|issuer_code:{:0>2}",
+                to_snake_case(network),
+                issuer_code
+            );
+            perform_gsm_lookup(
+                state,
+                Some(issuer_lookup_key.clone()),
+                Some(issuer_lookup_key),
+                connector_name.clone(),
+                flow,
+                sub_flow,
+            )
+            .await
+        } else {
+            None
+        };
+
+    match issuer_result {
+        Some(result) => Some(result),
+        None => {
+            // Priority 2: Fallback to connector_error_code lookup
+            perform_gsm_lookup(
+                state,
+                connector_error_code,
+                connector_error_message,
+                connector_name,
+                flow,
+                sub_flow,
+            )
+            .await
         }
     }
-
-    // Priority 2: Fallback to connector_error_code lookup
-    perform_gsm_lookup(
-        state,
-        connector_error_code,
-        connector_error_message,
-        connector_name,
-        flow,
-        sub_flow,
-    )
-    .await
 }
 
 /// Perform GSM lookup with the given error code and message.

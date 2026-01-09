@@ -308,19 +308,19 @@ pub async fn get_gsm<F, FData>(
 ) -> RouterResult<Option<hyperswitch_domain_models::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
     let subflow = get_flow_name::<F>()?;
-
-    let Some(err) = error_response else {
-        return Ok(None);
-    };
+    let error_code = error_response.map(|err| err.code.to_owned());
+    let err_message = error_response.map(|err| err.message.to_owned());
+    let issuer_error_code = error_response.and_then(|err| err.network_decline_code.clone());
+    let connector_str = router_data.connector.to_string();
 
     Ok(payments::helpers::get_gsm_record(
         state,
-        router_data.connector.to_string(),
+        connector_str,
         consts::PAYMENT_FLOW_STR,
         &subflow,
-        Some(err.code.clone()),
-        Some(err.message.clone()),
-        err.network_decline_code.clone(),
+        error_code,
+        err_message,
+        issuer_error_code,
         card_network,
     )
     .await)
@@ -570,7 +570,7 @@ where
                 extended_authorization_last_applied_at: None,
                 payment_method_data: additional_payment_method_data,
                 encrypted_payment_method_data,
-                connector_mandate_detail: None,
+                connector_mandate_detail: Box::new(None),
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
@@ -581,6 +581,11 @@ where
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                network_details: None,
+                network_error_message: None,
+                recommended_action: None,
             };
 
             #[cfg(feature = "v1")]

@@ -406,6 +406,25 @@ pub struct PaymentAttemptErrorDetails {
 }
 
 #[cfg(feature = "v1")]
+impl PaymentAttemptErrorDetails {
+    fn new(
+        unified_details: Option<UnifiedErrorDetails>,
+        issuer_details: Option<IssuerErrorDetails>,
+        connector_details: Option<ConnectorErrorDetails>,
+    ) -> Option<Self> {
+        if connector_details.is_some() || unified_details.is_some() || issuer_details.is_some() {
+            Some(Self {
+                unified_details,
+                issuer_details,
+                connector_details,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct UnifiedErrorDetails {
     pub category: Option<String>,
@@ -417,11 +436,69 @@ pub struct UnifiedErrorDetails {
 }
 
 #[cfg(feature = "v1")]
+impl UnifiedErrorDetails {
+    fn new(
+        category: Option<&String>,
+        message: Option<&String>,
+        standardised_code: Option<storage_enums::StandardisedCode>,
+        description: Option<&String>,
+        user_guidance_message: Option<&String>,
+        recommended_action: Option<storage_enums::RecommendedAction>,
+    ) -> Option<Self> {
+        let category = category.cloned();
+        let message = message.cloned();
+        let description = description.cloned();
+        let user_guidance_message = user_guidance_message.cloned();
+
+        if category.is_some()
+            || message.is_some()
+            || standardised_code.is_some()
+            || description.is_some()
+            || user_guidance_message.is_some()
+            || recommended_action.is_some()
+        {
+            Some(Self {
+                category,
+                message,
+                standardised_code,
+                description,
+                user_guidance_message,
+                recommended_action,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IssuerErrorDetails {
     pub code: Option<String>,
     pub message: Option<String>,
     pub network_details: Option<NetworkErrorDetails>,
+}
+
+#[cfg(feature = "v1")]
+impl IssuerErrorDetails {
+    fn new(
+        code: Option<&String>,
+        message: Option<&String>,
+        network_details: Option<NetworkErrorDetails>,
+    ) -> Option<Self> {
+        let code = code.cloned();
+        let message = message.cloned();
+
+        if code.is_some() || message.is_some() || network_details.is_some() {
+            Some(Self {
+                code,
+                message,
+                network_details,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -433,11 +510,52 @@ pub struct NetworkErrorDetails {
 }
 
 #[cfg(feature = "v1")]
+impl NetworkErrorDetails {
+    fn new(
+        network_details: Option<&NetworkDetails>,
+        network_error_message: Option<&String>,
+    ) -> Option<Self> {
+        if network_details.is_some() || network_error_message.is_some() {
+            Some(Self {
+                name: None,
+                advice_code: network_details.and_then(|n| n.network_advice_code.clone()),
+                advice_message: network_error_message.cloned(),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorErrorDetails {
     pub code: Option<String>,
     pub message: Option<String>,
     pub reason: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl ConnectorErrorDetails {
+    fn new(
+        code: Option<&String>,
+        message: Option<&String>,
+        reason: Option<&String>,
+    ) -> Option<Self> {
+        let code = code.cloned();
+        let message = message.cloned();
+        let reason = reason.cloned();
+
+        if code.is_some() || message.is_some() || reason.is_some() {
+            Some(Self {
+                code,
+                message,
+                reason,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1735,13 +1853,18 @@ pub enum PaymentAttemptUpdate {
         extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<Value>,
         encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
-        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        connector_mandate_detail: Box<Option<ConnectorMandateReferenceId>>,
         tokenization: Option<common_enums::Tokenization>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
+        issuer_error_code: Option<Option<String>>,
+        issuer_error_message: Option<Option<String>>,
+        network_details: Option<NetworkDetails>,
+        network_error_message: Option<Option<String>>,
+        recommended_action: Option<storage_enums::RecommendedAction>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1835,102 +1958,6 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
     },
-}
-
-/// Helper function to build ErrorDetails from ErrorUpdate fields
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-fn build_error_details(
-    error_code: Option<&String>,
-    error_message: Option<&String>,
-    error_reason: Option<&String>,
-    category: Option<&String>,
-    message: Option<&String>,
-    standardised_code: Option<storage_enums::StandardisedCode>,
-    description: Option<&String>,
-    user_guidance_message: Option<&String>,
-    issuer_error_code: Option<&String>,
-    issuer_error_message: Option<&String>,
-    network_details: Option<&NetworkDetails>,
-    network_error_message: Option<&String>,
-    recommended_action: Option<storage_enums::RecommendedAction>,
-) -> Box<Option<DieselErrorDetails>> {
-    let connector_details = {
-        let code = error_code.cloned();
-        let message = error_message.cloned();
-        let reason = error_reason.cloned();
-
-        if code.is_some() || message.is_some() || reason.is_some() {
-            Some(ConnectorErrorDetails {
-                code,
-                message,
-                reason,
-            })
-        } else {
-            None
-        }
-    };
-
-    let unified_details = {
-        let category = category.cloned();
-        let message = message.cloned();
-        let description = description.cloned();
-        let user_guidance_message = user_guidance_message.cloned();
-
-        if category.is_some()
-            || message.is_some()
-            || standardised_code.is_some()
-            || description.is_some()
-            || user_guidance_message.is_some()
-            || recommended_action.is_some()
-        {
-            Some(UnifiedErrorDetails {
-                category,
-                message,
-                standardised_code,
-                description,
-                user_guidance_message,
-                recommended_action,
-            })
-        } else {
-            None
-        }
-    };
-
-    let issuer_details = {
-        let code = issuer_error_code.cloned();
-        let message = issuer_error_message.cloned();
-        let network_error_details = if network_details.is_some() || network_error_message.is_some()
-        {
-            Some(NetworkErrorDetails {
-                name: None,
-                advice_code: network_details.and_then(|n| n.network_advice_code.clone()),
-                advice_message: network_error_message.cloned(),
-            })
-        } else {
-            None
-        };
-
-        if code.is_some() || message.is_some() || network_error_details.is_some() {
-            Some(IssuerErrorDetails {
-                code,
-                message,
-                network_details: network_error_details,
-            })
-        } else {
-            None
-        }
-    };
-
-    if connector_details.is_some() || unified_details.is_some() || issuer_details.is_some() {
-        Box::new(Some(DieselErrorDetails {
-            unified_details: unified_details.map(Into::into),
-            issuer_details: issuer_details.map(Into::into),
-            connector_details: connector_details.map(Into::into),
-        }))
-    } else {
-        Box::new(None)
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -2166,21 +2193,41 @@ impl PaymentAttemptUpdate {
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
+                issuer_error_code,
+                issuer_error_message,
+                network_details,
+                network_error_message,
+                recommended_action,
             } => {
-                let error_details = build_error_details(
+                let connector_details = ConnectorErrorDetails::new(
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
+                );
+                let unified_details = UnifiedErrorDetails::new(
                     unified_code.as_ref().and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
                     user_guidance_message.as_ref().and_then(|o| o.as_ref()),
-                    None, // issuer_error_code
-                    None, // issuer_error_message
-                    None, // network_details
-                    None, // network_error_message
-                    None, // recommended_action
+                    recommended_action,
+                );
+                let network_error_details = NetworkErrorDetails::new(
+                    network_details.as_ref(),
+                    network_error_message.as_ref().and_then(|o| o.as_ref()),
+                );
+                let issuer_details = IssuerErrorDetails::new(
+                    issuer_error_code.as_ref().and_then(|o| o.as_ref()),
+                    issuer_error_message.as_ref().and_then(|o| o.as_ref()),
+                    network_error_details,
+                );
+                let error_details = Box::new(
+                    PaymentAttemptErrorDetails::new(
+                        unified_details,
+                        issuer_details,
+                        connector_details,
+                    )
+                    .map(Into::into),
                 );
                 DieselPaymentAttemptUpdate::ResponseUpdate {
                     status,
@@ -2205,7 +2252,7 @@ impl PaymentAttemptUpdate {
                     extended_authorization_applied,
                     extended_authorization_last_applied_at,
                     payment_method_data,
-                    connector_mandate_detail,
+                    connector_mandate_detail: *connector_mandate_detail,
                     tokenization,
                     charges,
                     setup_future_usage_applied,
@@ -2228,20 +2275,27 @@ impl PaymentAttemptUpdate {
                 connector_response_reference_id,
                 updated_by,
             } => {
-                let error_details = build_error_details(
+                let connector_details = ConnectorErrorDetails::new(
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
+                );
+                let unified_details = UnifiedErrorDetails::new(
                     None, // unified_code
                     None, // unified_message
                     None, // standardised_code
                     None, // description
                     None, // user_guidance_message
-                    None, // issuer_error_code
-                    None, // issuer_error_message
-                    None, // network_details
-                    None, // network_error_message
                     None, // recommended_action
+                );
+                let issuer_details = IssuerErrorDetails::new(None, None, None);
+                let error_details = Box::new(
+                    PaymentAttemptErrorDetails::new(
+                        unified_details,
+                        issuer_details,
+                        connector_details,
+                    )
+                    .map(Into::into),
                 );
                 DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                     status,
@@ -2283,20 +2337,35 @@ impl PaymentAttemptUpdate {
                 encrypted_payment_method_data,
                 recommended_action,
             } => {
-                let error_details = build_error_details(
+                let connector_details = ConnectorErrorDetails::new(
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
+                );
+                let unified_details = UnifiedErrorDetails::new(
                     unified_code.as_ref().and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
                     user_guidance_message.as_ref().and_then(|o| o.as_ref()),
-                    issuer_error_code.as_ref(),
-                    issuer_error_message.as_ref(),
+                    recommended_action,
+                );
+                let network_error_details = NetworkErrorDetails::new(
                     network_details.as_ref(),
                     network_error_message.as_ref(),
-                    recommended_action,
+                );
+                let issuer_details = IssuerErrorDetails::new(
+                    issuer_error_code.as_ref(),
+                    issuer_error_message.as_ref(),
+                    network_error_details,
+                );
+                let error_details = Box::new(
+                    PaymentAttemptErrorDetails::new(
+                        unified_details,
+                        issuer_details,
+                        connector_details,
+                    )
+                    .map(Into::into),
                 );
                 DieselPaymentAttemptUpdate::ErrorUpdate {
                     connector,
