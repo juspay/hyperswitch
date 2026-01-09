@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, XmlExt},
@@ -977,14 +978,86 @@ static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 impl ConnectorSpecifications for Redsys {
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
-            api::CurrentFlowInfo::Authorize { auth_type, .. } => {
-                *auth_type == common_enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::Authorize { auth_type, .. } => auth_type.is_three_ds(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => {
+                // For Redsys in authorize flow, if we reached authentication_step
+                // (controlled by should_continue_after_preauthenticate in pre_authentication_step),
+                // we should proceed with UCS authenticate call for 3DS flows.
+                // This handles the 3DS exempt scenario where no redirect is needed after preauthenticate.
+                auth_type.is_three_ds()
+                    && request_data
+                        .metadata
+                        .as_ref()
+                        .and_then(|value| value.get("threeds_server_transaction_id"))
+                        .is_some()
+            }
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method: _,
+            } => {
+                // For CompleteAuthorize flow:
+                // - If params is NOT empty: This is the first redirect return (from 3DS method/device data collection)
+                //   → Run Authenticate flow
+                // - If params is empty/None: This is the second redirect return (from challenge)
+                //   → Skip Authenticate, run PostAuthenticate instead
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+
+                match redirection_params {
+                    Some(param)
+                        if !param.peek().is_empty()
+                            && request_data
+                                .metadata
+                                .as_ref()
+                                .and_then(|value| value.get("threeds_server_transaction_id"))
+                                .is_some() =>
+                    {
+                        true
+                    }
+                    Some(_) | None => false,
+                }
+            }
+        }
+    }
+
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method,
+            } => {
+                // For CompleteAuthorize flow:
+                // - If params is NOT empty: This is the first redirect return (from 3DS method/device data collection)
+                //   → Skip PostAuthenticate, run Authenticate instead
+                // - If params is empty/None: This is the second redirect return (from challenge)
+                //   → Run PostAuthenticate flow
+                payment_method == Some(enums::PaymentMethod::Card)
+                    && request_data
+                        .redirect_response
+                        .as_ref()
+                        .and_then(|redirect_response| redirect_response.payload.as_ref())
+                        .is_some()
+                    && request_data
+                        .metadata
+                        .as_ref()
+                        .and_then(|value| value.get("threeds_server_transaction_id"))
+                        .is_some()
+            }
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&REDSYS_CONNECTOR_INFO)
     }
