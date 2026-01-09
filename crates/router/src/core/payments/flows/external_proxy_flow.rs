@@ -336,6 +336,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
             Ok(Some(types::CreateOrderResult {
                 create_order_result: create_order_resp,
+                should_continue_further: should_continue_payment,
             }))
         } else {
             // If the connector does not require order creation, return None
@@ -350,12 +351,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         match create_order_result.create_order_result {
             Ok(order_id) => {
                 self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
-                self.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }
-            Err(err) => {
-                self.response = Err(err.clone());
-            }
+            Err(_err) => (),
         }
     }
 
@@ -438,7 +435,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = ucs_data.router_data_response.map(|(response, status)|{
+                let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
                     router_data.status = status;
                     response
                 });

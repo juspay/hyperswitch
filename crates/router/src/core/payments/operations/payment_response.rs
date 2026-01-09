@@ -9,7 +9,7 @@ use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{ConnectorTransactionId, MinorUnit},
+    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -78,14 +78,13 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -107,8 +106,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -224,6 +222,26 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 Some(enums::FutureUsage::OffSession)
             );
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+        // Skip payment method creation when on-session saving is not supported for the payment method
+        should_avoid_saving = if resp
+            .request
+            .setup_future_usage
+            .map(|usage| usage.is_on_session())
+            .unwrap_or(false)
+            && payment_data
+                .payment_attempt
+                .is_save_payment_method_not_supported_for_on_session(
+                    &state
+                        .conf
+                        .save_payment_method_on_session
+                        .unsupported_payment_methods,
+                ) {
+            true
+        } else {
+            should_avoid_saving
+        };
+
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
             let tokenization::SavePaymentMethodDataResponse {
@@ -400,14 +418,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
@@ -471,8 +488,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .update_payment_attempt_with_attempt_id(
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
-                        storage_scheme,
-                        key_store,
+                        processor.get_account().storage_scheme,
+                        processor.get_key_store(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -484,10 +501,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .store
                     .update_payment_attempt_with_attempt_id(
                         &state.into(),
-                        key_store,
+                        processor.get_key_store(),
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
-                        storage_scheme,
+                        processor.get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -500,8 +517,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                 .update_payment_intent(
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
-                    key_store,
-                    storage_scheme,
+                    processor.get_key_store(),
+                    processor.get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -567,10 +584,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -584,8 +600,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -656,10 +671,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -673,8 +687,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -695,14 +708,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
@@ -734,7 +746,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
                             .async_map(|shipping_details| {
                                 create_encrypted_data(
                                     &key_manager_state,
-                                    key_store,
+                                    processor.get_key_store(),
                                     shipping_details,
                                 )
                             })
@@ -750,9 +762,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
                                 payment_data.payment_intent.shipping_address_id.as_deref(),
                                 &payment_data.payment_intent.merchant_id,
                                 payment_data.payment_intent.customer_id.as_ref(),
-                                key_store,
+                                processor.get_key_store(),
                                 &payment_data.payment_intent.payment_id,
-                                storage_scheme,
+                                processor.get_account().storage_scheme,
                             )
                             .await?;
 
@@ -770,8 +782,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
                             .update_payment_intent(
                                 payment_intent,
                                 payment_intent_update,
-                                key_store,
-                                storage_scheme,
+                                processor.get_key_store(),
+                                processor.get_account().storage_scheme,
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -817,14 +829,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::PaymentsPostSessionTokensData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
@@ -842,15 +853,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                 let m_db = db.clone().store;
                 let payment_attempt_update =
                     storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
-                        updated_by: storage_scheme.clone().to_string(),
+                        updated_by: processor.get_account().storage_scheme.clone().to_string(),
                         connector_metadata,
                     };
                 let updated_payment_attempt = m_db
                     .update_payment_attempt_with_attempt_id(
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
-                        storage_scheme,
-                        key_store,
+                        processor.get_account().storage_scheme,
+                        processor.get_key_store(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -879,14 +890,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::PaymentsUpdateMetadataData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
@@ -925,8 +935,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                         .update_payment_intent(
                             payment_intent,
                             payment_intent_update,
-                            key_store,
-                            storage_scheme,
+                            processor.get_key_store(),
+                            processor.get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -971,10 +981,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -988,8 +997,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1008,10 +1016,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1025,8 +1032,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1047,14 +1053,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::PaymentsCancelPostCaptureData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1068,8 +1073,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1090,14 +1094,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthori
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::PaymentsExtendAuthorizationData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1111,8 +1114,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthori
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1133,10 +1135,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1150,8 +1151,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1170,10 +1170,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1187,8 +1186,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1208,14 +1206,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1234,8 +1231,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             db,
             payment_data,
             router_data,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1367,10 +1363,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         payment_data: PaymentData<F>,
         response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
@@ -1384,8 +1379,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             db,
             payment_data,
             response,
-            key_store,
-            storage_scheme,
+            processor,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1454,8 +1448,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
     mut payment_data: PaymentData<F>,
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    processor: &domain::Processor,
     locale: &Option<String>,
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connectors: Vec<
         RoutableConnectorChoice,
@@ -1471,7 +1464,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let additional_payment_method_data_intermediate = match payment_data.payment_method_data.clone() {
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
-        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => {
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)) => {
             payment_data.payment_attempt.payment_method_data.clone()
         }
         _ => {
@@ -1497,7 +1491,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         payments_helpers::get_payment_method_data_and_encrypted_payment_method_data(
             &payment_data.payment_attempt,
             key_manager_state,
-            key_store,
+            processor.get_key_store(),
             additional_payment_method_data_intermediate,
         )
         .await?;
@@ -1545,7 +1539,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             auth_update.map(|auth_type| {
                                 storage::PaymentAttemptUpdate::AuthenticationTypeUpdate {
                                     authentication_type: auth_type,
-                                    updated_by: storage_scheme.to_string(),
+                                    updated_by: processor.get_account().storage_scheme.to_string(),
                                 }
                             }),
                             None,
@@ -1638,7 +1632,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         status,
                                     )
                                     .map(MinorUnit::new),
-                                updated_by: storage_scheme.to_string(),
+                                updated_by: processor.get_account().storage_scheme.to_string(),
                                 unified_code: Some(Some(unified_code)),
                                 unified_message: Some(unified_translated_message),
                                 connector_transaction_id: err.connector_transaction_id.clone(),
@@ -1648,6 +1642,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 issuer_error_code: err.network_decline_code.clone(),
                                 issuer_error_message: err.network_error_message.clone(),
                                 network_details: Some(ForeignFrom::foreign_from(&err)),
+                                connector_response_reference_id: err
+                                    .connector_response_reference_id
+                                    .clone(),
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
                         )
@@ -1680,7 +1677,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 "Integrity Check Failed! Value mismatched for fields {field_name}"
                             ))),
                             amount_capturable: None,
-                            updated_by: storage_scheme.to_string(),
+                            updated_by: processor.get_account().storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id,
@@ -1690,6 +1687,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             issuer_error_code: None,
                             issuer_error_message: None,
                             network_details: None,
+                            connector_response_reference_id: None,
                         }),
                         None,
                     )
@@ -1756,7 +1754,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     preprocessing_step_id,
                                     connector_transaction_id,
                                     connector_response_reference_id,
-                                    updated_by: storage_scheme.to_string(),
+                                    updated_by: processor.get_account().storage_scheme.to_string(),
                                 };
 
                             (None, Some(payment_attempt_update), None)
@@ -1874,11 +1872,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                     )?;
                                         // Update the payment method table with the active mandate record
                                         payment_methods::cards::update_payment_method_connector_mandate_details(
-                                                        key_store,
+                                                        processor.get_key_store(),
                                                         &*state.store,
                                                         payment_method,
                                                         connector_mandate_details,
-                                                        storage_scheme,
+                                                        processor.get_account().storage_scheme,
                                                     )
                                                     .await
                                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1966,7 +1964,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     (Some((multiple_capture_data, capture_update_list)), auth_update.map(|auth_type| {
                                         storage::PaymentAttemptUpdate::AuthenticationTypeUpdate {
                                             authentication_type: auth_type,
-                                            updated_by: storage_scheme.to_string(),
+                                            updated_by: processor.get_account().storage_scheme.to_string(),
                                         }
                                     }))
                                 }
@@ -1997,7 +1995,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         unified_code: error_status.clone(),
                                         unified_message: error_status,
                                         connector_response_reference_id,
-                                        updated_by: storage_scheme.to_string(),
+                                        updated_by: processor
+                                            .get_account()
+                                            .storage_scheme
+                                            .to_string(),
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
@@ -2051,7 +2052,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     error_message: Some(reason.clone().map(|cd| cd.message)),
                                     error_reason: Some(reason.map(|cd| cd.message)),
                                     connector_response_reference_id,
-                                    updated_by: storage_scheme.to_string(),
+                                    updated_by: processor.get_account().storage_scheme.to_string(),
                                 }),
                                 None,
                             )
@@ -2107,7 +2108,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             for (capture, capture_update) in capture_updates {
                 let updated_capture = state
                     .store
-                    .update_capture_with_capture_id(capture, capture_update, storage_scheme)
+                    .update_capture_with_capture_id(
+                        capture,
+                        capture_update,
+                        processor.get_account().storage_scheme,
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 multiple_capture_data.update_capture(updated_capture);
@@ -2122,7 +2127,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
                 amount_capturable: authorized_amount
                     - multiple_capture_data.get_total_blocked_amount(),
-                updated_by: storage_scheme.to_string(),
+                updated_by: processor.get_account().storage_scheme.to_string(),
             });
             Some(multiple_capture_data)
         }
@@ -2136,6 +2141,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_db = state.clone().store;
     let m_payment_attempt_update = payment_attempt_update.clone();
     let m_payment_attempt = payment_attempt.clone();
+    let m_storage_scheme = processor.get_account().storage_scheme;
+    let m_key_store = processor.get_key_store().clone();
 
     let diesel_payment_attempt = payment_attempt
         .clone()
@@ -2154,8 +2161,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             PaymentAttempt::convert_back(
                 key_manager_state,
                 diesel_payment_attempt,
-                key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
+                processor.get_key_store().key.get_inner(),
+                processor.get_key_store().merchant_id.clone().into(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2165,7 +2172,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .transpose()?
         .unwrap_or(payment_attempt);
 
-    let cloned_key_store = key_store.clone();
     let payment_attempt_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -2175,8 +2181,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .update_payment_attempt_with_attempt_id(
                                 m_payment_attempt,
                                 payment_attempt_update,
-                                storage_scheme,
-                                &cloned_key_store,
+                                m_storage_scheme,
+                                &m_key_store,
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
@@ -2190,10 +2196,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
 
     payment_data.payment_attempt = payment_attempt;
-
+    let key_manager_state: KeyManagerState = state.into();
     payment_data.authentication = match payment_data.authentication {
         Some(mut authentication_store) => {
-            let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
+            let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
             let updated_authentication = state
@@ -2201,6 +2207,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .update_authentication_by_merchant_id_authentication_id(
                     authentication_store.authentication,
                     authentication_update,
+                    processor.get_key_store(),
+                    &key_manager_state,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -2222,7 +2230,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             status: api_models::enums::IntentStatus::foreign_from(
                 payment_data.payment_attempt.status,
             ),
-            updated_by: storage_scheme.to_string(),
+            updated_by: processor.get_account().storage_scheme.to_string(),
             // make this false only if initial payment fails, if incremental authorization call fails don't make it false
             incremental_authorization_allowed: Some(false),
             feature_metadata: payment_data
@@ -2236,7 +2244,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 payment_data.payment_attempt.status,
             ),
             amount_captured,
-            updated_by: storage_scheme.to_string(),
+            updated_by: processor.get_account().storage_scheme.to_string(),
             fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
             incremental_authorization_allowed: payment_data
                 .payment_intent
@@ -2250,7 +2258,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     };
 
     let m_db = state.clone().store;
-    let m_key_store = key_store.clone();
+    let m_key_store = processor.get_key_store().clone();
+    let m_storage_scheme = processor.get_account().storage_scheme;
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
     let payment_intent_fut = tokio::spawn(
@@ -2259,7 +2268,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 m_payment_data_payment_intent,
                 m_payment_intent_update,
                 &m_key_store,
-                storage_scheme,
+                m_storage_scheme,
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
             .await
@@ -2281,6 +2290,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
+    let m_storage_scheme = processor.get_account().storage_scheme;
     let mandate_update_fut = tokio::spawn(
         async move {
             mandate::update_connector_mandate_id(
@@ -2289,7 +2299,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 m_payment_data_mandate_id,
                 m_payment_method_id,
                 m_router_data_response,
-                storage_scheme,
+                m_storage_scheme,
             )
             .await
         }
@@ -2549,10 +2559,9 @@ impl<F: Clone>
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCaptureData<F>,
         response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCaptureData<F>>
     where
         F: 'b + Send + Sync,
@@ -2569,18 +2578,18 @@ impl<F: Clone>
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
 
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2588,10 +2597,10 @@ impl<F: Clone>
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2612,10 +2621,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentConfirmData<F>>
     where
         F: 'b + Send + Sync,
@@ -2632,17 +2640,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2650,10 +2658,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2748,8 +2756,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                     // payment_methods microservice call
                     payment_methods::update_payment_method_status_internal(
                         state,
-                        key_store,
-                        storage_scheme,
+                        processor.get_key_store(),
+                        processor.get_account().storage_scheme,
                         pm_update_status,
                         payment_method.get_id(),
                     )
@@ -2783,10 +2791,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentStatusData<F>,
         response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentStatusData<F>>
     where
         F: 'b + Send + Sync,
@@ -2803,10 +2810,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let payment_attempt = payment_data.payment_attempt;
 
@@ -2814,8 +2821,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2823,10 +2830,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2921,6 +2928,7 @@ impl
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<
             hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
         >,
@@ -2929,8 +2937,6 @@ impl
             hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<
         PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
     >
@@ -2946,22 +2952,21 @@ impl
         >,
     {
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
-
         let db = &*state.store;
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2969,10 +2974,10 @@ impl
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2995,10 +3000,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentConfirmData<F>>
     where
         F: 'b + Send + Sync,
@@ -3015,17 +3019,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3033,10 +3037,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3309,10 +3313,9 @@ impl<F: Clone + Send + Sync>
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCancelData<F>>
     where
         F: 'b + Send + Sync,
@@ -3327,29 +3330,29 @@ impl<F: Clone + Send + Sync>
 
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
-        let payment_intent_update =
-            router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_intent_update = router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Error while updating the payment_intent")?;
 
-        let payment_attempt_update =
-            router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_attempt_update = router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

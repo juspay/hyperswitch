@@ -12,6 +12,7 @@ use api_models::{
     payments,
 };
 use base64::Engine;
+use cards::NetworkToken;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
@@ -22,9 +23,7 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,
-};
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
@@ -782,8 +781,8 @@ pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_amount(&self) -> i64;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -805,13 +804,13 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
 
     fn is_auto_capture(&self) -> Result<bool, Error> {
@@ -2399,6 +2398,7 @@ impl
             status_code: http_code,
             attempt_status,
             connector_transaction_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2654,6 +2654,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
+            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Self::NetworkToken,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,
@@ -2886,7 +2887,7 @@ pub fn convert_back_amount_to_minor_units<T>(
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token(&self) -> NetworkToken;
     fn get_network_token_expiry_month(&self) -> Secret<String>;
     fn get_network_token_expiry_year(&self) -> Secret<String>;
     fn get_cryptogram(&self) -> Option<Secret<String>>;
@@ -2922,12 +2923,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
     }
 
     #[cfg(feature = "v1")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.token_number.clone()
     }
 
     #[cfg(feature = "v2")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.network_token.clone()
     }
 

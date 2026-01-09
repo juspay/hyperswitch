@@ -321,6 +321,8 @@ pub async fn find_mca_from_authentication_id_type(
             .find_authentication_by_merchant_id_authentication_id(
                 platform.get_processor().get_account().get_id(),
                 &authentication_id,
+                platform.get_processor().get_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -328,6 +330,8 @@ pub async fn find_mca_from_authentication_id_type(
             db.find_authentication_by_merchant_id_connector_authentication_id(
                 platform.get_processor().get_account().get_id().clone(),
                 connector_authentication_id,
+                platform.get_processor().get_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
@@ -668,6 +672,7 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1176,6 +1181,7 @@ where
             None,
             None,
             None,
+            &platform,
         )?;
 
         let event_type = status.into();
@@ -1390,6 +1396,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let cloned_state = state.clone();

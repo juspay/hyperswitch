@@ -135,6 +135,7 @@ impl ConnectorCommon for Nmi {
             code: response.response_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1184,6 +1185,18 @@ static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Nmi {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data: _,
+                auth_type,
+            } => *auth_type == enums::AuthenticationType::ThreeDs,
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { auth_type } => {
+                *auth_type == enums::AuthenticationType::ThreeDs
+            }
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&NMI_CONNECTOR_INFO)
     }

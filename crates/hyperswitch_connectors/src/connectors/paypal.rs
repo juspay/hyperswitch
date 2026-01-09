@@ -191,6 +191,7 @@ impl Paypal {
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -367,6 +368,7 @@ impl ConnectorCommon for Paypal {
             reason,
             attempt_status: None,
             connector_transaction_id: response.debug_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -493,6 +495,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2568,6 +2571,16 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Paypal {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data: _,
+                payment_method,
+            } => payment_method == Some(enums::PaymentMethod::Card),
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYPAL_CONNECTOR_INFO)
     }

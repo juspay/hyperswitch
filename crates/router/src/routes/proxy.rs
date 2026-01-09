@@ -22,8 +22,7 @@ pub async fn proxy(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            proxy::proxy_core(state, platform, req)
+            proxy::proxy_core(state, auth.platform, req)
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,

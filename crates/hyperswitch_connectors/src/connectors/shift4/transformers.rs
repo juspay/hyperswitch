@@ -378,7 +378,8 @@ where
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
@@ -691,6 +692,7 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
@@ -1101,9 +1103,14 @@ pub struct ErrorResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "camelCase")]
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,
+    pub issuer_decline_code: Option<String>,
+    pub advice_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub charge_id: Option<String>,
 }
 
 pub fn is_transaction_event(event: &Shift4WebhookEvent) -> bool {
