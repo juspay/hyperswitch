@@ -4,8 +4,7 @@ use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::{enums, Currency, PaymentChannel};
 use common_utils::{
-    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, pii::SecretSerdeValue,
-    types::MinorUnit,
+    consts::BASE64_ENGINE, errors::CustomResult, pii::SecretSerdeValue, types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -64,28 +63,24 @@ fn fetch_payment_instrument(
     billing_address: Option<&Address>,
     connector_mandate_id: Option<MandateIds>,
 ) -> CustomResult<PaymentInstrument, ConnectorError> {
-    let billing_address =
-        if let Some(address) = billing_address.and_then(|addr| addr.address.clone()) {
-            Some(BillingAddress {
-                address1: address.line1,
-                address2: address.line2,
-                address3: address.line3,
-                city: address.city,
-                state: address.state,
-                postal_code: address
-                    .zip
-                    .get_required_value("zip")
-                    .change_context(ConnectorError::MissingRequiredField { field_name: "zip" })?,
-                country_code: address
-                    .country
-                    .get_required_value("country_code")
-                    .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "country_code",
-                    })?,
-            })
-        } else {
-            None
-        };
+    let billing_address = billing_address
+        .and_then(|addr| addr.address.clone())
+        .and_then(
+            |address| match (address.line1, address.city, address.zip, address.country) {
+                (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
+                    Some(BillingAddress {
+                        address1,
+                        address2: address.line2,
+                        address3: address.line3,
+                        city,
+                        state: address.state,
+                        postal_code,
+                        country_code,
+                    })
+                }
+                _ => None,
+            },
+        );
     match payment_method {
         PaymentMethodData::MandatePayment => {
             let mandate_id = connector_mandate_id
@@ -186,8 +181,13 @@ impl
         Ok(Self {
             instruction: Instruction {
                 request_auto_settlement: RequestAutoSettlement {
-                    enabled: item.router_data.request.capture_method.unwrap_or_default()
-                        == enums::CaptureMethod::Automatic,
+                    enabled: match item.router_data.request.capture_method.unwrap_or_default() {
+                        enums::CaptureMethod::Automatic
+                        | enums::CaptureMethod::SequentialAutomatic => true,
+                        enums::CaptureMethod::Manual
+                        | enums::CaptureMethod::ManualMultiple
+                        | enums::CaptureMethod::Scheduled => false,
+                    },
                 },
                 value: PaymentValue {
                     amount: item.amount,
