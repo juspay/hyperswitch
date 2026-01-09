@@ -168,7 +168,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 phone_number: address
                                     .phone
                                     .as_ref()
-                                    .and_then(|p| p.number.clone())
+                                    .and_then(|phone_details| phone_details.number.clone())
                                     .and_then(utils::trim_secret_string),
                                 email: address
                                     .email
@@ -378,7 +378,7 @@ pub async fn get_domain_address(
                         phone_number: address
                             .phone
                             .as_ref()
-                            .and_then(|p| p.number.clone())
+                            .and_then(|phone_details| phone_details.number.clone())
                             .and_then(utils::trim_secret_string),
                         email: address
                             .email
