@@ -90,7 +90,7 @@ impl Theme {
     }
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, DebugAsDisplay)]
 #[diesel(table_name = themes)]
 pub struct ThemeUpdateInternal {
     pub email_primary_color: Option<String>,
@@ -98,7 +98,7 @@ pub struct ThemeUpdateInternal {
     pub email_background_color: Option<String>,
     pub email_entity_name: Option<String>,
     pub email_entity_logo_url: Option<String>,
-    pub last_modified_at: Option<PrimitiveDateTime>,
+    pub last_modified_at: PrimitiveDateTime,
     pub theme_config_version: Option<String>,
 }
 
@@ -119,7 +119,7 @@ impl From<ThemeUpdate> for ThemeUpdateInternal {
                 email_background_color: Some(email_config.background_color),
                 email_entity_name: Some(email_config.entity_name),
                 email_entity_logo_url: Some(email_config.entity_logo_url),
-                last_modified_at: Some(now),
+                last_modified_at: now,
                 theme_config_version: None,
             },
             ThemeUpdate::ThemeConfig => Self {
@@ -128,7 +128,7 @@ impl From<ThemeUpdate> for ThemeUpdateInternal {
                 email_background_color: None,
                 email_entity_name: None,
                 email_entity_logo_url: None,
-                last_modified_at: Some(now),
+                last_modified_at: now,
                 theme_config_version: Some(theme_config_version),
             },
         }

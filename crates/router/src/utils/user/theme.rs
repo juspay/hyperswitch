@@ -13,6 +13,7 @@ use crate::{
 };
 
 // Redis key format: {theme_id}_version
+#[inline]
 fn get_theme_version_redis_key(theme_id: &str) -> String {
     format!("{}_version", theme_id)
 }
