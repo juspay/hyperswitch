@@ -3448,7 +3448,7 @@ impl PaymentMethodSessionUpdateSavedPaymentMethod {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
-    /// The payment method token associated with the payment method to be updated
+    /// The payment method token associated with the payment method to be deleted
     #[schema(value_type = String, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
     pub payment_method_token: String,
 }

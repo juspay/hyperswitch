@@ -3128,7 +3128,7 @@
               "examples": {
                 "Update the card holder name": {
                   "value": {
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
                   }
                 }
               }
@@ -3138,11 +3138,11 @@
         },
         "responses": {
           "200": {
-            "description": "The payment method has been updated successfully",
+            "description": "The payment method has been deleted successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                  "$ref": "#/components/schemas/PaymentMethodDeleteSessionResponse"
                 }
               }
             }
@@ -3229,10 +3229,11 @@
                   "value": {
                     "payment_method_data": {
                       "card": {
+                        "card_cvc": "456",
                         "card_holder_name": "Narayan Bhat"
                       }
                     },
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
                   }
                 }
               }
@@ -3246,7 +3247,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
                 }
               }
             }
@@ -19346,6 +19347,19 @@
           }
         }
       },
+      "PaymentMethodDeleteSessionResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_token"
+        ],
+        "properties": {
+          "payment_method_token": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+          }
+        }
+      },
       "PaymentMethodGetTokenDetailsResponse": {
         "type": "object",
         "required": [
@@ -19760,7 +19774,7 @@
         "properties": {
           "payment_method_token": {
             "type": "string",
-            "description": "The payment method token associated with the payment method to be updated",
+            "description": "The payment method token associated with the payment method to be deleted",
             "example": "token_9wcXDRVkfEtLEsSnYKgQ"
           }
         }

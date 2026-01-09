@@ -642,6 +642,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::TokenizeDataRequest,
         api_models::payment_methods::TokenizePaymentMethodRequest,
         api_models::payment_methods::CardCVCTokenStorageDetails,
+        api_models::payment_methods::PaymentMethodDeleteSessionResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::AmountFilter,
