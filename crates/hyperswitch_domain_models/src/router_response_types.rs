@@ -301,6 +301,15 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
+impl PreprocessingResponseId {
+    pub fn get_string_repr(&self) -> &String {
+        match self {
+            Self::PreProcessingId(value) => value,
+            Self::ConnectorTransactionId(value) => value,
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {

@@ -25,8 +25,9 @@ pub async fn api_key_create(
         state,
         &req,
         payload,
-        |state, auth_data, payload, _| async {
-            api_keys::create_api_key(state, payload, auth_data.key_store).await
+        |state, auth_data, payload, _| {
+            let key_store = auth_data.platform.get_processor().get_key_store().clone();
+            async move { api_keys::create_api_key(state, payload, key_store).await }
         },
         auth::auth_type(
             &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {

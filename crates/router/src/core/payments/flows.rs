@@ -17,8 +17,9 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
-use common_enums::{self, ExecutionMode};
+use common_enums;
 use common_types::payments::CustomerAcceptance;
+#[cfg(feature = "v2")]
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
@@ -255,51 +256,6 @@ pub trait Feature<F, T> {
     ) {
     }
 
-    async fn call_preprocessing_through_unified_connector_service<'a>(
-        self,
-        _state: &SessionState,
-        _header_payload: &domain_payments::HeaderPayload,
-        _lineage_ids: &grpc_client::LineageIds,
-        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _platform: &domain::Platform,
-        _connector_data: &api::ConnectorData,
-        _unified_connector_service_execution_mode: ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
-    ) -> RouterResult<(Self, bool)>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        // Default behaviour is to do nothing and continue further
-        Ok((self, true))
-    }
-
-    async fn call_unified_connector_service<'a>(
-        &mut self,
-        _state: &SessionState,
-        _header_payload: &domain_payments::HeaderPayload,
-        _lineage_ids: grpc_client::LineageIds,
-        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _platform: &domain::Platform,
-        _connector_data: &api::ConnectorData,
-        _unified_connector_service_execution_mode: ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
-        _call_connector_action: common_enums::CallConnectorAction,
-        _creds_identifier: Option<String>,
-    ) -> RouterResult<()>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        Ok(())
-    }
-
     #[cfg(feature = "v2")]
     async fn call_unified_connector_service_with_external_vault_proxy<'a>(
         &mut self,
@@ -309,7 +265,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _platform: &domain::Platform,
-        _unified_connector_service_execution_mode: ExecutionMode,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
         _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where

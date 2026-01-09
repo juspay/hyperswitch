@@ -1536,6 +1536,10 @@ impl Payouts {
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
+                )
+                .service(
+                    web::resource("/{payout_id}/manual-update")
+                        .route(web::put().to(payouts_manual_update)),
                 );
         }
         route = route
@@ -1579,6 +1583,11 @@ impl PaymentMethods {
                 .service(
                     web::resource("/{payment_method_id}/check-network-token-status")
                         .route(web::get().to(payment_methods::network_token_status_check_api)),
+                )
+                .service(
+                    web::resource("/token/{payment_method_temporary_token}/details").route(
+                        web::get().to(payment_methods::payment_method_get_token_details_api),
+                    ),
                 );
 
             route = route.service(
@@ -1639,6 +1648,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/update-batch")
                         .route(web::post().to(payment_methods::update_payment_methods)),
+                )
+                .service(
+                    web::resource("/batch")
+                        .route(web::get().to(payment_methods::payment_methods_batch_retrieve_api)),
                 )
                 .service(
                     web::resource("/tokenize-card")

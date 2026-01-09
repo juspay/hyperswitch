@@ -1035,7 +1035,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
+                        domain::types::CryptoOperation::EncryptLocally(
                             services::generate_aes256_key().unwrap().to_vec().into(),
                         ),
                         Identifier::Merchant(merchant_id.to_owned()),
@@ -1148,7 +1148,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
+                        domain::types::CryptoOperation::EncryptLocally(
                             services::generate_aes256_key().unwrap().to_vec().into(),
                         ),
                         Identifier::Merchant(merchant_id.to_owned()),
@@ -1260,7 +1260,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(aes_key.to_vec().into()),
+                        domain::types::CryptoOperation::EncryptLocally(aes_key.to_vec().into()),
                         Identifier::Merchant(merchant_id.to_owned()),
                         master_key,
                     )
@@ -1329,6 +1329,7 @@ mod tests {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
         let merchant_id = merchant_id.clone(); // Clone merchant_id to avoid move
 
@@ -1433,8 +1434,10 @@ mod tests {
             description: Some("Its my first payment request".to_string()),
             refunds: None,
             mandate_id: None,
-            merchant_id,
+            merchant_id: merchant_id.clone(),
             net_amount: MinorUnit::new(6540),
+            processor_merchant_id: merchant_id,
+            initiator: None,
             connector: None,
             customer: None,
             disputes: None,
@@ -1532,7 +1535,7 @@ mod tests {
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let platform_clone = platform.clone();
+            let cloned_processor = platform.get_processor().clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
@@ -1540,7 +1543,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    platform_clone,
+                    cloned_processor,
                     business_profile_clone,
                     event_type,
                     event_class,
