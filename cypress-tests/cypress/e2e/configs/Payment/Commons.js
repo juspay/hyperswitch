@@ -788,7 +788,7 @@ export const connectorDetails = {
         payment_method_type: "interac",
         payment_method_data: {
           bank_redirect: {
-            ideal: {
+            interac: {
               bank_name: "ing",
             },
           },
