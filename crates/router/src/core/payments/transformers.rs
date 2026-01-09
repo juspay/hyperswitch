@@ -2427,7 +2427,8 @@ where
             connector_http_status_code,
             external_latency,
             is_latency_header_enabled,
-            platform,
+            platform.get_processor(),
+            platform.get_initiator(),
         )
     }
 }
@@ -3421,7 +3422,8 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     connector_http_status_code: Option<u16>,
     external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -3912,10 +3914,8 @@ where
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
-            processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-            initiator: platform
-                .get_initiator()
-                .and_then(|initiator| initiator.to_api_initiator()),
+            processor_merchant_id: processor.get_account().get_id().clone(),
+            initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
