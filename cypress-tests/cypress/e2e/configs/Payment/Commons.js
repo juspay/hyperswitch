@@ -101,6 +101,7 @@ export const standardBillingAddress = {
     first_name: "John",
     last_name: "Doe",
   },
+  email: "guest@juspay.in",
   phone: {
     number: "8056594427",
     country_code: "+91",
@@ -179,6 +180,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "ideal",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "interac",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -614,6 +626,21 @@ export const connectorDetails = {
           bank_redirect: {
             online_banking_fpx: {
               issuer: "affin_bank",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    gigadat: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "citi",
+              country: "CA",
             },
           },
         },
