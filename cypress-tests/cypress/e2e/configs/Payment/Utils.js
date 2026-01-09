@@ -38,7 +38,11 @@ import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+<<<<<<< Updated upstream
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
+=======
+import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
+>>>>>>> Stashed changes
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
 import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
@@ -141,6 +145,7 @@ const connectorDetails = {
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
   zift: ziftConnectorDetails,
+  loonio: loonioConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {

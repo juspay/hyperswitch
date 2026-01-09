@@ -433,4 +433,72 @@ describe("Bank Redirect tests", () => {
       cy.retrievePaymentCallTest(globalState, data);
     });
   });
+
+  context("Interac Create and Confirm flow test", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["PaymentIntent"]("Interac");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm bank redirect", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["Interac"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Handle bank redirect redirection", () => {
+      // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["Interac"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
+  });
 });
