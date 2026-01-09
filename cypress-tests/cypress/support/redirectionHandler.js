@@ -779,6 +779,28 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "gigadat":
+            if (paymentMethodType === "interac") {
+              cy.contains("button", /Return To Merchant/i, {
+                timeout: constants.TIMEOUT / 3,
+              })
+                .should("be.visible")
+                .click();
+
+              cy.contains("button", /^Yes$/i, {
+                timeout: constants.TIMEOUT / 3,
+              })
+                .should("be.visible")
+                .click();
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Gigadat payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
