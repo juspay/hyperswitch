@@ -265,3 +265,19 @@ pub struct PspTokenization {
     #[schema(value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
 }
+
+/// Token type for Payment Method Session associated payment methods
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum AssociatedPaymentMethodTokenType {
+    /// Payment Method Session Token
+    #[schema(value_type = String)]
+    PaymentMethodSessionToken(String),
+}
+
+/// Details of associated payment methods for Payment Methods Session
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AssociatedPaymentMethods {
+    /// token type for associated payment method
+    pub payment_method_token: AssociatedPaymentMethodTokenType,
+}

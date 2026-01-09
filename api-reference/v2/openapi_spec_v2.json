@@ -2973,6 +2973,47 @@
         ]
       }
     },
+    "/v2/payment-methods/token/{payment_method_temporary_token}/details": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Get Payment Method Token Data",
+        "description": "Retrieve the Payment method id associated with a payment method token.",
+        "operationId": "Get Payment Method Token Data",
+        "parameters": [
+          {
+            "name": "payment_method_temporary_token",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Token Data Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodGetTokenDetailsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found | Payment method token either expired or does not exist"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
       "post": {
         "tags": [
@@ -8176,6 +8217,26 @@
           }
         }
       },
+      "CardCVCTokenStorageDetails": {
+        "type": "object",
+        "required": [
+          "is_stored"
+        ],
+        "properties": {
+          "is_stored": {
+            "type": "boolean",
+            "description": "Indicates whether the card cvc is stored or not",
+            "example": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines expiry for stored card cvc token",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          }
+        }
+      },
       "CardDetail": {
         "type": "object",
         "required": [
@@ -8323,6 +8384,12 @@
             "type": "string",
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
+            "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
             "nullable": true
           }
         },
@@ -9135,6 +9202,7 @@
           "worldpay",
           "worldpayvantiv",
           "worldpayxml",
+          "worldpaymodular",
           "signifyd",
           "plaid",
           "riskified",
@@ -10535,8 +10603,7 @@
       "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
-          "id",
-          "payment_token",
+          "payment_method_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
@@ -10547,12 +10614,7 @@
           "is_default"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
-          },
-          "payment_token": {
+          "payment_method_token": {
             "type": "string",
             "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
@@ -19284,6 +19346,25 @@
           }
         }
       },
+      "PaymentMethodGetTokenDetailsResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "payment_method_token"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The payment method ID associated with the token",
+            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+          },
+          "payment_method_token": {
+            "type": "string",
+            "description": "The token associated with the payment method",
+            "example": "token_CSum555d9YxDOpGwYq6q"
+          }
+        }
+      },
       "PaymentMethodIntentConfirm": {
         "type": "object",
         "required": [
@@ -19516,6 +19597,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19666,13 +19755,13 @@
       "PaymentMethodSessionDeleteSavedPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "payment_method_token"
         ],
         "properties": {
-          "payment_method_id": {
+          "payment_method_token": {
             "type": "string",
-            "description": "The payment method id of the payment method to be updated",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "description": "The payment method token associated with the payment method to be updated",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
           }
         }
       },
@@ -19827,6 +19916,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19838,13 +19935,13 @@
           {
             "type": "object",
             "required": [
-              "payment_method_id"
+              "payment_method_token"
             ],
             "properties": {
-              "payment_method_id": {
+              "payment_method_token": {
                 "type": "string",
-                "description": "The payment method id of the payment method to be updated",
-                "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+                "description": "The payment method token associated with the payment method session",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
               }
             }
           }
@@ -25501,6 +25598,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpaymodular",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use common_enums;
 use common_types::payments as common_payments_types;
-use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
+use hyperswitch_domain_models::{payments as domain_payments, router_data_v2::PaymentFlowData};
+use hyperswitch_interfaces::api::{self as api_interface, gateway, ConnectorSpecifications};
 use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -11,8 +11,9 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, gateway::context as gateway_context, helpers,
-            session_token, tokenization, transformers, PaymentData,
+            self, access_token, customers, gateway as payments_gateway,
+            gateway::context as gateway_context, helpers, session_token, tokenization,
+            transformers, PaymentData,
         },
     },
     routes::SessionState,
@@ -204,6 +205,81 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 is_payment_method_tokenization_performed: false,
                 connector_response: None,
             })
+        }
+    }
+
+    async fn pre_authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_pre_authentication_flow_required(
+            api_interface::CurrentFlowInfo::SetupMandate {
+                auth_type: &self.auth_type,
+            },
+        ) {
+            logger::info!(
+                "Pre-authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            let setup_mandate_request_data = self.request.clone();
+            let pre_authenticate_request_data =
+                types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+            let pre_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let pre_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PreAuthenticate, _, _, _, _>(
+                    self.clone(),
+                    pre_authenticate_request_data,
+                    pre_authenticate_response_data,
+                );
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                pre_authenticate_router_data,
+                connector,
+                gateway_context,
+            ))
+            .await?;
+            let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+            let mut setup_mandate_router_data =
+                helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
+                    pre_authenticate_router_data,
+                    setup_mandate_request_data,
+                    pre_authenticate_response,
+                );
+
+            if let Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2,
+                related_transaction_id,
+            }) = &setup_mandate_router_data.response
+            {
+                let (enrolled_for_3ds, related_transaction_id) =
+                    (*enrolled_v2, related_transaction_id.clone());
+                setup_mandate_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+                setup_mandate_router_data.request.related_transaction_id = related_transaction_id;
+            }
+
+            let should_continue = setup_mandate_router_data.response.is_ok();
+
+            Ok((setup_mandate_router_data, should_continue))
+        } else {
+            logger::info!(
+                "Pre-authentication flow is not required for connector: {} for Setup Mandate flow",
+                connector.connector_name
+            );
+            Ok((self, true))
         }
     }
 
