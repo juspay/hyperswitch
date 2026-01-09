@@ -27,7 +27,7 @@ pub enum OidcErrors {
 
 impl OidcErrors {
     /// Returns the RFC 6749 compliant error code
-    pub fn get_rfc_error_code(&self) -> &'static str {
+    fn get_rfc_error_code(&self) -> &'static str {
         match self {
             Self::InvalidRequest => "invalid_request",
             Self::UnauthorizedClient => "unauthorized_client",
@@ -41,7 +41,7 @@ impl OidcErrors {
     }
 
     /// Returns the RFC 6749 compliant error description
-    pub fn get_error_message(&self) -> &'static str {
+    fn get_error_message(&self) -> &'static str {
         match self {
             Self::InvalidRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
             Self::UnauthorizedClient => "The client is not authorized to request an authorization code using this method",
