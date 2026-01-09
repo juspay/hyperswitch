@@ -189,6 +189,7 @@ impl ConnectorCommon for Worldpayxml {
                     reason: error_msg.clone(),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1198,9 +1199,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         let body: worldpayxml::WorldpayXmlWebhookBody =
             utils::deserialize_xml_to_struct(request.body)?;
         let order_code = body.notify.order_status_event.order_code.clone();
-        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event)
-            && !order_code.starts_with("payout_")
-        {
+        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
@@ -1211,7 +1210,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             ));
         }
         #[cfg(feature = "payouts")]
-        if order_code.starts_with("payout_") {
+        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
             ));
@@ -1227,8 +1226,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             utils::deserialize_xml_to_struct(request.body)?;
         #[cfg(feature = "payouts")]
         {
-            let order_code = body.notify.order_status_event.order_code.clone();
-            if order_code.starts_with("payout_") {
+            if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
                 return Ok(worldpayxml::get_payout_webhook_event(
                     body.notify.order_status_event.payment.last_event,
                 ));

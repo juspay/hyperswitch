@@ -126,6 +126,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsBatchUpdate
+            | Flow::PaymentMethodsBatchRetrieve
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData
@@ -138,7 +139,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
             | Flow::PaymentMethodSave
-            | Flow::TotalPaymentMethodCount => Self::PaymentMethods,
+            | Flow::TotalPaymentMethodCount
+            | Flow::PaymentMethodGetTokenDetails => Self::PaymentMethods,
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
@@ -188,6 +190,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFilter
             | Flow::PayoutsAccounts
             | Flow::PayoutsConfirm
+            | Flow::PayoutsManualUpdate
             | Flow::PayoutLinkInitiate
             | Flow::PayoutsAggregate => Self::Payouts,
             Flow::RefundsCreate

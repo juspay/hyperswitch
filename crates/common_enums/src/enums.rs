@@ -358,6 +358,36 @@ pub enum GsmDecision {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
+pub enum RecommendedAction {
+    DoNotRetry,
+    RetryAfter10Days,
+    RetryAfter1Hour,
+    RetryAfter24Hours,
+    RetryAfter2Days,
+    RetryAfter4Days,
+    RetryAfter6Days,
+    RetryAfter8Days,
+    RetryAfterInstrumentUpdate,
+    RetryLater,
+    RetryWithDifferentPaymentMethodData,
+    StopRecurring,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
 }
@@ -2041,6 +2071,13 @@ impl FutureUsage {
             Self::OnSession => false,
         }
     }
+    /// Indicates whether to save the payment method for future use when a customer is present.
+    pub fn is_on_session(self) -> bool {
+        match self {
+            Self::OffSession => false,
+            Self::OnSession => true,
+        }
+    }
 }
 
 #[derive(
@@ -2328,6 +2365,7 @@ pub enum PaymentMethodType {
     RevolutPay,
     IndonesianBankTransfer,
     OpenBanking,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2454,6 +2492,7 @@ impl PaymentMethodType {
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2502,6 +2541,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2521,7 +2561,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
@@ -2541,7 +2582,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 }
@@ -3160,7 +3202,7 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
 #[schema(
     value_type = String,
     title = "4 digit Merchant category code (MCC)",
@@ -10347,4 +10389,27 @@ pub enum VaultTokenType {
     /// Token cryptogram
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum StorageType {
+    Volatile,
+    #[default]
+    Persistent,
 }

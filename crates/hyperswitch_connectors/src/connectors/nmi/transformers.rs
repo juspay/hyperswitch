@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, Card, GooglePayWalletData, PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{
         Authorize, Capture, CompleteAuthorize, Execute, RSync, SetupMandate, Void,
     },
@@ -32,6 +32,7 @@ use crate::{
         PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
         PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
+    unimplemented_payment_method,
     utils::{
         get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
         AddressDetailsData as _, CardData as _, PaymentsAuthorizeRequestData,
@@ -193,16 +194,14 @@ pub struct NmiVaultResponse {
 
 fn process_nmi_vault_response(
     connector_auth_type: &ConnectorAuthType,
-    amount: Option<i64>,
+    amount: i64,
     currency: Option<Currency>,
     vault_response: &NmiVaultResponse,
     http_code: u16,
     connector_request_reference_id: String,
 ) -> Result<(Result<PaymentsResponseData, ErrorResponse>, AttemptStatus), Error> {
     let auth_type: NmiAuthType = connector_auth_type.try_into()?;
-    let amount_data = amount.ok_or(ConnectorError::MissingRequiredField {
-        field_name: "amount",
-    })?;
+    let amount_data = amount;
     let currency_data = currency.ok_or(ConnectorError::MissingRequiredField {
         field_name: "currency",
     })?;
@@ -265,6 +264,7 @@ fn build_nmi_vault_response(
                 status_code: http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(vault_response.transactionid.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -309,7 +309,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
     ) -> Result<Self, Self::Error> {
         let (response, status) = process_nmi_vault_response(
             &item.data.connector_auth_type,
-            Some(item.data.request.amount),
+            item.data.request.amount,
             item.data.request.currency,
             &item.response,
             item.http_code,
@@ -492,6 +492,7 @@ fn get_nmi_error_response(response: NmiCompleteResponse, http_code: u16) -> Erro
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response.transactionid),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -513,6 +514,7 @@ pub struct NmiValidateRequest {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NmiValidatePaymentData {
+    ApplePayDecrypt(Box<ApplePayDecryptedData>),
     ApplePay(Box<ApplePayData>),
     Card(Box<CardData>),
 }
@@ -571,6 +573,7 @@ pub enum PaymentMethod {
     GPay(Box<GooglePayData>),
     ApplePay(Box<ApplePayData>),
     MandatePayment(Box<MandatePayment>),
+    ApplePayDecrypt(Box<ApplePayDecryptedData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -606,6 +609,15 @@ pub struct GooglePayData {
 #[derive(Debug, Serialize)]
 pub struct ApplePayData {
     applepay_payment_data: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayDecryptedData {
+    decrypted_applepay_data: String,
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    cavv: Secret<String>,
+    eci: Option<String>,
 }
 
 impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsRequest {
@@ -700,7 +712,11 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
             },
             PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 WalletData::GooglePay(ref googlepay_data) => Ok(Self::try_from(googlepay_data)?),
-                WalletData::ApplePay(ref applepay_data) => Ok(Self::try_from(applepay_data)?),
+                WalletData::ApplePay(ref applepay_data) => {
+                    let payment_method_token =
+                        router_data.and_then(|data| data.payment_method_token.clone());
+                    Ok(Self::try_from((applepay_data, payment_method_token))?)
+                }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -752,7 +768,8 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "nmi",
                 ))
@@ -822,63 +839,132 @@ impl TryFrom<&GooglePayWalletData> for PaymentMethod {
     }
 }
 
-impl TryFrom<&ApplePayWalletData> for PaymentMethod {
+impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for PaymentMethod {
     type Error = Error;
-    fn try_from(apple_pay_wallet_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
-        let apple_pay_encrypted_data = apple_pay_wallet_data
-            .payment_data
-            .get_encrypted_apple_pay_payment_data_mandatory()
-            .change_context(ConnectorError::MissingRequiredField {
-                field_name: "Apple pay encrypted data",
-            })?;
+    fn try_from(
+        (apple_pay_wallet_data, payment_method_token): (
+            &ApplePayWalletData,
+            Option<PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match payment_method_token {
+            Some(payment_method_token) => match payment_method_token {
+                PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data) => {
+                    Ok(Self::ApplePayDecrypt(Box::new(ApplePayDecryptedData {
+                        decrypted_applepay_data: "1".to_string(), // Set to "1" to indicate decrypted data is being sent
+                        ccnumber: apple_pay_decrypt_data
+                            .application_primary_account_number
+                            .clone(),
+                        ccexp: apple_pay_decrypt_data
+                            .get_expiry_date_as_mmyy()
+                            .change_context(ConnectorError::InvalidDataFormat {
+                                field_name: "application_expiration_date",
+                            })?,
+                        cavv: apple_pay_decrypt_data
+                            .payment_data
+                            .online_payment_cryptogram
+                            .clone(),
+                        eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
+                    })))
+                }
+                PaymentMethodToken::Token(_) => {
+                    Err(unimplemented_payment_method!("Apple Pay", "Manual", "NMI"))?
+                }
+                PaymentMethodToken::PazeDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Paze", "NMI"))?
+                }
+                PaymentMethodToken::GooglePayDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Google Pay", "NMI"))?
+                }
+            },
+            None => {
+                let apple_pay_encrypted_data = apple_pay_wallet_data
+                    .payment_data
+                    .get_encrypted_apple_pay_payment_data_mandatory()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "Apple pay encrypted data",
+                    })?;
 
-        let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
-            .decode(apple_pay_encrypted_data)
-            .change_context(ConnectorError::InvalidDataFormat {
-                field_name: "apple_pay_encrypted_data",
-            })?;
+                let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
+                    .decode(apple_pay_encrypted_data)
+                    .change_context(ConnectorError::InvalidDataFormat {
+                        field_name: "apple_pay_encrypted_data",
+                    })?;
 
-        let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
+                let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
 
-        let apple_pay_data = ApplePayData {
-            applepay_payment_data: Secret::new(hex_encoded_apple_pay_data),
-        };
-        Ok(Self::ApplePay(Box::new(apple_pay_data)))
+                let apple_pay_data = ApplePayData {
+                    applepay_payment_data: Secret::new(hex_encoded_apple_pay_data),
+                };
+                Ok(Self::ApplePay(Box::new(apple_pay_data)))
+            }
+        }
     }
 }
 
 impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        match item.request.amount {
-            Some(amount) if amount > 0 => Err(ConnectorError::FlowNotSupported {
+        if item.request.amount > 0 {
+            Err(ConnectorError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "NMI".to_string(),
             }
-            .into()),
-            _ => {
-                if let PaymentMethodData::Card(card_details) = &item.request.payment_method_data {
-                    let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+            .into())
+        } else if let PaymentMethodData::Card(card_details) = &item.request.payment_method_data {
+            let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
 
-                    let card_data = CardData {
-                        ccnumber: card_details.card_number.clone(),
-                        ccexp: card_details
-                            .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
-                        cvv: card_details.card_cvc.clone(),
-                    };
-                    Ok(Self {
-                        transaction_type: TransactionType::Validate,
-                        security_key: auth_type.api_key,
-                        payment_data: NmiValidatePaymentData::Card(Box::new(card_data)),
-                        orderid: item.connector_request_reference_id.clone(),
-                        customer_vault: CustomerAction::AddCustomer,
-                    })
-                } else if let PaymentMethodData::Wallet(WalletData::ApplePay(
-                    apple_pay_wallet_data,
-                )) = &item.request.payment_method_data
-                {
-                    let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+            let card_data = CardData {
+                ccnumber: card_details.card_number.clone(),
+                ccexp: card_details
+                    .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                cvv: card_details.card_cvc.clone(),
+            };
+            Ok(Self {
+                transaction_type: TransactionType::Validate,
+                security_key: auth_type.api_key,
+                payment_data: NmiValidatePaymentData::Card(Box::new(card_data)),
+                orderid: item.connector_request_reference_id.clone(),
+                customer_vault: CustomerAction::AddCustomer,
+            })
+        } else if let PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_wallet_data)) =
+            &item.request.payment_method_data
+        {
+            let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
 
+            let payment_data = match item.payment_method_token.clone() {
+                Some(payment_method_token) => match payment_method_token {
+                    PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data) => {
+                        Ok(NmiValidatePaymentData::ApplePayDecrypt(Box::new(
+                            ApplePayDecryptedData {
+                                decrypted_applepay_data: "1".to_string(), // Set to "1" to indicate decrypted data is being sent
+                                ccnumber: apple_pay_decrypt_data
+                                    .application_primary_account_number
+                                    .clone(),
+                                ccexp: apple_pay_decrypt_data
+                                    .get_expiry_date_as_mmyy()
+                                    .change_context(ConnectorError::InvalidDataFormat {
+                                        field_name: "application_expiration_date",
+                                    })?,
+                                cavv: apple_pay_decrypt_data
+                                    .payment_data
+                                    .online_payment_cryptogram
+                                    .clone(),
+                                eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
+                            },
+                        )))
+                    }
+                    PaymentMethodToken::Token(_) => {
+                        Err(unimplemented_payment_method!("Apple Pay", "Manual", "NMI"))
+                    }
+                    PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Paze", "NMI"))
+                    }
+                    PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Google Pay", "NMI"))
+                    }
+                },
+                None => {
                     let apple_pay_encrypted_data = apple_pay_wallet_data
                         .payment_data
                         .get_encrypted_apple_pay_payment_data_mandatory()
@@ -897,21 +983,24 @@ impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
                     let apple_pay_data = ApplePayData {
                         applepay_payment_data: Secret::new(hex_encoded_apple_pay_data),
                     };
-
-                    Ok(Self {
-                        transaction_type: TransactionType::Validate,
-                        security_key: auth_type.api_key,
-                        payment_data: NmiValidatePaymentData::ApplePay(Box::new(apple_pay_data)),
-                        orderid: item.connector_request_reference_id.clone(),
-                        customer_vault: CustomerAction::AddCustomer,
-                    })
-                } else {
-                    Err(ConnectorError::NotImplemented(
-                        get_unimplemented_payment_method_error_message("Nmi"),
-                    )
-                    .into())
+                    Ok(NmiValidatePaymentData::ApplePay(Box::new(apple_pay_data)))
                 }
-            }
+            }?;
+
+            Ok(Self {
+                transaction_type: TransactionType::Validate,
+                security_key: auth_type.api_key,
+                payment_data,
+                orderid: item.connector_request_reference_id.clone(),
+                customer_vault: CustomerAction::AddCustomer,
+            })
+        } else {
+            Err(
+                ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
+                    "Nmi",
+                ))
+                .into(),
+            )
         }
     }
 }
@@ -1120,6 +1209,7 @@ fn get_standard_error_response(response: StandardResponse, http_code: u16) -> Er
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response.transactionid),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
