@@ -186,8 +186,8 @@ impl
         Ok(Self {
             instruction: Instruction {
                 request_auto_settlement: RequestAutoSettlement {
-                    enabled: item.router_data.request.capture_method
-                        == Some(enums::CaptureMethod::Automatic),
+                    enabled: item.router_data.request.capture_method.unwrap_or_default()
+                        == enums::CaptureMethod::Automatic,
                 },
                 value: PaymentValue {
                     amount: item.amount,
