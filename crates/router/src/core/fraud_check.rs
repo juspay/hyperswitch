@@ -139,7 +139,7 @@ where
             state,
             &connector,
             payments::CallConnectorAction::Trigger,
-            platform.get_processor(),
+            platform,
         )
         .await?;
 

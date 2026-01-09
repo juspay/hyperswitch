@@ -27,7 +27,7 @@ pub trait FeatureFrm<F, T> {
         state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
-        processor: &domain::Processor,
+        platform: &domain::Platform,
     ) -> RouterResult<Self>
     where
         Self: Sized,

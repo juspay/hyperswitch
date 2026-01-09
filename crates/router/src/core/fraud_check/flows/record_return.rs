@@ -151,16 +151,9 @@ impl FeatureFrm<RecordReturn, FraudCheckRecordReturnData> for FrmRecordReturnRou
         state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
-        processor: &domain::Processor,
+        platform: &domain::Platform,
     ) -> RouterResult<Self> {
-        decide_frm_flow(
-            &mut self,
-            state,
-            connector,
-            call_connector_action,
-            processor,
-        )
-        .await
+        decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }
 }
 
@@ -169,7 +162,7 @@ pub async fn decide_frm_flow(
     state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
-    _processor: &domain::Processor,
+    _platform: &domain::Platform,
 ) -> RouterResult<FrmRecordReturnRouterData> {
     let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         RecordReturn,
