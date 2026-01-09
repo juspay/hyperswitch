@@ -40,7 +40,6 @@ import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
-import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
 import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
