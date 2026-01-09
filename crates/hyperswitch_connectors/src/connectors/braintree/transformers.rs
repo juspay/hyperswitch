@@ -1867,7 +1867,7 @@ impl
                             } else {
                                 return Err(errors::ConnectorError::InvalidConnectorConfig {
                                     config:
-                                        "metadata.google_pay , no googlepay metadata is configured ",
+                                        "metadata.google_pay, no googlepay metadata is configured",
                                 }.into());
                             }
                         } else {
