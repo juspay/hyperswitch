@@ -683,9 +683,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
 
         // Handle failed payments: extract error details from the details object
         // Mollie returns 2xx but with status "failed" when payment fails after 3DS authentication
-        if item.response.status == MolliePaymentStatus::Failed
-            || item.response.status == MolliePaymentStatus::Expired
-        {
+        if crate::utils::is_payment_failure(status) {
             let (failure_reason, failure_message) = item
                 .response
                 .details
