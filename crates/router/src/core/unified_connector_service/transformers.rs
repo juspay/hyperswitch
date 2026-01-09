@@ -2057,9 +2057,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -2220,9 +2220,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -2578,9 +2578,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -3623,9 +3623,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -4565,9 +4565,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
