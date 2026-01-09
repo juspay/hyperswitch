@@ -1005,15 +1005,18 @@ impl
             .map(|val| convert_value_map_to_hashmap(val.peek()))
             .transpose()?
             .unwrap_or_default();
+        let amount = router_data.request.amount;
+        let minor_amount = router_data.request.minor_amount;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount: router_data.request.amount,
+            amount,
             currency: currency.into(),
-            minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
+            minor_amount: minor_amount.get_amount_as_i64(),
             payment_method,
             email: router_data
                 .request
@@ -1659,7 +1662,7 @@ impl
             }),
             currency: currency.into(),
             payment_method,
-            minor_amount: router_data.request.amount,
+            minor_amount: Some(router_data.request.amount),
             email: router_data
                 .request
                 .email
