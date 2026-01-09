@@ -1511,13 +1511,11 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
-        amount: Some(
-            payment_data
-                .payment_attempt
-                .amount_details
-                .get_net_amount()
-                .get_amount_as_i64(),
-        ),
+        amount: payment_data
+            .payment_attempt
+            .amount_details
+            .get_net_amount()
+            .get_amount_as_i64(),
         confirm: true,
         customer_acceptance: None,
         mandate_id: None,
@@ -1539,7 +1537,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata,
-        minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
+        minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         capture_method: Some(payment_data.payment_intent.capture_method),
         complete_authorize_url,
@@ -3932,7 +3930,9 @@ where
             captures: captures_response,
             mandate_id,
             mandate_data,
-            setup_future_usage: payment_attempt.setup_future_usage_applied,
+            setup_future_usage: payment_attempt
+                .setup_future_usage_applied
+                .or(payment_intent.setup_future_usage),
             off_session: payment_intent.off_session,
             capture_on: None,
             capture_method: payment_attempt.capture_method,
@@ -4235,7 +4235,7 @@ impl
             business_label: pi.business_label,
             business_country: pi.business_country,
             business_sub_label: pa.business_sub_label,
-            setup_future_usage: pi.setup_future_usage,
+            setup_future_usage: pa.setup_future_usage_applied.or(pi.setup_future_usage),
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
             connector_transaction_id,
@@ -4903,7 +4903,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
-            setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
+            setup_future_usage: payment_data
+                .payment_attempt
+                .setup_future_usage_applied
+                .or(payment_data.payment_intent.setup_future_usage),
             mandate_id: payment_data.mandate_id.clone(),
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
@@ -5059,7 +5062,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .payment_attempt
                 .connector_response_reference_id
                 .clone(),
-            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            setup_future_usage: payment_data
+                .payment_attempt
+                .setup_future_usage_applied
+                .or(payment_data.payment_intent.setup_future_usage),
         })
     }
 }
@@ -5515,7 +5521,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,
             shipping_cost: payment_data.payment_intent.shipping_cost,
-            setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
+            setup_future_usage: payment_data
+                .payment_attempt
+                .setup_future_usage_applied
+                .or(payment_data.payment_intent.setup_future_usage),
             router_return_url,
         })
     }
@@ -5956,12 +5965,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
-            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
-            minor_amount: Some(amount),
+            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            minor_amount: amount,
             payment_method_data: (payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?),
-            setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
+            setup_future_usage: payment_data
+                .payment_attempt
+                .setup_future_usage_applied
+                .or(payment_data.payment_intent.setup_future_usage),
             off_session: is_off_session,
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
@@ -6120,7 +6132,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             payment_data.clone().get_creds_identifier(),
         ));
         Ok(Self {
-            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            setup_future_usage: payment_data
+                .payment_attempt
+                .setup_future_usage_applied
+                .or(payment_data.payment_intent.setup_future_usage),
             mandate_id: payment_data.mandate_id.clone(),
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
@@ -6247,8 +6262,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
-            minor_amount: Some(amount),
+            amount: amount.get_amount_as_i64(), // need to change this once we move to connector module
+            minor_amount: amount,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,
@@ -6269,7 +6284,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             split_payments: payment_data.payment_intent.split_payments,
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
             customer_acceptance: payment_data.customer_acceptance,
-            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            setup_future_usage: payment_data
+                .payment_attempt
+                .setup_future_usage_applied
+                .or(payment_data.payment_intent.setup_future_usage),
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }

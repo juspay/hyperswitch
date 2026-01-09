@@ -3282,6 +3282,15 @@ pub struct PaymentMethodDataRequest {
     pub billing: Option<Address>,
 }
 
+impl PaymentMethodDataRequest {
+    pub fn get_card(&self) -> Option<Card> {
+        match &self.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => Some(card.clone()),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SplitPaymentMethodDataRequest {
