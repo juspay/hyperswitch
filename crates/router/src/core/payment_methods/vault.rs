@@ -1166,7 +1166,7 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize_without_expiry(
+        let lookup_key = create_tokenize_without_configurable_expiry(
             state,
             value1,
             Some(value2),
@@ -1225,7 +1225,7 @@ impl Vault {
         let lookup_key =
             token_id.unwrap_or_else(|| generate_id_with_default_len("temporary_token"));
 
-        let lookup_key = create_tokenize_with_expiry(
+        let lookup_key = create_tokenize_with_configurable_expiry(
             state,
             value1,
             Some(value2),
@@ -1262,7 +1262,7 @@ fn get_redis_locker_key(lookup_key: &str) -> String {
 }
 
 #[instrument(skip(state, value1, value2))]
-pub async fn create_tokenize_without_expiry(
+pub async fn create_tokenize_without_configurable_expiry(
     state: &routes::SessionState,
     value1: String,
     value2: Option<String>,
@@ -1273,7 +1273,7 @@ pub async fn create_tokenize_without_expiry(
 }
 
 #[instrument(skip(state, value1, value2))]
-pub async fn create_tokenize_with_expiry(
+pub async fn create_tokenize_with_configurable_expiry(
     state: &routes::SessionState,
     value1: String,
     value2: Option<String>,

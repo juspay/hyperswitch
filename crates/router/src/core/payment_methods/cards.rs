@@ -4989,7 +4989,7 @@ impl TempLockerCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        let lookup_key = vault::create_tokenize_without_expiry(
+        let lookup_key = vault::create_tokenize_without_configurable_expiry(
             state,
             value1,
             Some(value2),
