@@ -704,6 +704,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
+        payment_attempt.setup_future_usage_applied = payment_intent.setup_future_usage;
+
         let address = PaymentAddress::new(
             shipping_address.as_ref().map(From::from),
             billing_address.as_ref().map(From::from),
