@@ -739,7 +739,6 @@ export const connectorDetails = {
           },
         },
         billing: billingAddressNL,
-        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -760,7 +759,6 @@ export const connectorDetails = {
           },
         },
         billing: billingAddressAT,
-        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -779,7 +777,6 @@ export const connectorDetails = {
           },
         },
         billing: billingAddressDE,
-        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -801,7 +798,6 @@ export const connectorDetails = {
           },
         },
         billing: billingAddressDE,
-        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -824,7 +820,6 @@ export const connectorDetails = {
           },
         },
         billing: billingAddressPL,
-        currency: "PLN",
       },
       Response: {
         status: 200,
