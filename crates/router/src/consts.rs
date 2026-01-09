@@ -147,7 +147,6 @@ pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_9000";
 pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
 // Config key for merchant advice codes lookup
-pub const MERCHANT_ADVICE_CODES_CONFIG_KEY: &str = "merchant_advice_codes";
 
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";

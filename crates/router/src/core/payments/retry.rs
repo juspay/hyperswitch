@@ -118,6 +118,7 @@ where
             business_profile,
             false, //should_retry_with_pan is not applicable for step-up
             None,
+            initial_gsm.clone(),
         )
         .await?;
     }
@@ -130,7 +131,7 @@ where
                 None => get_gsm(state, &router_data, card_network.clone()).await?,
             };
 
-            match get_gsm_decision(gsm) {
+            match get_gsm_decision(gsm.clone()) {
                 storage_enums::GsmDecision::Retry => {
                     retries = get_retries(
                         state,
@@ -223,6 +224,7 @@ where
                         business_profile,
                         should_retry_with_pan,
                         routing_decision,
+                        gsm.clone(),
                     )
                     .await?;
 
@@ -370,6 +372,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
+    initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -394,6 +397,7 @@ where
         platform.get_processor().get_account().storage_scheme,
         router_data,
         is_step_up,
+        initial_gsm,
     )
     .await?;
 
@@ -448,6 +452,7 @@ pub async fn modify_trackers<F, FData, D>(
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
+    initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
 ) -> RouterResult<()>
 where
     F: Clone + Send,
@@ -467,6 +472,7 @@ pub async fn modify_trackers<F, FData, D>(
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
+    initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
 ) -> RouterResult<()>
 where
     F: Clone + Send,
@@ -618,13 +624,29 @@ where
                 .get_payment_attempt()
                 .extract_card_network()
                 .map(|card_network| card_network.to_string());
-            let option_gsm = get_gsm(state, &router_data, card_network).await?;
             let auth_update = if Some(router_data.auth_type)
                 != payment_data.get_payment_attempt().authentication_type
             {
                 Some(router_data.auth_type)
             } else {
                 None
+            };
+
+            // For MIT transactions, lookup recommended action from merchant_advice_codes config
+            let recommended_action = match (
+                payment_data.get_payment_intent().off_session,
+                card_network.as_ref(),
+                error_response.network_advice_code.as_ref(),
+            ) {
+                (Some(true), Some(network), Some(advice_code)) => {
+                    payments::helpers::lookup_merchant_advice_code_config(
+                        state,
+                        network,
+                        advice_code,
+                    )
+                    .await
+                }
+                _ => None,
             };
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -635,11 +657,11 @@ where
                 error_reason: Some(error_response.reason.clone()),
                 amount_capturable: Some(MinorUnit::new(0)),
                 updated_by: storage_scheme.to_string(),
-                unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
-                unified_message: option_gsm.clone().map(|gsm| gsm.unified_message),
-                standardised_code: option_gsm.as_ref().and_then(|gsm| gsm.standardised_code),
-                description: option_gsm.clone().map(|gsm| gsm.description),
-                user_guidance_message: option_gsm.clone().map(|gsm| gsm.user_guidance_message),
+                unified_code: initial_gsm.clone().map(|gsm| gsm.unified_code),
+                unified_message: initial_gsm.clone().map(|gsm| gsm.unified_message),
+                standardised_code: initial_gsm.as_ref().and_then(|gsm| gsm.standardised_code),
+                description: initial_gsm.clone().map(|gsm| gsm.description),
+                user_guidance_message: initial_gsm.clone().map(|gsm| gsm.user_guidance_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
                 connector_response_reference_id: error_response
                     .connector_response_reference_id
@@ -651,7 +673,7 @@ where
                 issuer_error_message: error_response.network_error_message.clone(),
                 network_details: Some(ForeignFrom::foreign_from(error_response)),
                 network_error_message: error_response.network_error_message.clone(),
-                recommended_action: None,
+                recommended_action,
             };
 
             #[cfg(feature = "v1")]

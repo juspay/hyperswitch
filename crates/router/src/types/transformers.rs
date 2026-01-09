@@ -1255,6 +1255,9 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             unified_message: payment_attempt.unified_message,
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
+            error_details: payment_attempt
+                .error_details
+                .map(payments::PaymentErrorDetails::foreign_from),
         }
     }
 }
