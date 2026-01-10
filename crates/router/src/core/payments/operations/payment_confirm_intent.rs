@@ -237,7 +237,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 let payment_method = db
                     .find_payment_method(
                         platform.get_processor().get_key_store(),
-                        &payment_method_id,
+                        payment_method_id,
                         storage_scheme,
                     )
                     .await
