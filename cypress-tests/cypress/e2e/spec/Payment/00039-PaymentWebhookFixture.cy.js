@@ -1,6 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
