@@ -386,6 +386,12 @@ pub struct KeyManagerConfig {
     pub cert: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
+    #[serde(default = "default_key_store_decryption_behavior")]
+    pub use_legacy_key_store_decryption: bool,
+}
+
+fn default_key_store_decryption_behavior() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
