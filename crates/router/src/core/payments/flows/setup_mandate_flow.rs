@@ -7,8 +7,9 @@ use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types, PaymentFlowData},
     router_flow_types, router_request_types, router_response_types,
 };
-use hyperswitch_interfaces::api::{
-    self as api_interface, consts as interface_consts, gateway, ConnectorSpecifications,
+use hyperswitch_interfaces::{
+    api::{self as api_interface, gateway, ConnectorSpecifications},
+    consts as interface_consts,
 };
 use router_env::logger;
 
