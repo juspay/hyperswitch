@@ -42,9 +42,9 @@ use crate::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
             },
-            tokenization,PaymentIntentStateMetadataExt,
+            tokenization,
             types::MultipleCaptureData,
-            PaymentData, PaymentMethodChecker,
+            PaymentData, PaymentIntentStateMetadataExt, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -1046,7 +1046,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
 {
     async fn update_tracker<'b>(
         &'b self,
-        c: &'b SessionState,
+        db: &'b SessionState,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -2096,31 +2096,42 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
                             (None, None, None)
                         }
-                        types::PaymentsResponseData::PostCaptureVoidResponse { post_capture_void_status } => {
-                                          let merchant_account = state
-        .find_merchant_account_by_merchant_id(&key_store.merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+                        types::PaymentsResponseData::PostCaptureVoidResponse {
+                            post_capture_void_status,
+                        } => {
+                            let m_db = state.clone().store;
 
-        let platform = domain::Platform::new(
-        merchant_account.clone(),
-        key_store.clone(),
-        merchant_account.clone(),
-        key_store.clone(),
-    );
+                            let merchant_account = m_db
+                                .find_merchant_account_by_merchant_id(
+                                    &key_store.merchant_id,
+                                    &key_store,
+                                )
+                                .await
+                                .to_not_found_response(
+                                    errors::ApiErrorResponse::MerchantAccountNotFound,
+                                )?;
 
+                            let platform = domain::Platform::new(
+                                merchant_account.clone(),
+                                key_store.clone(),
+                                merchant_account.clone(),
+                                key_store.clone(),
+                            );
 
-
- PaymentIntentStateMetadataExt::from(
-                payment_data.payment_intent.state_metadata.clone().unwrap_or_default(),
-            )
-            .update_intent_state_metadata_for_post_capture_void(
-                &db,
-                &platform,
-                payment_data.payment_intent,
-                &post_capture_void_status,
-            )
-            .await?;
+                            PaymentIntentStateMetadataExt::from(
+                                payment_data
+                                    .payment_intent
+                                    .state_metadata
+                                    .clone()
+                                    .unwrap_or_default(),
+                            )
+                            .update_intent_state_metadata_for_post_capture_void(
+                                &state,
+                                &platform,
+                                &payment_data.payment_intent,
+                                post_capture_void_status,
+                            )
+                            .await?;
                             (None, None, None)
                         }
                     }

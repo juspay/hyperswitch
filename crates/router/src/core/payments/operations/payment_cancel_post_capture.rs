@@ -212,8 +212,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 
     async fn validate_request_with_state(
         &self,
-        state: &SessionState,
-        request: &api::PaymentsCancelPostCaptureRequest,
+        _state: &SessionState,
+        _request: &api::PaymentsCancelPostCaptureRequest,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
     ) -> RouterResult<()> {

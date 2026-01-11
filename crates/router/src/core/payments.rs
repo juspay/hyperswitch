@@ -13812,22 +13812,22 @@ impl PaymentIntentStateMetadataExt {
         Ok(())
     }
 
-      pub async fn update_intent_state_metadata_for_post_capture_void(
+    pub async fn update_intent_state_metadata_for_post_capture_void(
         self,
         state: &SessionState,
         platform: &domain::Platform,
-        payment_intent: payments::PaymentIntent,
+        payment_intent: &payments::PaymentIntent,
         post_capture_void_status: common_enums::PostCaptureVoidStatus,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.clone();
         let key_store = platform.get_processor().get_key_store().clone();
         let merchant_account = platform.get_processor().get_account().clone();
 
-        let mut current_state = payment_intent
+        let current_state = payment_intent
             .state_metadata
             .clone()
             .unwrap_or_default()
-            .set_post_capture_void_data(post_capture_void_response.status);
+            .set_post_capture_void_data(post_capture_void_status);
 
         let domain_update = payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
             state_metadata: current_state.clone(),

@@ -1021,16 +1021,21 @@ impl PaymentIntentStateMetadata {
         MinorUnit::new(blocked_amount)
     }
 
-    /// Check if post capture void is applied for the payment intent 
+    /// Check if post capture void is applied for the payment intent
     pub fn is_post_capture_void_applied(&self) -> bool {
         matches!(
-            self.post_capture_void.as_ref().map(|post_capture_void| post_capture_void.status),
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
             Some(common_enums::PostCaptureVoidStatus::Success)
                 | Some(common_enums::PostCaptureVoidStatus::Pending)
         )
     }
     /// Builder method to set post_capture_void data
-    pub fn set_post_capture_void_data(mut self, status: common_enums::PostCaptureVoidStatus) -> Self {
+    pub fn set_post_capture_void_data(
+        mut self,
+        status: common_enums::PostCaptureVoidStatus,
+    ) -> Self {
         self.post_capture_void = Some(PostCaptureVoidResponse { status });
         self
     }

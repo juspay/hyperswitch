@@ -98,6 +98,7 @@ pub async fn refund_create_core(
     utils::when(
         payment_intent
             .state_metadata
+            .as_ref()
             .map(|state_metadata| state_metadata.is_post_capture_void_applied())
             .unwrap_or(false),
         || {
@@ -110,14 +111,6 @@ pub async fn refund_create_core(
             ))
         },
     )?;
-
-    utils::when(amount <= MinorUnit::new(0), || {
-        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
-            expected_format: "positive integer".to_string()
-        })
-        .attach_printable("amount less than or equal to zero"))
-    })?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req
