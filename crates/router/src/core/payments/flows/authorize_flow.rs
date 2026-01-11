@@ -274,7 +274,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::BalanceCheckResult> {
-        // TODO: change this
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: &self.auth_type,

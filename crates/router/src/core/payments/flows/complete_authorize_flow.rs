@@ -173,7 +173,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
         _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::BalanceCheckResult> {
-        // TODO: change this
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
                 payment_method: Some(self.payment_method),
