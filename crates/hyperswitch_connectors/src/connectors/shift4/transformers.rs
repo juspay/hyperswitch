@@ -15,10 +15,13 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types::{PaymentsPreProcessingRouterData, RefundsRouterData},
+    types::{
+        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -27,11 +30,13 @@ use url::Url;
 
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, to_connector_meta, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+        PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 
@@ -94,6 +99,46 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsAuthorizeData {
         &self,
     ) -> Result<Option<serde_json::Value>, error_stack::Report<errors::ConnectorError>> {
         Ok(self.metadata.clone())
+    }
+}
+
+impl Shift4AuthorizePreprocessingCommon for PaymentsPreAuthenticateData {
+    fn get_email_optional(&self) -> Option<pii::Email> {
+        self.email.clone()
+    }
+
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
+    }
+
+    fn get_currency_required(
+        &self,
+    ) -> Result<enums::Currency, error_stack::Report<errors::ConnectorError>> {
+        self.currency.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            }
+            .into(),
+        )
+    }
+    fn get_payment_method_data_required(
+        &self,
+    ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.payment_method_data.clone())
+    }
+
+    fn is_automatic_capture(&self) -> Result<bool, Error> {
+        self.is_auto_capture()
+    }
+
+    fn get_router_return_url(&self) -> Option<String> {
+        self.router_return_url.clone()
+    }
+
+    fn get_metadata(
+        &self,
+    ) -> Result<Option<serde_json::Value>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
     }
 }
 
@@ -937,6 +982,47 @@ pub enum NextAction {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Shift4CardToken {
     pub id: Secret<String>,
+}
+
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<Shift4ThreeDsResponse>>
+    for PaymentsPreAuthenticateRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: PaymentsPreAuthenticateResponseRouterData<Shift4ThreeDsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item
+            .response
+            .redirect_url
+            .map(|url| RedirectForm::from((url, Method::Get)));
+        Ok(Self {
+            status: if redirection_data.is_some() {
+                enums::AttemptStatus::AuthenticationPending
+            } else {
+                enums::AttemptStatus::Pending
+            },
+            request: PaymentsPreAuthenticateData {
+                enrolled_for_3ds: item.response.enrolled,
+                ..item.data.request
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
+                connector_metadata: Some(
+                    serde_json::to_value(Shift4CardToken {
+                        id: item.response.token.id,
+                    })
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                ),
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>

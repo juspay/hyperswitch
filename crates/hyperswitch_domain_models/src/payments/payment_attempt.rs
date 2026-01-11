@@ -1481,6 +1481,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1704,6 +1706,8 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 payment_method_billing_address_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1723,6 +1727,8 @@ impl PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 network_transaction_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             },
             Self::UpdateTrackers {
                 payment_token,

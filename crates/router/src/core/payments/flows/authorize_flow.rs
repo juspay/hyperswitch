@@ -497,6 +497,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 authorize_router_data.request.related_transaction_id = related_transaction_id;
             }
             let should_continue_after_preauthenticate = match connector.connector_name {
+                // connector specific handling to decide whether to continue with authorize or not should not be done here
+                // this is just a temporary fix for Redsys and Shift4 connectors
                 api_models::enums::Connector::Redsys => match &authorize_router_data.response {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         connector_metadata,
@@ -513,6 +515,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }
                     _ => false,
                 },
+                api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
                 _ => false,
             };
