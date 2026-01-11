@@ -3333,27 +3333,14 @@ impl ConnectorSpecifications for Adyen {
     fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {
-                match &request_data.payment_method_data {
-                    payment_method_data::PaymentMethodData::GiftCard(giftcard_data)
-                        if giftcard_data.is_givex() =>
-                    {
-                        true
-                    }
-                    _ => false,
-                }
+                matches!(&request_data.payment_method_data, payment_method_data::PaymentMethodData::GiftCard(giftcard_data) if giftcard_data.is_givex())
             }
             api::CurrentFlowInfo::SetupMandate { request_data, .. } => {
-                match &request_data.payment_method_data {
-                    payment_method_data::PaymentMethodData::GiftCard(giftcard_data)
-                        if giftcard_data.is_givex() =>
-                    {
-                        true
-                    }
-                    _ => false,
-                }
+                matches!(&request_data.payment_method_data, payment_method_data::PaymentMethodData::GiftCard(giftcard_data) if giftcard_data.is_givex())
             }
-            // No complete authorize flow for Adyen
-            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
+                matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
+            }
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
