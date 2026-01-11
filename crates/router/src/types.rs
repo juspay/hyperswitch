@@ -719,6 +719,11 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+pub struct BalanceCheckResult {
+    pub balance_check_result: Result<Option<PaymentMethodBalance>, ErrorResponse>,
+    pub should_continue_payment: bool,
+}
+
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,

@@ -16,7 +16,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
-    payment_method_data::PaymentMethodData,
+    payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -372,7 +372,7 @@ impl ConnectorValidation for Adyen {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
+        pm_data: payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
@@ -3330,6 +3330,32 @@ static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[enums::EventClass] = &[
 ];
 
 impl ConnectorSpecifications for Adyen {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { request_data, .. } => {
+                match &request_data.payment_method_data {
+                    payment_method_data::PaymentMethodData::GiftCard(giftcard_data)
+                        if giftcard_data.is_givex() =>
+                    {
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            api::CurrentFlowInfo::SetupMandate { request_data, .. } => {
+                match &request_data.payment_method_data {
+                    payment_method_data::PaymentMethodData::GiftCard(giftcard_data)
+                        if giftcard_data.is_givex() =>
+                    {
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            // No complete authorize flow for Adyen
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ADYEN_CONNECTOR_INFO)
     }

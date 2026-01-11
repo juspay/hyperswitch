@@ -220,6 +220,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         if connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
                 auth_type: &self.auth_type,
+                request_data: &self.request,
             },
         ) {
             logger::info!(

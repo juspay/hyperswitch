@@ -1676,7 +1676,7 @@ impl ConnectorSpecifications for Nuvei {
                 request_data: _,
             } => *auth_type == enums::AuthenticationType::ThreeDs,
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type } => {
+            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
                 *auth_type == enums::AuthenticationType::ThreeDs
             }
         }

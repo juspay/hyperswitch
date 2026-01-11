@@ -8,15 +8,18 @@ use common_utils::types::MinorUnit;
 use common_utils::{errors, ext_traits::ValueExt, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
+use hyperswitch_connectors::constants as connector_consts;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse, payments as domain_payments,
-    router_data_v2::PaymentFlowData, router_response_types,
+    errors::api_error_response::ApiErrorResponse,
+    payments as domain_payments, router_data,
+    router_data_v2::{flow_common_types, PaymentFlowData},
+    router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
     api::{self as api_interface, gateway, ConnectorSpecifications},
-    errors as interface_errors,
+    consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
 use masking::ExposeInterface;
@@ -262,6 +265,117 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             }
         } else {
             Ok(self.clone())
+        }
+    }
+
+    async fn balance_check_flow<'a>(
+        &self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<types::BalanceCheckResult> {
+        // TODO: change this
+        if connector.connector.is_balance_check_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) {
+            logger::info!(
+                "Balance check flow is required for connector: {}",
+                connector.connector_name
+            );
+            let balance_check_request_data =
+                router_request_types::GiftCardBalanceCheckRequestData::try_from(
+                    self.request.to_owned(),
+                )?;
+            let balance_check_response_data: Result<
+                router_response_types::GiftCardBalanceCheckResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let balance_check_router_data = helpers::router_data_type_conversion::<
+                _,
+                router_flow_types::GiftCardBalanceCheck,
+                _,
+                _,
+                _,
+                _,
+            >(
+                self.clone(),
+                balance_check_request_data,
+                balance_check_response_data,
+            );
+
+            let connector_integration: services::connector_integration_interface::BoxedConnectorIntegrationInterface<
+                router_flow_types::GiftCardBalanceCheck,
+                flow_common_types::GiftCardBalanceCheckFlowData,
+                router_request_types::GiftCardBalanceCheckRequestData,
+                router_response_types::GiftCardBalanceCheckResponseData,
+            > = connector.connector.get_connector_integration();
+
+            let response_router_data = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &balance_check_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_payment_failed_response()?;
+
+            let balance_check_result = match &response_router_data.response {
+                Ok(router_response_types::GiftCardBalanceCheckResponseData {
+                    balance,
+                    currency,
+                }) => {
+                    logger::info!(
+                        "Requested amount and currency: {}, {}",
+                        self.request.minor_amount,
+                        self.request.currency
+                    );
+                    logger::info!(
+                        "Balance amount and currency recieved from connector : {}, {}",
+                        balance,
+                        currency
+                    );
+                    if *balance >= self.request.minor_amount {
+                        Ok(Some(router_data::PaymentMethodBalance {
+                            amount: *balance,
+                            currency: *currency,
+                        }))
+                    } else {
+                        // If balance is insufficient, return a connector error response
+                        // At this point, connector would have returned a success response with balance details
+                        Err(router_data::ErrorResponse {
+                            code: interface_consts::NO_ERROR_CODE.to_string(),
+                            message: interface_consts::NO_ERROR_MESSAGE.to_string(),
+                            reason: Some(connector_consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
+                            status_code: response_router_data
+                                .connector_http_status_code
+                                .unwrap_or(200),
+                            attempt_status: Some(enums::AttemptStatus::Failure),
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        })
+                    }
+                }
+                Err(err) => Err(err.clone()),
+            };
+            Ok(types::BalanceCheckResult {
+                // Continue with the payment only if ok response is recieved from balance check
+                should_continue_payment: balance_check_result.is_ok(),
+                balance_check_result,
+            })
+        } else {
+            Ok(types::BalanceCheckResult {
+                balance_check_result: Ok(None),
+                should_continue_payment: true,
+            })
         }
     }
 
