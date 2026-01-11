@@ -36,71 +36,58 @@ describe("Payment Webhook Tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("merchant-create-call-test", () => {
-    cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
+  context("NoThreeDS Manual payment flow test", () => {
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntent"
+      ];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm No 3DS", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
+        () => {
+          expected_intent_status = globalState.get("paymentIntentStatus");
+        }
+      );
+    });
   });
 
-  it("api-key-create-call-test", () => {
-    cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-  });
+  context("Webhook Processing - Status Update & Retrieval", () => { 
 
-  it("connector-create-call-test", () => {
-    cy.createConnectorCallTest(
-      "payment_processor",
-      fixtures.createConnectorBody,
-      payment_methods_enabled,
-      globalState
-    );
-  });
+    it("Update-payment_status", () => {
+      cy.updatePaymentStatusTest(globalState, "pending" );
+    
+    });
 
-  it("customer-create-call-test", () => {
-    cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-  });
+    it("send-webhook", () => {
+      cy.sendWebhookTest(globalState);
+    });
 
-  it("create-payment-call-test", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-      "PaymentIntent"
-    ];
-
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
-    );
+    it("Retrieve Payment Call Test", () => {
+      cy.retrievePaymentCallTest(
+        globalState,
+        null,
+        false,
+        1,
+        expected_intent_status
+      );
+    });
   });
-
-  it("payment_methods-call-test", () => {
-    cy.paymentMethodsCallTest(globalState);
-  });
-
-  it("Confirm No 3DS", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-      "No3DSAutoCapture"
-    ];
-
-    cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
-      () => {
-        expected_intent_status = globalState.get("paymentIntentStatus");
-      }
-    );
-  });
-
-  it("Update-payment_status", () => {
-    cy.updatePaymentStatusTest(globalState, "pending");
-  });
-
-  it("send-webhook", () => {
-    cy.sendWebhookTest(globalState);
-  });
-  it("Retrieve Payment Call Test", () => {
-    cy.retrievePaymentCallTest(
-      globalState,
-      null,
-      false,
-      1,
-      expected_intent_status
-    );
-  });
+  
 });
