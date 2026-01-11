@@ -7,7 +7,7 @@ use crate::{
     consts::oidc::{AUTH_CODE_TTL_IN_SECS, REDIS_AUTH_CODE_PREFIX},
     core::errors::oidc::{OidcErrors, OidcResult},
     routes::app::SessionState,
-    services::encryption,
+    services::{api::ApplicationResponse, encryption},
     types::domain::user::oidc::AuthCodeData,
     utils::user as user_utils,
 };
@@ -100,6 +100,26 @@ pub async fn delete_auth_code_from_redis(state: &SessionState, code: &str) -> Oi
         .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to delete authorization code from redis")
         .map(|_| ())
+}
+
+#[cfg(feature = "v1")]
+pub fn build_redirection_response(redirect_url: String) -> ApplicationResponse<()> {
+    use api_models::payments::RedirectionResponse;
+    ApplicationResponse::JsonForRedirection(RedirectionResponse {
+        headers: Vec::new(),
+        return_url: String::new(),
+        http_method: String::new(),
+        params: Vec::new(),
+        return_url_with_query_params: redirect_url,
+    })
+}
+
+#[cfg(feature = "v2")]
+pub fn build_redirection_response(redirect_url: String) -> ApplicationResponse<()> {
+    use api_models::payments::RedirectionResponse;
+    ApplicationResponse::JsonForRedirection(RedirectionResponse {
+        return_url_with_query_params: redirect_url,
+    })
 }
 
 /// Sign OIDC JWT tokens with RS256

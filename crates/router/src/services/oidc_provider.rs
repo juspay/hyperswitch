@@ -1,11 +1,8 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use api_models::{
-    oidc::{
-        Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizeQuery, OidcDiscoveryResponse,
-        OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
-    },
-    payments::RedirectionResponse,
+use api_models::oidc::{
+    Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizeQuery, OidcDiscoveryResponse,
+    OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
@@ -68,17 +65,19 @@ pub async fn get_jwks(state: SessionState) -> OidcResponse<&'static JwksResponse
 
 fn validate_authorize_params(payload: &OidcAuthorizeQuery, state: &SessionState) -> OidcResult<()> {
     if !payload.scope.contains(&Scope::Openid) {
-        return Err(report!(OidcErrors::InvalidScope));
+        return Err(report!(OidcErrors::InvalidScope))
+            .attach_printable("Missing required scope in authorization request");
     }
     let client = state
         .conf
         .oidc
         .get_inner()
         .get_client(&payload.client_id)
-        .ok_or_else(|| report!(OidcErrors::UnauthorizedClient))?;
+        .ok_or_else(|| report!(OidcErrors::UnauthorizedClient))
+        .attach_printable("Invalid client ID")?;
 
     if !oidc_utils::validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
-        return Err(report!(OidcErrors::InvalidRequest));
+        return Err(report!(OidcErrors::InvalidRequest)).attach_printable("Redirect URI mismatch");
     }
 
     Ok(())
@@ -124,35 +123,15 @@ pub async fn process_authorize_request(
     // Validate all parameters
     validate_authorize_params(&payload, &state)?;
     // TODO: Handle users who are not already logged in
-    let user = user.ok_or_else(|| report!(OidcErrors::AccessDenied))?;
+    let user = user
+        .ok_or_else(|| report!(OidcErrors::AccessDenied))
+        .attach_printable("Missing authenticated user session")?;
 
     let auth_code = generate_and_store_authorization_code(&state, &user.user_id, &payload).await?;
 
-    let redirect_url =
-        oidc_utils::build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)
-            .attach_printable("Failed to build redirect URL")?;
-
-    #[cfg(feature = "v1")]
-    {
-        Ok(ApplicationResponse::JsonForRedirection(
-            RedirectionResponse {
-                headers: Vec::new(),
-                return_url: String::new(),
-                http_method: String::new(),
-                params: Vec::new(),
-                return_url_with_query_params: redirect_url,
-            },
-        ))
-    }
-
-    #[cfg(feature = "v2")]
-    {
-        Ok(ApplicationResponse::JsonForRedirection(
-            RedirectionResponse {
-                return_url_with_query_params: redirect_url,
-            },
-        ))
-    }
+    oidc_utils::build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)
+        .attach_printable("Failed to build redirect URL")
+        .map(oidc_utils::build_redirection_response)
 }
 
 fn validate_token_request(
@@ -161,7 +140,8 @@ fn validate_token_request(
     redirect_uri: &str,
 ) -> OidcResult<()> {
     if redirect_uri.trim().is_empty() {
-        return Err(report!(OidcErrors::InvalidTokenRequest));
+        return Err(report!(OidcErrors::InvalidTokenRequest))
+            .attach_printable("Redirect URI is empty or contains only whitespace");
     }
 
     let registered_client = state
@@ -169,10 +149,12 @@ fn validate_token_request(
         .oidc
         .get_inner()
         .get_client(client_id)
-        .ok_or_else(|| report!(OidcErrors::InvalidClient))?;
+        .ok_or_else(|| report!(OidcErrors::InvalidClient))
+        .attach_printable("Invalid client ID")?;
 
     if !oidc_utils::validate_redirect_uri_match(&registered_client.redirect_uri, redirect_uri) {
-        return Err(report!(OidcErrors::InvalidTokenRequest));
+        return Err(report!(OidcErrors::InvalidTokenRequest))
+            .attach_printable("Redirect URI mismatch");
     }
 
     Ok(())
@@ -194,11 +176,11 @@ async fn validate_and_consume_authorization_code(
     }
 
     if !oidc_utils::validate_client_id_match(&auth_code_data.client_id, client_id) {
-        return Err(report!(OidcErrors::InvalidGrant));
+        return Err(report!(OidcErrors::InvalidGrant)).attach_printable("Client ID mismatch");
     }
 
     if !oidc_utils::validate_redirect_uri_match(&auth_code_data.redirect_uri, redirect_uri) {
-        return Err(report!(OidcErrors::InvalidGrant));
+        return Err(report!(OidcErrors::InvalidGrant)).attach_printable("Redirect URI mismatch");
     }
 
     Ok(auth_code_data)
