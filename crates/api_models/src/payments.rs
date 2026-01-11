@@ -6637,10 +6637,20 @@ pub enum IframeData {
         three_ds_method_data: Option<String>,
         /// ThreeDS Server ID
         #[smithy(value_type = "String")]
-        directory_server_id: Option<String>,
+        directory_server_id: String,
         /// ThreeDS Protocol version
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
+    },
+    #[serde(rename = "JWT")]
+    #[smithy(nested_value_type)]
+    DDCviaJWT {
+        /// DDC method url
+        #[smithy(value_type = "String")]
+        ddc_method_url: String,
+        /// JWT
+        #[smithy(value_type = "String")]
+        jwt: String,
     },
 }
 
@@ -6937,11 +6947,19 @@ pub struct SepaBankTransferInstructions {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
-    pub directory_server_id: Option<String>,
+    pub method_key: String,
+    pub directory_server_id: String,
     pub three_ds_method_url: String,
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct PaymentsConnectorDDCviaJWTData {
+    pub method_key: String,
+    pub ddc_method_url: String,
+    pub jwt: String,
 }
 
 #[derive(

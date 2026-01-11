@@ -392,8 +392,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 authorize_router_data.request.related_transaction_id = related_transaction_id;
             }
             let should_continue_after_preauthenticate = match connector.connector_name {
-                api_models::enums::Connector::Worldpayxml
-                | api_models::enums::Connector::Redsys => match &authorize_router_data.response {
+                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         connector_metadata,
                         ..
@@ -409,6 +408,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }
                     _ => false,
                 },
+                api_models::enums::Connector::Worldpayxml => {
+                    match &authorize_router_data.response {
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            connector_metadata,
+                            ..
+                        }) => {
+                            let ddc_via_jwt_data: Option<
+                                api_models::payments::PaymentsConnectorDDCviaJWTData,
+                            > = connector_metadata.clone().and_then(|metadata| {
+                                metadata.parse_value("PaymentsConnectorDDCviaJWTData").ok()
+                            });
+                            ddc_via_jwt_data.is_none()
+                        }
+                        _ => false,
+                    }
+                }
                 api_models::enums::Connector::Nuvei => true,
                 _ => false,
             };

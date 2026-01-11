@@ -13879,6 +13879,7 @@
             "required": [
               "three_ds_method_url",
               "three_ds_method_data_submission",
+              "directory_server_id",
               "method_key"
             ],
             "properties": {
@@ -13897,8 +13898,7 @@
               },
               "directory_server_id": {
                 "type": "string",
-                "description": "ThreeDS Server ID",
-                "nullable": true
+                "description": "ThreeDS Server ID"
               },
               "message_version": {
                 "type": "string",
@@ -13909,6 +13909,30 @@
                 "type": "string",
                 "enum": [
                   "threeDSMethodData"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ddc_method_url",
+              "jwt",
+              "method_key"
+            ],
+            "properties": {
+              "ddc_method_url": {
+                "type": "string",
+                "description": "DDC method url"
+              },
+              "jwt": {
+                "type": "string",
+                "description": "JWT"
+              },
+              "method_key": {
+                "type": "string",
+                "enum": [
+                  "JWT"
                 ]
               }
             }

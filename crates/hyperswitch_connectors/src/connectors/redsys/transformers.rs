@@ -647,6 +647,7 @@ pub struct ThreedsInvokeRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RedsysThreeDsInvokeData {
+    pub method_key: String,
     pub three_ds_method_url: String,
     pub three_ds_method_data: String,
     pub message_version: String,
@@ -840,6 +841,7 @@ fn build_threeds_invoke_response(
     let three_ds_method_data = BASE64_ENGINE.encode(&three_ds_data_string);
 
     let three_ds_data = RedsysThreeDsInvokeData {
+        method_key: "threeDSMethodData".to_string(),
         three_ds_method_url: three_d_s_method_u_r_l,
         three_ds_method_data,
         message_version: protocol_version.clone(),

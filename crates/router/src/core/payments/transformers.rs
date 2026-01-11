@@ -3800,12 +3800,7 @@ where
                                 },
                                 None => None
                             })
-                            .or(match next_action_invoke_hidden_frame{
-                                Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
-                                    threeds_invoke_data,
-                                )?),
-                                None => None
-                            });
+                            .or(next_action_invoke_hidden_frame.map(|iframe_data| api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data }));
             }
         };
 
@@ -4172,31 +4167,13 @@ pub fn wait_screen_next_steps_check(
 
 pub fn next_action_invoke_hidden_frame(
     payment_attempt: &storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::PaymentsConnectorThreeDsInvokeData>> {
-    let connector_three_ds_invoke_data: Option<
-        Result<api_models::payments::PaymentsConnectorThreeDsInvokeData, _>,
-    > = payment_attempt
+) -> RouterResult<Option<api_models::payments::IframeData>> {
+    let iframedata: Option<Result<api_models::payments::IframeData, _>> = payment_attempt
         .connector_metadata
         .clone()
-        .map(|metadata| metadata.parse_value("PaymentsConnectorThreeDsInvokeData"));
-
-    let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
-    Ok(three_ds_invoke_data)
-}
-
-pub fn construct_connector_invoke_hidden_frame(
-    connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
-) -> RouterResult<api_models::payments::NextActionData> {
-    let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {
-        three_ds_method_data_submission: connector_three_ds_invoke_data
-            .three_ds_method_data_submission,
-        three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
-        three_ds_method_url: connector_three_ds_invoke_data.three_ds_method_url,
-        directory_server_id: connector_three_ds_invoke_data.directory_server_id,
-        message_version: connector_three_ds_invoke_data.message_version,
-    };
-
-    Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
+        .map(|metadata| metadata.parse_value("IframeData"));
+    let data = iframedata.transpose().ok().flatten();
+    Ok(data)
 }
 
 #[cfg(feature = "v1")]

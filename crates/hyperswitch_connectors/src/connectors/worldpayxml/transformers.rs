@@ -672,11 +672,9 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayxmlDDCData {
-    pub three_ds_method_url: String,
-    pub three_ds_method_data: String,
-    pub message_version: Option<String>,
-    pub directory_server_id: Option<String>,
-    pub three_ds_method_data_submission: bool,
+    pub method_key: String,
+    pub ddc_method_url: String,
+    pub jwt: String,
 }
 
 use hyperswitch_domain_models::types::PaymentsPreAuthenticateRouterData;
@@ -694,18 +692,16 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
 
         let jwt = generate_jwt_for_ddc(metadata_for_jwt)?;
 
-        let three_ds_method_url = if router_env::env::which() == Env::Production {
+        let ddc_method_url = if router_env::env::which() == Env::Production {
             worldpayxml_constants::DDC_URL_LIVE.to_string()
         } else {
             worldpayxml_constants::DDC_URL_TEST.to_string()
         };
 
         let three_ds_data = WorldpayxmlDDCData {
-            three_ds_method_url,
-            three_ds_method_data: jwt,
-            message_version: None,
-            directory_server_id: None,
-            three_ds_method_data_submission: true,
+            method_key: "JWT".to_string(),
+            ddc_method_url,
+            jwt,
         };
 
         let connector_metadata = Some(
