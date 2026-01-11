@@ -4253,6 +4253,25 @@ where
             connector.connector_name
         );
         (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If balance check flow is bloated up for the current connector
+            // balance check call would have already happened in the previous step.
+            config
+                .balance_check_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        // If payment method tokenization flow is enabled for the current connector
+        // Skip calling complete_preprocessing_steps_if_required function
+        logger::info!(
+            "skipping preprocessing steps for connector as balance check is enabled: {}",
+            connector.connector_name
+        );
+        (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
             state,

@@ -280,7 +280,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) {
+        ) && state
+            .conf
+            .preprocessing_flow_config
+            .as_ref()
+            .is_some_and(|config| {
+                // check balance check flow is bloated up for the current connector
+                config
+                    .balance_check_bloated_connectors
+                    .contains(&connector.connector_name)
+            })
+        {
             logger::info!(
                 "Balance check flow is required for connector: {}",
                 connector.connector_name

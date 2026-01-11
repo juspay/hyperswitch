@@ -40,6 +40,7 @@ connection_timeout = 10
 [preprocessing_flow_config]
 authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard,shift4"
 order_create_bloated_connectors = "trustpay,payme"
+balance_check_bloated_connectors = "adyen"
 
 [redis]
 host = "127.0.0.1"
