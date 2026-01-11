@@ -394,7 +394,7 @@ mod tests {
         #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");
@@ -494,7 +494,7 @@ mod tests {
 
         let db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");

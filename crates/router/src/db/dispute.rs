@@ -513,7 +513,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create a mock DB");
 
@@ -552,7 +552,7 @@ mod tests {
             let merchant_id =
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -607,7 +607,7 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -649,7 +649,7 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -709,7 +709,7 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::new())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
@@ -774,7 +774,7 @@ mod tests {
 
                 let mockdb = MockDb::new(
                     &redis_interface::RedisSettings::default(),
-                    common_utils::types::keymanager::KeyManagerState::new(),
+                    common_utils::types::keymanager::KeyManagerState::mock(),
                 )
                 .await
                 .expect("Failed to create Mock store");
@@ -861,7 +861,7 @@ mod tests {
 
                 let mockdb = MockDb::new(
                     &redis_interface::RedisSettings::default(),
-                    common_utils::types::keymanager::KeyManagerState::new(),
+                    common_utils::types::keymanager::KeyManagerState::mock(),
                 )
                 .await
                 .expect("Failed to create Mock store");
@@ -943,7 +943,7 @@ mod tests {
 
                 let mockdb = MockDb::new(
                     &redis_interface::RedisSettings::default(),
-                    common_utils::types::keymanager::KeyManagerState::new(),
+                    common_utils::types::keymanager::KeyManagerState::mock(),
                 )
                 .await
                 .expect("Failed to create Mock store");
