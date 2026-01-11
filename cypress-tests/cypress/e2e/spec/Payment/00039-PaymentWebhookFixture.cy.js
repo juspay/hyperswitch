@@ -37,9 +37,9 @@ describe("Payment Webhook Tests", () => {
 
   context("NoThreeDS Manual payment flow test", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -55,9 +55,9 @@ describe("Payment Webhook Tests", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
         () => {
@@ -67,11 +67,9 @@ describe("Payment Webhook Tests", () => {
     });
   });
 
-  context("Webhook Processing - Status Update & Retrieval", () => { 
-
+  context("Webhook Processing - Status Update & Retrieval", () => {
     it("Update-payment_status", () => {
-      cy.updatePaymentStatusTest(globalState, "pending" );
-    
+      cy.updatePaymentStatusTest(globalState, "pending");
     });
 
     it("send-webhook", () => {
@@ -88,5 +86,4 @@ describe("Payment Webhook Tests", () => {
       );
     });
   });
-  
 });
