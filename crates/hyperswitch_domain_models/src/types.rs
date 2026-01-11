@@ -17,6 +17,7 @@ use crate::{
         GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
         RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        ProcessIncomingWebhook, 
     },
     router_request_types::{
         revenue_recovery::{
@@ -31,7 +32,7 @@ use crate::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData,UasWebhookRequestData
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
@@ -124,6 +125,10 @@ pub type UasAuthenticationConfirmationRouterData = RouterData<
     UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >;
+
+pub type UasProcessWebhookRouterData =
+    RouterData<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>;
+
 
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;

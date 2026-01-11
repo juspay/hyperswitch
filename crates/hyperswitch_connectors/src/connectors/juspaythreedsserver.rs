@@ -10,20 +10,14 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync},
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, access_token_auth::AccessTokenAuth, payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void}, refunds::{Execute, RSync}
     },
     router_request_types::{
-        unified_authentication_service::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData, unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
-        },
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+            UasPreAuthenticationRequestData,UasWebhookRequestData
+        }
     },
     router_response_types::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
@@ -79,6 +73,7 @@ impl api::UasPreAuthentication for Juspaythreedsserver {}
 impl api::UasPostAuthentication for Juspaythreedsserver {}
 impl api::UasAuthenticationConfirmation for Juspaythreedsserver {}
 impl api::UasAuthentication for Juspaythreedsserver {}
+impl api::UasProcessWebhook for Juspaythreedsserver {}
 
 impl
     ConnectorIntegration<
@@ -102,6 +97,15 @@ impl
     ConnectorIntegration<
         AuthenticationConfirmation,
         UasConfirmationRequestData,
+        UasAuthenticationResponseData,
+    > for Juspaythreedsserver
+{
+}
+
+impl
+    ConnectorIntegration<
+        ProcessIncomingWebhook,
+        UasWebhookRequestData,
         UasAuthenticationResponseData,
     > for Juspaythreedsserver
 {

@@ -50,22 +50,17 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
-        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
+        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData, flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData}
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource, mandate_revoke::MandateRevoke
     },
     router_request_types::{
-        self,
-        unified_authentication_service::{
+        self, AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData, unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
-        },
-        AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
-        VerifyWebhookSourceRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
+        }
     },
     router_response_types::{
         self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
@@ -672,6 +667,13 @@ pub trait UnifiedAuthenticationService:
     + UasPostAuthentication
     + UasAuthenticationConfirmation
     + UasAuthentication
+    + UasProcessWebhook
+{
+}
+
+///trait UasProcessWebhook
+pub trait UasProcessWebhook:
+    ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>
 {
 }
 
@@ -718,6 +720,7 @@ pub trait UnifiedAuthenticationServiceV2:
     + UasPostAuthenticationV2
     + UasAuthenticationV2
     + UasAuthenticationConfirmationV2
+    + UasProcessWebhookV2
 {
 }
 
@@ -751,6 +754,12 @@ pub trait UasAuthenticationConfirmationV2:
     UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >
+{
+}
+
+///trait UasProcessWebhookV2
+pub trait UasProcessWebhookV2:
+    ConnectorIntegrationV2<ProcessIncomingWebhook, UasFlowData, UasWebhookRequestData, UasAuthenticationResponseData>
 {
 }
 

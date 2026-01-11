@@ -1122,3 +1122,4 @@ where
         id: &id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, Self::Error>;
 }
+

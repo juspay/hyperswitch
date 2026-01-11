@@ -22,7 +22,7 @@ use api_models::{
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor, errors::ReportSwitchExt};
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -30,13 +30,9 @@ use hyperswitch_domain_models::{
     ext_traits::OptionExt,
     payment_method_data,
     router_request_types::{
-        authentication::{MessageCategory, PreAuthenticationData},
-        unified_authentication_service::{
-            AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData,
-            TransactionDetails, UasAuthenticationRequestData, UasConfirmationRequestData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
-        },
-        BrowserInformation,
+        BrowserInformation, authentication::{MessageCategory, PreAuthenticationData}, unified_authentication_service::{
+            AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData, TransactionDetails, UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData, UasPostAuthenticationRequestData, UasPreAuthenticationRequestData
+        }
     },
     types::{
         UasAuthenticationRouterData, UasPostAuthenticationRouterData,
@@ -44,6 +40,8 @@ use hyperswitch_domain_models::{
     },
 };
 use masking::{ExposeInterface, PeekInterface};
+
+use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse;
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -61,12 +59,15 @@ use crate::{
             UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
+        webhooks::incoming::WebhookProcessingResult,
     },
     db::domain,
     routes::SessionState,
     services::AuthFlow,
     types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
+use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, IncomingWebhook};
+
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl UnifiedAuthenticationService for ClickToPay {
@@ -1150,6 +1151,7 @@ pub async fn authentication_eligibility_core(
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
         merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
         notification_url,
+        webhook_url:None
     });
 
     let domain_address = req
@@ -2305,4 +2307,73 @@ pub async fn get_session_token_for_click_to_pay(
             },
         )),
     )
+}
+
+pub async fn process_uas_incoming_webhook<'a>(
+    state: &'a SessionState,
+    incoming_webhook_request: &IncomingWebhookRequestDetails<'a>,
+    connector_name: String,
+    connector_integration: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum
+) -> RouterResult<WebhookProcessingResult<'a>> {
+    let webhook_data = utils::get_webhook_request_data_for_uas(incoming_webhook_request);
+
+    let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
+        utils::construct_uas_webhook_router_data(state,connector_name.to_string(), webhook_data, None)?; // check of paymentId is present
+
+    let response = utils::do_auth_connector_call(
+        state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        webhook_router_data,
+    )
+    .await?;
+
+    let response_body = match response.response {
+        Ok(resp) => match resp {
+            UasAuthenticationResponseData::Webhook {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+                authentication_id,
+                results_request,
+                results_response
+
+            } => Ok(WebhookResponse {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+                authentication_id,
+                results_request,
+                results_response
+            }),
+            _ => {
+                router_env::logger::error!("received unknown webhook response from uas");
+                Err(ApiErrorResponse::WebhookProcessingFailure)
+            }
+        },
+        Err(err) => {
+            router_env::logger::error!("error processing webhook {:?}", err);
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+        }
+    }?;
+
+
+    let event_type = connector_integration.get_webhook_event_type(incoming_webhook_request).switch()
+    .attach_printable("Could not get webhook event")?;
+
+    let decoded_body = response_body.to_bytes().inspect_err(|err| {
+        router_env::logger::error!("error converting uas webhook response to bytes: {}", err);
+    }).change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("error converting uas webhook response to bytes")?;
+
+    let webhook_result = WebhookProcessingResult {
+        event_type,
+        source_verified: false,
+        transform_data: None,
+        decoded_body: Some(decoded_body),
+        shadow_ucs_data: None,
+    };
+
+    Ok(webhook_result)
 }

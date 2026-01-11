@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Instant};
+use std::{collections::HashSet, str::FromStr, time::Instant};
 
 use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
@@ -41,6 +41,7 @@ use crate::{
         payments::{self, tokenization},
         refunds, relay, unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
+        unified_authentication_service::types::UNIFIED_AUTHENTICATION_SERVICE
     },
     db::StorageInterface,
     events::api_logs::ApiEvent,
@@ -220,7 +221,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
-
     let request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -229,89 +229,131 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         body: &body,
     };
 
-    // Fetch the merchant connector account to get the webhooks source secret
-    let (merchant_connector_account, connector, connector_name) =
-        fetch_optional_mca_and_connector(&state, &platform, connector_name_or_mca_id).await?;
+    let three_ds_execution_path = fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state).await?;
 
-    // Determine webhook processing path (Direct vs UCS vs Shadow UCS) and handle event type extraction
-    let execution_path =
-        unified_connector_service::should_call_unified_connector_service_for_webhooks(
-            &state,
-            &platform,
-            &connector_name,
-        )
-        .await?;
+    let (connector, connector_name, webhook_processing_result) = match three_ds_execution_path {
+        ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
+            // Mutating connector to Unified Authentication Service from connector_name since for authentication we need to go to authentication service connector integration
+            let connector_name = mca_data.connector_name.clone();
 
-    let webhook_processing_result = match execution_path {
-        common_enums::ExecutionPath::UnifiedConnectorService => {
-            logger::info!(
-                connector = connector_name,
-                "Using Unified Connector Service for webhook processing",
-            );
-            process_ucs_webhook_transform(
-                &state,
-                &platform,
-                &connector_name,
-                &body,
-                &request_details,
-                merchant_connector_account.as_ref(),
-            )
-            .await
-        }
-        common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
-            logger::info!(
-                connector = connector_name,
-                "Using Shadow Unified Connector Service for webhook processing",
-            );
-            process_shadow_ucs_webhook_transform(
-                &state,
-                &platform,
-                &connector,
-                &connector_name,
-                &body,
-                &request_details,
-                merchant_connector_account.as_ref(),
-            )
-            .await
-        }
-        common_enums::ExecutionPath::Direct => {
-            logger::info!(
-                connector = connector_name,
-                "Using Direct connector processing for webhook",
-            );
-            // DIRECT PATH: Need to decode body first
-            let decoded_body = connector
-                .decode_webhook_body(
+            let (uas_connector, _) =
+                get_connector_by_connector_name(
+                    &state,
+                    UNIFIED_AUTHENTICATION_SERVICE,
+                    None,
+                )?;
+
+            let webhook_processing_result =
+                crate::core::unified_authentication_service::process_uas_incoming_webhook(
+                    &state,
                     &request_details,
-                    platform.get_processor().get_account().get_id(),
-                    merchant_connector_account
-                        .clone()
-                        .and_then(|mca| mca.connector_webhook_details.clone()),
-                    &connector_name,
+                    connector_name.clone(),
+                    uas_connector.clone(),
                 )
-                .await
-                .switch()
-                .attach_printable("There was an error in incoming webhook body decoding")?;
+                .await;
 
-            process_non_ucs_webhook(
-                &state,
-                &platform,
-                &connector,
-                &connector_name,
-                decoded_body.into(),
-                &request_details,
+            (
+                uas_connector,
+                connector_name,
+                webhook_processing_result,
             )
-            .await
         }
+        ThreeDsProcessingMode::Direct(ref mca_data) => {
+            let connector = mca_data.connector.clone();
+            let connector_name = mca_data.connector_name.clone();
+            
+            // Determine webhook processing path (Direct vs UCS vs Shadow UCS) and handle event type extraction
+            let execution_path =
+                unified_connector_service::should_call_unified_connector_service_for_webhooks(
+                    &state,
+                    &platform,
+                    &mca_data.connector_name,
+                )
+                .await?;
+        
+            let webhook_processing_result = match execution_path {
+                common_enums::ExecutionPath::UnifiedConnectorService => {
+                    logger::info!(
+                        connector = connector_name,
+                        "Using Unified Connector Service for webhook processing",
+                    );
+                    process_ucs_webhook_transform(
+                        &state,
+                        &platform,
+                        &mca_data.connector_name,
+                        &body,
+                        &request_details,
+                        mca_data.merchant_connector_account.as_ref(),
+                    )
+                    .await
+                }
+        
+                common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                    logger::info!(
+                        connector = connector_name,
+                        "Using Shadow Unified Connector Service for webhook processing",
+                    );
+                    process_shadow_ucs_webhook_transform(
+                        &state,
+                        &platform,
+                        &mca_data.connector,
+                        &mca_data.connector_name,
+                        &body,
+                        &request_details,
+                        mca_data.merchant_connector_account.as_ref(),
+                    )
+                    .await
+                }
+        
+                common_enums::ExecutionPath::Direct => {
+                    logger::info!(
+                        connector = connector_name,
+                        "Using Direct connector processing for webhook",
+                    );
+                    // DIRECT PATH: Need to decode body first
+                    let decoded_body = mca_data
+                        .connector
+                        .decode_webhook_body(
+                            &request_details,
+                            platform.get_processor().get_account().get_id(),
+                            mca_data.merchant_connector_account
+                                .clone()
+                                .and_then(|mca| mca.connector_webhook_details.clone()),
+                            &mca_data.connector_name,
+                        )
+                        .await
+                        .switch()
+                        .attach_printable(
+                            "There was an error in incoming webhook body decoding",
+                        )?;
+        
+                    process_non_ucs_webhook(
+                        &state,
+                        &platform,
+                        &mca_data.connector,
+                        &mca_data.connector_name,
+                        decoded_body.into(),
+                        &request_details,
+                    )
+                    .await
+                }
+            };
+        
+            (
+                connector,
+                connector_name,
+                webhook_processing_result,
+            )
+        }
+        
     };
-
     let mut webhook_processing_result = match webhook_processing_result {
         Ok(result) => result,
         Err(error) => {
             let error_result = handle_incoming_webhook_error(
                 error,
                 &connector,
-                connector_name.as_str(),
+                &connector_name,
                 &request_details,
                 platform.get_processor().get_account().get_id(),
             );
@@ -434,6 +476,38 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     Ok((response, webhook_effect, serialized_request))
 }
 
+async fn fetch_three_ds_execution_path(
+    platform: &domain::Platform,
+    connector_name_or_mca_id: &str,
+    state: &SessionState
+) -> errors::RouterResult<ThreeDsProcessingMode> {
+    let (merchant_connector_account, connector, connector_name) = fetch_optional_mca_and_connector(&state, &platform, connector_name_or_mca_id).await?;
+
+    let mca_details = MerchantConnectorDetails {
+        merchant_connector_account,
+        connector,
+        connector_name: connector_name.clone()
+    };
+
+    let eligible_connector_list = state.conf.authentication_service_enabled_connectors.connector_list.clone();
+    let connector_enum = Connector::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    let is_eligible_for_uas =
+    payments::helpers::is_merchant_eligible_authentication_service(&platform.get_processor().get_account().get_id().clone(), &state)
+        .await?;
+    
+    if is_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
+        return Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(mca_details));
+    }
+    else {
+        return Ok(ThreeDsProcessingMode::Direct(mca_details));
+    }
+}
+
+
 /// Process UCS webhook transformation using the high-level UCS abstraction
 async fn process_ucs_webhook_transform<'a>(
     state: &'a SessionState,
@@ -475,12 +549,33 @@ pub struct ShadowUcsData<'a> {
 
 /// Result type for webhook processing path determination
 pub struct WebhookProcessingResult<'a> {
-    event_type: webhooks::IncomingWebhookEvent,
-    source_verified: bool,
-    transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
-    decoded_body: Option<actix_web::web::Bytes>,
-    shadow_ucs_data: Option<ShadowUcsData<'a>>,
+    pub event_type: webhooks::IncomingWebhookEvent,
+    pub source_verified: bool,
+    pub transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
+    pub decoded_body: Option<actix_web::web::Bytes>,
+    pub shadow_ucs_data: Option<ShadowUcsData<'a>>,
 }
+
+#[derive(Clone, Debug)]
+pub struct MerchantConnectorDetails {
+    /// Merchant Connector Account
+    pub merchant_connector_account: Option<hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount>,
+    /// Connector
+    pub connector:ConnectorEnum,
+    pub connector_name : String
+}
+
+
+#[derive(
+    Clone,
+    Debug,
+)]
+/// Indicates the execution path through which the authentication is processed.
+pub enum ThreeDsProcessingMode {
+    Direct(MerchantConnectorDetails),
+    UnifiedAuthenticationService(MerchantConnectorDetails)
+}
+
 
 /// Process shadow UCS webhook transformation with dual execution (UCS + Direct)
 async fn process_shadow_ucs_webhook_transform<'a>(

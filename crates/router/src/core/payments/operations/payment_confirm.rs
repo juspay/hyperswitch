@@ -1475,7 +1475,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                             Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication { .. })
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {})
-                            | Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. }) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected response received from unified authentication service")?,
+                            | Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. }) 
+                            | Ok(unified_authentication_service::UasAuthenticationResponseData::Webhook { .. })=> Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected response received from unified authentication service")?,
                             Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                         };
                         payment_data.payment_attempt.payment_method =
@@ -1586,11 +1587,26 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 &payment_data.payment_attempt.clone(),
                 payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
             );
+            let mca_id_option = three_ds_connector_account.get_mca_id();
+
+            let merchant_connector_account_id_or_connector_name = mca_id_option
+                .as_ref()
+                .map(|mca_id| mca_id.get_string_repr())
+                .unwrap_or(&authentication_connector_name);
+
+            let webhook_url = Some(url::Url::parse(&helpers::create_webhook_url(
+                &state.base_url,
+                &authentication.merchant_id,
+                merchant_connector_account_id_or_connector_name,
+            )))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook notification url")?;
 
             let notification_url = Some(url::Url::parse(&return_url))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse webhook url")?;
+                .attach_printable("Failed to parse authorise notification url")?;
 
             let merchant_category_code = business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code.clone()));
 
@@ -1604,6 +1620,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
                 merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
                 notification_url,
+                webhook_url
             });
             let domain_address  = payment_data.address.get_payment_method_billing();
             let shipping = payment_data.address.get_shipping();

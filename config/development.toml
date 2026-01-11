@@ -1392,6 +1392,9 @@ allow_connected_merchants = true
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
+
 [open_router]
 dynamic_routing_enabled = false
 static_routing_enabled = false

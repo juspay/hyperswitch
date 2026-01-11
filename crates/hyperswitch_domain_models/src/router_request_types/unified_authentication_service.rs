@@ -29,6 +29,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub notification_url: Option<url::Url>,
+    pub webhook_url: Option<url::Url>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -107,6 +108,15 @@ pub enum UasAuthenticationResponseData {
         authentication_details: PostAuthenticationDetails,
     },
     Confirmation {},
+    Webhook {
+        trans_status: common_enums::TransactionStatus,
+        authentication_value: Option<Secret<String>>,
+        eci: Option<String>,
+        three_ds_server_transaction_id: String,
+        authentication_id : Option<common_utils::id_type::AuthenticationId>,
+        results_request: Option<serde_json::Value>,
+        results_response: Option<serde_json::Value>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -224,4 +234,10 @@ impl From<PostAuthenticationDetails>
             (None, None) => None,
         }
     }
+}
+
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct UasWebhookRequestData {
+    pub body: Vec<u8>,
 }

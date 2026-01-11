@@ -4,77 +4,45 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse},
     router_data_v2::flow_common_types,
     router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
-        files::{Retrieve, Upload},
-        mandate_revoke::MandateRevoke,
-        payments::{
+        AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck, ProcessIncomingWebhook, access_token_auth::AccessTokenAuth, dispute::{Accept, Defend, Dsync, Evidence, Fetch}, files::{Retrieve, Upload}, mandate_revoke::MandateRevoke, payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
             InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
             PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
             UpdateMetadata, Void,
-        },
-        refunds::{Execute, RSync},
-        revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
-        subscriptions::{
+        }, refunds::{Execute, RSync}, revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack}, subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
-        },
-        unified_authentication_service::{
+        }, unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        },
-        vault::{
+        }, vault::{
             ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
             ExternalVaultRetrieveFlow,
-        },
-        webhooks::VerifyWebhookSource,
-        AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck,
+        }, webhooks::VerifyWebhookSource
     },
     router_request_types::{
-        revenue_recovery::{
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData, revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
-        },
-        subscriptions::{
+        }, subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
             GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
-        },
-        unified_authentication_service::{
+        }, unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
-        },
-        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
-        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
-        FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
+        }
     },
     router_response_types::{
-        revenue_recovery::{
+        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData, revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
-        },
-        subscriptions::{
+        }, subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
-        },
-        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
-        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        }
     },
 };
 #[cfg(feature = "payouts")]
@@ -313,6 +281,13 @@ pub type UasAuthenticationConfirmationType = dyn ConnectorIntegration<
 pub type UasAuthenticationType = dyn ConnectorIntegration<
     Authenticate,
     UasAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>`
+pub type UasProcessWebhookType = dyn ConnectorIntegration<
+    ProcessIncomingWebhook,
+    UasWebhookRequestData,
     UasAuthenticationResponseData,
 >;
 

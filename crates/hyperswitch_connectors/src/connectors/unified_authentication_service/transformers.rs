@@ -1075,3 +1075,31 @@ impl<F, T>
         })
     }
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<Secret<String>>,
+    /// eci
+    pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: String,
+    /// authentication_id
+    pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
+    /// The received Results Request from the Directory Server.
+    pub results_request: Option<serde_json::Value>,
+    /// The sent Results Response to the Directory Server.
+    pub results_response: Option<serde_json::Value>,
+
+}
+
+impl WebhookResponse {
+    /// Convert the WebhookResponse to Bytes using JSON serialization
+    pub fn to_bytes(&self) -> Result<actix_web::web::Bytes, serde_json::Error> {
+        let json_bytes = serde_json::to_vec(self)?;
+        Ok(actix_web::web::Bytes::from(json_bytes))
+    }
+}
