@@ -26953,9 +26953,9 @@
             ],
             "nullable": true
           },
-          "frm": {
+          "frm_id": {
             "type": "string",
-            "description": "Fraud Session ID received from the DDC call",
+            "description": "Fraud/Session ID received from the DDC call",
             "nullable": true
           }
         }

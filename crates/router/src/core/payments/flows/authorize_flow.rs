@@ -425,7 +425,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         }
                         _ => false,
                     }
-                },
+                }
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
                 _ => false,

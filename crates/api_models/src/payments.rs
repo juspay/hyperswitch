@@ -10764,9 +10764,8 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub client_secret: Secret<String>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
-    /// Fraud Session ID received from the DDC call
-    #[schema(value_type = Option<String>)]
-    pub frm: Option<Secret<String>>,
+    /// Fraud/Session ID received from the DDC call
+    pub frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
