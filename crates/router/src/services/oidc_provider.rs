@@ -64,10 +64,13 @@ pub async fn get_jwks(state: SessionState) -> OidcResponse<&'static JwksResponse
 }
 
 fn validate_authorize_params(payload: &OidcAuthorizeQuery, state: &SessionState) -> OidcResult<()> {
-    if !payload.scope.contains(&Scope::Openid) {
-        return Err(report!(OidcErrors::InvalidScope))
-            .attach_printable("Missing required scope in authorization request");
-    }
+    payload
+        .scope
+        .contains(&Scope::Openid)
+        .then_some(())
+        .ok_or_else(|| report!(OidcErrors::InvalidScope))
+        .attach_printable("Missing required scope in authorization request")?;
+
     let client = state
         .conf
         .oidc
@@ -76,11 +79,10 @@ fn validate_authorize_params(payload: &OidcAuthorizeQuery, state: &SessionState)
         .ok_or_else(|| report!(OidcErrors::UnauthorizedClient))
         .attach_printable("Invalid client ID")?;
 
-    if !oidc_utils::validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
-        return Err(report!(OidcErrors::InvalidRequest)).attach_printable("Redirect URI mismatch");
-    }
-
-    Ok(())
+    oidc_utils::validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri)
+        .then_some(())
+        .ok_or_else(|| report!(OidcErrors::InvalidRequest))
+        .attach_printable("Redirect URI mismatch")
 }
 
 async fn generate_and_store_authorization_code(
