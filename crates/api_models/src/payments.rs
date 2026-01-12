@@ -82,6 +82,7 @@ use crate::{
         CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
         WalletAdditionalDataForCard,
     },
+    platform,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, refunds, ValidateFieldAndGet};
@@ -3291,6 +3292,15 @@ pub struct PaymentMethodDataRequest {
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
     pub billing: Option<Address>,
+}
+
+impl PaymentMethodDataRequest {
+    pub fn get_card(&self) -> Option<Card> {
+        match &self.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => Some(card.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -6523,7 +6533,7 @@ pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
     RedirectToUrl {
-        #[schema(value_type = String)]
+        #[schema(value_type = String, example = "https://example.com/redirect")]
         redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
@@ -7080,6 +7090,20 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<i64>, example = 6540)]
     #[smithy(value_type = "Option<i64>")]
     pub amount_received: Option<MinorUnit>,
+
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    #[smithy(value_type = "String")]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    #[smithy(value_type = "Option<Initiator>")]
+    pub initiator: Option<platform::Initiator>,
 
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
@@ -8200,24 +8224,32 @@ pub struct PaymentsStatusRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
+    #[schema(value_type = String, example = "card_declined")]
     pub code: String,
     /// The error message
+    #[schema(value_type = String, example = "The card was declined.")]
     pub message: String,
     /// The detailed error reason that was returned by the connector.
+    #[schema(value_type = Option<String>, example = "The card was declined.")]
     pub reason: Option<String>,
     /// The unified error code across all connectors.
     /// This can be relied upon for taking decisions based on the error.
+    #[schema(value_type = Option<String>, example = "card_declined")]
     pub unified_code: Option<String>,
     /// The unified error message across all connectors.
     /// If there is a translation available, this will have the translated message
+    #[schema(value_type = Option<String>, example = "The card was declined.")]
     pub unified_message: Option<String>,
     /// This field can be returned for both approved and refused Mastercard payments.
     /// This code provides additional information about the type of transaction or the reason why the payment failed.
     /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    #[schema(value_type = Option<String>, example = "01")]
     pub network_advice_code: Option<String>,
     /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    #[schema(value_type = Option<String>, example = "05")]
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    #[schema(value_type = Option<String>, example = "Do not retry")]
     pub network_error_message: Option<String>,
 }
 
@@ -8265,6 +8297,18 @@ pub struct PaymentsResponse {
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    pub initiator: Option<platform::Initiator>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]

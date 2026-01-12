@@ -450,6 +450,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ZiftCaptureResponse>> for Payment
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -534,6 +535,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: item.response.transaction_id.map(|id| id.to_string()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -613,6 +615,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -739,6 +742,7 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                 status_code: item.http_code,
                 attempt_status: Some(attempt_status),
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -853,6 +857,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ZiftVoidResponse>> for PaymentsCan
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -908,14 +913,12 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        if let Some(amount) = item.request.amount {
-            if amount > 0 {
-                return Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Setup Mandate with non zero amount".to_string(),
-                    connector: "Zift".to_string(),
-                }
-                .into());
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "Zift".to_string(),
             }
+            .into());
         }
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
 
@@ -1013,6 +1016,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: item.response.transaction_id.map(|id| id.to_string()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

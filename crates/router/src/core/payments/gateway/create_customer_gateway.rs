@@ -21,6 +21,7 @@ use crate::{
         unified_connector_service::handle_unified_connector_service_response_for_create_connector_customer,
     },
     routes::SessionState,
+    services::logger,
     types::{self, transformers::ForeignTryFrom},
 };
 
@@ -122,6 +123,17 @@ where
                         create_connector_customer_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
+
+                let connector_customer_result = match connector_customer_result {
+                    Ok(response) => Ok(response),
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
 
                 router_data.response = connector_customer_result;
                 router_data.connector_http_status_code = Some(status_code);

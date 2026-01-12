@@ -2973,6 +2973,47 @@
         ]
       }
     },
+    "/v2/payment-methods/token/{payment_method_temporary_token}/details": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Get Payment Method Token Data",
+        "description": "Retrieve the Payment method id associated with a payment method token.",
+        "operationId": "Get Payment Method Token Data",
+        "parameters": [
+          {
+            "name": "payment_method_temporary_token",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Token Data Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodGetTokenDetailsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found | Payment method token either expired or does not exist"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
       "post": {
         "tags": [
@@ -3087,7 +3128,7 @@
               "examples": {
                 "Update the card holder name": {
                   "value": {
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
                   }
                 }
               }
@@ -3097,11 +3138,11 @@
         },
         "responses": {
           "200": {
-            "description": "The payment method has been updated successfully",
+            "description": "The payment method has been deleted successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                  "$ref": "#/components/schemas/PaymentMethodDeleteSessionResponse"
                 }
               }
             }
@@ -3188,10 +3229,11 @@
                   "value": {
                     "payment_method_data": {
                       "card": {
+                        "card_cvc": "456",
                         "card_holder_name": "Narayan Bhat"
                       }
                     },
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
                   }
                 }
               }
@@ -3205,7 +3247,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
                 }
               }
             }
@@ -3282,7 +3324,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
                 }
               }
             }
@@ -5335,6 +5377,46 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "AssociatedPaymentMethodTokenType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_session_token"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "Payment Method Session Token",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+              }
+            }
+          }
+        ],
+        "description": "Token type for Payment Method Session associated payment methods",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "AssociatedPaymentMethods": {
+        "type": "object",
+        "description": "Details of associated payment methods for Payment Methods Session",
+        "required": [
+          "payment_method_token"
+        ],
+        "properties": {
+          "payment_method_token": {
+            "$ref": "#/components/schemas/AssociatedPaymentMethodTokenType"
           }
         }
       },
@@ -8176,6 +8258,26 @@
           }
         }
       },
+      "CardCVCTokenStorageDetails": {
+        "type": "object",
+        "required": [
+          "is_stored"
+        ],
+        "properties": {
+          "is_stored": {
+            "type": "boolean",
+            "description": "Indicates whether the card cvc is stored or not",
+            "example": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines expiry for stored card cvc token",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          }
+        }
+      },
       "CardDetail": {
         "type": "object",
         "required": [
@@ -8261,26 +8363,32 @@
           },
           "last4_digits": {
             "type": "string",
+            "example": "4242",
             "nullable": true
           },
           "expiry_month": {
             "type": "string",
+            "example": "10",
             "nullable": true
           },
           "expiry_year": {
             "type": "string",
+            "example": "25",
             "nullable": true
           },
           "card_holder_name": {
             "type": "string",
+            "example": "John Doe",
             "nullable": true
           },
           "card_fingerprint": {
             "type": "string",
+            "example": "fingerprint_12345",
             "nullable": true
           },
           "nick_name": {
             "type": "string",
+            "example": "Card",
             "nullable": true
           },
           "card_network": {
@@ -8293,18 +8401,22 @@
           },
           "card_isin": {
             "type": "string",
+            "example": "4567890",
             "nullable": true
           },
           "card_issuer": {
             "type": "string",
+            "example": "Issuer Bank",
             "nullable": true
           },
           "card_type": {
             "type": "string",
+            "example": "Credit",
             "nullable": true
           },
           "saved_to_locker": {
-            "type": "boolean"
+            "type": "boolean",
+            "example": true
           }
         }
       },
@@ -8323,6 +8435,12 @@
             "type": "string",
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
+            "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
             "nullable": true
           }
         },
@@ -9135,6 +9253,7 @@
           "worldpay",
           "worldpayvantiv",
           "worldpayxml",
+          "worldpaymodular",
           "signifyd",
           "plaid",
           "riskified",
@@ -10542,8 +10661,7 @@
       "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
-          "id",
-          "payment_token",
+          "payment_method_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
@@ -10554,12 +10672,7 @@
           "is_default"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
-          },
-          "payment_token": {
+          "payment_method_token": {
             "type": "string",
             "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
@@ -11567,40 +11680,48 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "The error code"
+            "description": "The error code",
+            "example": "card_declined"
           },
           "message": {
             "type": "string",
-            "description": "The error message"
+            "description": "The error message",
+            "example": "The card was declined."
           },
           "reason": {
             "type": "string",
             "description": "The detailed error reason that was returned by the connector.",
+            "example": "The card was declined.",
             "nullable": true
           },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
+            "example": "card_declined",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
+            "example": "The card was declined.",
             "nullable": true
           },
           "network_advice_code": {
             "type": "string",
             "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "example": "01",
             "nullable": true
           },
           "network_decline_code": {
             "type": "string",
             "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "example": "05",
             "nullable": true
           },
           "network_error_message": {
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
+            "example": "Do not retry",
             "nullable": true
           }
         }
@@ -13944,6 +14065,14 @@
           }
         }
       },
+      "Initiator": {
+        "type": "string",
+        "description": "Represents the initiator context in platform-connected setups\nUsed in payment/refund/dispute responses to indicate who initiated the operation\nNone indicates a standard merchant flow / JWT flow / Admin flow or insufficient information",
+        "enum": [
+          "platform",
+          "connected"
+        ]
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -15845,6 +15974,7 @@
         "properties": {
           "last4_digits": {
             "type": "string",
+            "example": "4242",
             "nullable": true
           },
           "issuer_country": {
@@ -15857,26 +15987,32 @@
           },
           "network_token_expiry_month": {
             "type": "string",
+            "example": "05",
             "nullable": true
           },
           "network_token_expiry_year": {
             "type": "string",
+            "example": "27",
             "nullable": true
           },
           "nick_name": {
             "type": "string",
+            "example": "Card",
             "nullable": true
           },
           "card_holder_name": {
             "type": "string",
+            "example": "John Doe",
             "nullable": true
           },
           "card_isin": {
             "type": "string",
+            "example": "16712672",
             "nullable": true
           },
           "card_issuer": {
             "type": "string",
+            "example": "Bank of America",
             "nullable": true
           },
           "card_network": {
@@ -15889,6 +16025,7 @@
           },
           "card_type": {
             "type": "string",
+            "example": "Credit",
             "nullable": true
           },
           "saved_to_locker": {
@@ -16349,7 +16486,8 @@
             ],
             "properties": {
               "redirect_to_url": {
-                "type": "string"
+                "type": "string",
+                "example": "https://example.com/redirect"
               },
               "type": {
                 "type": "string",
@@ -19304,6 +19442,38 @@
           }
         }
       },
+      "PaymentMethodDeleteSessionResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_token"
+        ],
+        "properties": {
+          "payment_method_token": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+          }
+        }
+      },
+      "PaymentMethodGetTokenDetailsResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "payment_method_token"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The payment method ID associated with the token",
+            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+          },
+          "payment_method_token": {
+            "type": "string",
+            "description": "The token associated with the payment method",
+            "example": "token_CSum555d9YxDOpGwYq6q"
+          }
+        }
+      },
       "PaymentMethodIntentConfirm": {
         "type": "object",
         "required": [
@@ -19536,6 +19706,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19686,13 +19864,13 @@
       "PaymentMethodSessionDeleteSavedPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "payment_method_token"
         ],
         "properties": {
-          "payment_method_id": {
+          "payment_method_token": {
             "type": "string",
-            "description": "The payment method id of the payment method to be updated",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "description": "The payment method token associated with the payment method to be deleted",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
           }
         }
       },
@@ -19803,11 +19981,13 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "example": "cs_9wcXDRVkfEtLEsSnYKgQ"
           },
           "return_url": {
             "type": "string",
             "description": "The return url to which the user should be redirected to",
+            "example": "https://merchant-website.com/return",
             "nullable": true
           },
           "next_action": {
@@ -19829,7 +20009,7 @@
           "associated_payment_methods": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AssociatedPaymentMethods"
             },
             "description": "The payment method that was created using this payment method session",
             "nullable": true
@@ -19847,6 +20027,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19858,13 +20046,13 @@
           {
             "type": "object",
             "required": [
-              "payment_method_id"
+              "payment_method_token"
             ],
             "properties": {
-              "payment_method_id": {
+              "payment_method_token": {
                 "type": "string",
-                "description": "The payment method id of the payment method to be updated",
-                "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+                "description": "The payment method token associated with the payment method session",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
               }
             }
           }
@@ -21495,6 +21683,7 @@
           "status",
           "amount",
           "customer_id",
+          "processor_merchant_id",
           "created",
           "modified_at"
         ],
@@ -21518,6 +21707,20 @@
             "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the processor merchant account. In platform-connected setups,\nthis is the connected merchant ID. For standard merchants, this is same as merchant_id.",
+            "example": "merchant_1689512302",
+            "maxLength": 255
+          },
+          "initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -24258,7 +24461,8 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization"
+            "description": "The merchant connector id to be used for tokenization",
+            "example": "mca_28a7367sad8239s67"
           }
         }
       },
@@ -25506,6 +25710,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpaymodular",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",

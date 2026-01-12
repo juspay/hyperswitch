@@ -810,6 +810,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     let bank_account_creds = get_bank_account_creds(
         connector,
