@@ -238,7 +238,7 @@ pub async fn create_key_in_key_manager(
 ) -> errors::CustomResult<Option<DataKeyCreateResponse>, errors::KeyManagerError> {
     if !state.is_encryption_service_enabled() {
         logger::info!(
-            "Encryption service is disabled, skipping key transfer for identifier: {:?}",
+            "Encryption service is disabled, skipping key creation for identifier: {:?}",
             request_body.identifier
         );
         Ok(None)
