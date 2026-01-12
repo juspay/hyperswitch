@@ -1642,7 +1642,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
                 state,
                 auth.platform,
                 auth.profile,
-                request.request.payment_method_id,
+                request.request.payment_method_token,
                 request.payment_method_session_id,
             )
         },

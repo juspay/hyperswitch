@@ -3128,7 +3128,7 @@
               "examples": {
                 "Update the card holder name": {
                   "value": {
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
                   }
                 }
               }
@@ -3138,11 +3138,11 @@
         },
         "responses": {
           "200": {
-            "description": "The payment method has been updated successfully",
+            "description": "The payment method has been deleted successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                  "$ref": "#/components/schemas/PaymentMethodDeleteSessionResponse"
                 }
               }
             }
@@ -3229,10 +3229,11 @@
                   "value": {
                     "payment_method_data": {
                       "card": {
+                        "card_cvc": "456",
                         "card_holder_name": "Narayan Bhat"
                       }
                     },
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
                   }
                 }
               }
@@ -3246,7 +3247,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
                 }
               }
             }
@@ -3323,7 +3324,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
                 }
               }
             }
@@ -5376,6 +5377,46 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "AssociatedPaymentMethodTokenType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_session_token"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "Payment Method Session Token",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+              }
+            }
+          }
+        ],
+        "description": "Token type for Payment Method Session associated payment methods",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "AssociatedPaymentMethods": {
+        "type": "object",
+        "description": "Details of associated payment methods for Payment Methods Session",
+        "required": [
+          "payment_method_token"
+        ],
+        "properties": {
+          "payment_method_token": {
+            "$ref": "#/components/schemas/AssociatedPaymentMethodTokenType"
           }
         }
       },
@@ -8322,26 +8363,32 @@
           },
           "last4_digits": {
             "type": "string",
+            "example": "4242",
             "nullable": true
           },
           "expiry_month": {
             "type": "string",
+            "example": "10",
             "nullable": true
           },
           "expiry_year": {
             "type": "string",
+            "example": "25",
             "nullable": true
           },
           "card_holder_name": {
             "type": "string",
+            "example": "John Doe",
             "nullable": true
           },
           "card_fingerprint": {
             "type": "string",
+            "example": "fingerprint_12345",
             "nullable": true
           },
           "nick_name": {
             "type": "string",
+            "example": "Card",
             "nullable": true
           },
           "card_network": {
@@ -8354,18 +8401,22 @@
           },
           "card_isin": {
             "type": "string",
+            "example": "4567890",
             "nullable": true
           },
           "card_issuer": {
             "type": "string",
+            "example": "Issuer Bank",
             "nullable": true
           },
           "card_type": {
             "type": "string",
+            "example": "Credit",
             "nullable": true
           },
           "saved_to_locker": {
-            "type": "boolean"
+            "type": "boolean",
+            "example": true
           }
         }
       },
@@ -11601,40 +11652,48 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "The error code"
+            "description": "The error code",
+            "example": "card_declined"
           },
           "message": {
             "type": "string",
-            "description": "The error message"
+            "description": "The error message",
+            "example": "The card was declined."
           },
           "reason": {
             "type": "string",
             "description": "The detailed error reason that was returned by the connector.",
+            "example": "The card was declined.",
             "nullable": true
           },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
+            "example": "card_declined",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
+            "example": "The card was declined.",
             "nullable": true
           },
           "network_advice_code": {
             "type": "string",
             "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "example": "01",
             "nullable": true
           },
           "network_decline_code": {
             "type": "string",
             "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "example": "05",
             "nullable": true
           },
           "network_error_message": {
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
+            "example": "Do not retry",
             "nullable": true
           }
         }
@@ -15887,6 +15946,7 @@
         "properties": {
           "last4_digits": {
             "type": "string",
+            "example": "4242",
             "nullable": true
           },
           "issuer_country": {
@@ -15899,26 +15959,32 @@
           },
           "network_token_expiry_month": {
             "type": "string",
+            "example": "05",
             "nullable": true
           },
           "network_token_expiry_year": {
             "type": "string",
+            "example": "27",
             "nullable": true
           },
           "nick_name": {
             "type": "string",
+            "example": "Card",
             "nullable": true
           },
           "card_holder_name": {
             "type": "string",
+            "example": "John Doe",
             "nullable": true
           },
           "card_isin": {
             "type": "string",
+            "example": "16712672",
             "nullable": true
           },
           "card_issuer": {
             "type": "string",
+            "example": "Bank of America",
             "nullable": true
           },
           "card_network": {
@@ -15931,6 +15997,7 @@
           },
           "card_type": {
             "type": "string",
+            "example": "Credit",
             "nullable": true
           },
           "saved_to_locker": {
@@ -16391,7 +16458,8 @@
             ],
             "properties": {
               "redirect_to_url": {
-                "type": "string"
+                "type": "string",
+                "example": "https://example.com/redirect"
               },
               "type": {
                 "type": "string",
@@ -19346,6 +19414,19 @@
           }
         }
       },
+      "PaymentMethodDeleteSessionResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_token"
+        ],
+        "properties": {
+          "payment_method_token": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+          }
+        }
+      },
       "PaymentMethodGetTokenDetailsResponse": {
         "type": "object",
         "required": [
@@ -19755,13 +19836,13 @@
       "PaymentMethodSessionDeleteSavedPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "payment_method_token"
         ],
         "properties": {
-          "payment_method_id": {
+          "payment_method_token": {
             "type": "string",
-            "description": "The payment method id of the payment method to be updated",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "description": "The payment method token associated with the payment method to be deleted",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
           }
         }
       },
@@ -19872,11 +19953,13 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "example": "cs_9wcXDRVkfEtLEsSnYKgQ"
           },
           "return_url": {
             "type": "string",
             "description": "The return url to which the user should be redirected to",
+            "example": "https://merchant-website.com/return",
             "nullable": true
           },
           "next_action": {
@@ -19898,7 +19981,7 @@
           "associated_payment_methods": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AssociatedPaymentMethods"
             },
             "description": "The payment method that was created using this payment method session",
             "nullable": true
@@ -24350,7 +24433,8 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization"
+            "description": "The merchant connector id to be used for tokenization",
+            "example": "mca_28a7367sad8239s67"
           }
         }
       },
@@ -27729,6 +27813,16 @@
           "journey"
         ]
       },
+      "UnifiedCode": {
+        "type": "string",
+        "enum": [
+          "UE_1000",
+          "UE_2000",
+          "UE_3000",
+          "UE_4000",
+          "UE_9000"
+        ]
+      },
       "UpdateActiveAttempt": {
         "oneOf": [
           {
@@ -27828,6 +27922,14 @@
             "description": "Masked VPA ID",
             "example": "ab********@okhdfcbank",
             "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27836,7 +27938,16 @@
         "properties": {
           "vpa_id": {
             "type": "string",
+            "description": "The Virtual Payment Address (VPA) for UPI collect payment",
             "example": "successtest@iata",
+            "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
             "nullable": true
           }
         }
@@ -27879,10 +27990,30 @@
         ]
       },
       "UpiIntentData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiQrData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiResponse": {
         "allOf": [
@@ -27897,6 +28028,16 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "UpiSource": {
+        "type": "string",
+        "description": "The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.",
+        "enum": [
+          "UPI_CC",
+          "UPI_CL",
+          "UPI_ACCOUNT",
+          "UPI_CC_CL"
         ]
       },
       "ValueType": {

@@ -386,6 +386,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: HashMap::new(),
+            locale: router_data.request.locale.clone(),
         })
     }
 }
@@ -549,6 +550,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
+            locale: None,
         })
     }
 }
@@ -1259,6 +1261,7 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
+            locale: None,
         })
     }
 }
@@ -1433,6 +1436,7 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
+            locale: router_data.request.locale.clone(),
         })
     }
 }
@@ -1590,6 +1594,7 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
+            locale: None,
         })
     }
 }
@@ -1725,6 +1730,12 @@ impl
             payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
+            locale: None,
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| unified_connector_service_masking::Secret::new(data.peek().to_string())),
         })
     }
 }
@@ -1909,6 +1920,23 @@ impl
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             authentication_data,
             connector_metadata: HashMap::new(),
+            locale: router_data.request.locale.clone(),
+            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
+                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
+            ),
+            merchant_account_id: router_data.request.merchant_account_id.as_ref().map(
+                |merchant_account_id| {
+                    unified_connector_service_masking::Secret::new(
+                        merchant_account_id.clone().expose(),
+                    )
+                },
+            ),
+            merchant_configered_currency: router_data
+                .request
+                .merchant_config_currency
+                .map(payments_grpc::Currency::foreign_try_from)
+                .transpose()?
+                .map(|currency| currency.into()),
         })
     }
 }
@@ -2032,9 +2060,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -2195,9 +2223,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -2553,9 +2581,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -2803,6 +2831,25 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
                 )
                 .into(),
             ),
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::UpiSource>
+    for payments_grpc::UpiSource
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        upi_source: hyperswitch_domain_models::payment_method_data::UpiSource,
+    ) -> Result<Self, Self::Error> {
+        match upi_source {
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCc => Ok(Self::UpiCc),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCl => Ok(Self::UpiCl),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiAccount => {
+                Ok(Self::UpiAccount)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
         }
     }
 }
@@ -3413,6 +3460,14 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
             acs_transaction_id: authentication_data.acs_trans_id,
             transaction_id: None,
             ucaf_collection_indicator: None,
+            exemption_indicator: authentication_data
+                .exemption_indicator
+                .map(payments_grpc::ExemptionIndicator::foreign_from)
+                .map(i32::from),
+            network_params: authentication_data
+                .cb_network_params
+                .map(payments_grpc::NetworkParams::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -3444,6 +3499,8 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             acs_transaction_id: authentication_data.acs_trans_id,
             transaction_id: authentication_data.transaction_id,
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
+            exemption_indicator: None,
+            network_params: None,
         })
     }
 }
@@ -3588,9 +3645,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -3630,6 +3687,8 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             acs_transaction_id,
             transaction_id,
             ucaf_collection_indicator,
+            exemption_indicator: _,
+            network_params: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
@@ -3700,6 +3759,71 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
         }
+    }
+}
+
+impl ForeignFrom<common_enums::ExemptionIndicator> for payments_grpc::ExemptionIndicator {
+    fn foreign_from(value: common_enums::ExemptionIndicator) -> Self {
+        match value {
+            common_enums::ExemptionIndicator::LowValue => Self::LowValue,
+            common_enums::ExemptionIndicator::SecureCorporatePayment => {
+                Self::SecureCorporatePayment
+            }
+            common_enums::ExemptionIndicator::TrustedListing => Self::TrustedListing,
+            common_enums::ExemptionIndicator::TransactionRiskAssessment => {
+                Self::TransactionRiskAssessment
+            }
+            common_enums::ExemptionIndicator::ThreeDsOutage => Self::ThreeDsOutage,
+            common_enums::ExemptionIndicator::ScaDelegation => Self::ScaDelegation,
+            common_enums::ExemptionIndicator::OutOfScaScope => Self::OutOfScaScope,
+            common_enums::ExemptionIndicator::Other => Self::Other,
+            common_enums::ExemptionIndicator::LowRiskProgram => Self::LowRiskProgram,
+            common_enums::ExemptionIndicator::RecurringOperation => Self::RecurringOperation,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CavvAlgorithm> for payments_grpc::CavvAlgorithm {
+    fn foreign_from(value: common_enums::CavvAlgorithm) -> Self {
+        match value {
+            common_enums::CavvAlgorithm::Zero => Self::Zero,
+            common_enums::CavvAlgorithm::One => Self::One,
+            common_enums::CavvAlgorithm::Two => Self::Two,
+            common_enums::CavvAlgorithm::Three => Self::Three,
+            common_enums::CavvAlgorithm::Four => Self::Four,
+            common_enums::CavvAlgorithm::A => Self::A,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<api_models::payments::CartesBancairesParams>
+    for payments_grpc::CartesBancairesParams
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: api_models::payments::CartesBancairesParams,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            cavv_algorithm: payments_grpc::CavvAlgorithm::foreign_from(value.cavv_algorithm).into(),
+            cb_exemption: value.cb_exemption,
+            cb_score: value.cb_score,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<api_models::payments::NetworkParams>
+    for payments_grpc::NetworkParams
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: api_models::payments::NetworkParams) -> Result<Self, Self::Error> {
+        Ok(Self {
+            cartes_bancaires: value
+                .cartes_bancaires
+                .map(payments_grpc::CartesBancairesParams::foreign_try_from)
+                .transpose()?,
+        })
     }
 }
 
@@ -4463,9 +4587,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -4850,7 +4974,10 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             metadata: HashMap::new(),
             test_mode: router_data.test_mode,
             payment_method_type,
-            customer_id: None,
+            customer_id: router_data
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
         })
     }
 }
