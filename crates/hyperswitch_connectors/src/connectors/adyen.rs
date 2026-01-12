@@ -3342,7 +3342,6 @@ impl ConnectorSpecifications for Adyen {
         Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    #[cfg(feature = "v1")]
     fn generate_connector_customer_id(
         &self,
         customer_id: &Option<common_utils::id_type::CustomerId>,
