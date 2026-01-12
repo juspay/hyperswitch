@@ -114,6 +114,13 @@ impl From<String> for MaskedBankAccount {
         Self(Secret::from(masked_value))
     }
 }
+
+impl MaskedBankAccount {
+    /// Expose the inner secret
+    pub fn expose_inner(&self) -> String {
+        self.0.clone().expose()
+    }
+}
 impl From<Secret<String>> for MaskedBankAccount {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
