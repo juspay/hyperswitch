@@ -1,3 +1,6 @@
+pub mod dimension_config;
+pub mod dimension_state;
+
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::superposition::ConfigContext;
@@ -82,6 +85,11 @@ pub async fn get_config_bool(
 
     // Use superposition result or fall back to database
     if let Some(value) = superposition_result {
+        router_env::logger::info!(
+            "Successfully fetched config '{}' from superposition with value: {}",
+            superposition_key,
+            value
+        );
         Ok(value)
     } else {
         let config = state
@@ -125,6 +133,11 @@ pub async fn get_config_string(
 
     // Use superposition result or fall back to database
     if let Some(value) = superposition_result {
+        router_env::logger::info!(
+            "Successfully fetched config '{}' from superposition with value: {}",
+            superposition_key,
+            value
+        );
         Ok(value)
     } else {
         let config = state
@@ -165,6 +178,11 @@ pub async fn get_config_int(
 
     // Use superposition result or fall back to database
     if let Some(value) = superposition_result {
+        router_env::logger::info!(
+            "Successfully fetched config '{}' from superposition with value: {}",
+            superposition_key,
+            value
+        );
         Ok(value)
     } else {
         let config = state
@@ -208,6 +226,11 @@ pub async fn get_config_float(
 
     // Use superposition result or fall back to database
     if let Some(value) = superposition_result {
+        router_env::logger::info!(
+            "Successfully fetched config '{}' from superposition with value: {}",
+            superposition_key,
+            value
+        );
         Ok(value)
     } else {
         let config = state
@@ -257,6 +280,10 @@ where
 
     // Use superposition result or fall back to database
     if let Some(superposition_result) = superposition_result {
+        router_env::logger::info!(
+            "Successfully fetched config '{}' from superposition",
+            superposition_key
+        );
         superposition_result
     } else {
         let config = state
