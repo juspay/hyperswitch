@@ -4993,6 +4993,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[xendit.debit]]
 payment_method_type = "UnionPay"
+[[xendit.real_time_payment]]
+payment_method_type = "qris"
 [xendit.connector_auth.HeaderKey]
 api_key = "API Key"
 [xendit.connector_webhook_details]
