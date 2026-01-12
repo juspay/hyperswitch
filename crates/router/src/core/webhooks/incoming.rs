@@ -1809,8 +1809,7 @@ async fn payout_incoming_webhook_retrieve_status(
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
-        let payout_create_response =
-            payouts::response_handler(&state, &platform, payout_data).await?;
+        let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
@@ -1824,7 +1823,7 @@ async fn payout_incoming_webhook_retrieve_status(
                 .get_string_repr()
                 .to_string(),
             enums::EventObjectType::PayoutDetails,
-            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
+            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
             Some(payout_data.payout_attempt.created_at),
         ))
         .await?;
