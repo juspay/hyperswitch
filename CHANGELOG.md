@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.12.0
+
+### Features
+
+- **authentication:** Added VM for authentication ctp ([#10803](https://github.com/juspay/hyperswitch/pull/10803)) ([`bfeb441`](https://github.com/juspay/hyperswitch/commit/bfeb44119c3a891c90dca9df221ddf5cb0a08024))
+- **connector:** [Peachpayments] Extend Network Token Passthrough by Merchant ([#10864](https://github.com/juspay/hyperswitch/pull/10864)) ([`587bbd6`](https://github.com/juspay/hyperswitch/commit/587bbd609dc9e810eb713cad25fe14069a1e9d02))
+- **platform:** Accept processor for trigger payments webhooks ([#10794](https://github.com/juspay/hyperswitch/pull/10794)) ([`05e1437`](https://github.com/juspay/hyperswitch/commit/05e1437ef0fdd9dd03af4b90608757d1378bee8a))
+- **wasm:** Add MCC list in wasm ([#10780](https://github.com/juspay/hyperswitch/pull/10780)) ([`7f5979c`](https://github.com/juspay/hyperswitch/commit/7f5979c6a9c2b8abfbbef328e5e80304e1bd3719))
+
+### Bug Fixes
+
+- **core:** Consume shipping_cost and order_tax_amount in update operation ([#10805](https://github.com/juspay/hyperswitch/pull/10805)) ([`69104ca`](https://github.com/juspay/hyperswitch/commit/69104ca0a46e7e8a8a813c25dfb6691d96d43827))
+- **env:** Add custom hashmap deserializer for save_payment_method_on_session config ([#10886](https://github.com/juspay/hyperswitch/pull/10886)) ([`40d3edc`](https://github.com/juspay/hyperswitch/commit/40d3edc84bd326532bfbb7ab50b88d6de80d3425))
+- **external_services:** Mask sender_email ([#10848](https://github.com/juspay/hyperswitch/pull/10848)) ([`5c28c75`](https://github.com/juspay/hyperswitch/commit/5c28c759948e22f53612e789edb175512585b1b0))
+- **payouts:** Make payment_id optional for payout event log response ([#10882](https://github.com/juspay/hyperswitch/pull/10882)) ([`1c3720e`](https://github.com/juspay/hyperswitch/commit/1c3720e8e653456301934e0be5032a82c1fd99cf))
+- [WORLDPAY] Handle text/html 404 responses gracefully ([#8753](https://github.com/juspay/hyperswitch/pull/8753)) ([`2778847`](https://github.com/juspay/hyperswitch/commit/277884729b2e990cc6ca604510ec4fb25b51cf09))
+- Handling err response from UCS ([#10865](https://github.com/juspay/hyperswitch/pull/10865)) ([`96053ca`](https://github.com/juspay/hyperswitch/commit/96053caea2d01913e00a45c310eafbd1a7da6524))
+
+### Documentation
+
+- Updated documentation for v2 PM session ([#10884](https://github.com/juspay/hyperswitch/pull/10884)) ([`7ff68af`](https://github.com/juspay/hyperswitch/commit/7ff68af7da77829baddfdffdbbcbbc3124a8c4c1))
+
+### Miscellaneous Tasks
+
+- Introduce pre_authenticate flow in shift4 ([#10861](https://github.com/juspay/hyperswitch/pull/10861)) ([`4de5319`](https://github.com/juspay/hyperswitch/commit/4de5319869d51aabe687f6a906dc9e6b3d4858c5))
+
+**Full Changelog:** [`2026.01.09.0...2026.01.12.0`](https://github.com/juspay/hyperswitch/compare/2026.01.09.0...2026.01.12.0)
+
+- - -
+
 ## 2026.01.09.0
 
 ### Features
