@@ -1105,7 +1105,10 @@ pub async fn create_payment_method_card_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(card_data) => {
-            payments_core::helpers::validate_card_expiry(&card_data.card_exp_month, &card_data.card_exp_year)?;
+            payments_core::helpers::validate_card_expiry(
+                &card_data.card_exp_month,
+                &card_data.card_exp_year,
+            )?;
         }
         _ => {
             logger::debug!("Payment method data is not CardDetail");
