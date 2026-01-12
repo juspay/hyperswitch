@@ -39,8 +39,10 @@ use crate::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
     },
-    routes::app::SessionStateInfo,
-    routes::{app::ReqState, SessionState},
+    routes::{
+        app::{ReqState, SessionStateInfo},
+        SessionState,
+    },
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{
