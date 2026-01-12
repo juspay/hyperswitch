@@ -18,6 +18,7 @@ pub struct SignUpWithMerchantIdRequest {
     pub email: pii::Email,
     pub password: Secret<String>,
     pub company_name: String,
+    pub organization_type: Option<common_enums::OrganizationType>,
 }
 
 pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
@@ -194,7 +195,7 @@ pub struct PlatformAccountCreateResponse {
 pub struct UserMerchantCreate {
     pub company_name: String,
     pub product_type: Option<common_enums::MerchantProductType>,
-    pub merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
+    pub merchant_account_type: Option<common_enums::MerchantAccountType>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

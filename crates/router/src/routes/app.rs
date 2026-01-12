@@ -1840,9 +1840,16 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::organization_retrieve))
-                    .route(web::put().to(admin::organization_update)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::organization_retrieve))
+                            .route(web::put().to(admin::organization_update)),
+                    )
+                    .service(
+                        web::resource("/convert_to_platform")
+                            .route(web::post().to(admin::convert_organization_to_platform)),
+                    ),
             )
     }
 }

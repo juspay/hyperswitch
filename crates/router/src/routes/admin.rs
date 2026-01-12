@@ -64,7 +64,9 @@ pub async fn organization_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| update_organization(state, org_id.clone(), req),
+        |state, _: Option<auth::AuthenticationDataWithOrg>, req, _| {
+            update_organization(state, org_id.clone(), req)
+        },
         auth::auth_type(
             &auth::PlatformOrgAdminAuth {
                 is_admin_auth_allowed: true,
@@ -129,7 +131,7 @@ pub async fn organization_retrieve(
         state,
         &req,
         payload,
-        |state, _, req, _| get_organization(state, req),
+        |state, _: Option<auth::AuthenticationDataWithOrg>, req, _| get_organization(state, req),
         auth::auth_type(
             &auth::PlatformOrgAdminAuth {
                 is_admin_auth_allowed: true,
@@ -173,6 +175,33 @@ pub async fn organization_retrieve(
             },
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::ConvertOrganizationToPlatform))]
+pub async fn convert_organization_to_platform(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<common_utils::id_type::OrganizationId>,
+    json_payload: web::Json<admin::ConvertOrganizationToPlatformRequest>,
+) -> HttpResponse {
+    let flow = Flow::ConvertOrganizationToPlatform;
+    let organization_id = org_id.into_inner();
+    let org_id_wrapper = admin::OrganizationId {
+        organization_id: organization_id.clone(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, (), req, _| {
+            convert_organization_to_platform_organization(state, org_id_wrapper.clone(), req)
+        },
+        &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

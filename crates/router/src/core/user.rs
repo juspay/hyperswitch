@@ -22,9 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "email")]
-use router_env::env;
-use router_env::logger;
+use router_env::{env, logger};
 use storage_impl::errors::StorageError;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
@@ -41,6 +39,7 @@ use crate::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
     },
+    routes::app::SessionStateInfo,
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
@@ -64,6 +63,16 @@ pub async fn signup_with_merchant_id(
     auth_id: Option<String>,
     theme_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
+    // Validate platform feature is enabled if Platform org requested
+    fp_utils::when(
+        request.organization_type == Some(common_enums::OrganizationType::Platform)
+            && !state.conf().platform.enabled,
+        || {
+            Err(report!(UserErrors::InvalidPlatformOperation)
+                .attach_printable("Platform feature is not enabled"))
+        },
+    )?;
+
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
         .get_new_merchant()
@@ -1688,6 +1697,10 @@ pub async fn create_platform_account(
     user_from_token: auth::UserFromToken,
     req: user_api::PlatformAccountCreateRequest,
 ) -> UserResponse<user_api::PlatformAccountCreateResponse> {
+    fp_utils::when(matches!(env::which(), env::Env::Production), || {
+        Err(report!(UserErrors::InvalidCredentials))
+    })?;
+
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from(req)?;
@@ -1706,7 +1719,6 @@ pub async fn create_platform_account(
                 organization_name: None,
                 organization_details: None,
                 metadata: None,
-                platform_merchant_id: Some(merchant_account.get_id().to_owned()),
             },
         )
         .await

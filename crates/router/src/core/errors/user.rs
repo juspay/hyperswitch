@@ -114,6 +114,8 @@ pub enum UserErrors {
     InvalidCloneConnectorOperation(String),
     #[error("Error cloning connector: {0}")]
     ErrorCloningConnector(String),
+    #[error("Invalid Platform Operation")]
+    InvalidPlatformOperation,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -298,6 +300,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 self.get_error_message(),
                 None,
             )),
+            Self::InvalidPlatformOperation => {
+                AER::BadRequest(ApiError::new(sub_code, 60, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -374,6 +379,7 @@ impl UserErrors {
             Self::ErrorCloningConnector(error_message) => {
                 format!("Error cloning connector: {error_message}")
             }
+            Self::InvalidPlatformOperation => "Invalid Platform Operation".to_string(),
         }
     }
 }

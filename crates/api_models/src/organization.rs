@@ -104,3 +104,36 @@ pub struct OrganizationResponse {
     #[schema(value_type = Option<OrganizationType>, example = "standard")]
     pub organization_type: Option<OrganizationType>,
 }
+
+#[derive(serde::Deserialize, Debug, Clone, serde::Serialize, ToSchema)]
+pub struct ConvertOrganizationToPlatformRequest {
+    /// Name for the platform merchant to be created
+    pub platform_merchant_name: String,
+}
+
+impl common_utils::events::ApiEventMetric for ConvertOrganizationToPlatformRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Organization)
+    }
+}
+
+#[derive(serde::Serialize, Debug, Clone, ToSchema)]
+pub struct ConvertOrganizationToPlatformResponse {
+    /// The unique identifier for the Organization
+    #[schema(value_type = String)]
+    pub organization_id: id_type::OrganizationId,
+
+    /// Organization Type after conversion
+    #[schema(value_type = OrganizationType)]
+    pub organization_type: OrganizationType,
+
+    /// The unique identifier for the platform merchant created
+    #[schema(value_type = String)]
+    pub platform_merchant_id: id_type::MerchantId,
+}
+
+impl common_utils::events::ApiEventMetric for ConvertOrganizationToPlatformResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Organization)
+    }
+}

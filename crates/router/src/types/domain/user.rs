@@ -270,8 +270,9 @@ impl NewUserOrganization {
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
+        let org_type = value.organization_type.unwrap_or_default();
         let new_organization = api_org::OrganizationNew::new(
-            common_enums::OrganizationType::Standard,
+            org_type,
             Some(UserCompanyName::new(value.company_name)?.get_secret()),
         );
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -417,7 +418,7 @@ pub struct NewUserMerchant {
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
     product_type: Option<common_enums::MerchantProductType>,
-    merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
+    merchant_account_type: Option<common_enums::MerchantAccountType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -669,14 +670,21 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let company_name = Some(UserCompanyName::new(value.company_name.clone())?);
         let merchant_id = MerchantId::new(value.company_name.clone())?;
+        let org_type = value.organization_type.unwrap_or_default();
         let new_organization = NewUserOrganization::try_from(value)?;
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
+        let merchant_account_type = match org_type {
+            common_enums::OrganizationType::Platform => {
+                Some(common_enums::MerchantAccountType::Platform)
+            }
+            common_enums::OrganizationType::Standard => None,
+        };
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
             product_type,
-            merchant_account_type: None,
+            merchant_account_type,
         })
     }
 }
@@ -867,6 +875,27 @@ impl NewUser {
         self.new_merchant
             .create_new_merchant_and_insert_in_db(state.clone())
             .await?;
+
+        // If Platform org, update organization with platform_merchant_id
+        if matches!(
+            self.new_merchant.new_organization.0.organization_type,
+            common_enums::OrganizationType::Platform
+        ) {
+            let org_update = diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
+                platform_merchant_id: Some(merchant_id.clone()),
+            };
+
+            state
+                .accounts_store
+                .update_organization_by_org_id(
+                    &self.new_merchant.new_organization.get_organization_id(),
+                    org_update,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to update organization with platform_merchant_id")?;
+        }
+
         let created_user = self.insert_user_in_db(db).await;
         if created_user.is_err() {
             let _ = admin::merchant_account_delete(state, merchant_id).await;

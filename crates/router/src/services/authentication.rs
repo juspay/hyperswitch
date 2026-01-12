@@ -3168,6 +3168,43 @@ pub struct JWTAuthOrganizationFromRoute {
 
 #[cfg(feature = "v1")]
 #[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthOrganizationFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(self.required_permission, &role_info)?;
+
+        // Check if token has access to Organization that has been requested in the route
+        if payload.org_id != self.organization_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+        Ok((
+            (),
+            AuthenticationType::OrganizationJwt {
+                org_id: payload.org_id,
+                user_id: payload.user_id,
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
 impl<A> AuthenticateAndFetch<Option<AuthenticationDataWithOrg>, A> for JWTAuthOrganizationFromRoute
 where
     A: SessionStateInfo + Sync,

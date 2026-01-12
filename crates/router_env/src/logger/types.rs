@@ -397,6 +397,8 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
+    /// Convert Organization to Platform
+    ConvertOrganizationToPlatform,
     /// User Sign In
     UserSignIn,
     /// User transfer key
