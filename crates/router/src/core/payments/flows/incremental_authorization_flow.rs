@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use hyperswitch_interfaces::api::gateway;
+use hyperswitch_domain_models::router_data_v2::PaymentFlowData;
 
 use super::ConstructFlowSpecificData;
 use crate::{
@@ -85,25 +85,16 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         _return_raw_connector_response: Option<bool>,
         gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::IncrementalAuthorization,
-            types::PaymentsIncrementalAuthorizationData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let resp = gateway::execute_payment_gateway(
+        payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
             state,
-            connector_integration,
-            &self,
+            self,
+            connector,
+            &gateway_context,
             call_connector_action,
             connector_request,
             None,
-            gateway_context,
         )
         .await
-        .to_payment_failed_response()?;
-
-        Ok(resp)
     }
 
     async fn add_access_token<'a>(

@@ -362,6 +362,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 pre_authenticate_router_data,
                 connector,
                 gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
             ))
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
