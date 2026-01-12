@@ -1,9 +1,7 @@
-use api_models::enums::Connector;
-use diesel_models::{
-    enums::{PaymentMethod, PaymentMethodType},
-    refund as diesel_refund,
-};
+use diesel_models::refund as diesel_refund;
 use error_stack::report;
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::{self, api::ConnectorSpecifications};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -118,7 +116,8 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 #[cfg(feature = "v1")]
 pub fn validate_for_valid_refunds(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    connector: Connector,
+    connector_enum: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
+    connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
         .payment_method
@@ -129,53 +128,21 @@ pub fn validate_for_valid_refunds(
         .payment_method_type
         .get_required_value("payment_method_type")?;
 
-    match (connector, payment_method, payment_method_type) {
-        (Connector::Braintree, PaymentMethod::PayLater, PaymentMethodType::Paypal) => {
-            Err(errors::ApiErrorResponse::RefundNotPossible {
-                connector: connector.to_string(),
+    let supported_payment_methods = connector_enum.get_supported_payment_methods();
+
+    let is_refund_not_supported = supported_payment_methods
+        .and_then(|payment_methods| payment_methods.get(payment_method))
+        .and_then(|pm_types| pm_types.get(&payment_method_type))
+        .map(|details| details.refunds == common_enums::FeatureStatus::NotSupported)
+        .unwrap_or(false);
+
+    if is_refund_not_supported {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("Refunds are currently not supported for {payment_method_type} transactions via {connector}"),
             }
             .into())
-        }
-        (Connector::Mifinity, PaymentMethod::PayLater, PaymentMethodType::Mifinity)
-        | (Connector::Flexiti, PaymentMethod::PayLater, PaymentMethodType::Klarna)
-        | (Connector::Calida, PaymentMethod::PayLater, PaymentMethodType::Bluecode)
-        | (Connector::Coinbase, PaymentMethod::Crypto, PaymentMethodType::CryptoCurrency)
-        | (Connector::Cryptopay, PaymentMethod::Crypto, PaymentMethodType::CryptoCurrency)
-        | (Connector::Opennode, PaymentMethod::Crypto, PaymentMethodType::CryptoCurrency)
-        | (Connector::Zsl, PaymentMethod::BankTransfer, PaymentMethodType::LocalBankTransfer)
-        | (Connector::Checkbook, PaymentMethod::BankTransfer, PaymentMethodType::Ach)
-        | (
-            Connector::Airwallex,
-            PaymentMethod::BankTransfer,
-            PaymentMethodType::IndonesianBankTransfer,
-        )
-        | (Connector::Stripe, PaymentMethod::BankRedirect, PaymentMethodType::Giropay)
-        | (Connector::Paytm, PaymentMethod::Upi, _)
-        | (Connector::Phonepe, PaymentMethod::Upi, _)
-        | (Connector::Santander, PaymentMethod::Voucher, PaymentMethodType::Boleto)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::Oxxo)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::Boleto)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::SevenEleven)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::Lawson)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::MiniStop)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::FamilyMart)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::Seicomart)
-        | (Connector::Adyen, PaymentMethod::Voucher, PaymentMethodType::PayEasy)
-        | (Connector::Plaid, PaymentMethod::OpenBanking, PaymentMethodType::OpenBankingPIS)
-        | (Connector::Tokenio, PaymentMethod::OpenBanking, PaymentMethodType::OpenBankingPIS)
-        | (Connector::Cashtocode, PaymentMethod::Reward, _)
-        | (
-            Connector::Blackhawknetwork,
-            PaymentMethod::GiftCard,
-            PaymentMethodType::BhnCardNetwork,
-        )
-        | (Connector::Nordea, PaymentMethod::BankDebit, PaymentMethodType::Sepa) => {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("Refunds are not supported for {connector}"),
-            }
-            .into())
-        }
-        _ => Ok(()),
+    } else {
+        Ok(())
     }
 }
 

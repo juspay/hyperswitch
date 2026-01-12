@@ -1290,7 +1290,11 @@ pub async fn validate_and_create_refund(
     )?;
 
     // Validate refund support before creating the refund record
-    validator::validate_for_valid_refunds(payment_attempt, connector_enum.connector_name)?;
+    validator::validate_for_valid_refunds(
+        payment_attempt,
+        connector_enum.connector,
+        connector_enum.connector_name,
+    )?;
 
     let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
