@@ -90,7 +90,7 @@ where
                 router_data,
             )
             .change_context(ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment SdkSessionToken Request")?;
+            .attach_printable("Failed to construct Payment IncrementalAuthorization Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -128,7 +128,7 @@ where
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to get payment")?;
+                    .attach_printable("Failed to in incremental authorize payment")?;
 
                     let incremental_authorization_response = response.into_inner();
 

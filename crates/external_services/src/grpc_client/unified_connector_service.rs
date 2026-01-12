@@ -215,7 +215,7 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
-    /// Performs SDK Session Token Create
+    /// Performs Incremental Authorization
     pub async fn incremental_authorization(
         &self,
         sdk_session_token_request: payments_grpc::PaymentServiceIncrementalAuthorizationRequest,
