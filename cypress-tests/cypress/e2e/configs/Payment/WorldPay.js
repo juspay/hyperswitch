@@ -74,10 +74,10 @@ const paymentMethodDataNoThreeDsResponse = {
 const paymentMethodDataThreeDsResponse = {
   card: {
     last4: "1091",
-    card_type: "CREDIT",
+    card_type: "Credit",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",

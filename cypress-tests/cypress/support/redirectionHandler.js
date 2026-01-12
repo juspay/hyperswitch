@@ -674,7 +674,7 @@ function bankRedirectRedirection(
             }
             break;
 
-          case "loonio": 
+          case "loonio":
             switch (paymentMethodType) {
               case "interac":
                 cy.contains("p", "Pay with Interac e-transfer").click();
@@ -688,29 +688,29 @@ function bankRedirectRedirection(
             }
             break;
 
-           case "gigadat": 
+          case "gigadat":
             switch (paymentMethodType) {
               case "interac":
                 cy.contains("button", /Return To Merchant/i, {
-                timeout: constants.TIMEOUT / 3,
-              })
-                .should("be.visible")
-                .click();
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
 
-              cy.contains("button", /^Yes$/i, {
-                timeout: constants.TIMEOUT / 3,
-              })
-                .should("be.visible")
-                .click();
+                cy.contains("button", /^Yes$/i, {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
 
-              verifyUrl = true;
+                verifyUrl = true;
                 break;
               default:
                 throw new Error(
                   `Unsupported loonio payment method type: ${paymentMethodType}`
                 );
             }
-            break;  
+            break;
 
           case "multisafepay":
             if (["sofort", "eps", "mbway"].includes(paymentMethodType)) {

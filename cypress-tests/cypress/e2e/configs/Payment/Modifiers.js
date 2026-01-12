@@ -127,7 +127,7 @@ const CURRENCY_MAP = {
   Sofort: "EUR",
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
-  Interac: "CAD" // Canadian payment method
+  Interac: "CAD", // Canadian payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
