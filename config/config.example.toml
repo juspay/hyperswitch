@@ -332,11 +332,12 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+worldpaymodular.base_url = "https://try.access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://secure-test.worldpay.com/shopper/3ds/challenge.html"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 zsl.base_url = "https://api.sitoffalb.net/"
@@ -992,6 +993,9 @@ google_pay = { country = "AD, AE, AG, AI, AM, AO, AQ, AR, AS, AT, AU, AW, AX, AZ
 apple_pay = { currency = "USD, CAD" }
 
 [pm_filters.payjustnow]
+payjustnow = { country = "ZA", currency = "ZAR" }
+
+[pm_filters.payjustnowinstore]
 payjustnow = { country = "ZA", currency = "ZAR" }
 
 [pm_filters.worldpayxml]

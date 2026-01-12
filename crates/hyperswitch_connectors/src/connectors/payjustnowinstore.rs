@@ -11,7 +11,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -24,11 +23,12 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,15 +37,20 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_MESSAGE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, PeekInterface};
+use ring::hmac;
 use transformers as payjustnowinstore;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
+
+const PAYJUSTNOWINSTORE_MERCHANT_TERMINAL_ID: &str = "X-PayJustNow-Merchant-Terminal-ID";
+const SIGNATURE: &str = "X-Signature";
 
 #[derive(Clone)]
 pub struct Payjustnowinstore {
@@ -76,7 +81,6 @@ impl api::PaymentToken for Payjustnowinstore {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Payjustnowinstore
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payjustnowinstore
@@ -86,12 +90,33 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let request_body = Self::get_request_body(self, req, connectors)?;
+
+        let request_body_string =
+            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
+                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+        let request_body_string_without_whitespace =
+            request_body_string.replace(char::is_whitespace, "");
+
+        let auth = payjustnowinstore::PayjustnowinstoreAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.merchant_api_key.expose().as_bytes());
+
+        let signature = hmac::sign(&key, request_body_string_without_whitespace.as_bytes());
+
+        let signature_hex = hex::encode(signature.as_ref());
+
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (SIGNATURE.to_string(), signature_hex.into_masked()),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -122,8 +147,8 @@ impl ConnectorCommon for Payjustnowinstore {
         let auth = payjustnowinstore::PayjustnowinstoreAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            PAYJUSTNOWINSTORE_MERCHANT_TERMINAL_ID.to_string(),
+            auth.merchant_terminal_id.expose().into_masked(),
         )])
     }
 
@@ -140,13 +165,22 @@ impl ConnectorCommon for Payjustnowinstore {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error_message = match res.status_code {
+            400 => "bad_request",
+            401 => "unauthorized",
+            403 => "forbidden",
+            404 => "not_found",
+            _ => NO_ERROR_MESSAGE,
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: res.status_code.to_string(),
+            message: response.error.clone().unwrap_or(error_message.to_string()),
+            reason: response.error,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -155,36 +189,11 @@ impl ConnectorCommon for Payjustnowinstore {
     }
 }
 
-impl ConnectorValidation for Payjustnowinstore {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-}
+impl ConnectorValidation for Payjustnowinstore {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
     for Payjustnowinstore
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
@@ -215,9 +224,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/v1/merchant/pos/checkout",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -303,10 +315,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_transaction_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/v1/merchant/pos/checkout/{}",
+            self.base_url(connectors),
+            connector_transaction_id,
+        ))
     }
 
     fn build_request(
@@ -330,7 +351,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: payjustnowinstore::PayjustnowinstorePaymentsResponse = res
+        let response: payjustnowinstore::PayjustnowinstoreSyncResponse = res
             .response
             .parse_struct("payjustnowinstore PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -355,79 +376,16 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     for Payjustnowinstore
 {
-    fn get_headers(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: payjustnowinstore::PayjustnowinstorePaymentsResponse = res
-            .response
-            .parse_struct("Payjustnowinstore PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::NotSupported {
+            message: "Capture".to_string(),
+            connector: "Payjustnowinstore",
+        }
+        .into())
     }
 }
 
@@ -449,9 +407,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payjust
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/v2/merchant/pos/checkout/refund",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -497,7 +458,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payjust
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: payjustnowinstore::RefundResponse = res
+        let response: payjustnowinstore::PayjustnowinstoreRefundResponse = res
             .response
             .parse_struct("payjustnowinstore RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -519,72 +480,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payjust
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payjustnowinstore {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: payjustnowinstore::RefundResponse = res
-            .response
-            .parse_struct("payjustnowinstore RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payjustnowinstore {}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Payjustnowinstore {
@@ -611,13 +507,33 @@ impl webhooks::IncomingWebhook for Payjustnowinstore {
 }
 
 static PAYJUSTNOWINSTORE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut payjustnow_supported_payment_methods = SupportedPaymentMethods::new();
+
+        payjustnow_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Payjustnow,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        payjustnow_supported_payment_methods
+    });
 
 static PAYJUSTNOWINSTORE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Payjustnowinstore",
-    description: "Payjustnowinstore connector",
+    display_name: "PayJustNow In-Store",
+    description: "PayJustNow provides a BNPL solution for online and in-store payments, enabling customers to pay in three interest-free installments while merchants get paid upfront.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Live,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PAYJUSTNOWINSTORE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

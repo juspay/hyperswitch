@@ -385,4 +385,5 @@ key2 = "Merchant Identity Id"
 api_secret = "Password"
 
 [payjustnowinstore]
-api_key="Merchant Terminal Id"
+api_key = "Merchant API Key"
+key1 = "Merchant Terminal Id"

@@ -2778,6 +2778,18 @@ payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key = "Access Token"
 key1 = "Client Secret"
+[jpmorgan.metadata.company_name]
+name = "company_name"
+label = "Company Name"
+placeholder = "Enter the company name. Example: JPMC, Hyperswitch"
+required = true
+type = "Text"
+[jpmorgan.metadata.product_name]
+name = "product_name"
+label = "Product Name"
+placeholder = "Enter the product name (used for marketing purposes from a customer perspective)"
+required = true
+type = "Text"
 
 [klarna]
 [[klarna.pay_later]]
@@ -3273,7 +3285,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector","Hyperswitch"]
 
 [[nmi.metadata.google_pay]]
 name = "merchant_name"
@@ -7622,6 +7634,8 @@ payment_method_type = "Maestro"
   required = true
   type = "MultiSelect"
   options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[finix.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [loonio]
 [loonio.connector_auth.BodyKey]
@@ -7855,6 +7869,152 @@ api_key = "API Key"
   api_secret="Vault Id"
 
 
+[worldpaymodular]
+[[worldpaymodular.wallet]]
+  payment_method_type = "google_pay"
+[[worldpaymodular.wallet]]
+  payment_method_type = "apple_pay"
+[worldpaymodular.connector_auth.SignatureKey]
+key1="Username"
+api_key="Password"
+api_secret="Merchant Identifier"
+
+[worldpaymodular.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant to be displayed for customer"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
+
+[worldpaymodular.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[[worldpaymodular.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpaymodular.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpaymodular.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpaymodular.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[worldpaymodular.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
+[[worldpaymodular.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[worldpaymodular.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[worldpaymodular.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[worldpaymodular.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[worldpaymodular.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[worldpaymodular.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[worldpaymodular.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[worldpaymodular.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector"]
+
 [payjustnowinstore]
-[payjustnowinstore.connector_auth.HeaderKey]
-api_key = "Merchant Terminal Id"
+[payjustnowinstore.connector_auth.BodyKey]
+  api_key = "Merchant API Key"
+  key1 = "Merchant Terminal Id"
+[[payjustnowinstore.pay_later]]
+  payment_method_type = "payjustnow"

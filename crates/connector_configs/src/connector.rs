@@ -190,6 +190,8 @@ pub struct ConfigMetadata {
     pub organizational_unit_id: Option<InputData>,
     pub issuer_id: Option<InputData>,
     pub jwt_mac_key: Option<InputData>,
+    pub company_name: Option<InputData>,
+    pub product_name: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -368,6 +370,7 @@ pub struct ConnectorConfig {
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
+    pub worldpaymodular: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub worldpay_payout: Option<ConnectorTomlConfig>,
     pub worldpayvantiv: Option<ConnectorTomlConfig>,
@@ -601,6 +604,7 @@ impl ConnectorConfig {
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
+            Connector::Worldpaymodular => Ok(connector_data.worldpaymodular),
             Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
@@ -626,7 +630,7 @@ impl ConnectorConfig {
             Connector::Zift => Ok(connector_data.zift),
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
-            // Connector::Payjustnowinstore => Ok(connector_data.Payjustnowinstore),
+            Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
         }
     }
 }

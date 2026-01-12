@@ -130,6 +130,7 @@ pub mod wellsfargopayout;
 pub mod wise;
 pub mod worldline;
 pub mod worldpay;
+pub mod worldpaymodular;
 pub mod worldpayvantiv;
 pub mod worldpayxml;
 pub mod xendit;
@@ -170,6 +171,6 @@ pub use self::{
     tokenio::Tokenio, trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
-    zen::Zen, zift::Zift, zsl::Zsl,
+    worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
+    worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,
 };

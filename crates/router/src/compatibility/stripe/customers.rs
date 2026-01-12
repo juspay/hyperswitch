@@ -14,10 +14,7 @@ use crate::{
     core::{api_locking, configs, customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
-    types::{
-        api::{customers as customer_types, payment_methods},
-        domain,
-    },
+    types::api::{customers as customer_types, payment_methods},
 };
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
@@ -53,8 +50,7 @@ pub async fn customer_create(
         &req,
         create_cust_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform: domain::Platform = auth.into();
-            customers::create_customer(state, platform.get_provider().clone(), req, None)
+            customers::create_customer(state, auth.platform.get_provider().clone(), req, None)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: true,
@@ -91,8 +87,12 @@ pub async fn customer_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform: domain::Platform = auth.into();
-            customers::retrieve_customer(state, platform.get_provider().clone(), None, customer_id)
+            customers::retrieve_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                None,
+                customer_id,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: true,
@@ -143,8 +143,11 @@ pub async fn customer_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let platform: domain::Platform = auth.into();
-            customers::update_customer(state, platform.get_provider().clone(), request_internal)
+            customers::update_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                request_internal,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: true,
@@ -181,8 +184,7 @@ pub async fn customer_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform: domain::Platform = auth.into();
-            customers::delete_customer(state, platform.get_provider().clone(), customer_id)
+            customers::delete_customer(state, auth.platform.get_provider().clone(), customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: true,
@@ -220,10 +222,9 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
-                platform,
+                auth.platform,
                 Some(req),
                 Some(&customer_id),
                 None,

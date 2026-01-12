@@ -153,7 +153,7 @@ pub enum Connector {
     Payu,
     Peachpayments,
     Payjustnow,
-    // Payjustnowinstore,
+    Payjustnowinstore,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -189,6 +189,7 @@ pub enum Connector {
     Worldpay,
     Worldpayvantiv,
     Worldpayxml,
+    Worldpaymodular,
     Signifyd,
     Plaid,
     Riskified,
@@ -262,7 +263,7 @@ impl Connector {
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
-            (Self::Razorpay, PaymentMethod::Upi) | (Self::Airwallex, PaymentMethod::Card)
+            (Self::Razorpay, PaymentMethod::Upi) | (Self::Airwallex, _) //ordercreation required for all flows in airwallex
         )
     }
     pub fn supports_file_storage_module(self) -> bool {
@@ -385,6 +386,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            | Self::Worldpaymodular
             | Self::Worldpayvantiv
             | Self::Worldpayxml
             | Self::Xendit
@@ -406,7 +408,7 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payjustnow
-            // | Self::Payjustnowinstore
+            | Self::Payjustnowinstore
             | Self::Phonepe => false,
             Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
