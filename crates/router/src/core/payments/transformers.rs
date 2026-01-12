@@ -6378,7 +6378,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
-            document_number: customer.customer_document_number,
+            document_number: customer.document_number,
         }
     }
 }

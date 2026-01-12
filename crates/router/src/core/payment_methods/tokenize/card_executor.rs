@@ -366,7 +366,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .tax_registration_id
                         .clone()
                         .map(|tax_registration_id| tax_registration_id.into_inner()),
-                    customer_document_number: customer
+                    document_number: customer
                         .document_number
                         .clone()
                         .map(|customer_document_number| customer_document_number.into_inner()),
@@ -469,7 +469,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             phone: self.customer.phone.clone(),
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
-            customer_document_number: self.customer.document_number.clone(),
+            document_number: self.customer.document_number.clone(),
         })
     }
 

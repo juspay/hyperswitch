@@ -1418,7 +1418,7 @@ pub(super) fn get_customer_details_from_request(
     let customer_document_number = request
         .customer
         .as_ref()
-        .and_then(|customer_details| customer_details.customer_document_number.clone());
+        .and_then(|customer_details| customer_details.document_number.clone());
 
     CustomerDetails {
         customer_id,
