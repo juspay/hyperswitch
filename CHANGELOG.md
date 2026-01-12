@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.12.1
+
+### Features
+
+- Adyen repeat payment dependencies for HS<>UCS ([#10851](https://github.com/juspay/hyperswitch/pull/10851)) ([`dafea2a`](https://github.com/juspay/hyperswitch/commit/dafea2ac34dd4567bed1f54391e2674f0c1d5db4))
+
+### Bug Fixes
+
+- **connector:** [worldpaymodular] capture issue ([#10887](https://github.com/juspay/hyperswitch/pull/10887)) ([`0a43210`](https://github.com/juspay/hyperswitch/commit/0a432103db3e3638e095c7af1141f487c264d6ba))
+
+**Full Changelog:** [`2026.01.12.0...2026.01.12.1`](https://github.com/juspay/hyperswitch/compare/2026.01.12.0...2026.01.12.1)
+
+- - -
+
 ## 2026.01.12.0
 
 ### Features
