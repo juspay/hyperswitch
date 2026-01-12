@@ -1376,9 +1376,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
         let refund_id = item
             .response
             .transaction
-            .clone()
+            .as_ref()
             .and_then(|data| data.tid.map(|tid| tid.to_string()))
-            .unwrap_or_else(|| "".to_string());
+            .unwrap_or_default();
         //NOTE: Mapping refund_id with "" incase we dont get any tid
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
