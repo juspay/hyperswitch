@@ -181,7 +181,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            &platform,
+                            platform.get_processor(),
                             outgoing_webhook,
                             &business_profile,
                         )
