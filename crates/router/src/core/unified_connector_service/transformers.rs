@@ -4072,6 +4072,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
