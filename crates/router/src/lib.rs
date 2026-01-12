@@ -414,6 +414,8 @@ pub fn get_application_builder(
         .wrap(middleware::AddAcceptLanguageHeader)
         .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
+        // TEST: Middleware to check if we can access response extensions
+        .wrap(middleware::TestExtensionMiddleware)
         .wrap(router_env::tracing_actix_web::TracingLogger::<
             router_env::CustomRootSpanBuilder,
         >::new())

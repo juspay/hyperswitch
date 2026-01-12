@@ -1,3 +1,4 @@
+
 use common_utils::consts::TENANT_HEADER;
 use futures::StreamExt;
 // Re-export RequestId from router_env for convenience
@@ -7,7 +8,81 @@ use router_env::{
     tracing::{field::Empty, Instrument},
 };
 
-use crate::{headers, routes::metrics};
+use crate::{events::api_logs::ApiEvent, headers, routes::metrics};
+
+/// Test middleware to check if we can access response extensions
+pub struct TestExtensionMiddleware;
+
+impl<S: 'static, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest>
+    for TestExtensionMiddleware
+where
+    S: actix_web::dev::Service<
+        actix_web::dev::ServiceRequest,
+        Response = actix_web::dev::ServiceResponse<B>,
+        Error = actix_web::Error,
+    >,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Transform = TestExtensionMiddlewareService<S>;
+    type InitError = ();
+    type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        std::future::ready(Ok(TestExtensionMiddlewareService { service }))
+    }
+}
+
+pub struct TestExtensionMiddlewareService<S> {
+    service: S,
+}
+
+impl<S, B> actix_web::dev::Service<actix_web::dev::ServiceRequest>
+    for TestExtensionMiddlewareService<S>
+where
+    S: actix_web::dev::Service<
+            actix_web::dev::ServiceRequest,
+            Response = actix_web::dev::ServiceResponse<B>,
+            Error = actix_web::Error,
+        > + 'static,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Future = futures::future::LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    actix_web::dev::forward_ready!(service);
+
+    fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let response_fut = self.service.call(req);
+        Box::pin(async move {
+            let response = response_fut.await?;
+            
+            // Try to access the test extension data from the response extensions
+            let (http_req, res_body) = response.into_parts();
+            
+            if let Some(test_data) = res_body.extensions().get::<String>() {
+                logger::info!("✅ TEST: Successfully accessed extension data from RESPONSE middleware: {}", test_data);
+            } else {
+                logger::info!("❌ TEST: No extension data found in RESPONSE middleware");
+            }
+
+            if let Some(api_event) = res_body.extensions().get::<ApiEvent>() {
+                logger::info!("✅ Successfully accessed ApiEvent from RESPONSE middleware: {:?}", api_event);
+            } else {
+                logger::info!("❌ No ApiEvent found in RESPONSE middleware");
+            }
+
+            
+            
+            let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
+            Ok(response)
+        })
+    }
+}
 
 /// Middleware for attaching default response headers. Headers with the same key already set in a
 /// response will not be overwritten.

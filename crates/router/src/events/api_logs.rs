@@ -171,3 +171,39 @@ impl ApiEventMetric for PollId {
         })
     }
 }
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct VerboseApiEvent {
+    // --- Core Identity & Timing ---
+    pub request_id: String,
+    pub tenant_id: String,
+    pub merchant_id: Option<String>,
+    pub created_at_timestamp: i128, // Middleware timestamp
+    pub latency: u128,              // Total request duration
+
+    // --- Request Details ---
+    pub http_method: String,
+    pub url_path: String,
+    pub user_agent: Option<String>,
+    pub ip_addr: Option<String>,
+    pub request_headers: std::collections::HashMap<String, String>, // Captured in middleware
+
+    // --- Response Details ---
+    pub status_code: u16,
+    pub response_headers: std::collections::HashMap<String, String>, // Captured in middleware
+    
+    // --- Business Logic Context (from ApiEvent) ---
+    pub api_flow: String,           // e.g., "PaymentsCreate"
+    pub event_type: String,         // e.g., "PaymentIntent"
+    pub auth_type: String,          // e.g., "ApiKey", "Jwt"
+    
+    // --- Payloads (Optional/Masked) ---
+    // These might be heavy, so keep them optional
+    pub request_body: Option<String>,
+    pub response_body: Option<String>,
+    
+    // --- Error Context ---
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}

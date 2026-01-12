@@ -14,7 +14,7 @@ use actix_http::header::HeaderMap;
 use actix_web::{
     body,
     http::header::{HeaderName, HeaderValue},
-    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
+    web, FromRequest, HttpMessage, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
@@ -178,6 +178,10 @@ where
         .await
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
+
+    // TEST: Add test data to request extensions in server_wrap_util
+    request.extensions_mut().insert("TEST_EXTENSION_DATA: Successfully added from server_wrap_util!".to_string());
+    logger::info!("🔧 TEST: Added extension data to request in server_wrap_util");
 
     let mut app_state = state.get_ref().clone();
 
@@ -356,7 +360,8 @@ where
         request.method(),
         infra.clone(),
     );
-
+    request.extensions_mut().insert(api_event.clone());
+    logger::info!("Added API event to request extensions for access in middleware");
     state.event_handler().log_event(&api_event);
 
     output
@@ -412,6 +417,8 @@ where
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
 
+
+
     let server_wrap_util_res = server_wrap_util(
         &flow,
         state.clone(),
@@ -428,7 +435,7 @@ where
         response
     });
 
-    let res = match server_wrap_util_res {
+    let mut res = match server_wrap_util_res {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -562,6 +569,23 @@ where
         tag = ?Tag::EndRequest,
         time_taken_ms = request_duration.as_millis(),
     );
+
+    // TEST: Move test data from request extensions to response extensions
+    if let Some(test_data) = request.extensions().get::<String>() {
+        res.extensions_mut().insert(test_data.clone());
+        logger::info!("🔧 TEST: Moved extension data from request to response: {}", test_data);
+    } else {
+        logger::info!("⚠️ TEST: No extension data found in request to move");
+    }
+
+    // Move ApiEvent from request extensions to response extensions
+    if let Some(api_event) = request.extensions().get::<ApiEvent>() {
+        res.extensions_mut().insert(api_event.clone());
+        logger::info!("🔧 Moved ApiEvent from request to response extensions");
+    } else {
+        logger::info!("⚠️ No ApiEvent found in request extensions to move");
+    }
+
     res
 }
 
