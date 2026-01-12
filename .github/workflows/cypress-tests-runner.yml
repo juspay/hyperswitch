@@ -122,7 +122,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 3
+        run: cargo build --package router --bin router
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -154,11 +154,14 @@ jobs:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
           POSTGRES_DB: hyperswitch_db
+          POSTGRES_MAX_CONNECTIONS: 200
+          POSTGRES_SHARED_BUFFERS: 256MB
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --shm-size=512m
         ports:
           - 5432:5432
 
@@ -260,6 +263,7 @@ jobs:
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -284,16 +288,40 @@ jobs:
             fi
           done
 
+      - name: Start Xvfb
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          # Start Xvfb on display :99 for all parallel Cypress instances to share
+          Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+
+          # Wait for Xvfb to be ready before proceeding
+          echo "Waiting for Xvfb to be ready..."
+          for i in {1..15}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "Xvfb is ready"
+              break
+            fi
+            echo "Attempt $i/15 - waiting for Xvfb..."
+            sleep 1
+          done
+
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
+          DISPLAY: ":99"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel-all 2 cypress-tests false 6
 
           kill "${{ env.PID }}"
+          kill "${{ env.XVFB_PID }}" || true
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
@@ -325,11 +353,14 @@ jobs:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
           POSTGRES_DB: hyperswitch_db
+          POSTGRES_MAX_CONNECTIONS: 200
+          POSTGRES_SHARED_BUFFERS: 256MB
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --shm-size=512m
         ports:
           - 5432:5432
 
@@ -439,6 +470,7 @@ jobs:
       - name: Setup Local Server with Alpha Connector Configs
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -470,20 +502,44 @@ jobs:
             fi
           done
 
+      - name: Start Xvfb
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          # Start Xvfb on display :99 for all parallel Cypress instances to share
+          Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+
+          # Wait for Xvfb to be ready before proceeding
+          echo "Waiting for Xvfb to be ready..."
+          for i in {1..15}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "Xvfb is ready"
+              break
+            fi
+            echo "Attempt $i/15 - waiting for Xvfb..."
+            sleep 1
+          done
+
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run Cypress tests for Alpha Connectors
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: ${{ env.ALPHA_PAYMENTS_CONNECTORS }}
+          DISPLAY: ":99"
         shell: bash -leuo pipefail {0}
         run: |
           # Run tests for alpha connectors
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel-all 2 cypress-tests false 6
 
           # Cleanup
           kill "${{ env.PID }}"
           kill "${{ env.MOCK_PID }}"
+          kill "${{ env.XVFB_PID }}" || true
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
@@ -518,11 +574,14 @@ jobs:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
           POSTGRES_DB: hyperswitch_db
+          POSTGRES_MAX_CONNECTIONS: 200
+          POSTGRES_SHARED_BUFFERS: 256MB
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --shm-size=512m
         ports:
           - 5432:5432
 
@@ -647,11 +706,12 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: just build_v2 --jobs 3
+        run: just build_v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
           LLVM_PROFILE_FILE: "coverage.profraw"
         run: |
           # Start the server in the background
@@ -673,12 +733,35 @@ jobs:
             fi
           done
 
+      - name: Start Xvfb
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          # Start Xvfb on display :99 for all parallel Cypress instances to share
+          Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+
+          # Wait for Xvfb to be ready before proceeding
+          echo "Waiting for Xvfb to be ready..."
+          for i in {1..15}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "Xvfb is ready"
+              break
+            fi
+            echo "Attempt $i/15 - waiting for Xvfb..."
+            sleep 1
+          done
+
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: ${{ env.PAYMENTS_CONNECTORS }}
+          DISPLAY: ":99"
         shell: bash -leuo pipefail {0}
         # We aren't specifying `command` and `jobs` arguments currently
         run: scripts/execute_cypress.sh "" "" "cypress-tests-v2"
@@ -687,6 +770,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && (success() || failure()) }}
         run: |
           kill "${{ env.PID }}"
+          kill "${{ env.XVFB_PID }}" || true
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
