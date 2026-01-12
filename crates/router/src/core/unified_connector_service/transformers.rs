@@ -4955,7 +4955,10 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             metadata: HashMap::new(),
             test_mode: router_data.test_mode,
             payment_method_type,
-            customer_id: None,
+            customer_id: router_data
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
         })
     }
 }
