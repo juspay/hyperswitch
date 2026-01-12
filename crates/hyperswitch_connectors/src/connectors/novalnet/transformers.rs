@@ -245,7 +245,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             country_code: item.router_data.get_optional_billing_country(),
         };
 
-        let customer = NovalnetPaymentsRequestCustomer {
+        let mut customer = NovalnetPaymentsRequestCustomer {
             first_name: item.router_data.get_optional_billing_first_name(),
             last_name: item.router_data.get_optional_billing_last_name(),
             email: item
@@ -256,7 +256,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
-            birth_date: Some(String::from("1992-06-10")),
+            // FIX ME : DOB should be taken from customer, for test env, this dob works
+            birth_date: None,
         };
 
         let lang = item
@@ -467,7 +468,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                                 Some(name) => name.clone(),
                                 None => item.router_data.get_billing_full_name()?,
                             };
-
+                            // FIX ME : DOB should be taken from customer, for test env, this dob works
                             (iban, account_holder, Some(String::from("1992-06-10")))
                         }
                         _ => {
@@ -489,11 +490,14 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         payment_data: Some(NovalNetPaymentData::Sepa(NovalnetSepaDebit {
                             account_holder: account_holder.clone(),
                             iban: iban.clone(),
-                            birth_date: dob,
+                            birth_date: dob.clone(),
                         })),
                         enforce_3d,
                         create_token,
                     };
+                    if dob.is_some() {
+                        customer.birth_date = dob;
+                    }
                     Ok(Self {
                         merchant,
                         transaction,
@@ -670,7 +674,7 @@ pub struct NovalnetPaymentsResponseTransactionData {
     pub payment_type: Option<String>,
     pub status_code: Option<u64>,
     pub txn_secret: Option<Secret<String>>,
-    pub tid: Option<Secret<i64>>,
+    pub tid: Option<i64>,
     pub test_mode: Option<i8>,
     pub status: Option<NovalnetTransactionStatus>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
@@ -682,7 +686,11 @@ pub struct NovalnetPaymentsResponse {
     transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
-pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse {
+pub fn get_error_response(
+    result: ResultData,
+    status_code: u16,
+    transaction_id: Option<String>,
+) -> ErrorResponse {
     let error_code = result.status;
     let error_reason = result.status_text.clone();
 
@@ -692,7 +700,7 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
         reason: Some(error_reason),
         status_code,
         attempt_status: None,
-        connector_transaction_id: None,
+        connector_transaction_id: transaction_id,
         connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
@@ -726,6 +734,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction
+            .clone()
+            .and_then(|data| data.tid.map(|tid| tid.to_string()));
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
                 let redirection_data: Option<RedirectForm> =
@@ -737,12 +750,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             method: Method::Get,
                             form_fields: HashMap::new(),
                         });
-
-                let transaction_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
 
                 let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
                     item.response.transaction.clone().as_ref(),
@@ -795,7 +802,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(item.response.result, item.http_code));
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                ));
                 Ok(Self {
                     response,
                     ..item.data
@@ -853,7 +864,7 @@ pub struct NovalnetSyncResponseTransactionData {
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
-    pub tid: Option<Secret<i64>>,
+    pub tid: Option<i64>,
     pub txn_secret: Option<Secret<String>>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
     pub reason: Option<String>,
@@ -1022,7 +1033,7 @@ pub struct NovalnetRefundsTransactionData {
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
-    pub tid: Option<Secret<i64>>,
+    pub tid: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1034,7 +1045,7 @@ pub struct NovalnetChargebackTransactionData {
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
-    pub tid: Option<Secret<i64>>,
+    pub tid: Option<i64>,
     pub reason: Option<String>,
     pub reason_code: Option<String>,
 }
@@ -1044,7 +1055,7 @@ pub struct RefundData {
     amount: u64,
     currency: common_enums::Currency,
     payment_type: Option<String>,
-    tid: Option<Secret<i64>>,
+    tid: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1062,20 +1073,14 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, NovalnetRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_id = item
+            .response
+            .transaction
+            .clone()
+            .and_then(|data| data.refund.tid.or(data.tid).map(|tid| tid.to_string()))
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let refund_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| {
-                        data.refund
-                            .tid
-                            .or(data.tid)
-                            .map(|tid| tid.expose().to_string())
-                    })
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
                 let transaction_status = item
                     .response
                     .transaction
@@ -1091,7 +1096,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(item.response.result, item.http_code));
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    Some(refund_id),
+                ));
                 Ok(Self {
                     response,
                     ..item.data
@@ -1104,7 +1113,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
     status: NovalnetTransactionStatus,
-    tid: Option<Secret<String>>,
+    tid: Option<String>,
 }
 
 impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
@@ -1128,12 +1137,9 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
                 serde_urlencoded::from_str::<NovolnetRedirectionResponse>(encoded_data.as_str())
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-            let tid = novalnet_redirection_response
-                .tid
-                .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "tid",
-                })?
-                .expose();
+            let tid = novalnet_redirection_response.tid.ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload { field_name: "tid" },
+            )?;
 
             NovalnetSyncTransaction { tid }
         } else {
@@ -1181,14 +1187,13 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, NovalnetPSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction
+            .clone()
+            .and_then(|data| data.tid.map(|tid| tid.to_string()));
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let transaction_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| data.tid)
-                    .map(|tid| tid.expose().to_string());
                 let transaction_status = item
                     .response
                     .transaction
@@ -1233,7 +1238,11 @@ impl<F>
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(item.response.result, item.http_code));
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                ));
                 Ok(Self {
                     response,
                     ..item.data
@@ -1253,7 +1262,7 @@ pub struct NovalnetCaptureTransactionData {
     pub status: Option<NovalnetTransactionStatus>, // required for CreditCard/ApplePay/GooglePay/Paypal
     pub status_code: Option<u64>,
     pub test_mode: Option<u8>,
-    pub tid: Option<Secret<i64>>, // mandatory in docs but not being sent back in sepa response -> need to double check
+    pub tid: Option<i64>, // mandatory in docs but not being sent back in sepa response -> need to double check
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1262,7 +1271,7 @@ pub struct CaptureData {
     payment_type: Option<String>,
     status: Option<String>,
     status_code: u64,
-    tid: Option<Secret<i64>>,
+    tid: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1278,13 +1287,13 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
     fn try_from(
         item: PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction
+            .clone()
+            .and_then(|data| data.tid.map(|tid| tid.to_string()));
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let transaction_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
                 let transaction_status = item
                     .response
                     .transaction
@@ -1312,7 +1321,11 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(item.response.result, item.http_code));
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                ));
                 Ok(Self {
                     response,
                     ..item.data
@@ -1360,17 +1373,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_id = item
+            .response
+            .transaction
+            .clone()
+            .and_then(|data| data.tid.map(|tid| tid.to_string()))
+            .unwrap_or_else(|| "".to_string());
+        //NOTE: Mapping refund_id with "" incase we dont get any tid
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let refund_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| data.tid)
-                    .map(|tid| tid.expose().to_string())
-                    .unwrap_or("".to_string());
-                //NOTE: Mapping refund_id with "" incase we dont get any tid
-
                 let transaction_status = item
                     .response
                     .transaction
@@ -1386,7 +1397,11 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(item.response.result, item.http_code));
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    Some(refund_id),
+                ));
                 Ok(Self {
                     response,
                     ..item.data
@@ -1440,13 +1455,13 @@ impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
     fn try_from(
         item: PaymentsCancelResponseRouterData<NovalnetCancelResponse>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction
+            .clone()
+            .and_then(|data| data.tid.map(|tid| tid.to_string()));
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let transaction_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
                 let transaction_status = item
                     .response
                     .transaction
@@ -1475,7 +1490,11 @@ impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(item.response.result, item.http_code));
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                ));
                 Ok(Self {
                     response,
                     ..item.data
@@ -1639,7 +1658,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
-            birth_date: Some(String::from("1992-06-10")),
+            // FIX ME : DOB should be taken from customer, for test env, this dob works
+            birth_date: None,
         };
 
         let lang = item
