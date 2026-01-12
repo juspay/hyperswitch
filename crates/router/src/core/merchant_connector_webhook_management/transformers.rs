@@ -112,7 +112,7 @@ pub async fn construct_webhook_register_router_data<'a>(
 pub fn construct_connector_webhook_registration_details(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    connector_webhook_register_data: &ConnectorWebhookRegisterRequest,
+    connector_webhook_register_data: &ConnectorWebhookRegisterData,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
     if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
         let webhook_event = connector_webhook_register_data.event_type;
@@ -198,7 +198,7 @@ pub async fn validate_webhook_registration_request(
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_response(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
-    connector_webhook_register_data: &ConnectorWebhookRegisterRequest,
+    connector_webhook_register_data: &ConnectorWebhookRegisterData,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
     Ok(RegisterConnectorWebhookResponse {
         event_type: connector_webhook_register_data.event_type,
