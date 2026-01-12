@@ -779,6 +779,59 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "mollie":
+            if (
+              [
+                "eps",
+                "ideal",
+                "giropay",
+                "sofort",
+                "przelewy24",
+                "bancontact_card",
+              ].includes(paymentMethodType)
+            ) {
+              cy.log(`Handling Mollie ${paymentMethodType} redirect flow`);
+
+              // Mollie test mode shows radio buttons to select payment status
+              cy.get("body").then(($body) => {
+                const paidSelector = 'input[type="radio"][value="paid"]';
+                const authorizedSelector =
+                  'input[type="radio"][value="authorized"]';
+
+                if ($body.find(paidSelector).length) {
+                  cy.get(paidSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Paid");
+                } else if ($body.find(authorizedSelector).length) {
+                  cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Authorized");
+                } else {
+                  cy.log(
+                    "No payment status selector found, page may auto-redirect"
+                  );
+                }
+              });
+
+              // Click the Continue button if present
+              cy.get("body").then(($body) => {
+                if ($body.find('button:contains("Continue")').length > 0) {
+                  cy.contains("button", "Continue", {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click();
+                }
+              });
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Mollie payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
