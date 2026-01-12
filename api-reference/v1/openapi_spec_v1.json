@@ -9110,51 +9110,6 @@
           }
         }
       },
-      "ApiConnectorErrorDetails": {
-        "type": "object",
-        "description": "Error details from the payment connector",
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Connector-specific error code",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "Connector-specific error message",
-            "nullable": true
-          },
-          "reason": {
-            "type": "string",
-            "description": "Additional error reason/details",
-            "nullable": true
-          }
-        }
-      },
-      "ApiIssuerErrorDetails": {
-        "type": "object",
-        "description": "Error details from the card issuer",
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Error code from the issuer",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "Error message from the issuer",
-            "nullable": true
-          },
-          "network_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ApiNetworkErrorDetails"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "ApiKeyExpiration": {
         "oneOf": [
           {
