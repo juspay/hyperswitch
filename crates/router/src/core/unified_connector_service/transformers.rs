@@ -302,7 +302,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            locale: None,
 
             session_token: router_data.session_token.clone(),
             order_tax_amount: router_data
@@ -552,7 +551,6 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
-            locale: None,
         })
     }
 }
@@ -1264,7 +1262,6 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
         })
     }
 }
@@ -1360,7 +1357,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            locale: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1599,7 +1595,6 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
         })
     }
 }
@@ -1731,18 +1726,16 @@ impl
             order_id: None,
             connector_metadata: HashMap::new(),
             locale: None,
-            connector_testing_data: None,
-            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
-            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
-            payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
-                .transpose()?
-                .map(|payment_channel| payment_channel.into()),
-            locale: None,
             connector_testing_data: router_data
                 .request
                 .connector_testing_data
                 .as_ref()
                 .map(|data| unified_connector_service_masking::Secret::new(data.peek().to_string())),
+            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
+            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
+            payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
+                .transpose()?
+                .map(|payment_channel| payment_channel.into()),
         })
     }
 }
