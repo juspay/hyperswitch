@@ -438,18 +438,13 @@ pub struct UnifiedErrorDetails {
 #[cfg(feature = "v1")]
 impl UnifiedErrorDetails {
     fn new(
-        category: Option<&String>,
-        message: Option<&String>,
+        category: Option<String>,
+        message: Option<String>,
         standardised_code: Option<storage_enums::StandardisedCode>,
-        description: Option<&String>,
-        user_guidance_message: Option<&String>,
+        description: Option<String>,
+        user_guidance_message: Option<String>,
         recommended_action: Option<storage_enums::RecommendedAction>,
     ) -> Option<Self> {
-        let category = category.cloned();
-        let message = message.cloned();
-        let description = description.cloned();
-        let user_guidance_message = user_guidance_message.cloned();
-
         if category.is_some()
             || message.is_some()
             || standardised_code.is_some()
@@ -482,13 +477,10 @@ pub struct IssuerErrorDetails {
 #[cfg(feature = "v1")]
 impl IssuerErrorDetails {
     fn new(
-        code: Option<&String>,
-        message: Option<&String>,
+        code: Option<String>,
+        message: Option<String>,
         network_details: Option<NetworkErrorDetails>,
     ) -> Option<Self> {
-        let code = code.cloned();
-        let message = message.cloned();
-
         if code.is_some() || message.is_some() || network_details.is_some() {
             Some(Self {
                 code,
@@ -512,15 +504,15 @@ pub struct NetworkErrorDetails {
 #[cfg(feature = "v1")]
 impl NetworkErrorDetails {
     fn new(
-        network_details: Option<&NetworkDetails>,
-        network_error_message: Option<&String>,
+        network_details: Option<NetworkDetails>,
+        network_error_message: Option<String>,
         card_network: Option<storage_enums::CardNetwork>,
     ) -> Option<Self> {
         if network_details.is_some() || network_error_message.is_some() {
             Some(Self {
                 name: card_network,
-                advice_code: network_details.and_then(|n| n.network_advice_code.clone()),
-                advice_message: network_error_message.cloned(),
+                advice_code: network_details.and_then(|n| n.network_advice_code),
+                advice_message: network_error_message,
             })
         } else {
             None
@@ -538,15 +530,7 @@ pub struct ConnectorErrorDetails {
 
 #[cfg(feature = "v1")]
 impl ConnectorErrorDetails {
-    fn new(
-        code: Option<&String>,
-        message: Option<&String>,
-        reason: Option<&String>,
-    ) -> Option<Self> {
-        let code = code.cloned();
-        let message = message.cloned();
-        let reason = reason.cloned();
-
+    fn new(code: Option<String>, message: Option<String>, reason: Option<String>) -> Option<Self> {
         if code.is_some() || message.is_some() || reason.is_some() {
             Some(Self {
                 code,
@@ -1846,7 +1830,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
-        standardised_code: Option<storage_enums::StandardisedCode>,
+        standardised_code: Option<Option<storage_enums::StandardisedCode>>,
         description: Option<Option<String>>,
         user_guidance_message: Option<Option<String>>,
         capture_before: Option<PrimitiveDateTime>,
@@ -1863,9 +1847,9 @@ pub enum PaymentAttemptUpdate {
         authorized_amount: Option<MinorUnit>,
         issuer_error_code: Option<Option<String>>,
         issuer_error_message: Option<Option<String>>,
-        network_details: Option<NetworkDetails>,
+        network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
-        recommended_action: Option<storage_enums::RecommendedAction>,
+        recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
     UnresolvedResponseUpdate {
@@ -1893,7 +1877,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
-        standardised_code: Option<storage_enums::StandardisedCode>,
+        standardised_code: Option<Option<storage_enums::StandardisedCode>>,
         description: Option<Option<String>>,
         user_guidance_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
@@ -2204,26 +2188,26 @@ impl PaymentAttemptUpdate {
                 card_network,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
-                    error_code.as_ref().and_then(|o| o.as_ref()),
-                    error_message.as_ref().and_then(|o| o.as_ref()),
-                    error_reason.as_ref().and_then(|o| o.as_ref()),
+                    error_code.clone().flatten(),
+                    error_message.clone().flatten(),
+                    error_reason.clone().flatten(),
                 );
                 let unified_details = UnifiedErrorDetails::new(
-                    unified_code.as_ref().and_then(|o| o.as_ref()),
-                    unified_message.as_ref().and_then(|o| o.as_ref()),
-                    standardised_code,
-                    description.as_ref().and_then(|o| o.as_ref()),
-                    user_guidance_message.as_ref().and_then(|o| o.as_ref()),
-                    recommended_action,
+                    unified_code.clone().flatten(),
+                    unified_message.clone().flatten(),
+                    standardised_code.flatten(),
+                    description.clone().flatten(),
+                    user_guidance_message.clone().flatten(),
+                    recommended_action.flatten(),
                 );
                 let network_error_details = NetworkErrorDetails::new(
-                    network_details.as_ref(),
-                    network_error_message.as_ref().and_then(|o| o.as_ref()),
+                    network_details.flatten(),
+                    network_error_message.clone().flatten(),
                     card_network,
                 );
                 let issuer_details = IssuerErrorDetails::new(
-                    issuer_error_code.as_ref().and_then(|o| o.as_ref()),
-                    issuer_error_message.as_ref().and_then(|o| o.as_ref()),
+                    issuer_error_code.clone().flatten(),
+                    issuer_error_message.clone().flatten(),
                     network_error_details,
                 );
                 let error_details = Box::new(
@@ -2281,10 +2265,13 @@ impl PaymentAttemptUpdate {
                 updated_by,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
-                    error_code.as_ref().and_then(|o| o.as_ref()),
-                    error_message.as_ref().and_then(|o| o.as_ref()),
-                    error_reason.as_ref().and_then(|o| o.as_ref()),
+                    error_code.clone().flatten(),
+                    error_message.clone().flatten(),
+                    error_reason.clone().flatten(),
                 );
+                // This flow is used by crypto payment connectors (Coinbase, OpenNode) for ambiguous payment states
+                // (e.g., underpayment, context issues) that require manual resolution in the connector's dashboard.
+                // Since these are not standard payment failures, unified error details (GSM codes, user guidance) are not applicable.
                 let unified_details = UnifiedErrorDetails::new(
                     None, // unified_code
                     None, // unified_message
@@ -2344,26 +2331,26 @@ impl PaymentAttemptUpdate {
                 card_network,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
-                    error_code.as_ref().and_then(|o| o.as_ref()),
-                    error_message.as_ref().and_then(|o| o.as_ref()),
-                    error_reason.as_ref().and_then(|o| o.as_ref()),
+                    error_code.clone().flatten(),
+                    error_message.clone().flatten(),
+                    error_reason.clone().flatten(),
                 );
                 let unified_details = UnifiedErrorDetails::new(
-                    unified_code.as_ref().and_then(|o| o.as_ref()),
-                    unified_message.as_ref().and_then(|o| o.as_ref()),
-                    standardised_code,
-                    description.as_ref().and_then(|o| o.as_ref()),
-                    user_guidance_message.as_ref().and_then(|o| o.as_ref()),
+                    unified_code.clone().flatten(),
+                    unified_message.clone().flatten(),
+                    standardised_code.flatten(),
+                    description.clone().flatten(),
+                    user_guidance_message.clone().flatten(),
                     recommended_action,
                 );
                 let network_error_details = NetworkErrorDetails::new(
-                    network_details.as_ref(),
-                    network_error_message.as_ref(),
+                    network_details.clone(),
+                    network_error_message.clone(),
                     card_network,
                 );
                 let issuer_details = IssuerErrorDetails::new(
-                    issuer_error_code.as_ref(),
-                    issuer_error_message.as_ref(),
+                    issuer_error_code.clone(),
+                    issuer_error_message.clone(),
                     network_error_details,
                 );
                 let error_details = Box::new(

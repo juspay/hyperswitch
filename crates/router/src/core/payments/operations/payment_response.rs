@@ -1573,6 +1573,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     advice_code,
                                 )
                                 .await
+                                .map(|config| config.recommended_action)
                             }
                             _ => None,
                         };
@@ -1649,7 +1650,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: processor.get_account().storage_scheme.to_string(),
                                 unified_code: Some(Some(unified_code)),
                                 unified_message: Some(unified_translated_message),
-                                standardised_code: gsm_standardised_code,
+                                standardised_code: Some(gsm_standardised_code),
                                 description: Some(gsm_description),
                                 user_guidance_message: Some(gsm_user_guidance_message),
                                 connector_transaction_id: err.connector_transaction_id.clone(),
@@ -2020,9 +2021,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         error_reason: error_status.clone(),
                                         unified_code: error_status.clone(),
                                         unified_message: error_status.clone(),
-                                        standardised_code: None,
-                                        description: None,
-                                        user_guidance_message: None,
+                                        standardised_code: error_status.clone().map(|_| None),
+                                        description: error_status.clone(),
+                                        user_guidance_message: error_status.clone(),
                                         connector_response_reference_id,
                                         updated_by: processor
                                             .get_account()
@@ -2055,9 +2056,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .get_tokenization_strategy(),
                                         issuer_error_code: error_status.clone(),
                                         issuer_error_message: error_status.clone(),
-                                        network_details: None,
-                                        network_error_message: error_status,
-                                        recommended_action: None,
+                                        network_details: error_status.clone().map(|_| None),
+                                        network_error_message: error_status.clone(),
+                                        recommended_action: error_status.map(|_| None),
                                         card_network: payment_data
                                             .payment_attempt
                                             .extract_card_network(),

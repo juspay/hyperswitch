@@ -7028,7 +7028,7 @@ pub async fn lookup_merchant_advice_code_config(
     state: &SessionState,
     card_network: &str,
     network_advice_code: &str,
-) -> Option<common_enums::RecommendedAction> {
+) -> Option<MerchantAdviceCodeConfig> {
     let merchant_advice_lookup_key = format!(
         "Network:{}|MerchantAdviceCode:{:0>2}",
         card_network, network_advice_code
@@ -7046,16 +7046,16 @@ pub async fn lookup_merchant_advice_code_config(
         })
         .ok()?;
 
-    let merchant_advice_config: MerchantAdviceCodeConfig = serde_json::from_str(&config.config)
+    config
+        .config
+        .parse_struct("MerchantAdviceCodeConfig")
         .map_err(|err| {
             logger::warn!(
                 merchant_advice_code_parse_error = ?err,
                 "Failed to parse merchant advice code config"
             );
         })
-        .ok()?;
-
-    Some(merchant_advice_config.recommended_action)
+        .ok()
 }
 
 pub fn validate_order_details_amount(

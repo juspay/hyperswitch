@@ -648,6 +648,7 @@ where
                         advice_code,
                     )
                     .await
+                    .map(|config| config.recommended_action)
                 }
                 _ => None,
             };
@@ -662,7 +663,7 @@ where
                 updated_by: storage_scheme.to_string(),
                 unified_code: initial_gsm.clone().map(|gsm| gsm.unified_code),
                 unified_message: initial_gsm.clone().map(|gsm| gsm.unified_message),
-                standardised_code: initial_gsm.as_ref().and_then(|gsm| gsm.standardised_code),
+                standardised_code: Some(initial_gsm.as_ref().and_then(|gsm| gsm.standardised_code)),
                 description: initial_gsm.clone().map(|gsm| gsm.description),
                 user_guidance_message: initial_gsm.clone().map(|gsm| gsm.user_guidance_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
