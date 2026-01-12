@@ -3421,6 +3421,30 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
     }
 }
 
+impl transformers::ForeignTryFrom<common_enums::BankType> for payments_grpc::BankType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(bank_type: common_enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            common_enums::BankType::Checking => Ok(Self::Checking),
+            common_enums::BankType::Savings => Ok(Self::Savings),
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<common_enums::BankHolderType> for payments_grpc::BankHolderType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        bank_holder_type: common_enums::BankHolderType,
+    ) -> Result<Self, Self::Error> {
+        match bank_holder_type {
+            common_enums::BankHolderType::Personal => Ok(Self::Personal),
+            common_enums::BankHolderType::Business => Ok(Self::Business),
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::AuthenticationData {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
