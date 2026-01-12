@@ -1,12 +1,12 @@
 mod transformers;
+use api_models::merchant_connector_webhook_management;
 use common_utils::id_type;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    merchant_connector_account::MerchantConnectorAccountUpdate,
     router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
     router_response_types::merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
-    merchant_connector_account::MerchantConnectorAccountUpdate
 };
-use api_models::merchant_connector_webhook_management;
 use transformers as configure_connector_webhook_flow;
 
 use crate::{
@@ -30,9 +30,7 @@ pub async fn register_connector_webhook(
     profile_id: Option<id_type::ProfileId>,
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
-) -> RouterResponse<
-    merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
-> {
+) -> RouterResponse<merchant_connector_webhook_management::RegisterConnectorWebhookResponse> {
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -105,7 +103,12 @@ pub async fn register_connector_webhook(
             &router_data.request,
         )?;
 
-    let should_update_db = matches!(connector_webhook_registration_details, MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate{connector_webhook_registration_details: Some(_)});
+    let should_update_db = matches!(
+        connector_webhook_registration_details,
+        MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_registration_details: Some(_)
+        }
+    );
 
     if should_update_db {
         db.update_merchant_connector_account(mca.clone(), connector_webhook_registration_details.into(), &key_store)

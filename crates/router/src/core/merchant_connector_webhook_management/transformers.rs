@@ -12,8 +12,8 @@ use crate::{
     core::errors::RouterResult,
     errors, types,
     types::{
-        api::ConnectorData, domain, ConnectorWebhookRegisterRequest, ConnectorWebhookRegisterResponse,
-        ConnectorWebhookRegisterRouterData, ErrorResponse,
+        api::ConnectorData, domain, ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
     SessionState,
 };
@@ -147,7 +147,6 @@ pub fn construct_connector_webhook_registration_details(
     }
 }
 
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn validate_webhook_registration_request(
@@ -163,49 +162,48 @@ pub async fn validate_webhook_registration_request(
         }
         .into())
     } else {
+        let is_supported = match webhook_register_request.event_type {
+            common_enums::ConnectorWebhookEventType::Standard => {
+                matches!(
+                    config.config_type,
+                    Some(
+                        common_types::connector_webhook_configuration::WebhookConfigType::Standard
+                    )
+                )
+            }
 
-    let is_supported = match webhook_register_request.event_type {
-        common_enums::ConnectorWebhookEventType::Standard => {
-            matches!(
-                config.config_type,
-                Some(common_types::connector_webhook_configuration::WebhookConfigType::Standard)
-            )
+            common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
+                matches!(
+                    config.config_type,
+                    Some(common_types::connector_webhook_configuration::WebhookConfigType::CustomEvents(
+                        ref supported_events
+                    )) if supported_events.contains(&event)
+                )
+            }
+        };
+
+        if !is_supported {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Webhook registration is not supported for the specified event type"
+                    .to_string(),
+            }
+            .into());
         }
 
-        common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
-            matches!(
-                config.config_type,
-                Some(common_types::connector_webhook_configuration::WebhookConfigType::CustomEvents(
-                    ref supported_events
-                )) if supported_events.contains(&event)
-            )
-        }
-    };
-
-    if !is_supported {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Webhook registration is not supported for the specified event type"
-                .to_string(),
-        }
-        .into());
+        Ok(())
     }
-
-    Ok(())
 }
-}
-
 
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_response(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     connector_webhook_register_data: &ConnectorWebhookRegisterRequest,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
-        Ok(RegisterConnectorWebhookResponse {
-            event_type: connector_webhook_register_data.event_type,
-            connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
-            webhook_registration_status: register_webhook_response.status,
-            error_code: register_webhook_response.error_code.clone(),
-            error_message: register_webhook_response.error_message.clone(),
-        })
-    }
-
+    Ok(RegisterConnectorWebhookResponse {
+        event_type: connector_webhook_register_data.event_type,
+        connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
+        webhook_registration_status: register_webhook_response.status,
+        error_code: register_webhook_response.error_code.clone(),
+        error_message: register_webhook_response.error_message.clone(),
+    })
+}
