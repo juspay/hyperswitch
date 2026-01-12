@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use hyperswitch_interfaces::api::gateway;
 
 use super::ConstructFlowSpecificData;
 use crate::{
@@ -82,7 +83,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::IncrementalAuthorization,
@@ -90,13 +91,14 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let resp = services::execute_connector_processing_step(
+        let resp = gateway::execute_payment_gateway(
             state,
             connector_integration,
             &self,
             call_connector_action,
             connector_request,
             None,
+            gateway_context,
         )
         .await
         .to_payment_failed_response()?;
