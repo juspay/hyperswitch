@@ -248,7 +248,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         };
 
         let (payment_method_type, payment_method_subtype) = match payment_method {
-            Some(pm) => (pm.payment_method_type, pm.payment_method_subtype),
+            Some(ref pm) => (pm.payment_method_type, pm.payment_method_subtype),
             None => (request.payment_method_type, request.payment_method_subtype),
         };
 
@@ -305,7 +305,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             )?;
         };
 
-        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+        let add = payment_method.map(|pm| pm.payment_method_billing_address.clone().map(|address| address.into_inner())).unwrap_or_default();
+
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new( // instead of intent, it should be from pm service
             payment_intent
                 .shipping_address
                 .clone()
@@ -317,7 +319,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_attempt
                 .payment_method_billing_address
                 .clone()
-                .map(|address| address.into_inner()),
+                .map(|address| address.into_inner()).or(add),
             Some(true),
         );
 
