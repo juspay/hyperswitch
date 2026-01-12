@@ -4121,6 +4121,8 @@ where
         None => should_continue_further,
     };
 
+    // Settlement split call if required
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,

@@ -6,7 +6,8 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
             PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
+            Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
         PreAuthenticate,
@@ -20,10 +21,12 @@ use hyperswitch_domain_models::{
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData,
     },
     router_response_types::{
-        GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, SettlementSplitResponseData,
+        TaxCalculationResponseData,
     },
 };
 
@@ -59,6 +62,7 @@ pub trait Payment:
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
     + ExternalVaultProxyPaymentsCreateV1
+    + PaymentsSettlementSplitCreate
     + PaymentsGiftCardBalanceCheck
 {
 }
@@ -224,6 +228,16 @@ pub trait PaymentsCreateOrder:
 /// trait ExternalVaultProxyPaymentsCreate
 pub trait ExternalVaultProxyPaymentsCreateV1:
     api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsSettlementSplitCreate
+pub trait PaymentsSettlementSplitCreate:
+    api::ConnectorIntegration<
+    SettlementSplitCreate,
+    SettlementSplitRequestData,
+    SettlementSplitResponseData,
+>
 {
 }
 

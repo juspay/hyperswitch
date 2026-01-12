@@ -7,8 +7,8 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
-            UpdateMetadata, Void,
+            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
     },
@@ -21,10 +21,12 @@ use hyperswitch_domain_models::{
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData,
     },
     router_response_types::{
-        GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, SettlementSplitResponseData,
+        TaxCalculationResponseData,
     },
 };
 
@@ -218,6 +220,17 @@ pub trait PaymentsPreProcessingV2:
 {
 }
 
+/// trait PaymentsSettlementSplitCreate
+pub trait PaymentsSettlementSplitCreate:
+    ConnectorIntegrationV2<
+    SettlementSplitCreate,
+    PaymentFlowData,
+    SettlementSplitRequestData,
+    SettlementSplitResponseData,
+>
+{
+}
+
 /// trait PaymentsGiftCardBalanceCheckV2
 pub trait PaymentsGiftCardBalanceCheckV2:
     ConnectorIntegrationV2<
@@ -314,6 +327,7 @@ pub trait PaymentV2:
     + PaymentUpdateMetadataV2
     + PaymentCreateOrderV2
     + ExternalVaultProxyPaymentsCreate
+    + PaymentsSettlementSplitCreate
     + PaymentsGiftCardBalanceCheckV2
 {
 }

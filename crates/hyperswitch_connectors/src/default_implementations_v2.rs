@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
             GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
             PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -49,9 +49,9 @@ use hyperswitch_domain_models::{
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -61,8 +61,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        SettlementSplitResponseData, SubmitEvidenceResponse, TaxCalculationResponseData,
+        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -115,7 +115,7 @@ use hyperswitch_interfaces::{
             PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2,
             PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2,
             PaymentsPostAuthenticateV2, PaymentsPostProcessingV2, PaymentsPreAuthenticateV2,
-            PaymentsPreProcessingV2, TaxCalculationV2,
+            PaymentsPreProcessingV2, PaymentsSettlementSplitCreate, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -154,6 +154,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentTokenV2 for $path::$connector{}
             impl ConnectorCustomerV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
+            impl PaymentsSettlementSplitCreate for $path::$connector{}
             impl PaymentsGiftCardBalanceCheckV2 for $path::$connector{}
             impl PaymentsPreAuthenticateV2 for $path::$connector{}
             impl PaymentsAuthenticateV2 for $path::$connector{}
@@ -235,6 +236,14 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 PaymentsPreProcessingData,
                 PaymentsResponseData,
             > for $path::$connector{}
+
+            impl ConnectorIntegrationV2<
+                SettlementSplitCreate,
+                PaymentFlowData,
+                SettlementSplitRequestData,
+                SettlementSplitResponseData,
+            > for $path::$connector{}
+
             impl ConnectorIntegrationV2<
             GiftCardBalanceCheck,
             GiftCardBalanceCheckFlowData,
