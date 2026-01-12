@@ -729,6 +729,13 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
+
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_trigger_handle_response_without_body(),
+            Self::New(connector) => connector.should_trigger_handle_response_without_body(),
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {

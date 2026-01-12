@@ -46,6 +46,7 @@ pub async fn handle_gateway_call<Flow, Req, Resp, ResourceCommonData, FlowOutput
     router_data: types::RouterData<Flow, Req, Resp>,
     connector: &api::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
+    call_connector_action: common_enums::CallConnectorAction,
 ) -> RouterResult<FlowOutput>
 where
     Flow: gateway::FlowGateway<
@@ -72,7 +73,7 @@ where
         state,
         connector_integration,
         &router_data,
-        common_enums::CallConnectorAction::Trigger,
+        call_connector_action,
         None,
         None,
         gateway_context.clone(),

@@ -1546,6 +1546,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Fraud/Session ID returned in the DDC call
+    #[schema(value_type = Option<String>)]
+    pub frm_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -6638,6 +6642,16 @@ pub enum IframeData {
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
     },
+    #[serde(rename = "JWT")]
+    #[smithy(nested_value_type)]
+    DDCviaJWT {
+        /// DDC method url
+        #[smithy(value_type = "String")]
+        ddc_method_url: String,
+        /// JWT
+        #[smithy(value_type = "String")]
+        jwt: String,
+    },
 }
 
 #[derive(
@@ -6933,11 +6947,19 @@ pub struct SepaBankTransferInstructions {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
+    pub method_key: String,
     pub directory_server_id: String,
     pub three_ds_method_url: String,
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct PaymentsConnectorDDCviaJWTData {
+    pub method_key: String,
+    pub ddc_method_url: String,
+    pub jwt: String,
 }
 
 #[derive(
@@ -10742,6 +10764,8 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub client_secret: Secret<String>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+    /// Fraud/Session ID received from the DDC call
+    pub frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

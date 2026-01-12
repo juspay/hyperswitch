@@ -2075,7 +2075,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Worldpay,
     connectors::Worldpaymodular,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
     connectors::Xendit,
     connectors::Zift,
     connectors::Zen,

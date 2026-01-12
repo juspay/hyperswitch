@@ -291,6 +291,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     authenticate_router_data,
                     connector,
                     gateway_context,
+                    common_enums::CallConnectorAction::Trigger,
                 ))
                 .await?;
 
@@ -372,6 +373,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     post_authenticate_router_data,
                     connector,
                     gateway_context,
+                    common_enums::CallConnectorAction::Trigger,
                 ))
                 .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data

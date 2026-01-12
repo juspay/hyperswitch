@@ -13971,6 +13971,30 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ddc_method_url",
+              "jwt",
+              "method_key"
+            ],
+            "properties": {
+              "ddc_method_url": {
+                "type": "string",
+                "description": "DDC method url"
+              },
+              "jwt": {
+                "type": "string",
+                "description": "JWT"
+              },
+              "method_key": {
+                "type": "string",
+                "enum": [
+                  "JWT"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -20499,6 +20523,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "frm_id": {
+            "type": "string",
+            "description": "Fraud/Session ID received from the DDC call",
             "nullable": true
           }
         }
