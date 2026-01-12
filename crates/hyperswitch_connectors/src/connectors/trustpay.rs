@@ -634,7 +634,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_currency = req.request.get_currency()?;
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
 
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
 
@@ -1459,6 +1459,7 @@ impl ConnectorSpecifications for Trustpay {
                 payment_method_data::PaymentMethodData::Wallet(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

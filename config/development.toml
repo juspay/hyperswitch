@@ -38,7 +38,7 @@ pool_size = 5
 connection_timeout = 10
 
 [preprocessing_flow_config]
-authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard"
+authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard,shift4"
 order_create_bloated_connectors = "trustpay,payme"
 
 [redis]
@@ -1069,6 +1069,7 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
+paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds"}
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -1110,6 +1111,9 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
+
+[save_payment_method_on_session.unsupported_payment_methods]
+pay_later = "klarna,affirm"
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
