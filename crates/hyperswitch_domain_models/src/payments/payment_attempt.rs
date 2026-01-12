@@ -1698,6 +1698,22 @@ impl PaymentAttempt {
             self.payment_method_data.clone()
         }
     }
+
+    // Check if the payment method type does not support saving during on-session payments
+    pub fn is_save_payment_method_not_supported_for_on_session(
+        &self,
+        unsupported_payment_methods: &std::collections::HashMap<
+            common_enums::PaymentMethod,
+            std::collections::HashSet<common_enums::PaymentMethodType>,
+        >,
+    ) -> bool {
+        self.payment_method_type.is_some_and(|pm_type| {
+            self.payment_method
+                .as_ref()
+                .and_then(|method| unsupported_payment_methods.get(method))
+                .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1730,6 +1746,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1968,6 +1986,8 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 payment_method_billing_address_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1987,6 +2007,8 @@ impl PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 network_transaction_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             },
             Self::UpdateTrackers {
                 payment_token,
