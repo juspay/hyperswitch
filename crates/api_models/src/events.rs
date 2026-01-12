@@ -103,7 +103,6 @@ impl_api_event_type!(
         MerchantId,
         CardsInfoRequest,
         MerchantAccountResponse,
-        MerchantAccountDetailsResponse,
         MerchantAccountListRequest,
         MerchantAccountCreate,
         PaymentsSessionRequest,

@@ -1065,41 +1065,17 @@ pub async fn clone_connector(
 }
 
 /// Get merchant account details (recon_status and product_type).
-#[cfg(feature = "v1")]
 pub async fn retrieve_merchant_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,
-    merchant_id: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountDetailsRetrieve;
-    let mid = merchant_id.into_inner();
     Box::pin(api::server_wrap(
         flow,
-        state,
+        state.clone(),
         &req,
-        mid,
-        |state, _user: (), req, _| user_core::get_merchant_account_details(state, req),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-/// Get merchant account details (recon_status and product_type).
-#[cfg(feature = "v2")]
-pub async fn retrieve_merchant_account_details(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    merchant_id: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::MerchantsAccountDetailsRetrieve;
-    let mid = merchant_id.into_inner();
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        mid,
-        |state, _user: (), req, _| user_core::get_merchant_account_details(state, req),
+        (),
+        |state, user, _, _| user_core::get_merchant_account_details(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))

@@ -471,26 +471,8 @@ pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
     pub profile_name: String,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Clone, Debug, ToSchema, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccountDetailsResponse {
-    /// Used to indicate the status of the recon module for a merchant account
-    #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: common_enums::ReconStatus,
-
-    /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
-    pub product_type: Option<common_enums::MerchantProductType>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, ToSchema, serde::Serialize)]
-pub struct MerchantAccountDetailsResponse {
-    /// Used to indicate the status of the recon module for a merchant account
-    #[schema(value_type = ReconStatus, example = "not_requested")]
-    pub recon_status: common_enums::ReconStatus,
-
-    /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<common_enums::MerchantProductType>,
 }

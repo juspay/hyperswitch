@@ -411,16 +411,20 @@ pub async fn connect_account(
 
 pub async fn get_merchant_account_details(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    user_from_token: auth::UserFromToken,
 ) -> UserResponse<MerchantAccountDetailsResponse> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
