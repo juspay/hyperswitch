@@ -12,7 +12,8 @@ use crate::{
     core::errors::RouterResult,
     errors, types,
     types::{
-        api::ConnectorData, domain, ConnectorWebhookRegisterRequest,
+        api::ConnectorData, domain,
+        ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
         ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
     SessionState,
@@ -39,8 +40,8 @@ pub async fn construct_webhook_register_router_data<'a>(
         .merchant_connector_id
         .get_string_repr();
     let router_base_url = state.base_url.clone();
-    let request = ConnectorWebhookRegisterRequest {
-        webhook_url: format!("{router_base_url}/webhooks/{merchant_id}/{merchant_connector_id}",),
+    let request = ConnectorWebhookRegisterData {
+        webhook_url: format!("{router_base_url}/webhooks/{merchant_id}/{merchant_connector_id}"),
         event_type: webhook_register_request.event_type,
     };
 
