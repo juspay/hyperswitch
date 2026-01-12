@@ -4628,25 +4628,57 @@ pub enum UpiData {
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.
+pub enum UpiSource {
+    /// UPI payment using a credit card
+    UpiCc,
+    /// UPI payment using a credit line
+    UpiCl,
+    /// UPI payment using a bank account (savings)
+    UpiAccount,
+    /// UPI payment using a combination of credit card and credit line
+    UpiCcCl,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
+    /// The Virtual Payment Address (VPA) for UPI collect payment
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiQrData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiIntentData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
