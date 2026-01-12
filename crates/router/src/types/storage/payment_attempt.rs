@@ -241,6 +241,7 @@ mod tests {
             is_overcapture_enabled: Default::default(),
             connector_transaction_id: Default::default(),
             encrypted_payment_method_data: Default::default(),
+            error_details: Default::default(),
         };
 
         let store = state
@@ -358,6 +359,7 @@ mod tests {
             is_overcapture_enabled: Default::default(),
             connector_transaction_id: Default::default(),
             encrypted_payment_method_data: Default::default(),
+            error_details: Default::default(),
         };
         let store = state
             .stores
@@ -489,6 +491,7 @@ mod tests {
             is_overcapture_enabled: Default::default(),
             connector_transaction_id: Default::default(),
             encrypted_payment_method_data: Default::default(),
+            error_details: Default::default(),
         };
         let store = state
             .stores

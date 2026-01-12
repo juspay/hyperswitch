@@ -282,6 +282,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -374,6 +375,7 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -402,6 +404,12 @@ pub enum CurrentFlowInfo<'a> {
         request_data: &'a router_request_types::CompleteAuthorizeData,
         /// The payment method that is used
         payment_method: Option<PaymentMethod>,
+    },
+
+    /// SetupMandate flow information
+    SetupMandate {
+        /// The authentication type being used
+        auth_type: &'a enums::AuthenticationType,
     },
 }
 
@@ -577,6 +585,13 @@ pub trait ConnectorSpecifications {
     /// Check if connector needs tokenization call before setup mandate flow
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
+    }
+
+    /// Get connector's API webhook configuration object
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
     }
 }
 
