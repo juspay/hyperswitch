@@ -1255,6 +1255,10 @@ impl RequiredFields {
                 ])),
             ),
             (
+                enums::PaymentMethod::RealTimePayment,
+                PaymentMethodType(get_real_time_payment_required_fields()),
+            ),
+            (
                 enums::PaymentMethod::MobilePayment,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::DirectCarrierBilling,
@@ -3864,6 +3868,27 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         ),
     ])
 }
+
+
+#[cfg(feature = "v1")]
+fn get_real_time_payment_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
+    HashMap::from([
+        (
+            enums::PaymentMethodType::Qris,
+            connectors(vec![
+                (
+                    Connector::Xendit,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::new(),
+                    },
+                ),
+            ]),
+        )
+    ])
+}
+
 
 #[test]
 fn test_required_fields_to_json() {
