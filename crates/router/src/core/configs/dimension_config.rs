@@ -1,5 +1,4 @@
 use common_utils::errors::CustomResult;
-use external_services::superposition;
 use router_env::tracing;
 
 use super::dimension_state::{Dimensions, HasMerchantId};

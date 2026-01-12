@@ -78,7 +78,7 @@ use crate::{
     consts as router_consts,
     core::{
         configs,
-        configs::dimension_state::{Dimensions, DimensionsWithMerchantId},
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
