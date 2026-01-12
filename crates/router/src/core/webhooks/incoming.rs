@@ -1636,7 +1636,13 @@ async fn process_payout_incoming_webhook(
             .await
         }
         PaoyoutWebhookAction::RetrieveStatus => {
-            payout_incoming_webhook_retrieve_status(state, platform, business_profile, &mut payout_data).await
+            payout_incoming_webhook_retrieve_status(
+                state,
+                platform,
+                business_profile,
+                &mut payout_data,
+            )
+            .await
         }
         PaoyoutWebhookAction::NoAction => Ok(WebhookResponseTracker::Payout {
             payout_id: payout_data.payout_attempt.payout_id,
