@@ -1,7 +1,7 @@
 pub mod types;
 use std::str::FromStr;
 
-use common_utils::ext_traits::StringExt;
+use common_utils::{errors::ReportSwitchExt, ext_traits::StringExt};
 
 pub mod utils;
 #[cfg(feature = "v1")]
@@ -22,31 +22,38 @@ use api_models::{
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor, errors::ReportSwitchExt};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
+use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     ext_traits::OptionExt,
     payment_method_data,
     router_request_types::{
-        BrowserInformation, authentication::{MessageCategory, PreAuthenticationData}, unified_authentication_service::{
-            AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData, TransactionDetails, UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData, UasPostAuthenticationRequestData, UasPreAuthenticationRequestData
-        }
+        authentication::{MessageCategory, PreAuthenticationData},
+        unified_authentication_service::{
+            AuthenticationInfo, PaymentDetails, RoutingRegion, ServiceSessionIds, ThreeDsMetaData,
+            TransactionDetails, UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
+        BrowserInformation,
     },
     types::{
         UasAuthenticationRouterData, UasPostAuthenticationRouterData,
         UasPreAuthenticationRouterData,
     },
 };
+use hyperswitch_interfaces::webhooks::{IncomingWebhook, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
-
-use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse;
 
 use super::{
     errors::{RouterResponse, RouterResult},
     payments::helpers::MerchantConnectorAccountType,
 };
+#[cfg(feature = "v1")]
+use crate::core::webhooks::incoming::WebhookProcessingResult;
 use crate::{
     consts,
     core::{
@@ -59,14 +66,12 @@ use crate::{
             UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
-        webhooks::incoming::WebhookProcessingResult,
     },
     db::domain,
     routes::SessionState,
     services::AuthFlow,
     types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, IncomingWebhook};
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -81,6 +86,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
@@ -116,6 +122,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             encrypted_payload: service_details
                 .as_ref()
                 .and_then(|details| details.encrypted_payload.clone()),
+            routing_region,
         });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(domain_service_details),
@@ -146,6 +153,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(
             payment_method_data,
@@ -157,6 +165,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             acquirer_bin,
             acquirer_merchant_id,
             payment_method_type,
+            routing_region,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -190,9 +199,11 @@ impl UnifiedAuthenticationService for ClickToPay {
         payment_method: common_enums::PaymentMethod,
         merchant_id: &common_utils::id_type::MerchantId,
         _authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
         let post_authentication_data = UasPostAuthenticationRequestData {
             threeds_server_transaction_id: None,
+            routing_region,
         };
 
         let post_auth_router_data: UasPostAuthenticationRouterData =
@@ -305,6 +316,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -334,11 +346,21 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             force_3ds_challenge: None,
             psd2_sca_exemption_type: None,
         };
+        let authentication_info = Some(AuthenticationInfo {
+            authentication_type: None,
+            authentication_reasons: None,
+            consent_received: false, // This is not relevant in this flow so keeping it as false
+            is_authenticated: false, // This is not relevant in this flow so keeping it as false
+            locale: None,
+            supported_card_brands: None,
+            encrypted_payload: None,
+            routing_region,
+        });
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
             transaction_details: Some(transaction_details),
             payment_details,
-            authentication_info: None,
+            authentication_info,
             merchant_details: merchant_details.cloned(),
             billing_address: billing_address.cloned(),
             acquirer_bin,
@@ -364,6 +386,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(
             payment_method_data,
@@ -375,6 +398,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             acquirer_bin,
             acquirer_merchant_id,
             payment_method_type,
+            routing_region,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -412,7 +436,18 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         webhook_url: String,
         force_3ds_challenge: Option<bool>,
         psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasAuthenticationRequestData> {
+        let authentication_info = Some(AuthenticationInfo {
+            authentication_type: None,
+            authentication_reasons: None,
+            consent_received: false, // This is not relevant in this flow so keeping it as false
+            is_authenticated: false, // This is not relevant in this flow so keeping it as false
+            locale: None,
+            supported_card_brands: None,
+            encrypted_payload: None,
+            routing_region,
+        });
         Ok(UasAuthenticationRequestData {
             browser_details,
             transaction_details: TransactionDetails {
@@ -444,6 +479,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             email,
             threeds_method_comp_ind,
             webhook_url,
+            authentication_info,
         })
     }
 
@@ -468,6 +504,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         payment_id: Option<common_utils::id_type::PaymentId>,
         force_3ds_challenge: Option<bool>,
         psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
@@ -484,6 +521,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 webhook_url,
                 force_3ds_challenge,
                 psd2_sca_exemption_type,
+                routing_region,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -507,6 +545,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
 
     fn get_post_authentication_request_data(
         authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRequestData> {
         Ok(UasPostAuthenticationRequestData {
             // authentication.threeds_server_transaction_id is mandatory for post-authentication in ExternalAuthentication
@@ -517,6 +556,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                         field_name: "authentication.threeds_server_transaction_id",
                     })?,
             ),
+            routing_region,
         })
     }
 
@@ -530,10 +570,12 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         payment_method: common_enums::PaymentMethod,
         _merchant_id: &common_utils::id_type::MerchantId,
         authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
+        routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_post_authentication_request_data(
                 authentication.cloned(),
+                routing_region,
             )?;
         let auth_router_data: UasPostAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -1159,6 +1201,15 @@ pub async fn authentication_eligibility_core(
         .clone()
         .map(hyperswitch_domain_models::address::Address::from);
 
+    let routing_region = utils::fetch_routing_region_for_uas(
+        &state,
+        merchant_id.clone(),
+        merchant_account.organization_id.clone(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch routing path")?;
+
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
             &state,
@@ -1177,6 +1228,7 @@ pub async fn authentication_eligibility_core(
             domain_address.as_ref(),
             authentication.acquirer_bin.clone(),
             authentication.acquirer_merchant_id.clone(),
+            Some(routing_region),
         )
         .await?;
 
@@ -1304,6 +1356,15 @@ pub async fn authentication_authenticate_core(
         merchant_connector_account_id_or_connector_name,
     );
 
+    let routing_region = utils::fetch_routing_region_for_uas(
+        &state,
+        merchant_id.clone(),
+        merchant_account.organization_id.clone(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch routing path")?;
+
     let auth_response = <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
         &state,
         &business_profile,
@@ -1327,6 +1388,7 @@ pub async fn authentication_authenticate_core(
         None,
         authentication.force_3ds_challenge,
         authentication.psd2_sca_exemption_type,
+        Some(routing_region),
     )
     .await?;
 
@@ -1768,6 +1830,13 @@ pub async fn authentication_sync_core(
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
 
+        let routing_region = utils::fetch_routing_region_for_uas(
+            &state,
+            authentication.merchant_id.clone(),
+            authentication.organization_id.clone(),
+        )
+        .await?;
+
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
             authentication_reasons: None,
@@ -1778,6 +1847,7 @@ pub async fn authentication_sync_core(
             encrypted_payload: service_details
                 .as_ref()
                 .and_then(|details| details.encrypted_payload.clone()),
+            routing_region: Some(routing_region),
         });
         let pre_authentication_request_data = UasPreAuthenticationRequestData {
             service_details: Some(domain_service_details),
@@ -1824,9 +1894,18 @@ pub async fn authentication_sync_core(
                     common_enums::PaymentMethod::Card,
                     merchant_id,
                     None,
+                    None,
                 )
                 .await?
             } else {
+                let routing_region = utils::fetch_routing_region_for_uas(
+                    &state,
+                    merchant_id.clone(),
+                    merchant_account.organization_id.clone(),
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch routing path")?;
                 ExternalAuthentication::post_authentication(
                     &state,
                     &business_profile,
@@ -1837,6 +1916,7 @@ pub async fn authentication_sync_core(
                     common_enums::PaymentMethod::Card,
                     merchant_id,
                     Some(&authentication),
+                    Some(routing_region),
                 )
                 .await?
             };
@@ -2056,6 +2136,14 @@ pub async fn authentication_post_sync_core(
             authentication.authentication_connector.clone(),
         )
         .await?;
+    let routing_region = utils::fetch_routing_region_for_uas(
+        &state,
+        merchant_id.clone(),
+        merchant_account.organization_id.clone(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch routing path")?;
 
     let post_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
@@ -2068,6 +2156,7 @@ pub async fn authentication_post_sync_core(
             common_enums::PaymentMethod::Card,
             merchant_id,
             Some(&authentication),
+            Some(routing_region),
         )
         .await?;
 
@@ -2309,16 +2398,34 @@ pub async fn get_session_token_for_click_to_pay(
     )
 }
 
+#[cfg(feature = "v1")]
 pub async fn process_uas_incoming_webhook<'a>(
     state: &'a SessionState,
     incoming_webhook_request: &IncomingWebhookRequestDetails<'a>,
     connector_name: String,
-    connector_integration: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum
+    connector_integration: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
+    platform: domain::Platform,
 ) -> RouterResult<WebhookProcessingResult<'a>> {
-    let webhook_data = utils::get_webhook_request_data_for_uas(incoming_webhook_request);
+    let routing_region = utils::fetch_routing_region_for_uas(
+        state,
+        platform.get_processor().get_account().get_id().clone(),
+        platform
+            .get_processor()
+            .get_account()
+            .organization_id
+            .clone(),
+    )
+    .await?;
+    let webhook_data =
+        utils::get_webhook_request_data_for_uas(incoming_webhook_request, Some(routing_region));
 
     let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
-        utils::construct_uas_webhook_router_data(state,connector_name.to_string(), webhook_data, None)?; // check of paymentId is present
+        utils::construct_uas_webhook_router_data(
+            state,
+            connector_name.to_string(),
+            webhook_data,
+            None,
+        )?; // check of paymentId is present
 
     let response = utils::do_auth_connector_call(
         state,
@@ -2336,8 +2443,7 @@ pub async fn process_uas_incoming_webhook<'a>(
                 three_ds_server_transaction_id,
                 authentication_id,
                 results_request,
-                results_response
-
+                results_response,
             } => Ok(WebhookResponse {
                 trans_status,
                 authentication_value,
@@ -2345,7 +2451,7 @@ pub async fn process_uas_incoming_webhook<'a>(
                 three_ds_server_transaction_id,
                 authentication_id,
                 results_request,
-                results_response
+                results_response,
             }),
             _ => {
                 router_env::logger::error!("received unknown webhook response from uas");
@@ -2358,15 +2464,23 @@ pub async fn process_uas_incoming_webhook<'a>(
         }
     }?;
 
+    let event_type = connector_integration
+        .get_webhook_event_type(incoming_webhook_request)
+        .switch()
+        .attach_printable("Could not get webhook event")?;
 
-    let event_type = connector_integration.get_webhook_event_type(incoming_webhook_request).switch()
-    .attach_printable("Could not get webhook event")?;
+    let decoded_body = response_body
+        .to_bytes()
+        .inspect_err(|err| {
+            router_env::logger::error!("error converting uas webhook response to bytes: {}", err);
+        })
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("error converting uas webhook response to bytes")?;
 
-    let decoded_body = response_body.to_bytes().inspect_err(|err| {
-        router_env::logger::error!("error converting uas webhook response to bytes: {}", err);
-    }).change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("error converting uas webhook response to bytes")?;
-
+    // The payload in `decoded_body` is not taken directly from an external caller.
+    // It is the response from the Unified Authentication Service obtained via
+    // `utils::do_auth_connector_call`, which uses the router's authenticated
+    // connector infrastructure. As such, we consider the source to be verified.
     let webhook_result = WebhookProcessingResult {
         event_type,
         source_verified: false,

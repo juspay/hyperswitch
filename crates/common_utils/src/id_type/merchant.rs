@@ -239,4 +239,9 @@ impl MerchantId {
             self.get_string_repr()
         )
     }
+
+    /// fetch routing_region_threeds_uas for merchant
+    pub fn routing_region_threeds_uas(&self) -> String {
+        format!("routing_region_threeds_uas_{}", self.get_string_repr())
+    }
 }

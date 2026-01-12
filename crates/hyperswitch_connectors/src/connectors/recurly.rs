@@ -23,7 +23,8 @@ use hyperswitch_domain_models::{
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
-            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,ProcessIncomingWebhook
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+            ProcessIncomingWebhook,
         },
         CreateConnectorCustomer, InvoiceRecordBack,
     },
@@ -37,7 +38,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,UasWebhookRequestData
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         ConnectorCustomerData,
     },
@@ -166,7 +167,7 @@ impl
 
 impl
     ConnectorIntegrationV2<
-    ProcessIncomingWebhook,
+        ProcessIncomingWebhook,
         UasFlowData,
         UasWebhookRequestData,
         UasAuthenticationResponseData,
@@ -174,7 +175,6 @@ impl
 {
     //TODO: implement sessions flow
 }
-
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}

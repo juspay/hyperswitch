@@ -32,7 +32,7 @@ pub struct MerchantDetails {
     pub webhook_url: Option<url::Url>,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct AuthenticationInfo {
     pub authentication_type: Option<String>,
     pub authentication_reasons: Option<Vec<String>>,
@@ -41,7 +41,16 @@ pub struct AuthenticationInfo {
     pub locale: Option<String>,
     pub supported_card_brands: Option<String>,
     pub encrypted_payload: Option<Secret<String>>,
+    pub routing_region: Option<RoutingRegion>,
 }
+
+#[derive(Debug, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
+}
+
 #[derive(Clone, Debug)]
 pub struct UasAuthenticationRequestData {
     pub browser_details: Option<super::BrowserInformation>,
@@ -52,6 +61,7 @@ pub struct UasAuthenticationRequestData {
     pub email: Option<common_utils::pii::Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub webhook_url: String,
+    pub authentication_info: Option<AuthenticationInfo>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -94,6 +104,7 @@ pub struct TransactionDetails {
 #[derive(Clone, Debug)]
 pub struct UasPostAuthenticationRequestData {
     pub threeds_server_transaction_id: Option<String>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Clone)]
@@ -113,7 +124,7 @@ pub enum UasAuthenticationResponseData {
         authentication_value: Option<Secret<String>>,
         eci: Option<String>,
         three_ds_server_transaction_id: String,
-        authentication_id : Option<common_utils::id_type::AuthenticationId>,
+        authentication_id: Option<common_utils::id_type::AuthenticationId>,
         results_request: Option<serde_json::Value>,
         results_response: Option<serde_json::Value>,
     },
@@ -236,8 +247,8 @@ impl From<PostAuthenticationDetails>
     }
 }
 
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct UasWebhookRequestData {
     pub body: Vec<u8>,
+    pub routing_region: Option<RoutingRegion>,
 }

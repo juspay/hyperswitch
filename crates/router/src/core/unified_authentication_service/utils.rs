@@ -16,10 +16,12 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::{
-        PostAuthenticationDetails, UasAuthenticationResponseData,UasWebhookRequestData
+        PostAuthenticationDetails, RoutingRegion, UasAuthenticationResponseData,
+        UasWebhookRequestData,
     },
     type_encryption::AsyncLift,
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
@@ -40,7 +42,6 @@ use crate::{
     types::{api, transformers::ForeignFrom},
     SessionState,
 };
-use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 
 pub async fn do_auth_connector_call<F, Req, Res>(
     state: &SessionState,
@@ -415,10 +416,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 ApiErrorResponse::InternalServerError,
             )
             .attach_printable("unexpected api confirmation in external authentication flow."),
-            UasAuthenticationResponseData::Webhook { .. } => Err(
-                ApiErrorResponse::InternalServerError,
-            )
-            .attach_printable("unexpected api webhook in external authentication flow."),
+            UasAuthenticationResponseData::Webhook { .. } => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("unexpected api webhook in external authentication flow.")
+            }
         },
         Err(error) => Ok(
             hyperswitch_domain_models::authentication::AuthenticationUpdate::ErrorUpdate {
@@ -623,9 +624,11 @@ pub fn get_authentication_payment_method_data<F, Req>(
 
 pub fn get_webhook_request_data_for_uas(
     request: &IncomingWebhookRequestDetails<'_>,
+    routing_region: Option<RoutingRegion>,
 ) -> UasWebhookRequestData {
     UasWebhookRequestData {
         body: request.body.to_vec(),
+        routing_region,
     }
 }
 
@@ -642,7 +645,9 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         customer_id: None,
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: payment_id.map(|payment_id| payment_id.get_string_repr().to_owned()).unwrap_or_default(),
+        payment_id: payment_id
+            .map(|payment_id| payment_id.get_string_repr().to_owned())
+            .unwrap_or_default(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method: PaymentMethod::default(),
@@ -685,13 +690,41 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        tenant_id:state.tenant.tenant_id.clone(),
-        payment_method_type:None,
-        payout_id:None,
-        minor_amount_capturable:None,
-        authorized_amount:None,
-        l2_l3_data:None,
-        raw_connector_response:None,
-        is_payment_id_from_merchant:None,
+        tenant_id: state.tenant.tenant_id.clone(),
+        payment_method_type: None,
+        payout_id: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
+        l2_l3_data: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
+}
+
+pub async fn fetch_routing_region_for_uas(
+    state: &SessionState,
+    merchant_id: common_utils::id_type::MerchantId,
+    organization_id: common_utils::id_type::OrganizationId,
+) -> RouterResult<RoutingRegion> {
+    let merchant_path = fetch_region(state, &merchant_id.routing_region_threeds_uas()).await;
+
+    let org_path = fetch_region(state, &organization_id.routing_region_threeds_uas())
+        .await
+        .unwrap_or(RoutingRegion::Region1);
+
+    Ok(merchant_path.unwrap_or(org_path))
+}
+
+async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
+    let db = &*state.store;
+    db.find_config_by_key_unwrap_or(key, None)
+        .await
+        .ok()
+        .map(|conf| {
+            if conf.config == "region2" {
+                RoutingRegion::Region2
+            } else {
+                RoutingRegion::Region1
+            }
+        })
 }

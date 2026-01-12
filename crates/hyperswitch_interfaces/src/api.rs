@@ -50,17 +50,23 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData, flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData}
+        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource, mandate_revoke::MandateRevoke
+        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook,
+        VerifyWebhookSource,
     },
     router_request_types::{
-        self, AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData, unified_authentication_service::{
+        self,
+        unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData, UasWebhookRequestData,
-        }
+        },
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
@@ -759,7 +765,12 @@ pub trait UasAuthenticationConfirmationV2:
 
 ///trait UasProcessWebhookV2
 pub trait UasProcessWebhookV2:
-    ConnectorIntegrationV2<ProcessIncomingWebhook, UasFlowData, UasWebhookRequestData, UasAuthenticationResponseData>
+    ConnectorIntegrationV2<
+    ProcessIncomingWebhook,
+    UasFlowData,
+    UasWebhookRequestData,
+    UasAuthenticationResponseData,
+>
 {
 }
 

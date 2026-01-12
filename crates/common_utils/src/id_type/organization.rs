@@ -21,4 +21,9 @@ impl OrganizationId {
     pub fn try_from_string(org_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(org_id))
     }
+
+    /// fetch routing_region_threeds_uas for organization
+    pub fn routing_region_threeds_uas(&self) -> String {
+        format!("routing_region_threeds_uas_{}", self.get_string_repr())
+    }
 }

@@ -10,14 +10,21 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, access_token_auth::AccessTokenAuth, payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void}, refunds::{Execute, RSync}
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        ProcessIncomingWebhook,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData, unified_authentication_service::{
+        unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,UasWebhookRequestData
-        }
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
+        },
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,

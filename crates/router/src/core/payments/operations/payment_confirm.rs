@@ -1430,6 +1430,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
+                            None,
                             None
                         )
                         .await?;
@@ -1444,6 +1445,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &authentication_id,
                             payment_method,
                             &payment_data.payment_intent.merchant_id,
+                            None,
                             None
                         )
                         .await?;
@@ -1475,7 +1477,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                             Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication { .. })
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {})
-                            | Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. }) 
+                            | Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. })
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Webhook { .. })=> Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected response received from unified authentication service")?,
                             Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                         };
@@ -1630,6 +1632,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse browser_info")?;
             let email = payment_data.email.clone();
+            let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
+                state,
+                payment_data.payment_attempt.merchant_id.clone(),
+                payment_data.payment_attempt.organization_id.clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch routing path")?;
 
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                         state,
@@ -1650,6 +1660,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         domain_address,
                         authentication.acquirer_bin.clone(),
                         authentication.acquirer_merchant_id.clone(),
+                        Some(routing_region),
                     )
                     .await?;
                 let updated_authentication = Box::pin(uas_utils::utils::external_authentication_update_trackers(
@@ -1726,6 +1737,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {}", authentication_id.get_string_repr()))?;
+
+                let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
+                    state,
+                    payment_data.payment_attempt.merchant_id.clone(),
+                    payment_data.payment_attempt.organization_id.clone(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch routing path")?;
+
                 let updated_authentication = if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
                     let post_auth_response = uas_utils::types::ExternalAuthentication::post_authentication(
                         state,
@@ -1739,6 +1760,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         ).attach_printable("payment_method not found in payment_attempt")?,
                         &payment_data.payment_intent.merchant_id,
                         Some(&authentication),
+                        Some(routing_region)
                     ).await?;
                     uas_utils::utils::external_authentication_update_trackers(
                         state,

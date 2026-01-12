@@ -156,7 +156,7 @@ use crate::{
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core,
+        authentication as authentication_core, unified_authentication_service::utils as uas_utils,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -10786,6 +10786,18 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )
     .await?
     {
+        let routing_region = uas_utils::fetch_routing_region_for_uas(
+            &state,
+            merchant_id.clone(),
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch routing path")?;
         let auth_response =
             <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                 &state,
@@ -10807,6 +10819,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 Some(payment_intent.payment_id),
                 authentication.force_3ds_challenge,
                 authentication.psd2_sca_exemption_type,
+                Some(routing_region),
             )
             .await?;
         let authentication = Box::pin(external_authentication_update_trackers(

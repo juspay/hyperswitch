@@ -45,8 +45,7 @@ use hyperswitch_domain_models::{
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultProxy, ExternalVaultRetrieveFlow, InvoiceRecordBack, PostAuthenticate,
-        PreAuthenticate, SubscriptionCreate as SubscriptionCreateFlow,
-        ProcessIncomingWebhook
+        PreAuthenticate, ProcessIncomingWebhook, SubscriptionCreate as SubscriptionCreateFlow,
     },
     router_request_types::{
         authentication,
@@ -59,7 +58,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData, UasWebhookRequestData
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
@@ -156,7 +155,7 @@ use hyperswitch_interfaces::{
         ConnectorAuthenticationToken, ConnectorIntegration, ConnectorMandateRevoke,
         ConnectorRedirectResponse, ConnectorTransactionId, UasAuthentication,
         UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
-        UnifiedAuthenticationService, UasProcessWebhook
+        UasProcessWebhook, UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };
