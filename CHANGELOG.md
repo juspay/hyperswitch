@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.25.0-hotfix4
+
+### Bug Fixes
+
+- **connector:** [worldpaymodular] capture issue ([#10889](https://github.com/juspay/hyperswitch/pull/10889)) ([`9cfd449`](https://github.com/juspay/hyperswitch/commit/9cfd44956db98fd8c92e593f132c51a1392ef5a4))
+- **env:** Add custom hashmap deserializer for save_payment_method_on_session config ([#10892](https://github.com/juspay/hyperswitch/pull/10892)) ([`6fd7980`](https://github.com/juspay/hyperswitch/commit/6fd7980e93a3fa1f0911a7475292e86df53d30ab))
+- **wasm:** Worldpay modular pm ([#10874](https://github.com/juspay/hyperswitch/pull/10874)) ([`d4cff46`](https://github.com/juspay/hyperswitch/commit/d4cff46bb275a4c311d0387b5025989cc66f4c5f))
+
+**Full Changelog:** [`2025.12.25.0-hotfix3...2025.12.25.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0-hotfix3...2025.12.25.0-hotfix4)
+
+- - -
+
 ## 2025.12.25.0-hotfix3
 
 ### Bug Fixes
