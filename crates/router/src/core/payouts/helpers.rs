@@ -162,7 +162,10 @@ pub async fn make_payout_method_data(
 
         // Create / Update operation
         (Some(payout_method), payout_token, Some(payout_data)) => {
+            #[cfg(feature = "v1")]
             let intent_fulfillment_time = payout_data.business_profile.intent_fulfillment_time;
+            #[cfg(not(feature = "v1"))]
+            let intent_fulfillment_time = None;
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
                 payout_token.to_owned(),
