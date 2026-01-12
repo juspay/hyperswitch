@@ -2686,7 +2686,7 @@ impl User {
                 .route(web::post().to(user::user_merchant_account_create)),
         );
         route = route.service(
-            web::resource("/merchant-details")
+            web::resource("/merchant_details")
                 .route(web::get().to(user::retrieve_merchant_account_details)),
         );
         route = route.service(
@@ -2749,7 +2749,7 @@ impl User {
                     .route(web::post().to(user::user_merchant_account_create)),
             )
             .service(
-                web::resource("/merchant-details")
+                web::resource("/merchant_details")
                     .route(web::get().to(user::retrieve_merchant_account_details)),
             )
             // TODO: To be deprecated
