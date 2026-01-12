@@ -1,4 +1,7 @@
-use common_utils::{errors::CustomResult, id_type::PaymentId};
+use common_utils::{
+    errors::CustomResult,
+    id_type::{PaymentId, PayoutId},
+};
 use error_stack::{Report, ResultExt};
 
 use crate::{
@@ -136,6 +139,49 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
     todo!()
 }
 
+#[cfg(feature = "v2")]
+pub async fn check_if_profile_id_is_present_in_intent_table(
+    payment_id: Option<PaymentId>,
+    payout_id: Option<PayoutId>,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v2")]
+pub async fn check_if_profile_id_is_present_in_payouts(
+    payout_id: PayoutId,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn check_if_profile_id_is_present_in_intent_table(
+    payment_id: Option<PaymentId>,
+    payout_id: Option<PayoutId>,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match (payment_id, payout_id) {
+        (Some(payment_id), _) => {
+            check_if_profile_id_is_present_in_payment_intent(
+                payment_id, state, processor, profile_id,
+            )
+            .await
+        }
+        (None, Some(payout_id)) => {
+            check_if_profile_id_is_present_in_payouts(payout_id, state, processor, profile_id).await
+        }
+        (None, None) => Err(errors::ApiErrorResponse::Unauthorized.into()),
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
@@ -154,4 +200,24 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
     utils::validate_profile_id_from_auth_layer(profile_id, &payment_intent)
+}
+
+#[cfg(feature = "v1")]
+pub async fn check_if_profile_id_is_present_in_payouts(
+    payout_id: PayoutId,
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let payouts = db
+        .find_payout_by_merchant_id_payout_id(
+            processor.get_account().get_id(),
+            &payout_id,
+            processor.get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+    utils::validate_profile_id_from_auth_layer(profile_id, &payouts)
 }

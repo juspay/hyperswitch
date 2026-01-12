@@ -26,7 +26,12 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::ApiEvents);
+    let mut query_builder: QueryBuilder<T> = match query_param.query_param.clone() {
+        QueryType::Payout { .. } => QueryBuilder::new(AnalyticsCollection::ApiPayoutEvents),
+        QueryType::Payment { .. } | QueryType::Refund { .. } | QueryType::Dispute { .. } => {
+            QueryBuilder::new(AnalyticsCollection::ApiEvents)
+        }
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
@@ -102,6 +107,27 @@ where
                 )
                 .switch()?;
         }
+        QueryType::Payout { payout_id } => {
+            query_builder
+                .add_filter_clause("payout_id", &payout_id)
+                .switch()?;
+
+            query_builder
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::PayoutsCreate,
+                        Flow::PayoutsConfirm,
+                        Flow::PayoutsFulfill,
+                        Flow::PayoutsCancel,
+                        Flow::PayoutsRetrieve,
+                        Flow::PayoutLinkInitiate,
+                        Flow::PayoutsUpdate,
+                        Flow::PayoutsCancel,
+                    ],
+                )
+                .switch()?;
+        }
     }
     //TODO!: update the execute_query function to return reports instead of plain errors...
     query_builder
@@ -114,6 +140,7 @@ where
 pub struct ApiLogsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub payout_id: Option<common_utils::id_type::PayoutId>,
     pub refund_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<String>,
