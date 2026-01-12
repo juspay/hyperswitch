@@ -190,6 +190,7 @@ impl ConnectorCommon for Trustpay {
                         .or(response_data.payment_description),
                     attempt_status: None,
                     connector_transaction_id: response_data.instance_id,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -350,6 +351,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: response.result_info.additional_info,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -632,7 +634,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_currency = req.request.get_currency()?;
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
 
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
 
@@ -1457,6 +1459,7 @@ impl ConnectorSpecifications for Trustpay {
                 payment_method_data::PaymentMethodData::Wallet(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
