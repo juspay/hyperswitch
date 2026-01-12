@@ -27813,6 +27813,16 @@
           "journey"
         ]
       },
+      "UnifiedCode": {
+        "type": "string",
+        "enum": [
+          "UE_1000",
+          "UE_2000",
+          "UE_3000",
+          "UE_4000",
+          "UE_9000"
+        ]
+      },
       "UpdateActiveAttempt": {
         "oneOf": [
           {
