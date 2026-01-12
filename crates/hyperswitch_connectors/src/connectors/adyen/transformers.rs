@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
@@ -6916,13 +6916,13 @@ impl
         ResponseRouterData<
             ConnectorWebhookRegister,
             AdyenWebhookRegisterResponse,
-            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterRequest,
             ConnectorWebhookRegisterResponse,
         >,
     >
     for RouterData<
         ConnectorWebhookRegister,
-        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
     >
 {
@@ -6931,7 +6931,7 @@ impl
         item: ResponseRouterData<
             ConnectorWebhookRegister,
             AdyenWebhookRegisterResponse,
-            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterRequest,
             ConnectorWebhookRegisterResponse,
         >,
     ) -> Result<Self, Self::Error> {

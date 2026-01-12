@@ -1979,7 +1979,7 @@ impl MerchantConnectorAccount {
                         .route(web::delete().to(connector_delete)),
                 )
                 .service(
-                    web::resource("/{merchant_id}/webhooks/{merchant_connector_id}")
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
                         .route(web::post().to(connector_webhook_register)),
                 );
         }

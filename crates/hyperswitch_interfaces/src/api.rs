@@ -66,7 +66,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         self,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -776,7 +776,7 @@ pub trait WebhookRegisterV2:
     ConnectorIntegrationV2<
     ConnectorWebhookRegister,
     ConnectorWebhookConfigurationFlowData,
-    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
 >
 {

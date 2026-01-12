@@ -2792,7 +2792,7 @@
         ]
       }
     },
-    "/account/{account_id}/webhooks/{merchant_connector_id}": {
+    "/account/{account_id}/connectors/webhooks/{merchant_connector_id}": {
       "post": {
         "tags": [
           "Merchant Connector Account"

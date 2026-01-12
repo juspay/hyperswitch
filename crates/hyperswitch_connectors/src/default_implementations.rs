@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
@@ -9397,7 +9397,7 @@ macro_rules! default_imp_for_connector_webhook_register {
             impl
             ConnectorIntegration<
             ConnectorWebhookRegister,
-            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterRequest,
             ConnectorWebhookRegisterResponse,
         > for $path::$connector
         {}
@@ -10036,7 +10036,7 @@ impl<const T: u8> WebhookRegister for connectors::DummyConnector<T> {}
 impl<const T: u8>
     ConnectorIntegration<
         ConnectorWebhookRegister,
-        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
     > for connectors::DummyConnector<T>
 {

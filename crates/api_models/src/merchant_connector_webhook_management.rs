@@ -20,3 +20,4 @@ pub struct RegisterConnectorWebhookResponse {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
+

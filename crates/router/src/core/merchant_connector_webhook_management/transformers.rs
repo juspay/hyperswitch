@@ -12,7 +12,7 @@ use crate::{
     core::errors::RouterResult,
     errors, types,
     types::{
-        api::ConnectorData, domain, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse,
+        api::ConnectorData, domain, ConnectorWebhookRegisterRequest, ConnectorWebhookRegisterResponse,
         ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
     SessionState,
@@ -39,7 +39,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         .merchant_connector_id
         .get_string_repr();
     let router_base_url = state.base_url.clone();
-    let request = ConnectorWebhookRegisterData {
+    let request = ConnectorWebhookRegisterRequest {
         webhook_url: format!("{router_base_url}/webhooks/{merchant_id}/{merchant_connector_id}",),
         event_type: webhook_register_request.event_type,
     };
@@ -111,8 +111,8 @@ pub async fn construct_webhook_register_router_data<'a>(
 pub fn construct_connector_webhook_registration_details(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    connector_webhook_register_data: &ConnectorWebhookRegisterData,
-) -> RouterResult<(bool, domain::MerchantConnectorAccountUpdate)> {
+    connector_webhook_register_data: &ConnectorWebhookRegisterRequest,
+) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
     if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
         let webhook_event = connector_webhook_register_data.event_type;
 
@@ -131,37 +131,22 @@ pub fn construct_connector_webhook_registration_details(
 
         map.insert(connector_webhook_id, connector_webhook_value);
 
-        Ok((
-            true,
+        Ok(
             domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details: Some(
                     connector_webhook_registration_details,
                 ),
             },
-        ))
+        )
     } else {
-        Ok((
-            false,
+        Ok(
             domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details: None,
             },
-        ))
+        )
     }
 }
 
-#[cfg(feature = "v1")]
-pub fn construct_connector_webhook_registration_response(
-    register_webhook_response: &ConnectorWebhookRegisterResponse,
-    connector_webhook_register_data: &ConnectorWebhookRegisterData,
-) -> RouterResult<RegisterConnectorWebhookResponse> {
-    Ok(RegisterConnectorWebhookResponse {
-        event_type: connector_webhook_register_data.event_type,
-        connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
-        webhook_registration_status: register_webhook_response.status,
-        error_code: register_webhook_response.error_code.clone(),
-        error_message: register_webhook_response.error_message.clone(),
-    })
-}
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
@@ -172,12 +157,12 @@ pub async fn validate_webhook_registration_request(
     let config = connector_data.connector.get_api_webhook_config();
 
     if !config.is_webhook_auto_configuration_supported {
-        return Err(errors::ApiErrorResponse::FlowNotSupported {
+        Err(errors::ApiErrorResponse::FlowNotSupported {
             flow: "Webhook Registration".to_string(),
             connector: connector_data.connector_name.to_string(),
         }
-        .into());
-    }
+        .into())
+    } else {
 
     let is_supported = match webhook_register_request.event_type {
         common_enums::ConnectorWebhookEventType::Standard => {
@@ -207,3 +192,20 @@ pub async fn validate_webhook_registration_request(
 
     Ok(())
 }
+}
+
+
+#[cfg(feature = "v1")]
+pub fn construct_connector_webhook_registration_response(
+    register_webhook_response: &ConnectorWebhookRegisterResponse,
+    connector_webhook_register_data: &ConnectorWebhookRegisterRequest,
+) -> RouterResult<RegisterConnectorWebhookResponse> {
+        Ok(RegisterConnectorWebhookResponse {
+            event_type: connector_webhook_register_data.event_type,
+            connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
+            webhook_registration_status: register_webhook_response.status,
+            error_code: register_webhook_response.error_code.clone(),
+            error_message: register_webhook_response.error_message.clone(),
+        })
+    }
+

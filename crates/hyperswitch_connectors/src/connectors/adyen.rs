@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
@@ -2550,7 +2550,7 @@ impl WebhookRegister for Adyen {}
 impl
     ConnectorIntegration<
         ConnectorWebhookRegister,
-        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
     > for Adyen
 {

@@ -334,7 +334,7 @@ pub async fn connector_delete() {}
 #[cfg(feature = "v1")]
 #[utoipa::path(
     post,
-    path = "/account/{account_id}/webhooks/{merchant_connector_id}",
+    path = "/account/{account_id}/connectors/webhooks/{merchant_connector_id}",
     request_body(
         content = ConnectorWebhookRegisterRequest,
         examples(

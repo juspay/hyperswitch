@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -4920,7 +4920,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_register {
                 ConnectorIntegrationV2<
                 ConnectorWebhookRegister,
                 ConnectorWebhookConfigurationFlowData,
-                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterRequest,
                 ConnectorWebhookRegisterResponse,
             > for $path::$connector
             {}

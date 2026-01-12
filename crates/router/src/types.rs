@@ -60,7 +60,7 @@ pub use hyperswitch_domain_models::{
         RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -260,7 +260,7 @@ pub type MandateRevokeRouterData =
 
 pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegister,
-    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
 >;
 

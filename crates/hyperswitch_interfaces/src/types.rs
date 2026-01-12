@@ -33,7 +33,7 @@ use hyperswitch_domain_models::{
         AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -103,10 +103,10 @@ pub struct Response {
     pub status_code: u16,
 }
 
-/// Type alias for `ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>`
+/// Type alias for `ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterRequest, ConnectorWebhookRegisterResponse>`
 pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<
     ConnectorWebhookRegister,
-    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
 >;
 
@@ -278,7 +278,7 @@ pub type VerifyWebhookSourceType = dyn ConnectorIntegration<
 /// Type alias for `ConnectorIntegration<VerifyWebhookSource, VerifyWebhookSourceRequestData, VerifyWebhookSourceResponseData>`
 pub type WebhookRegisterType = dyn ConnectorIntegration<
     ConnectorWebhookRegister,
-    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
 >;
 
