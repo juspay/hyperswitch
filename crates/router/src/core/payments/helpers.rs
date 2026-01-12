@@ -1644,7 +1644,7 @@ pub fn get_customer_details_from_request(
     let customer_phone = request
         .customer
         .as_ref()
-        .and_then(|c| c.phone.clone())
+        .and_then(|customer_details| customer_details.phone.clone())
         .or(request.phone.clone())
         .and_then(utils::trim_secret_string);
 
