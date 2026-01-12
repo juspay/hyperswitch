@@ -28,8 +28,8 @@ pub async fn create_profile_acquirer(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
@@ -72,8 +72,8 @@ pub async fn profile_acquirer_update(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,

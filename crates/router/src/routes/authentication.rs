@@ -32,8 +32,8 @@ pub async fn authentication_create(
             unified_authentication_service::authentication_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -185,8 +185,8 @@ pub async fn authentication_retrieve_eligibility_check(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

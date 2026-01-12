@@ -31,8 +31,8 @@ pub async fn get_mandate(
             mandate::get_mandate(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -59,8 +59,8 @@ pub async fn revoke_mandate(
             mandate::revoke_mandate(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -85,8 +85,8 @@ pub async fn retrieve_mandates_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,

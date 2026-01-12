@@ -55,8 +55,8 @@ pub async fn create_token_vault_api(
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Customer(
                 customer_id,
@@ -91,8 +91,8 @@ pub async fn delete_tokenized_data_api(
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::V2ClientAuth(
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(session_id),

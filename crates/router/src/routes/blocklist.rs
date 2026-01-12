@@ -37,8 +37,8 @@ pub async fn add_entry_to_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
@@ -78,8 +78,8 @@ pub async fn remove_entry_from_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
@@ -114,8 +114,8 @@ pub async fn list_blocked_payment_methods(
     let payload = query_payload.into_inner();
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, _) =
@@ -174,8 +174,8 @@ pub async fn toggle_blocklist_guard(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,

@@ -95,8 +95,8 @@ pub async fn payment_intents_create(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         }),
         locking_action,
     ))
@@ -125,8 +125,8 @@ pub async fn payment_intents_retrieve(
     };
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
@@ -204,8 +204,8 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     };
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
@@ -290,8 +290,8 @@ pub async fn payment_intents_update(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
@@ -379,8 +379,8 @@ pub async fn payment_intents_confirm(
     payload.confirm = Some(true);
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
@@ -500,8 +500,8 @@ pub async fn payment_intents_capture(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         }),
         locking_action,
     ))
@@ -535,8 +535,8 @@ pub async fn payment_intents_cancel(
     payload.payment_id = payment_id;
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
@@ -618,8 +618,8 @@ pub async fn payment_intent_list(
             payments::list_payments(state, auth.platform, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

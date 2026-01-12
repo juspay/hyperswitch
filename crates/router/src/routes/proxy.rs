@@ -25,8 +25,8 @@ pub async fn proxy(
             proxy::proxy_core(state, auth.platform, req)
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

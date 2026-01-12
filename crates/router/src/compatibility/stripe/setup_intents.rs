@@ -81,8 +81,8 @@ pub async fn setup_intents_create(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -111,8 +111,8 @@ pub async fn setup_intents_retrieve(
     };
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
@@ -192,8 +192,8 @@ pub async fn setup_intents_update(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
@@ -274,8 +274,8 @@ pub async fn setup_intents_confirm(
     payload.confirm = Some(true);
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
