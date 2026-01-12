@@ -1134,7 +1134,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponseResult, T, UasAuthentica
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    connector_response_reference_id: None
+                    connector_response_reference_id: None,
                 })
             }
         };
