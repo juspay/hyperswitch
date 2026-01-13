@@ -642,11 +642,12 @@ where
                 error_response.network_advice_code.as_ref(),
             ) {
                 (Some(true), Some(network), Some(advice_code)) => {
-                    let merchant_advice_config = payments::helpers::lookup_merchant_advice_code_config(
-                        state,
-                        network,
-                        advice_code,
-                    );
+                    let merchant_advice_config =
+                        payments::helpers::lookup_merchant_advice_code_config(
+                            state,
+                            network,
+                            advice_code,
+                        );
 
                     if merchant_advice_config.is_none() {
                         logger::warn!(

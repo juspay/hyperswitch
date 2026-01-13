@@ -1085,7 +1085,11 @@ impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
 
 impl MerchantAdviceCodesConfig {
     /// Get merchant advice code configuration for a specific network and advice code
-    pub fn get_config(&self, network: &str, advice_code: &str) -> Option<&MerchantAdviceCodeConfig> {
+    pub fn get_config(
+        &self,
+        network: &str,
+        advice_code: &str,
+    ) -> Option<&MerchantAdviceCodeConfig> {
         let key = Self::create_lookup_key(network, advice_code);
         self.data.get(&key)
     }

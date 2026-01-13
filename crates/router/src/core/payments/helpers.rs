@@ -74,7 +74,9 @@ use crate::core::{
     utils as core_utils,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig, TempLockerEnableConfig},
+    configs::settings::{
+        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig, TempLockerEnableConfig,
+    },
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
