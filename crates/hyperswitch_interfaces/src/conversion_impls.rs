@@ -1081,7 +1081,8 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone(),
             connector_customer: old_router_data.connector_customer.clone(),
-            connector: common_enums::connector_enums::Connector::from_str(&old_router_data.connector).expect("connector"),
+            connector: common_enums::connector_enums::Connector::from_str(&old_router_data.connector)
+                .change_context(ConnectorError::InvalidConnectorName)?,
             payment_id: old_router_data.payment_id.clone(),
             attempt_id: old_router_data.attempt_id.clone(),
             status: old_router_data.status,

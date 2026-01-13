@@ -240,7 +240,9 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector_customer: connector_customer_id,
-        connector: merchant_connector_account.get_connector_name().expect("connector"),
+        connector: merchant_connector_account
+            .get_connector_name()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?,
         payment_id: payment_data
             .payment_attempt
             .payment_id
