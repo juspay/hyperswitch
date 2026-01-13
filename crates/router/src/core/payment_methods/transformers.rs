@@ -605,6 +605,7 @@ pub fn generate_payment_method_response(
         network_token,
         storage_type,
         card_cvc_token_storage,
+        network_transaction_id: payment_method.network_transaction_id.clone(),
     };
 
     Ok(resp)

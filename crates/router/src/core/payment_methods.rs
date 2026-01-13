@@ -2543,6 +2543,7 @@ pub async fn create_pm_additional_data_update(
     vault_fingerprint_id: Option<String>,
     payment_method: &domain::PaymentMethod,
     connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
+    network_transaction_id: Option<String>,
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
@@ -2593,6 +2594,7 @@ pub async fn create_pm_additional_data_update(
         connector_mandate_details: connector_mandate_details_update,
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
+        network_transaction_id,
         last_modified_by: None,
     };
 
@@ -3424,6 +3426,7 @@ pub async fn update_payment_method_core(
         fingerprint_id,
         &payment_method,
         request.connector_token_details,
+        request.network_transaction_id,
         None,
         None,
         None,
