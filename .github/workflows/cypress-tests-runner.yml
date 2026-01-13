@@ -359,7 +359,7 @@ jobs:
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
 
