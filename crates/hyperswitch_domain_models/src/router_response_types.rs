@@ -702,6 +702,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn is_refund_not_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -719,6 +725,16 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
             self.insert(payment_method, payment_method_type_metadata);
         }
+    }
+
+    fn is_refund_not_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        self.get(payment_method)
+            .and_then(|pm_types| pm_types.get(payment_method_type))
+            .is_some_and(|details| details.refunds == common_enums::FeatureStatus::NotSupported)
     }
 }
 

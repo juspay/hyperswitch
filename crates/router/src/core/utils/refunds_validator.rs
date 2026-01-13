@@ -1,6 +1,8 @@
 use diesel_models::refund as diesel_refund;
 use error_stack::report;
 #[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
+#[cfg(feature = "v1")]
 use hyperswitch_interfaces::{self, api::ConnectorSpecifications};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
@@ -130,11 +132,10 @@ pub fn validate_for_valid_refunds(
 
     let supported_payment_methods = connector_enum.get_supported_payment_methods();
 
-    let is_refund_not_supported = supported_payment_methods
-        .and_then(|payment_methods| payment_methods.get(payment_method))
-        .and_then(|pm_types| pm_types.get(&payment_method_type))
-        .map(|details| details.refunds == common_enums::FeatureStatus::NotSupported)
-        .unwrap_or(false);
+    let is_refund_not_supported =
+        supported_payment_methods.is_some_and(|supported_payment_methods| {
+            supported_payment_methods.is_refund_not_supported(payment_method, &payment_method_type)
+        });
 
     if is_refund_not_supported {
         Err(errors::ApiErrorResponse::InvalidRequestData {
