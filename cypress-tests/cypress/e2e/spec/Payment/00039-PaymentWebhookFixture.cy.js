@@ -97,9 +97,10 @@ describe("Payment Webhook Tests", () => {
         fixtures.IncomingWebhookBody.webhookBodies[connector]["payment"]
       );
 
-      // Extract webhook reference ID configuration for the specified connector  
-      // This config defines how to locate and parse the payment reference ID from connector-specific webhook payloads  
-      const data = getConnectorDetails(connector)["webhook"]["TransactionIdConfig"];
+      // Extract webhook reference ID configuration for the specified connector
+      // This config defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      const data =
+        getConnectorDetails(connector)["webhook"]["TransactionIdConfig"];
 
       // Normalize transaction ID
       utils.setNormalizedValue(

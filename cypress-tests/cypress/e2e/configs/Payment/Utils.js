@@ -448,7 +448,6 @@ export const shouldIncludeConnector = (connectorId, list) => {
   return !list.includes(connectorId);
 };
 
-
 export function setNormalizedValue(
   webhookBody,
   config,
