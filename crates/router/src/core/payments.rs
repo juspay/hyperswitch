@@ -4241,6 +4241,19 @@ where
             connector.connector_name
         );
         (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If order create flow is bloated up for the current connector
+            // order create call would have already happened in the previous step.
+            config
+                .settlement_split_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
             state,

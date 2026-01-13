@@ -1523,6 +1523,21 @@ pub struct SettlementSplitRequestData {
     pub currency: storage_enums::Currency,
 }
 
+impl TryFrom<PaymentsAuthorizeData> for SettlementSplitRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(item: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            splits: item
+                .split_payments
+                .get_required_value("split_payments")
+                .change_context(ApiErrorResponse::MissingRequiredField {
+                    field_name: "split_payments",
+                })?,
+            currency: item.currency,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
