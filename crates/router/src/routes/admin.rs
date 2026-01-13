@@ -522,8 +522,12 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            let platform = auth_data.clone().into();
-            create_connector(state, req, platform, auth_data.profile_id)
+            create_connector(
+                state,
+                req,
+                auth_data.platform.get_processor().clone(),
+                auth_data.profile.map(|profile| profile.get_id().clone()),
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
@@ -555,8 +559,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let platform = auth_data.into();
-            create_connector(state, req, platform, None)
+            create_connector(state, req, auth_data.platform.get_processor().clone(), None)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -598,8 +601,8 @@ pub async fn connector_retrieve(
         |state, auth, req, _| {
             retrieve_connector(
                 state,
-                auth.merchant_account.get_id().clone(),
-                auth.profile_id,
+                auth.platform.get_processor().clone(),
+                auth.profile.map(|profile| profile.get_id().clone()),
                 req.merchant_connector_id,
             )
         },
@@ -638,8 +641,7 @@ pub async fn connector_retrieve(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            retrieve_connector(state, platform, req.id.clone())
+            retrieve_connector(state, auth.platform.get_processor().clone(), req.id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -668,8 +670,12 @@ pub async fn connector_list(
         state,
         &req,
         profile_id.to_owned(),
-        |state, auth::AuthenticationData { key_store, .. }, _, _| {
-            list_connectors_for_a_profile(state, key_store, profile_id.clone())
+        |state, auth: auth::AuthenticationData, _, _| {
+            list_connectors_for_a_profile(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id.clone(),
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -702,7 +708,7 @@ pub async fn connector_list(
         &req,
         merchant_id.to_owned(),
         |state, auth, _, _| {
-            list_payment_connectors(state, auth.merchant_account.get_id().clone(), None)
+            list_payment_connectors(state, auth.platform.get_processor().clone(), None)
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
@@ -738,8 +744,8 @@ pub async fn connector_list_profile(
         |state, auth, _, _| {
             list_payment_connectors(
                 state,
-                auth.merchant_account.get_id().clone(),
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform.get_processor().clone(),
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
         auth::auth_type(
@@ -780,8 +786,8 @@ pub async fn connector_update(
         |state, auth, req, _| {
             update_connector(
                 state,
-                auth.merchant_account.get_id().clone(),
-                auth.profile_id,
+                auth.platform.get_processor().get_account().get_id().clone(),
+                auth.profile.map(|profile| profile.get_id().clone()),
                 &merchant_connector_id,
                 req,
             )
@@ -892,8 +898,7 @@ pub async fn connector_delete(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            delete_connector(state, platform, req.id)
+            delete_connector(state, auth.platform, req.id)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

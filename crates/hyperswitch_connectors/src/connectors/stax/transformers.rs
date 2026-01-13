@@ -63,16 +63,16 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
     fn try_from(
         item: &StaxRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Stax",
-            })?
-        }
         let total = item.amount;
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
+                if item.router_data.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Cards 3DS".to_string(),
+                        connector: "Stax",
+                    })?
+                }
                 let pm_token = item.router_data.get_payment_method_token()?;
                 let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {

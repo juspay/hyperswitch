@@ -554,6 +554,7 @@ pub trait ConnectorActions: Connector {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
@@ -1150,6 +1151,8 @@ impl Default for TokenType {
             customer_acceptance: None,
             setup_mandate_details: None,
             payment_method_type: None,
+            router_return_url: None,
+            capture_method: None,
         };
         Self(data)
     }

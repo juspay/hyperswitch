@@ -103,6 +103,33 @@ export const connectorDetails = {
       },
     },
   },
+  bank_redirect_pm: {
+    OnlineBankingFpx: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        amount: 6000,
+        currency: "MYR",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          net_amount: 6000,
+          amount_received: null,
+          amount: 6000,
+        },
+      },
+    },
+  },
   card_pm: {
     PaymentIntent: {
       Request: {

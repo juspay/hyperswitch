@@ -32,6 +32,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod platform;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;

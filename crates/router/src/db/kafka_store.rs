@@ -2203,6 +2203,24 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_methods_by_merchant_id_payment_method_ids(
+                key_store,
+                merchant_id,
+                payment_method_ids,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         key_store: &domain::MerchantKeyStore,

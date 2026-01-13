@@ -50,9 +50,16 @@ fn build_payload_payment_request_data(
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
     customer_id: Option<String>,
+    is_three_ds: bool,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
+            if is_three_ds {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Cards 3DS".to_string(),
+                    connector: "Payload",
+                })?
+            }
             let card = requests::PayloadCard {
                 number: req_card.clone().card_number,
                 expiry: req_card
@@ -237,27 +244,27 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
 impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        match item.request.amount {
-            Some(amount) if amount > 0 => Err(errors::ConnectorError::FlowNotSupported {
+        if item.request.amount > 0 {
+            Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Setup mandate with non zero amount".to_string(),
                 connector: "Payload".to_string(),
             }
-            .into()),
-            _ => {
-                let billing_address = item.get_billing_address()?;
-                let is_mandate = item.request.is_customer_initiated_mandate_payment();
+            .into())
+        } else {
+            let billing_address = item.get_billing_address()?;
+            let is_mandate = item.request.is_customer_initiated_mandate_payment();
 
-                build_payload_payment_request_data(
-                    &item.request.payment_method_data,
-                    &item.connector_auth_type,
-                    item.request.currency,
-                    StringMajorUnit::zero(),
-                    billing_address,
-                    item.request.capture_method,
-                    is_mandate,
-                    item.get_connector_customer_id()?.into(),
-                )
-            }
+            build_payload_payment_request_data(
+                &item.request.payment_method_data,
+                &item.connector_auth_type,
+                item.request.currency,
+                StringMajorUnit::zero(),
+                billing_address,
+                item.request.capture_method,
+                is_mandate,
+                item.get_connector_customer_id()?.into(),
+                item.is_three_ds(),
+            )
         }
     }
 }
@@ -272,13 +279,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
-                if item.router_data.is_three_ds() {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Cards 3DS".to_string(),
-                        connector: "Payload",
-                    })?
-                }
-                let billing_address = item.router_data.get_billing_address()?;
+                let billing_address: &AddressDetails = item.router_data.get_billing_address()?;
                 let is_mandate = item.router_data.request.is_mandate_payment();
 
                 let payment_request = build_payload_payment_request_data(
@@ -290,6 +291,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     item.router_data.request.capture_method,
                     is_mandate,
                     item.router_data.connector_customer.clone(),
+                    item.router_data.is_three_ds(),
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -400,6 +402,7 @@ where
                         reason: response.status_message,
                         status_code: item.http_code,
                         connector_transaction_id: Some(response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,

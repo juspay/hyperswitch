@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
+use strum::Display;
+use time::PrimitiveDateTime;
 
 use super::*;
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -26,9 +28,28 @@ pub struct FinixPaymentsResponse {
     pub payment_type: Option<FinixPaymentType>,
     // pub trace_id: String,
     pub three_d_secure: Option<FinixThreeDSecure>,
-    // Add other fields from the API response as needed.
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum FinixCombinedPaymentResponse {
+    SyncResponse(Box<FinixPaymentsResponse>),
+    WebhookResponse(Box<FinixEmbedded>),
+}
+impl FinixCombinedPaymentResponse {
+    pub fn get_payment_response(&self) -> Result<FinixPaymentsResponse, ConnectorError> {
+        match self {
+            Self::SyncResponse(txn_res) => Ok(*txn_res.clone()),
+            Self::WebhookResponse(webhook_res) => match webhook_res.as_ref() {
+                FinixEmbedded::Authorizations { authorizations } => {
+                    authorizations.get_first_event()
+                }
+                FinixEmbedded::Transfers { transfers } => transfers.get_first_event(),
+                FinixEmbedded::Disputes { .. } => Err(ConnectorError::ResponseHandlingFailed),
+            },
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixIdentityResponse {
     pub id: String,
@@ -76,4 +97,72 @@ pub struct FinixError {
     // pub logref: Option<String>,
     pub message: Option<String>,
     pub code: Option<String>,
+}
+
+//------------------- WEBHOOKS
+
+#[derive(Clone, Display, Debug, Serialize, Deserialize)]
+pub enum FinixDisputeState {
+    INQUIRY,
+    PENDING,
+    LOST,
+    WON,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+
+pub struct FinixDisputes {
+    pub transfer: String,
+    pub reason: Option<String>,
+    pub amount: MinorUnit,
+    pub state: FinixDisputeState,
+    pub currency: Currency,
+    pub id: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub respond_by: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SingleEventType<T>(Vec<T>);
+impl<T: Clone> SingleEventType<T> {
+    pub fn get_first_event(&self) -> Result<T, ConnectorError> {
+        self.0
+            .first()
+            .cloned()
+            .ok_or(ConnectorError::WebhookBodyDecodingFailed)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FinixEmbedded {
+    Authorizations {
+        authorizations: SingleEventType<FinixPaymentsResponse>,
+    },
+    Transfers {
+        transfers: SingleEventType<FinixPaymentsResponse>,
+    },
+    Disputes {
+        disputes: SingleEventType<FinixDisputes>,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+
+pub struct FinixWebhookBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub entity: String,
+    #[serde(rename = "_embedded")]
+    pub webhook_embedded: FinixEmbedded,
+}
+
+//--------------
+
+#[derive(Debug, serde::Deserialize)]
+pub struct FinixWebhookSignature {
+    pub timestamp: String,
+    pub sig: Vec<u8>,
 }

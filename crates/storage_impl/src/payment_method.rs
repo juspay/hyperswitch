@@ -4,6 +4,9 @@ use crate::redis::kv_store::KvStorePartition;
 
 impl KvStorePartition for PaymentMethod {}
 
+#[cfg(feature = "v1")]
+use std::collections::HashSet;
+
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
@@ -90,6 +93,25 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             FindResourceBy::LookupId(format!("payment_method_locker_{locker_id}")),
         )
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        self.router_store
+            .find_payment_methods_by_merchant_id_payment_method_ids(
+                key_store,
+                merchant_id,
+                payment_method_ids,
+                storage_scheme,
+            )
+            .await
     }
 
     // not supported in kv
@@ -425,6 +447,28 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        self.find_resources(
+            key_store,
+            PaymentMethod::find_by_merchant_id_payment_method_ids(
+                &conn,
+                merchant_id,
+                payment_method_ids,
+                Some(200),
+            ),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -706,6 +750,28 @@ impl PaymentMethodInterface for MockDb {
             key_store,
             payment_methods,
             |pm| pm.locker_id == Some(locker_id.to_string()),
+            "cannot find payment method".to_string(),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        if payment_method_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids: HashSet<_> = payment_method_ids.iter().cloned().collect();
+        let payment_methods = self.payment_methods.lock().await;
+        self.get_resources(
+            key_store,
+            payment_methods,
+            |pm| pm.merchant_id == *merchant_id && ids.contains(pm.get_id()),
             "cannot find payment method".to_string(),
         )
         .await

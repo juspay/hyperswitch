@@ -1839,6 +1839,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Gcash => Self::Wallet,
             PaymentMethodType::Mifinity => Self::Wallet,
             PaymentMethodType::Ideal => Self::BankRedirect,
+            PaymentMethodType::Qris => Self::RealTimePayment,
             PaymentMethodType::Klarna => Self::PayLater,
             PaymentMethodType::KakaoPay => Self::Wallet,
             PaymentMethodType::Knet => Self::CardRedirect,

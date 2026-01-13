@@ -177,6 +177,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::InstantBankTransferPoland => {
                 Ok(dirval!(BankTransferType = InstantBankTransferPoland))
             }
+            global_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
             global_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
             }

@@ -1,34 +1,24 @@
-use std::str::FromStr;
-
 use async_trait::async_trait;
-use common_enums::{self, enums};
+use common_enums;
 use common_types::payments as common_payments_types;
-use common_utils::{id_type, ucs_types};
-use error_stack::ResultExt;
-use external_services::grpc_client;
-use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
+use hyperswitch_domain_models::{payments as domain_payments, router_data_v2::PaymentFlowData};
+use hyperswitch_interfaces::api::{self as api_interface, gateway, ConnectorSpecifications};
 use router_env::logger;
-use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, gateway::context as gateway_context, helpers,
-            session_token, tokenization, transformers, PaymentData,
-        },
-        unified_connector_service::{
-            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
-            handle_unified_connector_service_response_for_payment_register,
-            set_access_token_for_ucs, ucs_logging_wrapper,
+            self, access_token, customers, gateway as payments_gateway,
+            gateway::context as gateway_context, helpers, session_token, tokenization,
+            transformers, PaymentData,
         },
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, transformers::ForeignTryFrom},
+    types::{self, api, domain},
 };
 
 #[cfg(feature = "v1")]
@@ -218,6 +208,81 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         }
     }
 
+    async fn pre_authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_pre_authentication_flow_required(
+            api_interface::CurrentFlowInfo::SetupMandate {
+                auth_type: &self.auth_type,
+            },
+        ) {
+            logger::info!(
+                "Pre-authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            let setup_mandate_request_data = self.request.clone();
+            let pre_authenticate_request_data =
+                types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+            let pre_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let pre_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PreAuthenticate, _, _, _, _>(
+                    self.clone(),
+                    pre_authenticate_request_data,
+                    pre_authenticate_response_data,
+                );
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                pre_authenticate_router_data,
+                connector,
+                gateway_context,
+            ))
+            .await?;
+            let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+            let mut setup_mandate_router_data =
+                helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
+                    pre_authenticate_router_data,
+                    setup_mandate_request_data,
+                    pre_authenticate_response,
+                );
+
+            if let Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2,
+                related_transaction_id,
+            }) = &setup_mandate_router_data.response
+            {
+                let (enrolled_for_3ds, related_transaction_id) =
+                    (*enrolled_v2, related_transaction_id.clone());
+                setup_mandate_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+                setup_mandate_router_data.request.related_transaction_id = related_transaction_id;
+            }
+
+            let should_continue = setup_mandate_router_data.response.is_ok();
+
+            Ok((setup_mandate_router_data, should_continue))
+        } else {
+            logger::info!(
+                "Pre-authentication flow is not required for connector: {} for Setup Mandate flow",
+                connector.connector_name
+            );
+            Ok((self, true))
+        }
+    }
+
     async fn create_connector_customer<'a>(
         &self,
         state: &SessionState,
@@ -265,139 +330,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         setup_mandate_preprocessing_steps(state, &self, true, connector).await
-    }
-
-    async fn call_unified_connector_service<'a>(
-        &mut self,
-        state: &SessionState,
-        header_payload: &domain_payments::HeaderPayload,
-        lineage_ids: grpc_client::LineageIds,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
-        _connector_data: &api::ConnectorData,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
-        merchant_order_reference_id: Option<String>,
-        _call_connector_action: common_enums::CallConnectorAction,
-        creds_identifier: Option<String>,
-    ) -> RouterResult<()> {
-        let client = state
-            .grpc_client
-            .unified_connector_service_client
-            .clone()
-            .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-        let payment_register_request =
-            payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(&*self)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct Payment Setup Mandate Request")?;
-
-        let merchant_connector_id = merchant_connector_account.get_mca_id();
-
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            platform,
-            self.connector.clone(),
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .or(merchant_order_reference_id)
-            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-            .transpose()
-            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
-            .ok()
-            .flatten()
-            .map(ucs_types::UcsReferenceId::Payment);
-        let header_payload = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
-            .external_vault_proxy_metadata(None)
-            .merchant_reference_id(merchant_reference_id)
-            .lineage_ids(lineage_ids);
-        let connector_name = self.connector.clone();
-        let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
-            self.clone(),
-            state,
-            payment_register_request,
-            header_payload,
-            |mut router_data, payment_register_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_setup_mandate(
-                    payment_register_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                ))
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to Setup Mandate payment")?;
-
-                let payment_register_response = response.into_inner();
-
-                let ucs_data = handle_unified_connector_service_response_for_payment_register(
-                    payment_register_response.clone(),
-                )
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize UCS response")?;
-
-                // Extract and store access token if present
-                if let Some(access_token) = get_access_token_from_ucs_response(
-                    state,
-                    platform,
-                    &router_data.connector,
-                    merchant_connector_id.as_ref(),
-                    creds_identifier.clone(),
-                    payment_register_response.state.as_ref(),
-                )
-                .await
-                {
-                    if let Err(error) = set_access_token_for_ucs(
-                        state,
-                        platform,
-                        &connector_name,
-                        access_token,
-                        merchant_connector_id.as_ref(),
-                        creds_identifier,
-                    )
-                    .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from setup mandate response"
-                        );
-                    } else {
-                        logger::debug!(
-                            "Successfully stored access token from UCS setup mandate response"
-                        );
-                    }
-                }
-                let router_data_response =
-                    ucs_data.router_data_response.map(|(response, status)| {
-                        router_data.status = status;
-                        response
-                    });
-                router_data.response = router_data_response;
-                router_data.connector_http_status_code = Some(ucs_data.status_code);
-
-                // Populate connector_customer_id if present
-                ucs_data.connector_customer_id.map(|connector_customer_id| {
-                    router_data.connector_customer = Some(connector_customer_id);
-                });
-
-                ucs_data.connector_response.map(|connector_response| {
-                    router_data.connector_response = Some(connector_response);
-                });
-
-                Ok((router_data, (), payment_register_response))
-            },
-        ))
-        .await?;
-
-        // Copy back the updated data
-        *self = updated_router_data;
-        Ok(())
     }
 }
 
