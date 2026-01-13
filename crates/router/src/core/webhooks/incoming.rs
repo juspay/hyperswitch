@@ -1813,7 +1813,7 @@ async fn payout_incoming_webhook_retrieve_status(
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform.get_processor().clone(),
+            platform,
             business_profile,
             outgoing_event_type,
             enums::EventClass::Payouts,
