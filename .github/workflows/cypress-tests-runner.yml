@@ -158,7 +158,7 @@ jobs:
         id: set-mandatory-matrix
         shell: bash
         run: |
-          echo "run_tests='${RUN_TESTS}'" >> "$GITHUB_OUTPUT"
+          echo "run_tests=${RUN_TESTS}" >> "$GITHUB_OUTPUT"
           {
             echo "mandatory-matrix<<EOF" # Changed from "matrix<<EOF"
             echo '{
