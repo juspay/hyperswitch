@@ -2686,7 +2686,7 @@ impl User {
                 .route(web::post().to(user::user_merchant_account_create)),
         );
         route = route.service(
-            web::resource("/merchant_details")
+            web::resource("/merchant-details")
                 .route(web::get().to(user::retrieve_merchant_account_details)),
         );
         route = route.service(
