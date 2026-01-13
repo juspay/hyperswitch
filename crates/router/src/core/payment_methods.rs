@@ -1185,7 +1185,7 @@ pub async fn create_payment_method_card_core(
             let cvc_expiry_details = card_cvc
                 .async_map(|cvc| {
                     vault::insert_cvc_using_payment_token(
-                        &state,
+                        state,
                         &payment_method.id,
                         cvc,
                         intent_fulfillment_time,
@@ -3388,8 +3388,8 @@ pub async fn update_payment_method_core(
     let card_cvc_token_details = card_cvc
         .async_map(|cvc| {
             vault::insert_cvc_using_payment_token(
-                &state,
-                &payment_method_id,
+                state,
+                payment_method_id,
                 cvc,
                 common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
                 platform.get_provider().get_key_store(),
