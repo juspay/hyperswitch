@@ -19,15 +19,16 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
-            Void,
+            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session,
+            SettlementSplitCreate, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData, SplitRefundsRequest,
+        PaymentsSyncData, RefundsData, SettlementSplitRequestData, SetupMandateRequestData,
+        SplitRefundsRequest,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -35,8 +36,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSettlementSplitCreateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -74,6 +75,7 @@ impl Xendit {
     }
 }
 impl api::Payment for Xendit {}
+impl api::PaymentsSettlementSplitCreate for Xendit {}
 impl api::PaymentsPreProcessing for Xendit {}
 impl api::PaymentSession for Xendit {}
 impl api::ConnectorAccessToken for Xendit {}
@@ -324,6 +326,90 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
             router_data
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>
+    for Xendit
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsSettlementSplitCreateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsSettlementSplitCreateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/split_rules", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSettlementSplitCreateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = xendit::XenditSplitRequestData::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsSettlementSplitCreateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(types::PaymentsSettlementSplitCreateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&types::PaymentsSettlementSplitCreateType::get_url(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsSettlementSplitCreateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSettlementSplitCreateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSettlementSplitCreateRouterData, errors::ConnectorError> {
+        let response: xendit::XenditSplitResponse = res
+            .response
+            .parse_struct("XenditSplitResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
         })
     }
 

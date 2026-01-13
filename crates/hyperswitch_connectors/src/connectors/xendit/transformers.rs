@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData,
+        PaymentsSettlementSplitCreateRouterData, PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -26,7 +26,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         PaymentsCaptureResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSettlementSplitCreateResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, CardData, PaymentsAuthorizeRequestData,
@@ -481,6 +482,82 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
     }
 }
 
+impl TryFrom<PaymentsSettlementSplitCreateResponseRouterData<XenditSplitResponse>>
+    for PaymentsSettlementSplitCreateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: PaymentsSettlementSplitCreateResponseRouterData<XenditSplitResponse>,
+    ) -> Result<Self, Self::Error> {
+        let for_user_id = match item.data.request.splits {
+            common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
+            ) => split_data.for_user_id.clone(),
+            _ => None,
+        };
+
+        let routes: Vec<common_types::payments::XenditSplitRoute> = item
+            .response
+            .routes
+            .iter()
+            .map(|route| {
+                let required_conversion_type = common_utils::types::FloatMajorUnitForConnector;
+                route
+                    .flat_amount
+                    .map(|amount| {
+                        common_utils::types::AmountConvertor::convert_back(
+                            &required_conversion_type,
+                            amount,
+                            item.data.request.currency,
+                        )
+                        .map_err(|_| {
+                            errors::ConnectorError::RequestEncodingFailedWithReason(
+                                "Failed to convert the amount into a major unit".to_owned(),
+                            )
+                        })
+                    })
+                    .transpose()
+                    .map(|flat_amount| common_types::payments::XenditSplitRoute {
+                        flat_amount,
+                        percent_amount: route.percent_amount,
+                        currency: route.currency,
+                        destination_account_id: route.destination_account_id.clone(),
+                        reference_id: route.reference_id.clone(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let charges = common_types::payments::XenditMultipleSplitResponse {
+            split_rule_id: item.response.id,
+            for_user_id,
+            name: item.response.name,
+            description: item.response.description,
+            routes,
+        };
+
+        let response = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::NoResponseId,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: Some(
+                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                    common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
+                ),
+            ),
+        };
+
+        Ok(Self {
+            response: Ok(response),
+            ..item.data
+        })
+    }
+}
+
 impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
     for PaymentsPreProcessingRouterData
 {
@@ -646,6 +723,59 @@ impl TryFrom<&ConnectorAuthType> for XenditAuthType {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+impl TryFrom<&PaymentsSettlementSplitCreateRouterData> for XenditSplitRequestData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsSettlementSplitCreateRouterData) -> Result<Self, Self::Error> {
+        if let common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+            common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
+        ) = item.request.splits.clone()
+        {
+            let routes: Vec<XenditSplitRoute> = split_data
+                .routes
+                .iter()
+                .map(|route| {
+                    let required_conversion_type = common_utils::types::FloatMajorUnitForConnector;
+                    route
+                        .flat_amount
+                        .map(|amount| {
+                            common_utils::types::AmountConvertor::convert(
+                                &required_conversion_type,
+                                amount,
+                                item.request.currency,
+                            )
+                            .map_err(|_| {
+                                errors::ConnectorError::RequestEncodingFailedWithReason(
+                                    "Failed to convert the amount into a major unit".to_owned(),
+                                )
+                            })
+                        })
+                        .transpose()
+                        .map(|flat_amount| XenditSplitRoute {
+                            flat_amount,
+                            percent_amount: route.percent_amount,
+                            currency: route.currency,
+                            destination_account_id: route.destination_account_id.clone(),
+                            reference_id: route.reference_id.clone(),
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let split_data = XenditSplitRequest {
+                name: split_data.name.clone(),
+                description: split_data.description.clone(),
+                routes,
+            };
+
+            Ok(Self { split_data })
+        } else {
+            Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Xendit"),
+            )
+            .into())
         }
     }
 }
