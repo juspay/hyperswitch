@@ -2751,11 +2751,6 @@ pub async fn update_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let connector_metadata = ConnectorMetadata {
-        connector_metadata: &req.metadata,
-    };
-    connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
-
     let mca = req
         .clone()
         .get_merchant_connector_account_from_id(db, &merchant_id, merchant_connector_id, &key_store)
