@@ -730,11 +730,6 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     )
     .await?;
 
-    router_env::logger::debug!(
-        "Constructed RouterDataV2 for External Vault Proxy: {:?}",
-        router_data_v2
-    );
-
     // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
     let router_data =
         flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
@@ -742,11 +737,6 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             .attach_printable(
                 "Cannot construct router data for making the unified connector service call",
             )?;
-    
-    router_env::logger::debug!(
-        "Converted RouterDataV2 to RouterData (v1) for External Vault Proxy: {:?}",
-        router_data
-    );
 
     Ok(router_data)
 }
