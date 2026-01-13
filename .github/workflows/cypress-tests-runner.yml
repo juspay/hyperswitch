@@ -151,7 +151,7 @@ jobs:
     name: Prepare Mandatory Connectors matrix to run cypress tests
     runs-on: hyperswitch-runners
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.mandatory-matrix }}
+      mandatory-matrix: ${{ steps.set-matrix.outputs.mandatory-matrix }}
       run_tests: ${{ steps.set-matrix.outputs.run_tests }}
     steps:    
       - name : Set matrix for mandatory connectors batches
@@ -186,7 +186,7 @@ jobs:
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs.mandatory-matrix) }}
+      matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
