@@ -144,7 +144,10 @@ impl ConnectorCommon for Airwallex {
             Ok(response) => {
                 event_builder.map(|i| i.set_error_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-
+                let network_error_message = response
+                    .provider_original_response_code
+                    .clone()
+                    .and_then(airwallex::map_error_code_to_message);
                 Ok(ErrorResponse {
                     status_code,
                     code: response.code,
@@ -154,8 +157,8 @@ impl ConnectorCommon for Airwallex {
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
                     network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
+                    network_decline_code: response.provider_original_response_code.clone(),
+                    network_error_message,
                     connector_metadata: None,
                 })
             }
