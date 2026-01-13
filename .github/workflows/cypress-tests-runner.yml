@@ -158,8 +158,8 @@ jobs:
         id: set-matrix
         shell: bash
         run: |
+          echo "run_tests="'"${RUN_TESTS}"'" >> "$GITHUB_OUTPUT"
           {
-            echo "run_tests="'"${RUN_TESTS}"'" >> "$GITHUB_OUTPUT"
             echo "matrix<<EOF"
             echo '{
               "batch": [
