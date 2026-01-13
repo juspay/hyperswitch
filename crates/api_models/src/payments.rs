@@ -3828,6 +3828,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris,
         }
     }
 }
@@ -4864,6 +4865,8 @@ pub enum RealTimePaymentData {
     PromptPay {},
     #[smithy(nested_value_type)]
     VietQr {},
+    #[smithy(nested_value_type)]
+    Qris {},
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {

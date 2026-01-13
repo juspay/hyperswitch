@@ -204,6 +204,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::DuitNow
                 | api_enums::PaymentMethodType::PromptPay
                 | api_enums::PaymentMethodType::VietQr
+                | api_enums::PaymentMethodType::Qris
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,

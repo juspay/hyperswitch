@@ -194,6 +194,9 @@ impl
                         (common_enums::CountryAlpha2::TH, None, None)
                     }
                     RealTimePaymentData::VietQr {} => (common_enums::CountryAlpha2::VN, None, None),
+                    RealTimePaymentData::Qris {} => Err(errors::ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("iatapay"),
+                    ))?,
                 }
             }
             PaymentMethodData::Card(_)

@@ -295,6 +295,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::InstantBankTransferPoland => {
                 Ok(dirval!(BankTransferType = InstantBankTransferPoland))
             }
+            api_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
             api_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
             }

@@ -1271,6 +1271,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
                     | enums::PaymentMethodType::Pse
+                    | enums::PaymentMethodType::Qris
                     | enums::PaymentMethodType::RedCompra
                     | enums::PaymentMethodType::RedPagos
                     | enums::PaymentMethodType::SamsungPay
