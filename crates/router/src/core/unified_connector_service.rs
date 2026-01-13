@@ -668,20 +668,32 @@ pub fn build_unified_connector_service_payment_method(
                 ) => {
                     let upi_details = payments_grpc::UpiCollect {
                         vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
-                        upi_source: None,
+                        upi_source: upi_collect_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
                     };
                     PaymentMethod::UpiCollect(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(upi_intent_data) => {
                     let upi_details = payments_grpc::UpiIntent {
                         app_name: None,
-                        upi_source: None,
+                        upi_source: upi_intent_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
                     };
                     PaymentMethod::UpiIntent(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(upi_qr_data) => {
                     let upi_details = payments_grpc::UpiQr {
-                        upi_source: None,
+                        upi_source: upi_qr_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
                     };
                     PaymentMethod::UpiQr(upi_details)
                 }
@@ -769,6 +781,30 @@ pub fn build_unified_connector_service_payment_method(
 
                 Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Blik(blik)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { country } => {
+                let trustly = payments_grpc::Trustly {
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string())).map(|c| c.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Trustly(trustly)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Interac {
+                country,
+                email,
+            } => {
+                let interac = payments_grpc::Interac {
+                    country: country
+                        .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                        .map(|c| c.into()),
+                    email: email.map(|e| e.expose().expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Interac(interac)),
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
