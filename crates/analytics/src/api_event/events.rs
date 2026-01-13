@@ -140,6 +140,7 @@ where
 pub struct ApiLogsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub payout_id: Option<common_utils::id_type::PayoutId>,
     pub refund_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<String>,

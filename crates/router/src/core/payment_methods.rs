@@ -714,6 +714,11 @@ pub(crate) fn get_payment_method_create_request(
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
+            payments_core::helpers::validate_card_expiry(
+                &card.card_exp_month,
+                &card.card_exp_year,
+            )?;
+
             let card_detail = payment_methods::CardDetail {
                 card_number: card.card_number.clone(),
                 card_exp_month: card.card_exp_month.clone(),
@@ -1098,6 +1103,18 @@ pub async fn create_payment_method_card_core(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    match &req.payment_method_data {
+        api::PaymentMethodCreateData::Card(card_data) => {
+            payments_core::helpers::validate_card_expiry(
+                &card_data.card_exp_month,
+                &card_data.card_exp_year,
+            )?;
+        }
+        _ => {
+            logger::debug!("Payment method data is not CardDetail");
+        }
+    }
+
     let db = &*state.store;
 
     let payment_method = create_payment_method_for_intent(
@@ -3808,6 +3825,7 @@ pub async fn payment_methods_session_retrieve(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
+    // Only one associated payment method is supported for now
     let associated_pm_token = payment_method_session_domain_model
         .associated_payment_methods
         .as_ref()
@@ -3818,8 +3836,15 @@ pub async fn payment_methods_session_retrieve(
         });
 
     let expiry = associated_pm_token
-        .async_map(|token_string| {
-            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_token(&state, token_string)
+        .async_map(|pm_token| {
+            utils::retrieve_payment_method_id_from_payment_method_token_data(&state, pm_token)
+        })
+        .await
+        .transpose()
+        .ok()
+        .flatten()
+        .async_map(|pm_id| {
+            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(&state, pm_id.to_owned())
         })
         .await
         .transpose()
@@ -3877,31 +3902,29 @@ pub async fn payment_methods_session_update_payment_method(
             message: "No associated payment method found in the session".to_string(),
         })?;
 
-    let payment_method_token_data =
-        utils::retrieve_payment_token_data(&state, request.payment_method_token.clone())
-            .await
-            .attach_printable("Failed to retrieve payment method token data")?;
-
-    let payment_method_id = match payment_method_token_data {
-        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
-            Some(card.payment_method_id)
-        }
-        _ => None,
-    }
-    .get_required_value("payment_method_id from payment method token data")
-    .attach_printable("Failed to get payment method id from payment method token data")?;
-
-    let payment_method_update_request = request.payment_method_update_request.clone();
-
-    Box::pin(update_payment_method_core(
+    let payment_method_id = utils::retrieve_payment_method_id_from_payment_method_token_data(
         &state,
-        &platform,
-        &profile,
-        payment_method_update_request,
-        &payment_method_id,
-    ))
+        request.payment_method_token.clone(),
+    )
     .await
-    .attach_printable("Failed to update saved payment method")?;
+    .attach_printable("Failed to retrieve payment method id from payment method token data")?;
+
+    // Stage 1: Update CVC in redis if provided
+    let card_cvc = request.fetch_card_cvc_update();
+    let card_cvc_token_details = card_cvc
+        .async_map(|cvc| {
+            vault::insert_cvc_using_payment_token(
+                &state,
+                &payment_method_id,
+                cvc,
+                common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+                platform.get_provider().get_key_store(),
+            )
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert encrypted cvc in redis")?;
 
     // Update payment method session with associated payment methods
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
@@ -3921,29 +3944,20 @@ pub async fn payment_methods_session_update_payment_method(
             "Failed to update payment method session with associated payment methods",
         )?;
 
-    let card_cvc_token = if let Some(api::PaymentMethodUpdateData::Card(ref card_data)) =
-        request.payment_method_update_request.payment_method_data
-    {
-        let token = if let Some(cvc) = card_data.card_cvc.clone() {
-            Some(
-                vault::insert_cvc_using_payment_token(
-                    &state,
-                    &request.payment_method_token,
-                    cvc,
-                    common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
-                    platform.get_provider().get_key_store(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to insert encrypted cvc in redis")?,
-            )
-        } else {
-            None
-        };
-        token
-    } else {
-        None
-    };
+    // Stage 2: Update saved payment method if there is any metadata update
+    if request.is_payment_method_metadata_update() {
+        let payment_method_update_request = request.payment_method_update_request.clone();
+
+        Box::pin(update_payment_method_core(
+            &state,
+            &platform,
+            &profile,
+            payment_method_update_request,
+            &payment_method_id,
+        ))
+        .await
+        .attach_printable("Failed to update saved payment method")?;
+    }
 
     let response = transformers::generate_payment_method_session_response(
         updated_payment_method_session,
@@ -3951,7 +3965,7 @@ pub async fn payment_methods_session_update_payment_method(
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
-        card_cvc_token,
+        card_cvc_token_details,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3962,9 +3976,9 @@ pub async fn payment_methods_session_delete_payment_method(
     state: SessionState,
     platform: domain::Platform,
     profile: domain::Profile,
-    pm_id: id_type::GlobalPaymentMethodId,
+    pm_token: String,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
-) -> RouterResponse<api::PaymentMethodDeleteResponse> {
+) -> RouterResponse<payment_methods::PaymentMethodDeleteSessionResponse> {
     let db = state.store.as_ref();
 
     // Validate if the session still exists
@@ -3978,11 +3992,22 @@ pub async fn payment_methods_session_delete_payment_method(
     })
     .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let response = delete_payment_method_core(&state, pm_id, &platform, &profile)
+    let payment_method_id =
+        utils::retrieve_payment_method_id_from_payment_method_token_data(&state, pm_token.clone())
+            .await
+            .attach_printable(
+                "Failed to retrieve payment method id from payment method token data",
+            )?;
+
+    delete_payment_method_core(&state, payment_method_id, &platform, &profile)
         .await
         .attach_printable("Failed to delete saved payment method")?;
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(services::ApplicationResponse::Json(
+        payment_methods::PaymentMethodDeleteSessionResponse {
+            payment_method_token: pm_token,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -4141,7 +4166,7 @@ pub async fn payment_methods_session_confirm(
         .async_map(|cvc| {
             vault::insert_cvc_using_payment_token(
                 &state,
-                &parent_payment_method_token,
+                &payment_method_response.id,
                 cvc,
                 intent_fulfillment_time,
                 platform.get_provider().get_key_store(),
@@ -4618,4 +4643,28 @@ pub async fn check_network_token_status(
     Ok(services::ApplicationResponse::Json(
         network_token_status_check_response,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_get_token_details_core(
+    state: SessionState,
+    provider: domain::Provider,
+    temporary_token: String,
+) -> RouterResponse<payment_methods::PaymentMethodGetTokenDetailsResponse> {
+    let token_data = pm_routes::ParentPaymentMethodToken::create_key_for_token(&temporary_token)
+        .get_data_for_token(&state)
+        .await;
+
+    match token_data {
+        Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
+            Ok(services::ApplicationResponse::Json(
+                payment_methods::PaymentMethodGetTokenDetailsResponse {
+                    id: card_token_data.payment_method_id,
+                    payment_method_token: temporary_token,
+                },
+            ))
+        }
+        Ok(_) => Err(errors::ApiErrorResponse::PaymentMethodNotFound.into()),
+        Err(e) => Err(e),
+    }
 }

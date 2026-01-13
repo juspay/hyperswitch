@@ -687,6 +687,40 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "volt":
+            if (paymentMethodType === "open_banking_uk") {
+              cy.log("Handling Volt OpenBankingUk redirect flow");
+              const clickableSelector =
+                "button, [role='button'], div[role='option'], li, span, label";
+              const selectBank = () =>
+                cy
+                  .contains(clickableSelector, /Barclays Sandbox/i, {
+                    timeout: constants.TIMEOUT,
+                  })
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .then(($el) => {
+                    const candidate = $el.closest(clickableSelector);
+                    if (candidate.length) {
+                      cy.wrap(candidate).click();
+                    } else {
+                      cy.wrap($el).click();
+                    }
+                  });
+              selectBank();
+              cy.contains("button, a", /Continue on Desktop/i, {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Volt payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           case "fiuu":
             if (paymentMethodType === "online_banking_fpx") {
               cy.log("Handling FIUU OnlineBankingFpx redirect flow");
@@ -741,6 +775,59 @@ function bankRedirectRedirection(
             } else {
               throw new Error(
                 `Unsupported FIUU payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
+          case "mollie":
+            if (
+              [
+                "eps",
+                "ideal",
+                "giropay",
+                "sofort",
+                "przelewy24",
+                "bancontact_card",
+              ].includes(paymentMethodType)
+            ) {
+              cy.log(`Handling Mollie ${paymentMethodType} redirect flow`);
+
+              // Mollie test mode shows radio buttons to select payment status
+              cy.get("body").then(($body) => {
+                const paidSelector = 'input[type="radio"][value="paid"]';
+                const authorizedSelector =
+                  'input[type="radio"][value="authorized"]';
+
+                if ($body.find(paidSelector).length) {
+                  cy.get(paidSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Paid");
+                } else if ($body.find(authorizedSelector).length) {
+                  cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Authorized");
+                } else {
+                  cy.log(
+                    "No payment status selector found, page may auto-redirect"
+                  );
+                }
+              });
+
+              // Click the Continue button if present
+              cy.get("body").then(($body) => {
+                if ($body.find('button:contains("Continue")').length > 0) {
+                  cy.contains("button", "Continue", {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click();
+                }
+              });
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Mollie payment method type: ${paymentMethodType}`
               );
             }
             break;
