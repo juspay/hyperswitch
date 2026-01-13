@@ -3905,6 +3905,7 @@ pub async fn clone_connector(
     .attach_printable("Failed to create cloned connector")
 }
 
+#[cfg(feature = "v1")]
 pub async fn issue_embedded_token(
     state: SessionState,
     authentication_data: auth::AuthenticationData,
@@ -3964,6 +3965,7 @@ pub async fn issue_embedded_token(
     })
 }
 
+#[cfg(feature = "v1")]
 pub async fn embedded_token_info(
     _state: SessionState,
     authentication_data: auth::AuthenticationData,

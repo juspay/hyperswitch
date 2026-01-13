@@ -1064,6 +1064,7 @@ pub async fn clone_connector(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn issue_embedded_token(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -1084,6 +1085,7 @@ pub async fn issue_embedded_token(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn embedded_token_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,

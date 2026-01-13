@@ -201,7 +201,6 @@ pub fn mk_app(
             .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::User::server(state.clone()))
-            .service(routes::Embedded::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
             .service(routes::Chat::server(state.clone()));
@@ -224,7 +223,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
-                .service(routes::FeatureMatrix::server(state.clone()));
+                .service(routes::FeatureMatrix::server(state.clone()))
+                .service(routes::Embedded::server(state.clone()));
         }
 
         #[cfg(feature = "v2")]
