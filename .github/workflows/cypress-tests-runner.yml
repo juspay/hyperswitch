@@ -378,8 +378,27 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
+  
+  cypress-status-check:
+    name: Cypress Mandatory Tests (Required)
+    needs: [runner]
+    runs-on: ubuntu-latest
+    if: always() # Runs even if runner is skipped or failed
+    steps:
+      - name: Evaluate Matrix Results
+        run: |
+          # If the matrix was skipped because it's a fork, we pass (success)
+          # If the matrix ran and any leg failed, this job fails.
+          RESULT="${{ needs.runner.result }}"
+          if [[ $RESULT == "success" || $RESULT == "skipped" ]]; then
+            echo "All mandatory tests passed or were skipped correctly."
+            exit 0
+          else
+            echo "Mandatory tests failed."
+            exit 1
+          fi
 
-  prepare-matrix:
+  prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
     if: ${{ github.event_name == 'merge_group' }}
     runs-on: hyperswitch-runners
@@ -438,11 +457,11 @@ jobs:
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
     if: ${{ github.event_name == 'merge_group' }}
-    needs: [ build-hyperswitch, prepare-matrix ]
+    needs: [ build-hyperswitch, prepare-optional-matrix ]
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.prepare-optional-matrix.outputs.matrix) }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
