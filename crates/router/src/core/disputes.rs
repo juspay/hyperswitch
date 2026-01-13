@@ -211,7 +211,7 @@ pub async fn get_filters_for_disputes(
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            platform.get_processor().get_account().get_id().to_owned(),
+            platform.get_processor().clone(),
             profile_id_list,
         )
         .await?
@@ -900,7 +900,7 @@ pub async fn update_dispute_data(
 
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        platform,
+        platform.get_processor().clone(),
         business_profile,
         event_type,
         storage_enums::EventClass::Disputes,

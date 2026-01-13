@@ -52,7 +52,10 @@ use hyperswitch_interfaces::{
 };
 use transformers as redsys;
 
-use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
+use crate::{
+    constants::headers, types::ResponseRouterData, utils as connector_utils,
+    utils::PaymentsPreAuthenticateRequestData,
+};
 
 #[derive(Clone)]
 pub struct Redsys {
@@ -120,6 +123,7 @@ impl ConnectorCommon for Redsys {
             reason: Some(response.error_code.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -189,12 +193,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
+        let minor_amount = req.request.minor_amount;
         let currency =
             req.request
                 .currency
@@ -274,14 +273,8 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount = req.request.minor_amount;
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-
+        let minor_amount = req.request.get_minor_amount();
+        let currency = req.request.get_currency()?;
         let amount =
             connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = redsys::RedsysRouterData::from((amount, req, currency));
@@ -986,6 +979,7 @@ impl ConnectorSpecifications for Redsys {
                 *auth_type == common_enums::AuthenticationType::ThreeDs
             }
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 

@@ -468,10 +468,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentConfirmData<F>>
     where
         F: 'b + Send + Sync,
@@ -488,17 +487,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -506,10 +505,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

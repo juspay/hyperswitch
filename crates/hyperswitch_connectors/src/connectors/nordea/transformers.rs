@@ -595,6 +595,7 @@ impl
                         status_code: item.http_code,
                         attempt_status: Some(common_enums::AttemptStatus::Failure),
                         connector_transaction_id: first_error.payment_id.clone(),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,

@@ -1329,6 +1329,7 @@ mod tests {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
         let merchant_id = merchant_id.clone(); // Clone merchant_id to avoid move
 
@@ -1433,8 +1434,10 @@ mod tests {
             description: Some("Its my first payment request".to_string()),
             refunds: None,
             mandate_id: None,
-            merchant_id,
+            merchant_id: merchant_id.clone(),
             net_amount: MinorUnit::new(6540),
+            processor_merchant_id: merchant_id,
+            initiator: None,
             connector: None,
             customer: None,
             disputes: None,
@@ -1524,6 +1527,7 @@ mod tests {
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
+            error_details: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
@@ -1532,7 +1536,7 @@ mod tests {
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let platform_clone = platform.clone();
+            let cloned_processor = platform.get_processor().clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
@@ -1540,7 +1544,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    platform_clone,
+                    cloned_processor,
                     business_profile_clone,
                     event_type,
                     event_class,

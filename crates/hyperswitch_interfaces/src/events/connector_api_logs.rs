@@ -17,15 +17,14 @@ pub struct ConnectorEvent {
     error: Option<String>,
     url: String,
     method: String,
-    payment_id: String,
     merchant_id: common_utils::id_type::MerchantId,
     created_at: i128,
     /// Connector Event Request ID
     pub request_id: String,
     latency: u128,
-    refund_id: Option<String>,
-    dispute_id: Option<String>,
     status_code: u16,
+    #[serde(flatten)]
+    connector_event_type: common_utils::events::ConnectorEventsType,
 }
 
 impl ConnectorEvent {
@@ -44,8 +43,12 @@ impl ConnectorEvent {
         latency: u128,
         refund_id: Option<String>,
         dispute_id: Option<String>,
+        payout_id: Option<String>,
         status_code: u16,
     ) -> Self {
+        let connector_event_type = common_utils::events::ConnectorEventsType::new(
+            payment_id, refund_id, payout_id, dispute_id,
+        );
         Self {
             tenant_id,
             connector_name,
@@ -59,16 +62,14 @@ impl ConnectorEvent {
             error: None,
             url,
             method: method.to_string(),
-            payment_id,
             merchant_id,
             created_at: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: request_id
                 .map(|i| i.to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
-            refund_id,
-            dispute_id,
             status_code,
+            connector_event_type,
         }
     }
 

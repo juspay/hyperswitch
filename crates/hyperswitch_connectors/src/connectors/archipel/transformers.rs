@@ -1423,6 +1423,7 @@ impl From<ArchipelErrorMessageWithHttpCode> for ErrorResponse {
             code: error_message.code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             message: error_message
                 .description
                 .clone()

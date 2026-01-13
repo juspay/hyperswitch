@@ -554,6 +554,7 @@ pub trait ConnectorActions: Connector {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
