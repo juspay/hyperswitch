@@ -309,7 +309,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let customer_document_number = payment_intent
             .get_customer_document_number()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("customer_document_number not found in payment_intent")?;
+            .attach_printable(
+                "failed while fetching customer_document_number from payment_intent",
+            )?;
 
         let payment_data = PaymentData {
             flow: PhantomData,

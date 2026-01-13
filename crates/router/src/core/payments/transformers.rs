@@ -1890,7 +1890,7 @@ where
         .payment_intent
         .get_customer_document_number()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("customer_document_number not found in payment_intent")?;
+        .attach_printable("failed while fetching customer_document_number from payment_intent")?;
 
     let customer_document_number = payment_method_customer_details
         .and_then(|d| d.customer_document_number)
@@ -2190,7 +2190,9 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .payment_intent
             .get_customer_document_number()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("customer_document_number not found in payment_intent")?,
+            .attach_printable(
+                "failed while fetching customer_document_number from payment_intent",
+            )?,
     };
 
     Ok(router_data)
