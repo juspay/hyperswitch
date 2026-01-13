@@ -456,21 +456,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             // Convert CompleteAuthorize to PostAuthenticate for UCS call
             let mut complete_authorize_request_data = router_data.request.clone();
 
-            // Extract authentication_data from connector_meta (persisted from Authenticate step)
-            let authentication_data: Option<router_request_types::UcsAuthenticationData> =
-                complete_authorize_request_data
-                    .connector_meta
-                    .as_ref()
-                    .and_then(|metadata| {
-                        serde_json::from_value::<router_request_types::UcsAuthenticationData>(
-                            metadata.clone(),
-                        )
-                        .ok()
-                    });
-
-            let mut post_authenticate_request_data =
+            let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
-            post_authenticate_request_data.authentication_data = authentication_data;
 
             let post_authenticate_response_data: Result<
                 types::PaymentsResponseData,
@@ -527,9 +514,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 complete_authorize_router_data.status,
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
-                    | common_enums::AttemptStatus::Charged
-                    | common_enums::AttemptStatus::PartialCharged
-                    | common_enums::AttemptStatus::Authorized
             );
             Ok((complete_authorize_router_data, should_continue))
         } else {
@@ -715,6 +699,14 @@ pub async fn call_unified_connector_service_authenticate(
                 )?),
                 Err(err) => Err(err),
             };
+
+            router_data.response = router_data_response;
+            router_data.raw_connector_response = payment_authenticate_response
+                .raw_connector_response
+                .clone()
+                .map(|raw_connector_response| raw_connector_response.expose().into());
+            router_data.connector_http_status_code = Some(status_code);
+
             let domain_authentication_data = payment_authenticate_response
                 .authentication_data
                 .clone()
@@ -725,51 +717,6 @@ pub async fn call_unified_connector_service_authenticate(
                 })
                 .transpose()
                 .attach_printable("Failed to Convert to domain AuthenticationData")?;
-
-            let router_data_response = match router_data_response {
-                Ok(response) => {
-                    // Store authentication_data in connector_metadata so it can be used in authenticate step
-                    let response_with_auth_data = match response {
-                        router_response_types::PaymentsResponseData::TransactionResponse {
-                            resource_id,
-                            redirection_data,
-                            mandate_reference,
-                            connector_metadata: _,
-                            network_txn_id,
-                            connector_response_reference_id,
-                            incremental_authorization_allowed,
-                            charges,
-                        } => {
-                            let auth_metadata = domain_authentication_data
-                                .as_ref()
-                                .and_then(|auth_data| serde_json::to_value(auth_data).ok());
-                            router_response_types::PaymentsResponseData::TransactionResponse {
-                                resource_id,
-                                redirection_data,
-                                mandate_reference,
-                                connector_metadata: auth_metadata,
-                                network_txn_id,
-                                connector_response_reference_id,
-                                incremental_authorization_allowed,
-                                charges,
-                            }
-                        }
-                        other => other,
-                    };
-                    Ok(transform_response_for_authenticate_flow(
-                        connector,
-                        response_with_auth_data,
-                    )?)
-                }
-                Err(err) => Err(err),
-            };
-
-            router_data.response = router_data_response;
-            router_data.raw_connector_response = payment_authenticate_response
-                .raw_connector_response
-                .clone()
-                .map(|raw_connector_response| raw_connector_response.expose().into());
-            router_data.connector_http_status_code = Some(status_code);
 
             Ok((
                 router_data,

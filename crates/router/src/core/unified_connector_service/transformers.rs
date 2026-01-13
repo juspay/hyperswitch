@@ -889,12 +889,6 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let capture_method = router_data
-            .request
-            .capture_method
-            .map(payments_grpc::CaptureMethod::foreign_try_from)
-            .transpose()?;
-
         let payment_method = router_data
             .request
             .payment_method_data
@@ -963,12 +957,6 @@ impl
                 .transpose()?,
             connector_metadata: None,
             connector_order_reference_id: router_data.request.connector_transaction_id.clone(),
-            capture_method: capture_method.map(|capture_method| capture_method.into()),
-            threeds_method_comp_ind: router_data
-                .request
-                .threeds_method_comp_ind
-                .clone()
-                .map(|ind| ind.foreign_into()),
         })
     }
 }

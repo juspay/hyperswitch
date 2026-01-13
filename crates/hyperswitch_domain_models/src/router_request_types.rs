@@ -850,8 +850,6 @@ pub struct PaymentsPostAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
-    pub authentication_data: Option<UcsAuthenticationData>,
-    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
 #[derive(Deserialize)]
@@ -881,8 +879,6 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
             complete_authorize_url: data.complete_authorize_url,
-            authentication_data: data.authentication_data,
-            threeds_method_comp_ind: data.threeds_method_comp_ind,
         })
     }
 }
