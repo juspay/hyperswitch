@@ -40,7 +40,7 @@ use crate::{
     },
     db::{AccountsStorageInterface, StorageInterface},
     logger,
-    routes::{metrics, SessionState},
+    routes::{app::SessionStateInfo, metrics, SessionState},
     services::{
         self,
         api::{self as service_api},
@@ -182,7 +182,7 @@ pub async fn get_organization(
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 fn create_platform_merchant_account_request(
     merchant_id: id_type::MerchantId,
     merchant_name: String,
@@ -214,14 +214,12 @@ fn create_platform_merchant_account_request(
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn convert_organization_to_platform_organization(
     state: SessionState,
     org_id: api::OrganizationId,
     req: org_types::ConvertOrganizationToPlatformRequest,
 ) -> RouterResponse<org_types::ConvertOrganizationToPlatformResponse> {
-    use crate::routes::app::SessionStateInfo;
-
     // Validate platform feature is enabled
     fp_utils::when(!state.conf().platform.enabled, || {
         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -234,10 +232,10 @@ pub async fn convert_organization_to_platform_organization(
         .find_organization_by_org_id(&org_id.organization_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "organization with the given id does not exist".to_string(),
+            message: "Organization with the given id does not exist".to_string(),
         })?;
 
-    // Validate organization is currently Standard
+    // Validate organization is not already of type Platform
     fp_utils::when(
         organization.get_organization_type() == OrganizationType::Platform,
         || {
@@ -269,17 +267,22 @@ pub async fn convert_organization_to_platform_organization(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update organization type to Platform")?;
 
-    let merchant_id = domain::user::MerchantId::new(req.platform_merchant_name.clone())
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Invalid platform merchant name".to_string(),
-        })?;
-    let platform_merchant_id = id_type::MerchantId::try_from(merchant_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert merchant ID")?;
+    let platform_merchant_name = req.platform_merchant_name.unwrap_or_else(|| {
+        format!(
+            "{} Platform",
+            organization.get_organization_name().unwrap_or_default()
+        )
+    });
+
+    let platform_merchant_id =
+        utils::user::generate_env_specific_merchant_id(platform_merchant_name.clone())
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid platform merchant name".to_string(),
+            })?;
 
     let merchant_create_request = create_platform_merchant_account_request(
         platform_merchant_id.clone(),
-        req.platform_merchant_name.clone(),
+        platform_merchant_name.clone(),
         org_id.organization_id.clone(),
     );
 

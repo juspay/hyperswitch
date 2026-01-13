@@ -39,10 +39,7 @@ use crate::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
     },
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{
@@ -1700,7 +1697,7 @@ pub async fn create_platform_account(
     req: user_api::PlatformAccountCreateRequest,
 ) -> UserResponse<user_api::PlatformAccountCreateResponse> {
     fp_utils::when(matches!(env::which(), env::Env::Production), || {
-        Err(report!(UserErrors::InvalidCredentials))
+        Err(report!(UserErrors::InvalidPlatformOperation))
     })?;
 
     let user_from_db = user_from_token.get_user_from_db(&state).await?;

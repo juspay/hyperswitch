@@ -190,7 +190,7 @@ pub async fn convert_organization_to_platform(
 ) -> HttpResponse {
     let flow = Flow::ConvertOrganizationToPlatform;
     let organization_id = org_id.into_inner();
-    let org_id_wrapper = admin::OrganizationId {
+    let org_id = admin::OrganizationId {
         organization_id: organization_id.clone(),
     };
     Box::pin(api::server_wrap(
@@ -199,7 +199,7 @@ pub async fn convert_organization_to_platform(
         &req,
         json_payload.into_inner(),
         |state, (), req, _| {
-            convert_organization_to_platform_organization(state, org_id_wrapper.clone(), req)
+            convert_organization_to_platform_organization(state, org_id.clone(), req)
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,

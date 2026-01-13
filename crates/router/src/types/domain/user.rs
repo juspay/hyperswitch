@@ -677,7 +677,9 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
             common_enums::OrganizationType::Platform => {
                 Some(common_enums::MerchantAccountType::Platform)
             }
-            common_enums::OrganizationType::Standard => None,
+            common_enums::OrganizationType::Standard => {
+                Some(common_enums::MerchantAccountType::Standard)
+            }
         };
         Ok(Self {
             company_name,
@@ -877,23 +879,38 @@ impl NewUser {
             .await?;
 
         // If Platform org, update organization with platform_merchant_id
-        if matches!(
-            self.new_merchant.new_organization.0.organization_type,
-            common_enums::OrganizationType::Platform
-        ) {
-            let org_update = diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
-                platform_merchant_id: Some(merchant_id.clone()),
-            };
+        match self.new_merchant.new_organization.0.organization_type {
+            common_enums::OrganizationType::Platform => {
+                common_utils::fp_utils::when(
+                    !matches!(
+                        self.new_merchant.merchant_account_type,
+                        Some(common_enums::MerchantAccountType::Platform)
+                    ),
+                    || {
+                        Err(
+                            report!(UserErrors::InvalidPlatformOperation).attach_printable(
+                                "Merchant account type must be Platform for Platform organization",
+                            ),
+                        )
+                    },
+                )?;
 
-            state
-                .accounts_store
-                .update_organization_by_org_id(
-                    &self.new_merchant.new_organization.get_organization_id(),
-                    org_update,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to update organization with platform_merchant_id")?;
+                let org_update =
+                    diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
+                        platform_merchant_id: Some(merchant_id.clone()),
+                    };
+
+                state
+                    .accounts_store
+                    .update_organization_by_org_id(
+                        &self.new_merchant.new_organization.get_organization_id(),
+                        org_update,
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to update organization with platform_merchant_id")?;
+            }
+            common_enums::OrganizationType::Standard => {}
         }
 
         let created_user = self.insert_user_in_db(db).await;
