@@ -1633,9 +1633,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       },
@@ -2018,7 +2015,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2206,7 +2203,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2257,7 +2254,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2646,7 +2643,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -29076,26 +29073,25 @@
       "admin_api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account."
+        "name": "Authorization",
+        "description": "Format: admin-api-key=<admin-api-key>\n\nAdmin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account. This is only used during development."
       },
       "api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
+        "name": "Authorization",
+        "description": "Format: api-key=<api_key>\n\nUse the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
       },
-      "ephemeral_key": {
+      "jwt_key": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "publishable_key__client_secret": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
-      },
-      "publishable_key": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "api-key",
-        "description": "Publishable keys are a type of keys that can be public and have limited scope of usage."
+        "name": "Authorization",
+        "description": "Format: publishable-key=<publishable-key>,client-secret=<client-secret>\n\nPublishable keys are a type of keys that can be public and have limited scope of usage. Client Secret provide temporary access to singular data, such as access to a single customer object for a short period of time. This authentication scheme is used by the SDK."
       }
     }
   },
