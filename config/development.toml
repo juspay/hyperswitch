@@ -421,7 +421,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Dev"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
-force_cookies = false
+force_cookies = true
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)

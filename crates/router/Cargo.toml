@@ -82,7 +82,7 @@ openidconnect = "3.5.0" # TODO: remove reqwest
 openssl = "0.10.72"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
-rdkafka = { version = "0.36.2", features = ["dynamic-linking"] }
+rdkafka = "0.36.2"
 regex = "1.11.1"
 reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
 ring = "0.17.14"
