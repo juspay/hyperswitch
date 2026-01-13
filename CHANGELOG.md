@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.07.0-hotfix3
+
+### Features
+
+- **core:** Add intent_fulfillment_time configuration to temp locker ([#10922](https://github.com/juspay/hyperswitch/pull/10922)) ([`1e5ffa9`](https://github.com/juspay/hyperswitch/commit/1e5ffa970d8547d5ce64dbb0dd8ecca13c1c1504))
+- Adyen repeat payment dependencies for HS<>UCS ([#10909](https://github.com/juspay/hyperswitch/pull/10909)) ([`3e900db`](https://github.com/juspay/hyperswitch/commit/3e900dbce93d492489812841a42d5564ac35d2df))
+
+### Bug Fixes
+
+- **connector:** [worldpaymodular] capture issue ([#10891](https://github.com/juspay/hyperswitch/pull/10891)) ([`10a387a`](https://github.com/juspay/hyperswitch/commit/10a387aa0acb895dfe6662ff4dbb27b9eb771f83))
+- **core:** [payout-sync-webhook] when source verified=false trigger outgoing webhook ([#10925](https://github.com/juspay/hyperswitch/pull/10925)) ([`7949fcb`](https://github.com/juspay/hyperswitch/commit/7949fcbed36b47271428595524cee8710c1b4847))
+
+**Full Changelog:** [`2026.01.07.0-hotfix2...2026.01.07.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.01.07.0-hotfix2...2026.01.07.0-hotfix3)
+
+- - -
+
 ## 2026.01.07.0-hotfix2
 
 ### Bug Fixes
