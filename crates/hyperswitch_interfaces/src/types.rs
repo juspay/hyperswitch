@@ -12,8 +12,8 @@ use hyperswitch_domain_models::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
             InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
-            UpdateMetadata, Void,
+            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SettlementSplitCreate,
+            SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -56,9 +56,9 @@ use hyperswitch_domain_models::{
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -155,6 +155,14 @@ pub type PaymentsPreAuthorizeType = dyn ConnectorIntegration<
     AuthorizeSessionTokenData,
     PaymentsResponseData,
 >;
+
+/// Type alias for `ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>`
+pub type PaymentsSettlementSplitCreateType = dyn ConnectorIntegration<
+    SettlementSplitCreate,
+    SettlementSplitRequestData,
+    PaymentsResponseData,
+>;
+
 /// Type alias for `ConnectorIntegration<GiftCardBalanceCheck, GiftCardBalanceCheckRequestData, GiftCardBalanceCheckResponseData>`
 pub type PaymentsGiftCardBalanceCheckType = dyn ConnectorIntegration<
     GiftCardBalanceCheck,

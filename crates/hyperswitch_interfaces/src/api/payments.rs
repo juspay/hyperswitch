@@ -25,8 +25,7 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
     router_response_types::{
-        GiftCardBalanceCheckResponseData, PaymentsResponseData, SettlementSplitResponseData,
-        TaxCalculationResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
     },
 };
 
@@ -233,11 +232,7 @@ pub trait ExternalVaultProxyPaymentsCreateV1:
 
 /// trait PaymentsSettlementSplitCreate
 pub trait PaymentsSettlementSplitCreate:
-    api::ConnectorIntegration<
-    SettlementSplitCreate,
-    SettlementSplitRequestData,
-    SettlementSplitResponseData,
->
+    api::ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>
 {
 }
 

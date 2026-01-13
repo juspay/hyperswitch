@@ -82,8 +82,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
         MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
-        SettlementSplitResponseData, SubmitEvidenceResponse, TaxCalculationResponseData,
-        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -319,7 +319,7 @@ macro_rules! default_imp_for_payment_settlement_split_create {
             ConnectorIntegration<
                 SettlementSplitCreate,
                 SettlementSplitRequestData,
-                SettlementSplitResponseData,
+                PaymentsResponseData,
         > for $path::$connector
         {}
     )*
@@ -459,7 +459,6 @@ default_imp_for_payment_settlement_split_create!(
     connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
-    connectors::Xendit,
     connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
@@ -9704,11 +9703,8 @@ impl<const T: u8> ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncRespon
 impl<const T: u8> PaymentsSettlementSplitCreate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<
-        SettlementSplitCreate,
-        SettlementSplitRequestData,
-        SettlementSplitResponseData,
-    > for connectors::DummyConnector<T>
+    ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
 {
 }
 

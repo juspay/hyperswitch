@@ -1517,8 +1517,10 @@ pub struct SdkPaymentsSessionUpdateData {
     pub shipping_cost: Option<MinorUnit>,
 }
 
+#[derive(Debug, Clone)]
 pub struct SettlementSplitRequestData {
     pub splits: common_types::payments::SplitPaymentsRequest,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize)]

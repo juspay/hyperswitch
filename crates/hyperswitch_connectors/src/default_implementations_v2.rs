@@ -61,8 +61,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SettlementSplitResponseData, SubmitEvidenceResponse, TaxCalculationResponseData,
-        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -241,7 +241,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 SettlementSplitCreate,
                 PaymentFlowData,
                 SettlementSplitRequestData,
-                SettlementSplitResponseData,
+                PaymentsResponseData,
             > for $path::$connector{}
 
             impl ConnectorIntegrationV2<

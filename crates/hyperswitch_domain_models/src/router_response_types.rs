@@ -733,11 +733,6 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 }
 
 #[derive(Debug, Clone)]
-pub struct SettlementSplitResponseData {
-    pub charges: common_types::payments::ConnectorChargeResponseData,
-}
-
-#[derive(Debug, Clone)]
 pub enum VaultResponseData {
     ExternalVaultCreateResponse {
         session_id: masking::Secret<String>,
