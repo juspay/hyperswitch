@@ -114,6 +114,8 @@ pub enum TransactionIndustryType {
     Lodging,
     #[serde(rename = "PT")]
     Petroleum,
+    #[serde(rename = "EC")]
+    Ecommerce,
 }
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 pub enum HolderType {
@@ -142,6 +144,7 @@ pub struct ZiftCardPaymentRequest {
     transaction_code: String,
     csc: Secret<String>,
     transaction_industry_type: TransactionIndustryType,
+    transaction_category_code: TransactionCategoryCode,
     holder_name: Secret<String>,
     holder_type: HolderType,
     amount: StringMinorUnit,
@@ -159,6 +162,7 @@ pub struct ZiftMandatePaymentRequest {
     account_accessory: Secret<String>,
     // NO csc for MIT payments
     transaction_industry_type: TransactionIndustryType,
+    transaction_category_code: TransactionCategoryCode,
     holder_name: Secret<String>,
     holder_type: HolderType,
     amount: StringMinorUnit,
@@ -182,6 +186,7 @@ pub struct ZiftExternalThreeDsPaymentRequest {
     account_number: cards::CardNumber,
     account_accessory: Secret<String>,
     transaction_industry_type: TransactionIndustryType,
+    transaction_category_code: TransactionCategoryCode,
     holder_name: Secret<String>,
     holder_type: HolderType,
     transaction_code: String,
@@ -245,6 +250,11 @@ pub enum TransactionCategoryType {
     #[serde(rename = "B")]
     BillPayment,
 }
+#[derive(Debug, Serialize)]
+pub enum TransactionCategoryCode {
+    #[serde(rename = "EC")]
+    Ecommerce,
+}
 
 impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -287,7 +297,8 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         auth,
                         account_number: card.card_number.clone(),
                         account_accessory: card.get_expiry_date_as_mmyy()?,
-                        transaction_industry_type: TransactionIndustryType::CardNotPresent,
+                        transaction_industry_type: TransactionIndustryType::Ecommerce,
+                        transaction_category_code: TransactionCategoryCode::Ecommerce,
                         holder_name: item.router_data.get_billing_full_name()?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
@@ -308,7 +319,8 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         auth,
                         account_number: card.card_number.clone(),
                         account_accessory: card.get_expiry_date_as_mmyy()?,
-                        transaction_industry_type: TransactionIndustryType::CardPresent,
+                        transaction_industry_type: TransactionIndustryType::Ecommerce,
+                        transaction_category_code: TransactionCategoryCode::Ecommerce,
                         holder_name: item.router_data.get_billing_full_name()?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
@@ -331,7 +343,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
-                        connector: "DataTrans",
+                        connector: "Zift",
                     })?,
                 };
                 let mandate_request = ZiftMandatePaymentRequest {
@@ -344,7 +356,8 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         },
                     )?),
                     account_accessory: additional_card_details.get_expiry_date_as_mmyy()?,
-                    transaction_industry_type: TransactionIndustryType::CardNotPresent,
+                    transaction_industry_type: TransactionIndustryType::Ecommerce,
+                    transaction_category_code: TransactionCategoryCode::Ecommerce,
                     holder_name: additional_card_details.get_card_holder_name()?,
                     holder_type: HolderType::Personal,
                     amount: item.amount.to_owned(),
@@ -437,6 +450,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ZiftCaptureResponse>> for Payment
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -521,6 +535,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: item.response.transaction_id.map(|id| id.to_string()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -600,6 +615,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -726,6 +742,7 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                 status_code: item.http_code,
                 attempt_status: Some(attempt_status),
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -840,6 +857,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ZiftVoidResponse>> for PaymentsCan
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -865,6 +883,7 @@ pub struct ZiftSetupMandateRequest {
     #[serde(flatten)]
     auth: ZiftAuthType,
     transaction_industry_type: TransactionIndustryType,
+    transaction_category_code: TransactionCategoryCode,
     holder_name: Secret<String>,
     holder_type: HolderType,
     transaction_code: String,
@@ -894,21 +913,20 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        if let Some(amount) = item.request.amount {
-            if amount > 0 {
-                return Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Setup Mandate with non zero amount".to_string(),
-                    connector: "Zift".to_string(),
-                }
-                .into());
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "Zift".to_string(),
             }
+            .into());
         }
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
 
-        let (transaction_industry_type, payment_method_details) =
+        let (transaction_industry_type, transaction_category_code, payment_method_details) =
             match &item.request.payment_method_data {
                 PaymentMethodData::Card(card) => (
-                    TransactionIndustryType::CardPresent,
+                    TransactionIndustryType::Ecommerce,
+                    TransactionCategoryCode::Ecommerce,
                     SetupMandatePaymentMethod::Card(CardVerificationDetails {
                         account_type: AccountType::PaymentCard,
                         account_number: card.card_number.clone(),
@@ -926,6 +944,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
             request_type: RequestType::AccountVerification,
             auth,
             transaction_industry_type,
+            transaction_category_code,
             holder_name: item.get_billing_full_name()?,
             holder_type: HolderType::Personal,
             transaction_code: item.connector_request_reference_id.clone(),
@@ -997,6 +1016,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: item.response.transaction_id.map(|id| id.to_string()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

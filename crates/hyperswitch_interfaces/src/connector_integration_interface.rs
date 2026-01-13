@@ -532,6 +532,12 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
+            Self::New(connector) => connector.is_order_create_flow_required(current_flow),
+        }
+    }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match self {
             Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
@@ -721,6 +727,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
+        }
+    }
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        match self {
+            Self::Old(connector) => connector.get_api_webhook_config(),
+            Self::New(connector) => connector.get_api_webhook_config(),
         }
     }
 }

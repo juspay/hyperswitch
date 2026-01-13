@@ -173,3 +173,7 @@ key1 = "transaction key"
 [peachpayments]
 api_key="API Key"
 key1="Tenant ID"
+
+[payjustnowinstore]
+api_key="Merchant API Key"
+key1 = "Merchant Terminal Id"

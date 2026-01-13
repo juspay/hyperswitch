@@ -61,6 +61,7 @@ pub async fn generate_sample_data(
         key_store.clone(),
         merchant_from_db.clone(),
         key_store,
+        None,
     );
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {

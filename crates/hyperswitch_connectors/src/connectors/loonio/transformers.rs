@@ -4,12 +4,7 @@ use std::collections::HashMap;
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{
-    id_type,
-    pii::{self, Email},
-    request::Method,
-    types::FloatMajorUnit,
-};
+use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{
@@ -216,7 +211,7 @@ impl From<LoonioTransactionStatus> for enums::AttemptStatus {
 pub struct LoonioTransactionSyncResponse {
     pub transaction_id: String,
     pub state: LoonioTransactionStatus,
-    pub customer_bank_info: Option<pii::SecretSerdeValue>,
+    pub customer_bank_info: Option<LoonioCustomerInfo>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -248,12 +243,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         .as_ref()
                         .map(|customer_info| {
                             ConnectorResponseData::with_additional_payment_method_data(
-                                AdditionalPaymentMethodConnectorResponse::BankRedirect {
-                                    interac: Some(InteracCustomerInfo {
-                                        customer_info: Some(customer_info.clone()),
-                                    }),
-                                },
-                            )
+                            AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                                interac: Some(InteracCustomerInfo {
+                                    customer_info: Some(
+                                        common_types::payments::InteracCustomerInfoDetails::from(
+                                            customer_info,
+                                        ),
+                                    ),
+                                }),
+                            },
+                        )
                         });
                 Ok(Self {
                     status: enums::AttemptStatus::from(sync_response.state),
@@ -279,7 +278,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                     ConnectorResponseData::with_additional_payment_method_data(
                         AdditionalPaymentMethodConnectorResponse::BankRedirect {
                             interac: Some(InteracCustomerInfo {
-                                customer_info: Some(customer_info.clone()),
+                                customer_info: Some(
+                                    common_types::payments::InteracCustomerInfoDetails::from(
+                                        customer_info,
+                                    ),
+                                ),
                             }),
                         },
                     )
@@ -302,6 +305,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                     ..item.data
                 })
             }
+        }
+    }
+}
+
+impl From<&LoonioCustomerInfo> for common_types::payments::InteracCustomerInfoDetails {
+    fn from(value: &LoonioCustomerInfo) -> Self {
+        Self {
+            customer_name: value.customer_name.clone(),
+            customer_email: value.customer_email.clone(),
+            customer_phone_number: value.customer_phone_number.clone(),
+            customer_bank_id: value.customer_bank_id.clone(),
+            customer_bank_name: value.customer_bank_name.clone(),
         }
     }
 }
@@ -415,7 +430,16 @@ pub struct LoonioWebhookBody {
     pub event_code: LoonioWebhookEventCode,
     #[serde(rename = "type")]
     pub transaction_type: LoonioWebhookTransactionType,
-    pub customer_info: Option<pii::SecretSerdeValue>,
+    pub customer_info: Option<LoonioCustomerInfo>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct LoonioCustomerInfo {
+    pub customer_name: Option<Secret<String>>,
+    pub customer_email: Option<Email>,
+    pub customer_phone_number: Option<Secret<String>>,
+    pub customer_bank_id: Option<Secret<String>>,
+    pub customer_bank_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

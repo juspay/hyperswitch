@@ -166,11 +166,9 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: payments::PaymentIntentData<F>,
         customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        updated_customer: Option<customer::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -180,6 +178,8 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
         let prerouting_algorithm = payment_data.payment_intent.prerouting_algorithm.clone();
         payment_data.payment_intent = match prerouting_algorithm {
             Some(prerouting_algorithm) => state

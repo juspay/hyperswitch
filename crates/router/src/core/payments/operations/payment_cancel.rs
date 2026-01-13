@@ -237,17 +237,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCancelOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
+
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
         let (intent_status_update, attempt_status_update) =
             if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {

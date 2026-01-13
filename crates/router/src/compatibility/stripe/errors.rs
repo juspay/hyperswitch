@@ -866,8 +866,6 @@ impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
     }
 }
 
-impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
-
 impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         use StripeErrorCode as SC;

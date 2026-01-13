@@ -441,6 +441,33 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         }
     }
 
+    #[instrument(skip_all)]
+    async fn update_customer<'a>(
+        &'a self,
+        state: &'a SessionState,
+        provider: &domain::Provider,
+        customer: Option<domain::Customer>,
+        updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()> {
+        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
+            let customer_id = customer.get_id().clone();
+
+            let _updated_customer = state
+                .store
+                .update_customer_by_global_id(
+                    &customer_id,
+                    customer,
+                    updated_customer,
+                    provider.get_key_store(),
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer during `update_customer`")?;
+        }
+        Ok(())
+    }
+
     async fn run_decision_manager<'a>(
         &'a self,
         state: &SessionState,
@@ -723,19 +750,19 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        req_state: ReqState,
+        _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
-        customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
-        frm_suggestion: Option<FrmSuggestion>,
-        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _customer: Option<domain::Customer>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,
     {
         let db = &*state.store;
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;
@@ -836,23 +863,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_attempt = updated_payment_attempt;
-
-        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
-            let customer_id = customer.get_id().clone();
-            let customer_merchant_id = customer.merchant_id.clone();
-
-            let _updated_customer = db
-                .update_customer_by_global_id(
-                    &customer_id,
-                    customer,
-                    updated_customer,
-                    key_store,
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer during `update_trackers`")?;
-        }
 
         Ok((Box::new(self), payment_data))
     }

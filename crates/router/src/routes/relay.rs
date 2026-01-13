@@ -22,12 +22,11 @@ pub async fn relay(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             relay::relay_flow_decider(
                 state,
-                platform,
+                auth.platform,
                 #[cfg(feature = "v1")]
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
                 req,
@@ -61,12 +60,11 @@ pub async fn relay_retrieve(
         &req,
         relay_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             relay::relay_retrieve(
                 state,
-                platform,
+                auth.platform,
                 #[cfg(feature = "v1")]
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
                 req,
