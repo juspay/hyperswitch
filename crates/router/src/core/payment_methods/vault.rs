@@ -1811,7 +1811,7 @@ pub async fn insert_cvc_using_payment_token(
             fulfillment_time,
         )
         .await
-                .map_err(Into::<errors::StorageError>::into)
+        .map_err(Into::<errors::StorageError>::into)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add encrypted cvc to redis")?;
 
@@ -1829,50 +1829,32 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_method_id: &String,
     key_store: &domain::MerchantKeyStore,
-    // encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<masking::Secret<String>> {
     let redis_conn = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
-    // let payment_method_id = payment_method.get_id().get_string_repr();
 
     let key = format!("pm_token_{payment_method_id}_hyperswitch_cvc");
 
-    // let data = redis_conn
-    //     .get_key::<bytes::Bytes>(&key.clone().into())
-    //     .await
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Failed to fetch the token from redis")?;
-
     let resp: Encryption = redis_conn
-                    .get_and_deserialize_key::<Encryption>(
-                        &key.clone().into(),
-                        "Vec<u8>",
-                    )
-                    .await.change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .get_and_deserialize_key::<Encryption>(&key.clone().into(), "Vec<u8>")
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let cvc_data: TemporaryVaultCvc = pm_cards::decrypt_generic_data(state, Some(resp), key_store)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to decrypt volatile payment method vault data")?.get_required_value("PaymentMethodVaultingData")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decrypt volatile payment method vault data")?
+        .get_required_value("PaymentMethodVaultingData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
 
-    // // decrypt the cvc data
-    // let decrypted_payload = GcmAes256
-    //     .decode_message(
-    //         encryption_key.peek().as_ref(),
-    //         masking::Secret::new(data.into()),
-    //     )
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Failed to decode TemporaryVaultCvc from vault")?;
-
-    // let cvc_data: TemporaryVaultCvc = bytes::Bytes::from(decrypted_payload)
-    //     .parse_struct("TemporaryVaultCvc")
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Failed to deserialize TemporaryVaultCvc")?;
+    logger::info!(
+        "CVC retrieved successfully from redis for payment method id: {}",
+        payment_method_id
+    );
 
     // delete key after retrieving the cvc
     redis_conn.delete_key(&key.into()).await.map_err(|err| {
