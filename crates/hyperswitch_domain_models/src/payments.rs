@@ -344,7 +344,7 @@ impl PaymentIntent {
             Some(details) => {
                 let decrypted_value = details.clone().into_inner().expose();
 
-                    let customer_data: CustomerData =
+                let customer_data: CustomerData =
                     serde_json::from_value(decrypted_value).map_err(|err| {
                         router_env::logger::error!(
                             "Failed to parse CustomerData while extracting customer_document_number: {:?}",
