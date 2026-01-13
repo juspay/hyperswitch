@@ -921,14 +921,11 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
 paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds"}
 
-[preprocessing_flow_config]
-authentication_bloated_connectors = "redsys"
-
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
-[l2_l3_data_config]  
+[l2_l3_data_config]
 enabled = "true"
 
 [webhook_source_verification_call]
