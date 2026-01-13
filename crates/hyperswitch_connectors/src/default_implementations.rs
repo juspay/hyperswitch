@@ -8548,7 +8548,6 @@ default_imp_for_gift_card_balance_check!(
     connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
-    connectors::Blackhawknetwork,
     connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
