@@ -13,7 +13,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{Encode, OptionExt, ValueExt},
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
@@ -1007,7 +1007,7 @@ pub struct PaymentAttempt {
     pub connector_metadata: Option<Value>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub payment_method_data: Option<Value>,
+    pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<Value>,
     pub preprocessing_step_id: Option<String>,
@@ -1315,29 +1315,12 @@ impl PaymentAttempt {
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
         self.payment_method_data
             .as_ref()
-            .and_then(|value| {
-                value
-                    .clone()
-                    .parse_value::<api_models::payments::AdditionalPaymentData>(
-                        "AdditionalPaymentData",
-                    )
-                    .ok()
-            })
             .and_then(|data| data.get_additional_card_info())
             .and_then(|card_info| card_info.card_network)
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
         self.check_and_get_payment_method_data_based_on_encryption_strategy()
-            .clone()
-            .and_then(|data| match data {
-                Value::Null => None,
-                _ => Some(data.parse_value("AdditionalPaymentData")),
-            })
-            .transpose()
-            .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
-            .ok()
-            .flatten()
     }
     pub fn get_tokenization_strategy(&self) -> Option<common_enums::Tokenization> {
         match self.setup_future_usage_applied {
@@ -1417,16 +1400,30 @@ impl PaymentAttempt {
         })
     }
 
-    pub fn check_and_get_payment_method_data_based_on_encryption_strategy(&self) -> Option<Value> {
+    pub fn check_and_get_payment_method_data_based_on_encryption_strategy(
+        &self,
+    ) -> Option<api_models::payments::AdditionalPaymentData> {
         if self
             .payment_method
             .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
             .unwrap_or(false)
         {
             self.encrypted_payment_method_data
-                .clone()
-                .map(|encrypted_payment_method_data| {
-                    encrypted_payment_method_data.get_inner().peek().clone()
+                .as_ref()
+                .and_then(|encrypted_data| {
+                    let value = encrypted_data.get_inner().peek();
+                    match value {
+                        Value::Null => None,
+                        _ => value
+                            .clone()
+                            .parse_value::<api_models::payments::AdditionalPaymentData>(
+                                "AdditionalPaymentData",
+                            )
+                            .map_err(|err| {
+                                logger::error!("Failed to parse AdditionalPaymentData {err:?}")
+                            })
+                            .ok(),
+                    }
                 })
                 .or(self.payment_method_data.clone())
         } else {
@@ -2253,12 +2250,13 @@ impl behaviour::Conversion for PaymentAttempt {
         let card_network = self
             .payment_method_data
             .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
-            .map(|network| network.to_string());
+            .and_then(|data| match data {
+                api_models::payments::AdditionalPaymentData::Card(card) => {
+                    card.card_network.clone().map(|val| val.to_string())
+                }
+                _ => None,
+            });
+
         let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
@@ -2296,7 +2294,9 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
-            payment_method_data: self.payment_method_data,
+            payment_method_data: self
+                .payment_method_data
+                .and_then(|val| val.encode_to_value().ok()),
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,
@@ -2424,7 +2424,13 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_metadata: storage_model.connector_metadata,
                 payment_experience: storage_model.payment_experience,
                 payment_method_type: storage_model.payment_method_type,
-                payment_method_data: storage_model.payment_method_data,
+                payment_method_data: storage_model
+                    .payment_method_data
+                    .clone()
+                    .parse_value::<api_models::payments::AdditionalPaymentData>(
+                        "AdditionalPaymentData",
+                    )
+                    .ok(),
                 business_sub_label: storage_model.business_sub_label,
                 straight_through_algorithm: storage_model.straight_through_algorithm,
                 preprocessing_step_id: storage_model.preprocessing_step_id,
@@ -2491,12 +2497,13 @@ impl behaviour::Conversion for PaymentAttempt {
         let card_network = self
             .payment_method_data
             .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
-            .map(|network| network.to_string());
+            .and_then(|data| match data {
+                api_models::payments::AdditionalPaymentData::Card(card) => {
+                    card.card_network.clone().map(|val| val.to_string())
+                }
+                _ => None,
+            });
+
         Ok(DieselPaymentAttemptNew {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
@@ -2528,7 +2535,9 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
-            payment_method_data: self.payment_method_data,
+            payment_method_data: self
+                .payment_method_data
+                .and_then(|val| val.encode_to_value().ok()),
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,

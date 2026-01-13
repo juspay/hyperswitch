@@ -483,7 +483,7 @@ where
                 .connector_response
                 .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
-        )?;
+        );
     let key_manager_state = &state.into();
 
     // If the additional PM data is sensitive, encrypt it and populate encrypted_payment_method_data; otherwise populate additional_payment_method_data
@@ -492,7 +492,7 @@ where
             payment_data.get_payment_attempt(),
             key_manager_state,
             key_store,
-            additional_payment_method_data_intermediate,
+            additional_payment_method_data_intermediate.and_then(|val| val.encode_to_value().ok()),
         )
         .await?;
 

@@ -3341,12 +3341,9 @@ where
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             payment_data
                 .get_payment_attempt()
-                .check_and_get_payment_method_data_based_on_encryption_strategy()
-                .map(|data| data.parse_value("payment_method_data"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_method_data",
-                })?;
+                .check_and_get_payment_method_data_based_on_encryption_strategy();
+
+
         let payment_method_data_response =
             additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3509,14 +3506,7 @@ where
         .unwrap_or("".to_owned());
     let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
         payment_attempt
-            .check_and_get_payment_method_data_based_on_encryption_strategy()
-            .and_then(|data| match data {
-                serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
-                _ => Some(data.parse_value("AdditionalPaymentData")),
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse the AdditionalPaymentData from payment_attempt.payment_method_data")?;
+            .check_and_get_payment_method_data_based_on_encryption_strategy();
 
     let surcharge_details =
         payment_attempt
@@ -4242,15 +4232,7 @@ impl
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
-            payment_method_data: pa.payment_method_data.and_then(|data| {
-                match data.parse_value("PaymentMethodDataResponseWithBilling") {
-                    Ok(parsed_data) => Some(parsed_data),
-                    Err(e) => {
-                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {e:?}");
-                        None
-                    }
-                }
-            }),
+            payment_method_data: None,
             merchant_order_reference_id: pi.merchant_order_reference_id,
             customer: pi.customer_details.and_then(|customer_details|
                 match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
@@ -4831,12 +4813,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
-            payment_data.payment_attempt
-                .payment_method_data
-                .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
+            payment_data.payment_attempt.payment_method_data.clone();
 
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {

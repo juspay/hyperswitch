@@ -523,11 +523,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
         // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
         if let Some(additional_pm_data) = additional_pm_data_from_locker.as_ref() {
-            payment_attempt.payment_method_data = Some(
-                Encode::encode_to_value(additional_pm_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode additional pm data")?,
-            );
+            payment_attempt.payment_method_data = Some(additional_pm_data.clone());
         }
         let amount = payment_attempt.get_total_amount().into();
 
@@ -1263,12 +1259,8 @@ impl PaymentCreate {
             });
         };
 
-        let additional_pm_data_value = additional_pm_data
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
+        let additional_pm_data_value = additional_pm_data.as_ref();
+
         let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
             &state.conf,
             platform.get_processor(),
@@ -1365,7 +1357,7 @@ impl PaymentCreate {
                 browser_info,
                 payment_experience: request.payment_experience,
                 payment_method_type,
-                payment_method_data: additional_pm_data_value,
+                payment_method_data: additional_pm_data_value.cloned(),
                 amount_to_capture: request.amount_to_capture,
                 payment_token: request.payment_token.clone(),
                 mandate_id: request.mandate_id.clone(),

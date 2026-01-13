@@ -1481,7 +1481,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             }),
                     )
                 })
-                .transpose()?
                 .flatten()
         }
     };
@@ -1492,7 +1491,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             &payment_data.payment_attempt,
             key_manager_state,
             processor.get_key_store(),
-            additional_payment_method_data_intermediate,
+            additional_payment_method_data_intermediate.and_then(|val| val.encode_to_value().ok()),
         )
         .await?;
 

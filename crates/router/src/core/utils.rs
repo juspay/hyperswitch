@@ -512,16 +512,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let merchant_config_currency =
         braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
     let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
-        payment_attempt
-            .payment_method_data
-            .clone()
-            .and_then(|value| match serde_json::from_value(value) {
-                Ok(data) => Some(data),
-                Err(e) => {
-                    router_env::logger::error!("Failed to deserialize payment_method_data: {}", e);
-                    None
-                }
-            });
+        payment_attempt.payment_method_data.clone();
 
     let router_data = types::RouterData {
         flow: PhantomData,

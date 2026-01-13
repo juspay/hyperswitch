@@ -647,11 +647,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
         // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
         if let Some(additional_pm_data) = additional_pm_data_from_locker.as_ref() {
-            payment_attempt.payment_method_data = Some(
-                Encode::encode_to_value(additional_pm_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode additional pm data")?,
-            );
+            payment_attempt.payment_method_data = Some(additional_pm_data.clone());
         }
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
@@ -1221,24 +1217,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .payment_attempt
                 .payment_method_data
                 .as_ref()
-                .map(|payment_method_data| {
-                    payment_method_data
-                        .clone()
-                        .parse_value::<api_models::payments::AdditionalPaymentData>(
-                            "additional_payment_method_data",
-                        )
-                })
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to parse value into additional_payment_method_data")
-                .inspect_err(|err| {
-                    logger::error!(
-                        "Error while parsing additional_payment_method_data {:?}",
-                        err
-                    )
-                })
-                .ok()
-                .flatten()
                 .and_then(|additional_payment_method_data| {
                     additional_payment_method_data.get_additional_card_info()
                 });
@@ -2047,9 +2025,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_connector = connector.clone();
         let m_capture_method = capture_method;
         let m_payment_token = payment_token.clone();
-        let m_additional_pm_data = encoded_additional_pm_data
-            .clone()
-            .or(payment_data.payment_attempt.payment_method_data.clone());
+        let m_additional_pm_data = encoded_additional_pm_data.clone().or(payment_data
+            .payment_attempt
+            .payment_method_data
+            .as_ref()
+            .and_then(|val| val.encode_to_value().ok()));
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();

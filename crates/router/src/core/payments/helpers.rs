@@ -16,7 +16,7 @@ use common_enums::{enums::ExecutionMode, ConnectorType};
 use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id,
     id_type::{self},
     new_type::{MaskedIban, MaskedSortCode},
@@ -2032,17 +2032,8 @@ pub async fn retrieve_payment_method_with_temporary_token(
             {
                 let additional_payment_method_data: Option<
                     api_models::payments::AdditionalPaymentData,
-                > = payment_attempt
-                    .payment_method_data
-                    .clone()
-                    .and_then(|data| match data {
-                        serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
-                        _ => Some(data.parse_value("AdditionalPaymentData")),
-                    })
-                    .transpose()
-                    .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
-                    .ok()
-                    .flatten();
+                > = payment_attempt.payment_method_data.clone();
+
                 if let Some(api_models::payments::AdditionalPaymentData::Card(card)) =
                     additional_payment_method_data
                 {
@@ -7214,23 +7205,10 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
 }
 
 pub fn update_additional_payment_data_with_connector_response_pm_data(
-    additional_payment_data: Option<serde_json::Value>,
+    additional_payment_data: Option<api_models::payments::AdditionalPaymentData>,
     connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
-) -> RouterResult<Option<serde_json::Value>> {
-    let parsed_additional_payment_method_data = additional_payment_data
-        .as_ref()
-        .map(|payment_method_data| {
-            payment_method_data
-                .clone()
-                .parse_value::<api_models::payments::AdditionalPaymentData>(
-                    "additional_payment_method_data",
-                )
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse value into additional_payment_method_data")?;
-
-    let additional_payment_method_data = parsed_additional_payment_method_data
+) -> Option<api_models::payments::AdditionalPaymentData> {
+    let additional_payment_method_data = additional_payment_data
         .zip(connector_response_pm_data)
         .map(|(additional_pm_data, connector_response_pm_data)| {
             add_connector_response_to_additional_payment_data(
@@ -7240,11 +7218,6 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         });
 
     additional_payment_method_data
-        .as_ref()
-        .map(Encode::encode_to_value)
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encode additional pm data")
 }
 
 #[cfg(feature = "v2")]

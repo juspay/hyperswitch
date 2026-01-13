@@ -100,19 +100,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
-                payment_method_data: self
-                    .payment_attempt
-                    .payment_method_data
-                    .as_ref()
-                    .map(|pm_data| {
-                        pm_data
-                            .clone()
-                            .parse_value::<api_models::payments::AdditionalPaymentData>(
-                                "AdditionalPaymentData",
-                            )
-                    })
-                    .transpose()
-                    .unwrap_or_default(),
+                payment_method_data: self.payment_attempt.payment_method_data.clone(),
                 email: customer
                     .clone()
                     .and_then(|customer_data| {

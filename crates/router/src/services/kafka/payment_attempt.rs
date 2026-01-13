@@ -54,7 +54,7 @@ pub struct KafkaPaymentAttempt<'a> {
     // TODO: These types should implement copy ideally
     pub payment_experience: Option<&'a storage_enums::PaymentExperience>,
     pub payment_method_type: Option<&'a storage_enums::PaymentMethodType>,
-    pub payment_method_data: Option<String>,
+    pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
     pub error_reason: Option<&'a String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: MinorUnit,
@@ -112,7 +112,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             connector_metadata: attempt.connector_metadata.as_ref().map(|v| v.to_string()),
             payment_experience: attempt.payment_experience.as_ref(),
             payment_method_type: attempt.payment_method_type.as_ref(),
-            payment_method_data: attempt.payment_method_data.as_ref().map(|v| v.to_string()),
+            payment_method_data: attempt.payment_method_data.clone(),
             error_reason: attempt.error_reason.as_ref(),
             multiple_capture_count: attempt.multiple_capture_count,
             amount_capturable: attempt.amount_capturable,
@@ -125,15 +125,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             client_version: attempt.client_version.as_ref(),
             profile_id: &attempt.profile_id,
             organization_id: &attempt.organization_id,
-            card_network: attempt
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
-                .map(|network| network.to_string()),
+            card_network: None,
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
