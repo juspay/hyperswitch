@@ -48,13 +48,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
         state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
-        // Generate a unique request_id for this PSync execution
-        // UUID v7 string is always valid
-        let request_id = router_env::RequestId::try_from(uuid::Uuid::now_v7().to_string()).ok();
+        // Generate a unique request_id for this PSync execution if not already present
+        let request_id = state.request_id.clone().or_else(|| {
+            // UUID v7 string is always valid
+            router_env::RequestId::try_from(uuid::Uuid::now_v7().to_string()).ok()
+        });
 
-        if let Some(ref req_id) = request_id {
-            logger::info!(psync_request_id = %req_id, process_tracker_id = %process.id, "Generated request_id for PSync task");
-        }
+        logger::info!(psync_request_id = ?request_id, process_tracker_id = %process.id, "Request ID for PSync task");
 
         let mut state_with_request_id = state.clone();
         state_with_request_id.request_id = request_id;

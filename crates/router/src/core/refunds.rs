@@ -1841,13 +1841,13 @@ pub async fn sync_refund_with_gateway_workflow(
     state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    // Generate a unique request_id for this RSync execution
-    // UUID v7 string is always valid
-    let request_id = router_env::RequestId::try_from(uuid::Uuid::now_v7().to_string()).ok();
+    // Generate a unique request_id for this RSync execution if not already present
+    let request_id = state.request_id.clone().or_else(|| {
+        // UUID v7 string is always valid
+        router_env::RequestId::try_from(uuid::Uuid::now_v7().to_string()).ok()
+    });
 
-    if let Some(ref req_id) = request_id {
-        logger::info!(rsync_request_id = %req_id, process_tracker_id = %refund_tracker.id, "Generated request_id for RSync task");
-    }
+    logger::info!(rsync_request_id = ?request_id, process_tracker_id = %refund_tracker.id, "Request ID for RSync task");
 
     let mut state_with_request_id = state.clone();
     state_with_request_id.request_id = request_id;
