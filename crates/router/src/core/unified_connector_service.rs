@@ -849,7 +849,7 @@ pub fn build_unified_connector_service_payment_method(
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
-                ..
+                expiry_date,
             } => Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::Pix(payments_grpc::PixPayment {
                     pix_key: pix_key.map(|v| v.expose().into()),
@@ -857,6 +857,10 @@ pub fn build_unified_connector_service_payment_method(
                     cnpj: cnpj.map(|v| v.expose().into()),
                     source_bank_account_id: source_bank_account_id.map(|v| v.expose_inner()),
                     destination_bank_account_id: destination_bank_account_id.map(|v| v.expose_inner()),
+                    expiry_date: expiry_date.map(|dt| {
+                        dt.format(&time::format_description::well_known::Iso8601::DEFAULT)
+                            .unwrap_or_default()
+                    }),
                 })),
             }),
             hyperswitch_domain_models::payment_method_data::BankTransferData::PermataBankTransfer {} => {
