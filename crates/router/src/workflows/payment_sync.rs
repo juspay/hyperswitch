@@ -8,6 +8,7 @@ use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
+use uuid;
 
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
@@ -47,7 +48,18 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
         state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
-        let db: &dyn StorageInterface = &*state.store;
+        // Generate a unique request_id for this PSync execution
+        // UUID v7 string is always valid
+        let request_id = router_env::RequestId::try_from(uuid::Uuid::now_v7().to_string()).ok();
+
+        if let Some(ref req_id) = request_id {
+            logger::info!(psync_request_id = %req_id, process_tracker_id = %process.id, "Generated request_id for PSync task");
+        }
+
+        let mut state_with_request_id = state.clone();
+        state_with_request_id.request_id = request_id;
+
+        let db: &dyn StorageInterface = &*state_with_request_id.store;
         let tracking_data: api::PaymentsRetrieveRequest = process
             .tracking_data
             .clone()
@@ -88,8 +100,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 _,
                 payment_flows::PaymentData<api::PSync>,
             >(
-                state,
-                state.get_req_state(),
+                &state_with_request_id,
+                state_with_request_id.get_req_state(),
                 &platform,
                 None,
                 operations::PaymentStatus,
@@ -113,7 +125,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
         ];
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
-                state
+                state_with_request_id
                     .store
                     .as_scheduler()
                     .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
@@ -211,7 +223,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         business_profile,
                         payment_data,
                         customer,
-                        state,
+                        &state_with_request_id,
                         operation,
                     ))
                     .await

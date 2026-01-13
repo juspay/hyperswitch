@@ -20,6 +20,7 @@ use scheduler::{
 };
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+use uuid;
 
 use crate::{
     consts,
@@ -1840,6 +1841,17 @@ pub async fn sync_refund_with_gateway_workflow(
     state: &SessionState,
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
+    // Generate a unique request_id for this RSync execution
+    // UUID v7 string is always valid
+    let request_id = router_env::RequestId::try_from(uuid::Uuid::now_v7().to_string()).ok();
+
+    if let Some(ref req_id) = request_id {
+        logger::info!(rsync_request_id = %req_id, process_tracker_id = %refund_tracker.id, "Generated request_id for RSync task");
+    }
+
+    let mut state_with_request_id = state.clone();
+    state_with_request_id.request_id = request_id;
+
     let refund_core = serde_json::from_value::<diesel_refund::RefundCoreWorkflow>(
         refund_tracker.tracking_data.clone(),
     )
@@ -1851,15 +1863,15 @@ pub async fn sync_refund_with_gateway_workflow(
         )
     })?;
 
-    let key_store = state
+    let key_store = state_with_request_id
         .store
         .get_merchant_key_store_by_merchant_id(
             &refund_core.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
+            &state_with_request_id.store.get_master_key().to_vec().into(),
         )
         .await?;
 
-    let merchant_account = state
+    let merchant_account = state_with_request_id
         .store
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
         .await?;
@@ -1871,7 +1883,7 @@ pub async fn sync_refund_with_gateway_workflow(
         None,
     );
     let response = Box::pin(refund_retrieve_core_with_internal_reference_id(
-        state.clone(),
+        state_with_request_id.clone(),
         platform,
         None,
         refund_core.refund_internal_reference_id,
@@ -1885,7 +1897,7 @@ pub async fn sync_refund_with_gateway_workflow(
     ];
     match response.refund_status {
         status if terminal_status.contains(&status) => {
-            state
+            state_with_request_id
                 .store
                 .as_scheduler()
                 .finish_process_with_business_status(
@@ -1896,7 +1908,7 @@ pub async fn sync_refund_with_gateway_workflow(
         }
         _ => {
             _ = retry_refund_sync_task(
-                &*state.store,
+                &*state_with_request_id.store,
                 response.connector,
                 response.merchant_id,
                 refund_tracker.to_owned(),
