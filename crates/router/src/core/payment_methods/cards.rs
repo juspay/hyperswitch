@@ -4893,6 +4893,7 @@ pub async fn get_bank_from_vault(
                     &pm_parsed,
                     Some(customer_id.to_owned()),
                     key_store,
+                    None,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4988,7 +4989,7 @@ impl TempLockerCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        let lookup_key = vault::create_tokenize(
+        let lookup_key = vault::create_tokenize_without_configurable_expiry(
             state,
             value1,
             Some(value2),
