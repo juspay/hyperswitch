@@ -746,7 +746,6 @@ impl
             ),
             merchant_account_metadata: HashMap::new(),
             metadata: HashMap::new(),
-            connector_order_reference_id: None,
         })
     }
 }
