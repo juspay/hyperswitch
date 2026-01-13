@@ -195,6 +195,8 @@ impl
             customer_acceptance: data.request.customer_acceptance.clone(),
             customer_id: None,
             billing_address: None,
+            metadata: None,
+            currency: Some(data.request.currency),
         })
     }
 }
@@ -303,6 +305,8 @@ pub struct ConnectorCustomerData {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub customer_id: Option<id_type::CustomerId>,
     pub billing_address: Option<AddressDetails>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+    pub currency: Option<storage_enums::Currency>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -320,6 +324,8 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             customer_acceptance: data.customer_acceptance,
             customer_id: None,
             billing_address: None,
+            metadata: data.metadata,
+            currency: Some(data.currency),
         })
     }
 }
@@ -382,6 +388,8 @@ impl
             customer_acceptance: data.request.customer_acceptance.clone(),
             customer_id: None,
             billing_address: None,
+            metadata: data.request.metadata.clone().map(Secret::new),
+            currency: Some(data.request.currency),
         })
     }
 }
@@ -410,6 +418,8 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             customer_acceptance: None,
             customer_id: None,
             billing_address: None,
+            metadata: None,
+            currency: Some(data.request.currency),
         })
     }
 }

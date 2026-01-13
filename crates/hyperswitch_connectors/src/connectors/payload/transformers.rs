@@ -25,7 +25,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeOptionInterface, Secret};
+use masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::Deserialize;
 
 use super::{requests, responses};
@@ -40,6 +40,15 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+fn get_processing_account_id_from_metadata(
+    metadata: Option<&serde_json::Value>,
+) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.get("processing_account_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
@@ -51,6 +60,7 @@ fn build_payload_payment_request_data(
     is_mandate: bool,
     customer_id: Option<String>,
     is_three_ds: bool,
+    metadata: Option<&serde_json::Value>,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
@@ -131,13 +141,15 @@ fn build_payload_payment_request_data(
     };
 
     let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
+    // Metadata processing_account_id takes precedence over connector auth config
     Ok(requests::PayloadPaymentRequestData {
         amount,
         payment_method: payment_method?,
         transaction_types: requests::TransactionTypes::Payment,
         status,
         billing_address,
-        processing_id: payload_auth.processing_account_id,
+        processing_id: get_processing_account_id_from_metadata(metadata)
+            .or(payload_auth.processing_account_id),
         keep_active: is_mandate,
         customer_id,
     })
@@ -159,10 +171,22 @@ impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
 impl TryFrom<&ConnectorCustomerRouterData> for requests::CustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        let currency =
+            item.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let payload_auth = PayloadAuth::try_from((&item.connector_auth_type, currency))?;
+        let primary_processing_id = get_processing_account_id_from_metadata(
+            item.request.metadata.as_ref().map(|m| m.peek()),
+        )
+        .or(payload_auth.processing_account_id);
         Ok(Self {
             keep_active: item.request.is_mandate_payment(),
             email: item.request.get_email()?,
             name: item.request.get_name()?,
+            primary_processing_id,
         })
     }
 }
@@ -264,6 +288,7 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                 is_mandate,
                 item.get_connector_customer_id()?.into(),
                 item.is_three_ds(),
+                item.request.metadata.as_ref().map(|m| m.peek()),
             )
         }
     }
@@ -292,6 +317,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     is_mandate,
                     item.router_data.connector_customer.clone(),
                     item.router_data.is_three_ds(),
+                    item.router_data.request.metadata.as_ref(),
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
