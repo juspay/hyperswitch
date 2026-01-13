@@ -1045,7 +1045,6 @@ Cypress.Commands.add(
                 `${mcaPrefix}Id`,
                 response.body.merchant_connector_id
               );
-              globalState.set("connectorName", response.body.connector_name);
             } else {
               cy.task(
                 "cli_log",
@@ -5128,17 +5127,10 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 });
 
 Cypress.Commands.add(
-  "updatePaymentStatusTest",
-  (globalState, status = "pending") => {
+  "manualPaymentStatusUpdateTest",
+  (globalState, PaymentsManualUpdateRequestBody) => {
     const merchantId = globalState.get("merchantId");
     const paymentId = globalState.get("paymentID");
-
-    const body = {
-      attempt_status: status,
-      attempt_id: `${paymentId}_1`,
-      merchant_id: merchantId,
-      payment_id: paymentId,
-    };
 
     cy.request({
       method: "PUT",
@@ -5148,79 +5140,69 @@ Cypress.Commands.add(
         "api-key": globalState.get("adminApiKey"),
         "X-Merchant-Id": merchantId,
       },
-      body,
+      body: PaymentsManualUpdateRequestBody,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
-
-        expect(response.status).to.eq(200);
-        expect(response.body.payment_id).to.equal(paymentId);
-        expect(response.body.merchant_id).to.equal(merchantId);
-        expect(response.body.attempt_status).to.equal(status);
+        if (response.status === 200) {
+          expect(response.status).to.eq(200);
+          expect(response.body.payment_id).to.equal(paymentId);
+          expect(response.body.merchant_id).to.equal(merchantId);
+          expect(response.body.attempt_status).to.equal(PaymentsManualUpdateRequestBody.attempt_status);
+            
+        }
+        else{
+          throw new Error(
+          ` Issue detected. Response: ${JSON.stringify(response.body)}`
+        );
+        }
+        
       });
     });
   }
 );
 
-Cypress.Commands.add("sendWebhookTest", (globalState) => {
-  const connectorId = globalState.get("connectorId");
-  const connectorName = globalState.get("connectorName");
-  const merchantId = globalState.get("merchantId");
-  const connectorTransactionId = globalState.get("connectorTransactionID");
+Cypress.Commands.add(
+  "IncomingWebhookTest",
+  (globalState, webhookPayload) => {
+    const connector = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
 
-  // fixture path
-  const fixturePath = `webhooks/${connectorName}_payment_webhook.json`;
-
-  return cy
-    .fixture(fixturePath)
-    .then((payload) => {
-      const connector_transaction_id_type =
-        payload._meta?.connector_transaction_id_type || "string";
-
-      let payloadStr = JSON.stringify(payload);
-
-      const numericId = Number(connectorTransactionId);
-      const isNumeric =
-        !Number.isNaN(numericId) && connector_transaction_id_type == "number";
-
-      payloadStr = payloadStr.replace(
-        /"{{\s*connector_transaction_id\s*}}"/g,
-        isNumeric
-          ? String(numericId)
-          : JSON.stringify(String(connectorTransactionId))
-      );
-
-      const webhookPayload = JSON.parse(payloadStr);
-
-      return cy.request({
+    // Send webhook POST request
+    return cy
+      .request({
         method: "POST",
         url: `${globalState.get(
           "baseUrl"
-        )}/webhooks/${merchantId}/${connectorId}`,
+        )}/webhooks/${merchantId}/${connector}`,
         headers: { "Content-Type": "application/json" },
         body: webhookPayload,
         failOnStatusCode: false,
-      });
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+      })
+      .then((response) => {
+        
+        logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        // Webhook endpoints may not return JSON or content-type
-        if (response.headers["content-type"]) {
-          expect(response.headers["content-type"]).to.match(
-            /(application|text)\//
-          );
-        }
+        
+        return cy.wrap(response).then(() => {
+          
+          if (response.headers["content-type"]) {
+            expect(response.headers["content-type"]).to.match(
+              /(application|text)\//
+            );
+          }
 
-        if (response.status !== 200) {
-          throw new Error(
-            `Eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
-          );
-        }
+          // Throw for failed status
+          if (response.status !== 200) {
+            throw new Error(
+              `Webhook failed with status: ${response.status} and message: ${response.body?.error?.message}`
+            );
+          }
+        });
       });
-    });
-});
+  }
+);
+

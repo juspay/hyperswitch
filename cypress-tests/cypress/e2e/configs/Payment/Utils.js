@@ -447,3 +447,62 @@ export const shouldExcludeConnector = (connectorId, list) => {
 export const shouldIncludeConnector = (connectorId, list) => {
   return !list.includes(connectorId);
 };
+
+export const webhookTransactionIdConfig = {
+  stripe: {
+    path: "data.object.id",
+    type: "string",
+  },
+  authorizedotnet: {
+    path: "payload.id",
+    type: "string",
+  },
+  noon: {
+    path: "orderId",
+    type: "number",
+  },
+};
+
+export function setNormalizedValue(webhookBody, config, connectorTransactionID) {
+  if (!config?.path) {
+    throw new Error("Invalid config: missing path");
+  }
+  // Split the dot-separated path into individual keys
+  const keys = config.path.split(".");
+  let target = webhookBody;
+
+  // Traverse the object until the parent of the final key
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (target[keys[i]] == null) {
+      throw new Error(`Path does not exist: ${config.path}`);
+    }
+    target = target[keys[i]];
+  }
+  // The final key where the normalized value will be assigned
+  const finalKey = keys[keys.length - 1];
+
+  // Coerce value based on expected type
+  const normalizedconnectorTransactionID = coerceValue(connectorTransactionID, config.type);
+
+  target[finalKey] = normalizedconnectorTransactionID;
+}
+
+
+function coerceValue(value, type) {
+  switch (type) {
+    case "string":
+      return String(value);
+
+    case "number": {
+      const num = Number(value);
+      if (!Number.isFinite(num)) {
+        throw new Error(`Cannot coerce "${value}" to number`);
+      }
+      return num;
+    }
+
+    default:
+      return value;
+  }
+}
+
