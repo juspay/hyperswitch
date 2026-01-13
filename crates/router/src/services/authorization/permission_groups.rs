@@ -132,7 +132,7 @@ impl ParentGroupExt for ParentGroup {
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
             Self::Webhook => WEBHOOK.to_vec(),
-            Self::ApiKeys => APIKEYS.to_vec(),
+            Self::ApiKeys => API_KEYS.to_vec(),
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
@@ -203,7 +203,7 @@ pub static ACCOUNT: [Resource; 1] = [Resource::Account];
 
 pub static WEBHOOK: [Resource; 1] = [Resource::WebhookEvent];
 
-pub static APIKEYS: [Resource; 1] = [Resource::ApiKey];
+pub static API_KEYS: [Resource; 1] = [Resource::ApiKey];
 
 pub static RECON_OPS: [Resource; 7] = [
     Resource::ReconToken,
