@@ -720,6 +720,7 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub connector_response_reference_id: Option<String>,
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
@@ -735,6 +736,7 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -752,6 +754,7 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -959,6 +962,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
@@ -989,6 +993,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1284,6 +1289,7 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
@@ -1307,6 +1313,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1597,6 +1604,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
@@ -1628,6 +1636,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1881,6 +1890,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
@@ -1911,6 +1921,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -2128,6 +2139,7 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
@@ -2151,6 +2163,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -2299,6 +2312,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
@@ -2332,6 +2346,7 @@ impl
                     error: error_details,
                     updated_by: storage_scheme.to_string(),
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                 }
             }
             Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {
