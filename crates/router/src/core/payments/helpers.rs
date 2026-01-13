@@ -7030,7 +7030,6 @@ fn create_merchant_advice_code_lookup_key(network: &str, advice_code: &str) -> S
 #[derive(Debug, Deserialize)]
 pub struct MerchantAdviceCodeConfig {
     pub recommended_action: common_enums::RecommendedAction,
-    #[serde(default)]
     pub description: Option<String>,
 }
 
