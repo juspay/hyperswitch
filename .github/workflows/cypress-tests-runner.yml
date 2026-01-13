@@ -17,14 +17,14 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix zift"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu worldpay"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "iatapay cashtocode peachpayments"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "fiuu worldpay zift"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "aiwallex novalnet redsys"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "iatapay cashtocode peachpayments"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "worldpayxml checkout mollie"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "airwallex novalnet redsys"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -147,10 +147,46 @@ jobs:
           path: target/debug/router
           retention-days: 1
 
+  prepare-mandatory-matrix:
+    name: Prepare Mandatory Connectors matrix to run cypress tests
+    runs-on: hyperswitch-runners
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.mandatory-matrix }}
+      run_tests: ${{ steps.set-matrix.outputs.run_tests }}
+    steps:    
+      - name : Set matrix for mandatory connectors batches
+        id: set-matrix
+        shell: bash
+        run: |
+          {
+            echo "run_tests="'"${RUN_TESTS}"'" >> "$GITHUB_OUTPUT"
+            echo "matrix<<EOF"
+            echo '{
+              "batch": [
+                {
+                  "name": "batch-1",
+                  "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
+                  "parallel": 4,
+                  "report_artifact_name": "cypress-mandatory-test-results-batch-1"
+                },
+                {
+                  "name": "batch-2",
+                  "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
+                  "parallel": 4,
+                  "report_artifact_name": "cypress-mandatory-test-results-batch-2"
+                }
+              ]
+            }'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
   runner:
     name: Run mandatory Cypress tests
-    needs: build-hyperswitch
+    needs: [build-hyperswitch, prepare-mandatory-matrix]
     runs-on: hyperswitch-runners
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.mandatory-matrix) }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -181,41 +217,41 @@ jobs:
 
     steps:
       - name: Skip tests for PRs from forks
-        if: ${{ env.RUN_TESTS == 'false' }}
+        if: matrix.run_tests == 'false'
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: actions/checkout@v5
 
       - name: Install Rust
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
       
       - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Download hyperswitch server artifact
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: actions/download-artifact@v4
         with:
           name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -232,13 +268,13 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -246,7 +282,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
@@ -254,42 +290,42 @@ jobs:
           args: --no-default-features
 
       - name: Install Just
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
       - name: Install Cypress and dependencies
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Insert GSM info into the database
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Setup Local Server
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -316,21 +352,22 @@ jobs:
           done
 
       - name: Run Cypress tests
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: matrix.run_tests == 'true'
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
+          PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 2
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
-        if: env.RUN_TESTS == 'true' && failure()
+        if: matrix.run_tests && failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-test-results-mandatory
+          name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
@@ -385,18 +422,6 @@ jobs:
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6}"'",
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-6"
-                },
-                {
-                  "name": "batch-7",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-7"
-                },
-                {
-                  "name": "batch-8",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-8"
                 }
               ]
             }'
