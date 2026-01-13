@@ -61,56 +61,60 @@ describe("Payment Webhook Tests", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
         () => {
-          expected_intent_status =
-            globalState.get("paymentIntentStatus");
+          expected_intent_status = globalState.get("paymentIntentStatus");
         }
       );
     });
   });
 
   context("Webhook Processing - Status Update & Retrieval", () => {
-  let paymentId;
-  let merchantId;
+    let paymentId;
+    let merchantId;
 
-  before(() => {
+    before(() => {
+      connector = globalState.get("connectorId");
+      merchantId = globalState.get("merchantId");
+      paymentId = globalState.get("paymentID");
+    });
 
-    connector = globalState.get("connectorId");
-    merchantId = globalState.get("merchantId");
-    paymentId = globalState.get("paymentID");
-    
+    it("Update-payment_status", () => {
+      const PaymentsManualUpdateRequestBody = {
+        attempt_status: "pending",
+        attempt_id: `${paymentId}_1`,
+        merchant_id: merchantId,
+        payment_id: paymentId,
+      };
+
+      cy.manualPaymentStatusUpdateTest(
+        globalState,
+        PaymentsManualUpdateRequestBody
+      );
+    });
+
+    it("send-webhook", () => {
+      // Clone webhook fixture
+      const webhookBody = structuredClone(
+        fixtures.IncomingWebhookBody.webhookBodies[connector]["payment"]
+      );
+
+      // Normalize transaction ID
+      utils.setNormalizedValue(
+        webhookBody,
+        utils.webhookTransactionIdConfig[connector],
+        globalState.get("connectorTransactionID")
+      );
+
+      cy.IncomingWebhookTest(globalState, webhookBody);
+    });
+
+    it("Retrieve Payment Call Test", () => {
+      cy.retrievePaymentCallTest(
+        globalState,
+        null,
+        false,
+        1,
+        expected_intent_status
+      );
+    });
   });
-
-  it("Update-payment_status", () => {
-
-    let PaymentsManualUpdateRequestBody = {
-      attempt_status: "pending",
-      attempt_id: `${paymentId}_1`,
-      merchant_id: merchantId,
-      payment_id: paymentId,
-    };
-
-    cy.manualPaymentStatusUpdateTest(globalState, PaymentsManualUpdateRequestBody);
-  });
-
-  it("send-webhook", () => {
-
-    // Clone webhook fixture
-    let webhookBody = structuredClone( 
-      fixtures.IncomingWebhookBody.webhookBodies[connector]["payment"]
-    );
-
-    // Normalize transaction ID
-    utils.setNormalizedValue(
-      webhookBody,
-      utils.webhookTransactionIdConfig[connector],
-      globalState.get("connectorTransactionID")
-    );
-
-    cy.IncomingWebhookTest(globalState, webhookBody);
-  });
-
-  it("Retrieve Payment Call Test", () => {
-    cy.retrievePaymentCallTest(globalState, null, false, 1, expected_intent_status);
-  });
-});
 });

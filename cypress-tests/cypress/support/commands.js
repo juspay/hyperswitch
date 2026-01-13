@@ -5151,58 +5151,48 @@ Cypress.Commands.add(
           expect(response.status).to.eq(200);
           expect(response.body.payment_id).to.equal(paymentId);
           expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body.attempt_status).to.equal(PaymentsManualUpdateRequestBody.attempt_status);
-            
-        }
-        else{
+          expect(response.body.attempt_status).to.equal(
+            PaymentsManualUpdateRequestBody.attempt_status
+          );
+        } else {
           throw new Error(
-          ` Issue detected. Response: ${JSON.stringify(response.body)}`
-        );
+            ` Issue detected. Response: ${JSON.stringify(response.body)}`
+          );
         }
-        
       });
     });
   }
 );
 
-Cypress.Commands.add(
-  "IncomingWebhookTest",
-  (globalState, webhookPayload) => {
-    const connector = globalState.get("connectorId");
-    const merchantId = globalState.get("merchantId");
+Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
+  const connector = globalState.get("connectorId");
+  const merchantId = globalState.get("merchantId");
 
-    // Send webhook POST request
-    return cy
-      .request({
-        method: "POST",
-        url: `${globalState.get(
-          "baseUrl"
-        )}/webhooks/${merchantId}/${connector}`,
-        headers: { "Content-Type": "application/json" },
-        body: webhookPayload,
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        
-        logRequestId(response.headers["x-request-id"]);
+  // Send webhook POST request
+  return cy
+    .request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/webhooks/${merchantId}/${connector}`,
+      headers: { "Content-Type": "application/json" },
+      body: webhookPayload,
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-        
-        return cy.wrap(response).then(() => {
-          
-          if (response.headers["content-type"]) {
-            expect(response.headers["content-type"]).to.match(
-              /(application|text)\//
-            );
-          }
+      return cy.wrap(response).then(() => {
+        if (response.headers["content-type"]) {
+          expect(response.headers["content-type"]).to.match(
+            /(application|text)\//
+          );
+        }
 
-          // Throw for failed status
-          if (response.status !== 200) {
-            throw new Error(
-              `Webhook failed with status: ${response.status} and message: ${response.body?.error?.message}`
-            );
-          }
-        });
+        // Throw for failed status
+        if (response.status !== 200) {
+          throw new Error(
+            `Webhook failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
       });
-  }
-);
-
+    });
+});

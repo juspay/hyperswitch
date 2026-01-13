@@ -463,7 +463,11 @@ export const webhookTransactionIdConfig = {
   },
 };
 
-export function setNormalizedValue(webhookBody, config, connectorTransactionID) {
+export function setNormalizedValue(
+  webhookBody,
+  config,
+  connectorTransactionID
+) {
   if (!config?.path) {
     throw new Error("Invalid config: missing path");
   }
@@ -482,11 +486,13 @@ export function setNormalizedValue(webhookBody, config, connectorTransactionID) 
   const finalKey = keys[keys.length - 1];
 
   // Coerce value based on expected type
-  const normalizedconnectorTransactionID = coerceValue(connectorTransactionID, config.type);
+  const normalizedconnectorTransactionID = coerceValue(
+    connectorTransactionID,
+    config.type
+  );
 
   target[finalKey] = normalizedconnectorTransactionID;
 }
-
 
 function coerceValue(value, type) {
   switch (type) {
@@ -505,4 +511,3 @@ function coerceValue(value, type) {
       return value;
   }
 }
-
