@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
 #[cfg(feature = "v1")]
-use api_models::payments::PaymentMethodTokenizationDetails;
+use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
@@ -2427,7 +2427,8 @@ where
             connector_http_status_code,
             external_latency,
             is_latency_header_enabled,
-            platform,
+            platform.get_processor(),
+            platform.get_initiator(),
         )
     }
 }
@@ -3421,7 +3422,8 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     connector_http_status_code: Option<u16>,
     external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -3901,7 +3903,7 @@ where
 
         let payment_method_tokenization_details = payment_data
             .get_payment_method_info()
-            .map(PaymentMethodTokenizationDetails::foreign_try_from)
+            .map(api_payments::PaymentMethodTokenizationDetails::foreign_try_from)
             .transpose()?;
 
         let payments_response = api::PaymentsResponse {
@@ -3912,10 +3914,8 @@ where
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
-            processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-            initiator: platform
-                .get_initiator()
-                .and_then(|initiator| initiator.to_api_initiator()),
+            processor_merchant_id: processor.get_account().get_id().clone(),
+            initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
@@ -3974,6 +3974,9 @@ where
                 .filter(|message| message != NO_ERROR_MESSAGE),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            error_details: payment_attempt
+                .error_details
+                .map(api_payments::PaymentErrorDetails::foreign_from),
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             connector_label,
@@ -4312,6 +4315,7 @@ impl
             error_message: None,
             unified_code: None,
             unified_message: None,
+            error_details: None,
             payment_experience: None,
             connector_label: None,
             allowed_payment_method_types: None,
@@ -4367,7 +4371,7 @@ impl
 }
 
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<&domain::PaymentMethod> for PaymentMethodTokenizationDetails {
+impl ForeignTryFrom<&domain::PaymentMethod> for api_payments::PaymentMethodTokenizationDetails {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(payment_method: &domain::PaymentMethod) -> Result<Self, Self::Error> {
         let connector_common_mandate_details = payment_method

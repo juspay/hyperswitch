@@ -6,6 +6,9 @@ on:
       - checks_requested
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,6 +17,14 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "iatapay cashtocode peachpayments"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "fiuu worldpay zift"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "aiwallex novalnet redsys"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -39,7 +50,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -47,7 +58,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -88,7 +99,10 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -97,7 +111,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -144,9 +158,12 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    runs-on: hyperswitch-runners
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -180,7 +197,21 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Install Rust
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: rustfmt
+      
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -301,7 +332,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel 2
 
           kill "${{ env.PID }}"
 
@@ -309,7 +340,246 @@ jobs:
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-test-results
+          name: cypress-test-results-mandatory
+          path: |
+            cypress-tests/cypress/reports/
+          retention-days: 1
+
+  prepare-matrix:
+    name: Prepare Optional Connectors matrix to run cypress tests
+    if: ${{ github.event_name == 'merge_group' }}
+    runs-on: hyperswitch-runners
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name : Set matrix for optional connectors batches
+        id: set-matrix
+        shell: bash
+        run: |
+          {
+            echo "matrix<<EOF"
+            echo '{
+              "batch": [
+                {
+                  "name": "batch-1",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-1"
+                },
+                {
+                  "name": "batch-2",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-2"
+                },
+                {
+                  "name": "batch-3",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-3"
+                },
+                {
+                  "name": "batch-4",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-4"
+                },
+                {
+                  "name": "batch-5",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-5"
+                },
+                {
+                  "name": "batch-6",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-6"
+                },
+                {
+                  "name": "batch-7",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-7"
+                },
+                {
+                  "name": "batch-8",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-8"
+                }
+              ]
+            }'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  runner-optional-connectors:
+    name: Run Optional Connectors Cypress tests
+    if: ${{ github.event_name == 'merge_group' }}
+    needs: [ build-hyperswitch, prepare-matrix ]
+    runs-on: hyperswitch-runners
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
+    services:
+      redis:
+        image: "public.ecr.aws/docker/library/redis:alpine"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "public.ecr.aws/docker/library/postgres:alpine"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: rustfmt
+      
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Download hyperswitch server artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hyperswitch-server
+          path: target/debug
+
+      - name: Make server executable
+        run: chmod +x target/debug/router
+
+      - name: Download Encrypted TOML from S3 and Decrypt
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
+          DESTINATION_FILE_NAME: "creds.json.gpg"
+          S3_SOURCE_FILE_NAME: "1b5c7aa1-8a73-4137-aa55-766cc50849f6.json.gpg"
+        shell: bash
+        run: |
+          mkdir -p ".github/secrets" ".github/test"
+
+          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" ".github/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
+
+      - name: Set paths in env
+        shell: bash
+        run: |
+          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+
+      - name: Fetch keys
+        env:
+          TOML_PATH: "./config/development.toml"
+        run: |
+          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
+          echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+      - name: Install Diesel CLI
+        uses: baptiste0928/cargo-install@v3.3.0
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: --no-default-features
+
+      - name: Install Just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      
+      - name: Install Cypress and dependencies
+        run: |
+          npm ci --prefix ./cypress-tests
+
+      - name: Run database migrations
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: just migrate run --locked-schema
+
+      - name: Insert card info into the database
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Insert GSM info into the database
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Setup Local Server
+        env:
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
+        run: |
+          # Start the server in the background
+          target/debug/router &
+
+          SERVER_PID=$!
+          echo "PID=${SERVER_PID}" >> $GITHUB_ENV
+
+          # Wait for the server to start in port 8080
+          COUNT=0
+          while ! nc -z localhost 8080; do
+            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+              echo "Server did not start within a reasonable time. Exiting."
+              kill ${SERVER_PID}
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
+            fi
+          done
+
+      - name: Run Cypress tests
+        env:
+          CYPRESS_BASEURL: "http://localhost:8080"
+          ROUTER__SERVER__WORKERS: 4
+          PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
+        shell: bash -leuo pipefail {0}
+        run: |
+          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+
+          kill "${{ env.PID }}"
+
+      - name: Upload Cypress test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name:  ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
@@ -327,8 +597,10 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: ubuntu-latest
-
+    runs-on: hyperswitch-runners
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -361,7 +633,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -387,6 +659,20 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+      
+      - name: Install Rust
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: rustfmt
+
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -522,6 +808,7 @@ jobs:
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
+      contents: read
     env:
       CODECOV_FILE: "lcov.info"
       # Use `sccache` for caching compilation artifacts
@@ -559,7 +846,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -603,7 +890,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
+          components: rustfmt
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}

@@ -6835,6 +6835,16 @@ pub fn is_html_response(response: &str) -> bool {
         || response.starts_with("<!doctype html>")
 }
 
+pub fn is_html_response_from_headers(headers: Option<&http::HeaderMap>) -> bool {
+    headers
+        .and_then(|headers| headers.get(http::header::CONTENT_TYPE))
+        .and_then(|content_type| content_type.to_str().ok())
+        .map(|content_type| {
+            content_type.contains("text/html") || content_type.contains("application/xhtml+xml")
+        })
+        .unwrap_or(false)
+}
+
 #[cfg(feature = "payouts")]
 pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
