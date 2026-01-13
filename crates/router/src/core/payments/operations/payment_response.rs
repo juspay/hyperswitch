@@ -2098,7 +2098,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         }
                         types::PaymentsResponseData::PostCaptureVoidResponse {
                             post_capture_void_status,
+                            connector_reference_id,
                         } => {
+
+                            let post_capture_void_response = common_types::domain::PostCaptureVoidData {
+                                status: post_capture_void_status,
+                                connector_reference_id,
+                            };
+
                             let m_db = state.clone().store;
 
                             let merchant_account = m_db
@@ -2129,7 +2136,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 &state,
                                 &platform,
                                 &payment_data.payment_intent,
-                                post_capture_void_status,
+                                post_capture_void_response,
                             )
                             .await?;
                             (None, None, None)

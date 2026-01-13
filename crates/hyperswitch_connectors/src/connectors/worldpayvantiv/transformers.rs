@@ -1709,6 +1709,8 @@ impl<F>
                 Ok(Self {
                     response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                         post_capture_void_status,
+                        connector_reference_id: Some(void_response.cnp_txn_id),
+
                     }),
                     ..item.data
                 })
@@ -1716,6 +1718,7 @@ impl<F>
             None => Ok(Self {
                 response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                     post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                    connector_reference_id: None,
                 }),
                 ..item.data
             }),

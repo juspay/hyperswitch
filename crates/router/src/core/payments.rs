@@ -13817,7 +13817,7 @@ impl PaymentIntentStateMetadataExt {
         state: &SessionState,
         platform: &domain::Platform,
         payment_intent: &payments::PaymentIntent,
-        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+        post_capture_void_status: common_types::domain::PostCaptureVoidData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.clone();
         let key_store = platform.get_processor().get_key_store().clone();

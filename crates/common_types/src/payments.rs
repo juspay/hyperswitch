@@ -22,7 +22,7 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
+use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData, PostCaptureVoidData};
 #[derive(
     Serialize,
     Deserialize,
@@ -978,7 +978,6 @@ pub struct PaymentIntentStateMetadata {
 
 /// Additional metadata for payment intent state containing refunded and disputed amounts
 #[derive(
-    Default,
     Serialize,
     Deserialize,
     Debug,
@@ -993,7 +992,11 @@ pub struct PaymentIntentStateMetadata {
 pub struct PostCaptureVoidResponse {
     /// Status of post capture void
     #[schema(value_type = Option<PostCaptureVoidStatus>)]
-    pub status: common_enums::PostCaptureVoidStatus,
+    pub status: enums::PostCaptureVoidStatus,
+    /// Connector reference id for post capture void
+    pub connector_reference_id: Option<String>,
+    /// Timestamp when the post capture void was last updated
+    pub updated_at: PrimitiveDateTime,
 }
 
 impl PaymentIntentStateMetadata {
@@ -1034,9 +1037,9 @@ impl PaymentIntentStateMetadata {
     /// Builder method to set post_capture_void data
     pub fn set_post_capture_void_data(
         mut self,
-        status: common_enums::PostCaptureVoidStatus,
+        post_capture_void_data: PostCaptureVoidData,
     ) -> Self {
-        self.post_capture_void = Some(PostCaptureVoidResponse { status });
+        self.post_capture_void = Some(PostCaptureVoidResponse { status: post_capture_void_data.status,  connector_reference_id: post_capture_void_data.connector_reference_id, updated_at: date_time::now() });
         self
     }
 }
