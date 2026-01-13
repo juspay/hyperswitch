@@ -308,6 +308,7 @@ pub enum RoutableConnectors {
     Payu,
     Peachpayments,
     Payjustnow,
+    Payjustnowinstore,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -341,6 +342,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
+    Worldpaymodular,
     Worldpayvantiv,
     Worldpayxml,
     Xendit,
@@ -477,6 +479,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldline => Ok(Self::Worldline),
             Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Worldpaymodular => Ok(Self::Worldpaymodular),
             Connector::Worldpayvantiv => Ok(Self::Worldpayvantiv),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Xendit => Ok(Self::Xendit),
@@ -493,6 +496,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Paytm => Ok(Self::Paytm),
             Connector::Phonepe => Ok(Self::Phonepe),
             Connector::Payjustnow => Ok(Self::Payjustnow),
+            Connector::Payjustnowinstore => Ok(Self::Payjustnowinstore),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
@@ -633,6 +637,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Wise => Self::Wise,
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
+            RoutableConnectors::Worldpaymodular => Self::Worldpaymodular,
             RoutableConnectors::Worldpayvantiv => Self::Worldpayvantiv,
             RoutableConnectors::Worldpayxml => Self::Worldpayxml,
             RoutableConnectors::Zen => Self::Zen,
@@ -645,6 +650,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paytm => Self::Paytm,
             RoutableConnectors::Phonepe => Self::Phonepe,
             RoutableConnectors::Payjustnow => Self::Payjustnow,
+            RoutableConnectors::Payjustnowinstore => Self::Payjustnowinstore,
             RoutableConnectors::Juspaythreedsserver => Self::Juspaythreedsserver,
             RoutableConnectors::CtpMastercard => Self::CtpMastercard,
             RoutableConnectors::CtpVisa => Self::CtpVisa,

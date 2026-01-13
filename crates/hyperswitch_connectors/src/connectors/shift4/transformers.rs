@@ -1103,9 +1103,14 @@ pub struct ErrorResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "camelCase")]
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,
+    pub issuer_decline_code: Option<String>,
+    pub advice_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub charge_id: Option<String>,
 }
 
 pub fn is_transaction_event(event: &Shift4WebhookEvent) -> bool {

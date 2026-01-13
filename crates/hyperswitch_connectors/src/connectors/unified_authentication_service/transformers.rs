@@ -386,7 +386,11 @@ impl<F, T>
                     message_version: maximum_supported_3ds_version,
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
-                        .and_then(|response| response.directory_server_id),
+                        .as_ref()
+                        .and_then(|response| response.directory_server_id.clone()),
+                    scheme_id: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.scheme_id.clone()),
                 },
             }),
             ..item.data
@@ -1057,6 +1061,7 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
