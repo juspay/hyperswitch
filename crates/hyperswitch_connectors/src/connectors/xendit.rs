@@ -1110,13 +1110,15 @@ impl ConnectorSpecifications for Xendit {
     fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {
-                request_data.payment_method_data == PaymentMethodData::Card(_)
-                    && request_data.split_payments
-                        == Some(
+                matches!(request_data.payment_method_data, PaymentMethodData::Card(_))
+                    && matches!(
+                        request_data.split_payments.as_ref(),
+                        Some(
                             common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                                 common_types::payments::XenditSplitRequest::MultipleSplits(_),
                             ),
                         )
+                    )
             }
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
