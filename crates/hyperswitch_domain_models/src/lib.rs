@@ -153,26 +153,30 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     }
 }
 
-pub trait ToDieselPixAdditionalDetails {
+pub trait ToDieselBoletoAdditionalDetails {
     fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails;
 }
 
-pub trait ToApiPixAdditionalDetails {
+pub trait ToApiBoletiAdditionalDetails {
     fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails;
 }
 
-impl ToDieselPixAdditionalDetails for api_models::payments::BoletoAdditionalDetails {
+impl ToDieselBoletoAdditionalDetails for api_models::payments::BoletoAdditionalDetails {
     fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails {
         diesel_models::types::BoletoAdditionalDetails {
             due_date: self.due_date.clone(),
+            document_kind: self.document_kind,
+            payment_type: self.payment_type,
         }
     }
 }
 
-impl ToApiPixAdditionalDetails for diesel_models::types::BoletoAdditionalDetails {
+impl ToApiBoletiAdditionalDetails for diesel_models::types::BoletoAdditionalDetails {
     fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails {
         api_models::payments::BoletoAdditionalDetails {
             due_date: self.due_date.clone(),
+            document_kind: self.document_kind,
+            payment_type: self.payment_type,
         }
     }
 }

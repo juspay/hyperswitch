@@ -27,7 +27,7 @@ pub struct Beneficiary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BoletoDocumentKind {
+pub enum SantanderBoletoDocumentKind {
     // Used when selling goods/products (commercial invoice).
     DuplicataMercantil,
     // Used when selling services (service invoice).
@@ -132,7 +132,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub nominal_value: StringMajorUnit,
     pub payer: Payer,
     pub beneficiary: Option<Beneficiary>,
-    pub document_kind: BoletoDocumentKind,
+    pub document_kind: SantanderBoletoDocumentKind,
     pub discount: Option<requests::Discount>,
     pub fine_percentage: Option<String>,
     pub fine_quantity_days: Option<String>,
@@ -141,7 +141,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub protest_type: Option<requests::ProtestType>,
     pub protest_quantity_days: Option<String>,
     pub write_off_quantity_days: Option<String>,
-    pub payment_type: PaymentType,
+    pub payment_type: SantanderBoletoPaymentType,
     pub parcels_quantity: Option<String>,
     pub value_type: Option<String>,
     pub min_value_or_percentage: Option<String>,
@@ -572,7 +572,7 @@ pub enum PaymentKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 /// Represents the type of boleto payment or registration action.
-pub enum PaymentType {
+pub enum SantanderBoletoPaymentType {
     /// Only the exact nominal value can be paid
     Registro,
     /// Payer can pay any amount within a range, min to max value

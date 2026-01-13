@@ -82,6 +82,10 @@ pub struct FeatureMetadata {
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
     pub due_date: Option<String>,
+    // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
+    // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
 }
 
 #[cfg(feature = "v2")]

@@ -1,5 +1,5 @@
 use api_models::payments::{ExpiryType, QrCodeInformation, VoucherNextStepData};
-use common_enums::{enums, AttemptStatus};
+use common_enums::{enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, ValueExt},
@@ -39,9 +39,9 @@ use crate::{
             SantanderValue,
         },
         responses::{
-            BoletoDocumentKind, FunctionType, NsuComposite, Payer, PaymentType,
-            SanatanderAccessTokenResponse, SanatanderTokenResponse, SantanderPaymentStatus,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            FunctionType, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            SanatanderTokenResponse, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
+            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
             SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
             SantanderVoidResponse, SantanderVoidStatus, SantanderWebhookBody,
@@ -290,6 +290,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SanatanderAccessTokenResponse, T, Acces
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    connector_response_reference_id: None,
                 }),
                 ..item.data
             }),
@@ -368,19 +369,36 @@ impl
 
         let bank_number = nsu_code.clone();
 
-        let due_date = Some(
-            value
+        let (due_date, payment_type, document_kind) = {
+            let details = value
                 .0
                 .router_data
                 .request
                 .feature_metadata
                 .as_ref()
                 .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .and_then(|details| details.due_date.clone())
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details.due_date",
-                })?,
-        );
+                    field_name: "feature_metadata.boleto_additional_details",
+                })?;
+
+            (
+                Some(details.due_date.as_ref().cloned().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "feature_metadata.boleto_additional_details.due_date",
+                    }
+                })?),
+                Some(details.payment_type.as_ref().copied().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "feature_metadata.boleto_additional_details.payment_type",
+                    }
+                })?),
+                Some(details.document_kind.as_ref().copied().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "feature_metadata.boleto_additional_details.document_kind",
+                    }
+                })?),
+            )
+        };
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
@@ -435,7 +453,7 @@ impl
                 zip_code: value.0.router_data.get_billing_zip()?,
             }),
             beneficiary: None,
-            document_kind: Some(BoletoDocumentKind::DuplicataMercantil), // Need confirmation
+            document_kind: document_kind.map(SantanderBoletoDocumentKind::from),
             discount: None,
             fine_percentage: None,
             fine_quantity_days: None,
@@ -444,7 +462,7 @@ impl
             protest_type: None,
             protest_quantity_days: None,
             write_off_quantity_days: None,
-            payment_type: Some(PaymentType::Registro),
+            payment_type: payment_type.map(SantanderBoletoPaymentType::from),
             parcels_quantity: None,
             value_type: None,
             min_value_or_percentage: None,
@@ -453,7 +471,14 @@ impl
             sharing: None,
             key: None,
             tx_id: None,
-            messages: None,
+            messages: value
+                .0
+                .router_data
+                .request
+                .billing_descriptor
+                .clone()
+                .and_then(|data| data.statement_descriptor)
+                .map(|s| vec![s]),
         })))
     }
 }
@@ -593,6 +618,35 @@ impl From<SantanderPaymentStatus> for AttemptStatus {
     }
 }
 
+impl From<BoletoDocumentKind> for SantanderBoletoDocumentKind {
+    fn from(item: BoletoDocumentKind) -> Self {
+        match item {
+            BoletoDocumentKind::CommercialInvoice => Self::DuplicataMercantil,
+            BoletoDocumentKind::ServiceInvoice => Self::DuplicataServico,
+            BoletoDocumentKind::PromissoryNote => Self::NotaPromissoria,
+            BoletoDocumentKind::RuralPromissoryNote => Self::NotaPromissoriaRural,
+            BoletoDocumentKind::Receipt => Self::Recibo,
+            BoletoDocumentKind::InsurancePolicy => Self::ApoliceSeguro,
+            BoletoDocumentKind::CreditCardInvoice => Self::BoletoCartaoCredito,
+            BoletoDocumentKind::Proposal => Self::BoletoProposta,
+            BoletoDocumentKind::DepositOrFunding => Self::BoletoDepositoAporte,
+            BoletoDocumentKind::Cheque => Self::Cheque,
+            BoletoDocumentKind::DirectPromissoryNote => Self::NotaPromissoriaDireta,
+            BoletoDocumentKind::Other => Self::Outros,
+        }
+    }
+}
+
+impl From<BoletoPaymentType> for SantanderBoletoPaymentType {
+    fn from(item: BoletoPaymentType) -> Self {
+        match item {
+            BoletoPaymentType::FixedAmount => Self::Registro,
+            BoletoPaymentType::FlexibleAmount => Self::Divergente,
+            BoletoPaymentType::Installment => Self::Parcial,
+        }
+    }
+}
+
 impl From<router_env::env::Env> for Environment {
     fn from(item: router_env::env::Env) -> Self {
         match item {
@@ -681,6 +735,7 @@ pub fn get_error_response(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
+        connector_response_reference_id: None,
     }
 }
 

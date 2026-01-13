@@ -415,6 +415,7 @@ impl ConnectorCommon for Santander {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        connector_response_reference_id: None,
                     })
                 }
                 SantanderGenericErrorResponse::Pattern2(response) => {
@@ -433,6 +434,7 @@ impl ConnectorCommon for Santander {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        connector_response_reference_id: None,
                     })
                 }
                 SantanderGenericErrorResponse::Pattern3(response) => {
@@ -449,6 +451,7 @@ impl ConnectorCommon for Santander {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        connector_response_reference_id: None,
                     })
                 }
             },

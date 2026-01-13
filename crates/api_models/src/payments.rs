@@ -11184,12 +11184,18 @@ impl FeatureMetadata {
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
     pub due_date: Option<String>,
+    // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
+    // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
 }
 
 impl BoletoAdditionalDetails {
     pub fn merge(self, other: Self) -> Self {
         Self {
             due_date: self.due_date.or(other.due_date),
+            document_kind: self.document_kind.or(other.document_kind),
+            payment_type: self.payment_type.or(other.payment_type),
         }
     }
 }

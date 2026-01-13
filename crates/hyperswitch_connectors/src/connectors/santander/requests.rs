@@ -265,7 +265,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub beneficiary: Option<responses::Beneficiary>,
     // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub document_kind: Option<responses::BoletoDocumentKind>,
+    pub document_kind: Option<responses::SantanderBoletoDocumentKind>,
     // The discount field indicates if the boleto gives the payer a discount for paying early
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Discount>,
@@ -287,7 +287,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub write_off_quantity_days: Option<String>,
     // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_type: Option<responses::PaymentType>,
+    pub payment_type: Option<responses::SantanderBoletoPaymentType>,
     // This becomes a required field if payment_type is Parcial. This field indicates the number of payments allowed for the same payment slip, with a maximum of 99.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parcels_quantity: Option<i64>,

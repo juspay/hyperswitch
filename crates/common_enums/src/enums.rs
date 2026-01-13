@@ -10400,3 +10400,67 @@ pub enum StorageType {
     #[default]
     Persistent,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoDocumentKind {
+    /// Commercial invoice for goods/products
+    CommercialInvoice,
+    /// Service invoice
+    ServiceInvoice,
+    /// Standard promissory note (promise to pay later)
+    PromissoryNote,
+    /// Promissory note for rural/agricultural operations
+    RuralPromissoryNote,
+    /// Payment receipt
+    Receipt,
+    /// Insurance policy payment
+    InsurancePolicy,
+    /// Credit card statement / invoice payment
+    CreditCardInvoice,
+    /// Commercial proposal / quotation acceptance
+    Proposal,
+    /// Deposit or account funding (e.g. wallet top-up)
+    DepositOrFunding,
+    /// Cheque-based payment
+    Cheque,
+    /// Direct promissory note between parties
+    DirectPromissoryNote,
+    /// Any other document type
+    Other,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoPaymentType {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed minimum–maximum range.
+    FlexibleAmount,
+    /// The payer may make up to 99 partial payments.
+    Installment,
+}
