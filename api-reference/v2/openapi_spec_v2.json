@@ -19686,6 +19686,11 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The CIT (customer initiated transaction) transaction id associated with the payment method",
+            "nullable": true
           }
         }
       },
@@ -20215,6 +20220,10 @@
                 "$ref": "#/components/schemas/ConnectorTokenDetails"
               }
             ],
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
             "nullable": true
           }
         },
