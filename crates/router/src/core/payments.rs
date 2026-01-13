@@ -4253,7 +4253,13 @@ where
                 .contains(&connector.connector_name)
         })
     {
-        (router_data, should_continue_further)
+        if should_continue_further {
+            router_data
+                .settlement_split_call(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, should_continue_further)
+        }
     } else {
         complete_preprocessing_steps_if_required(
             state,
