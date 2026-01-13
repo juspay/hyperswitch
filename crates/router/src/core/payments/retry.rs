@@ -673,11 +673,11 @@ where
                 payment_method_data: additional_payment_method_data,
                 encrypted_payment_method_data,
                 authentication_type: auth_update,
-                issuer_error_code: error_response.network_decline_code.clone(),
-                issuer_error_message: error_response.network_error_message.clone(),
-                network_details: Some(ForeignFrom::foreign_from(error_response)),
-                network_error_message: error_response.network_error_message.clone(),
-                recommended_action,
+                issuer_error_code: Some(error_response.network_decline_code.clone()),
+                issuer_error_message: Some(error_response.network_error_message.clone()),
+                network_details: Some(Some(ForeignFrom::foreign_from(error_response))),
+                network_error_message: Some(error_response.network_error_message.clone()),
+                recommended_action: Some(recommended_action),
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 

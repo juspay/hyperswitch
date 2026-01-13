@@ -6889,6 +6889,12 @@ pub fn validate_payment_link_request(
     Ok(())
 }
 
+/// Creates a lookup key for issuer error codes with network and code
+/// Returns format: "Network:{network}|IssuerCode:{code:0>2}"
+fn create_issuer_code_lookup_key(network: &str, issuer_code: &str) -> String {
+    format!("Network:{}|IssuerCode:{:0>2}", network, issuer_code)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn get_gsm_record(
     state: &SessionState,
@@ -6903,7 +6909,7 @@ pub async fn get_gsm_record(
     // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
     let issuer_result =
         if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
-            let issuer_lookup_key = format!("Network:{}|IssuerCode:{:0>2}", network, issuer_code);
+            let issuer_lookup_key = create_issuer_code_lookup_key(network, issuer_code);
             perform_gsm_lookup(
                 state,
                 Some(issuer_lookup_key.clone()),
@@ -7014,6 +7020,12 @@ pub async fn get_unified_translation(
         .ok()
 }
 
+/// Creates a lookup key for merchant advice codes with network and code
+/// Returns format: "Network:{network}|MerchantAdviceCode:{code:0>2}"
+fn create_merchant_advice_code_lookup_key(network: &str, advice_code: &str) -> String {
+    format!("Network:{}|MerchantAdviceCode:{:0>2}", network, advice_code)
+}
+
 /// Configuration structure for merchant advice codes from the config table
 #[derive(Debug, Deserialize)]
 pub struct MerchantAdviceCodeConfig {
@@ -7029,10 +7041,8 @@ pub async fn lookup_merchant_advice_code_config(
     card_network: &str,
     network_advice_code: &str,
 ) -> Option<MerchantAdviceCodeConfig> {
-    let merchant_advice_lookup_key = format!(
-        "Network:{}|MerchantAdviceCode:{:0>2}",
-        card_network, network_advice_code
-    );
+    let merchant_advice_lookup_key =
+        create_merchant_advice_code_lookup_key(card_network, network_advice_code);
 
     let config = state
         .store

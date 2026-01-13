@@ -408,18 +408,29 @@ pub struct PaymentAttemptErrorDetails {
 #[cfg(feature = "v1")]
 impl PaymentAttemptErrorDetails {
     fn new(
-        unified_details: Option<UnifiedErrorDetails>,
-        issuer_details: Option<IssuerErrorDetails>,
-        connector_details: Option<ConnectorErrorDetails>,
+        unified_details: Option<Option<UnifiedErrorDetails>>,
+        issuer_details: Option<Option<IssuerErrorDetails>>,
+        connector_details: Option<Option<ConnectorErrorDetails>>,
     ) -> Option<Self> {
-        if connector_details.is_some() || unified_details.is_some() || issuer_details.is_some() {
-            Some(Self {
-                unified_details,
-                issuer_details,
-                connector_details,
-            })
-        } else {
+        if connector_details.is_none() && unified_details.is_none() && issuer_details.is_none() {
             None
+        } else {
+            let unified_details_val = unified_details.flatten();
+            let issuer_details_val = issuer_details.flatten();
+            let connector_details_val = connector_details.flatten();
+
+            if connector_details_val.is_some()
+                || unified_details_val.is_some()
+                || issuer_details_val.is_some()
+            {
+                Some(Self {
+                    unified_details: unified_details_val,
+                    issuer_details: issuer_details_val,
+                    connector_details: connector_details_val,
+                })
+            } else {
+                None
+            }
         }
     }
 }
@@ -438,30 +449,47 @@ pub struct UnifiedErrorDetails {
 #[cfg(feature = "v1")]
 impl UnifiedErrorDetails {
     fn new(
-        category: Option<String>,
-        message: Option<String>,
-        standardised_code: Option<storage_enums::StandardisedCode>,
-        description: Option<String>,
-        user_guidance_message: Option<String>,
-        recommended_action: Option<storage_enums::RecommendedAction>,
-    ) -> Option<Self> {
-        if category.is_some()
-            || message.is_some()
-            || standardised_code.is_some()
-            || description.is_some()
-            || user_guidance_message.is_some()
-            || recommended_action.is_some()
+        category: Option<Option<String>>,
+        message: Option<Option<String>>,
+        standardised_code: Option<Option<storage_enums::StandardisedCode>>,
+        description: Option<Option<String>>,
+        user_guidance_message: Option<Option<String>>,
+        recommended_action: Option<Option<storage_enums::RecommendedAction>>,
+    ) -> Option<Option<Self>> {
+        if category.is_none()
+            && message.is_none()
+            && standardised_code.is_none()
+            && description.is_none()
+            && user_guidance_message.is_none()
+            && recommended_action.is_none()
         {
-            Some(Self {
-                category,
-                message,
-                standardised_code,
-                description,
-                user_guidance_message,
-                recommended_action,
-            })
-        } else {
             None
+        } else {
+            let category_val = category.flatten();
+            let message_val = message.flatten();
+            let standardised_code_val = standardised_code.flatten();
+            let description_val = description.flatten();
+            let user_guidance_message_val = user_guidance_message.flatten();
+            let recommended_action_val = recommended_action.flatten();
+
+            if category_val.is_some()
+                || message_val.is_some()
+                || standardised_code_val.is_some()
+                || description_val.is_some()
+                || user_guidance_message_val.is_some()
+                || recommended_action_val.is_some()
+            {
+                Some(Some(Self {
+                    category: category_val,
+                    message: message_val,
+                    standardised_code: standardised_code_val,
+                    description: description_val,
+                    user_guidance_message: user_guidance_message_val,
+                    recommended_action: recommended_action_val,
+                }))
+            } else {
+                Some(None)
+            }
         }
     }
 }
@@ -477,18 +505,26 @@ pub struct IssuerErrorDetails {
 #[cfg(feature = "v1")]
 impl IssuerErrorDetails {
     fn new(
-        code: Option<String>,
-        message: Option<String>,
-        network_details: Option<NetworkErrorDetails>,
-    ) -> Option<Self> {
-        if code.is_some() || message.is_some() || network_details.is_some() {
-            Some(Self {
-                code,
-                message,
-                network_details,
-            })
-        } else {
+        code: Option<Option<String>>,
+        message: Option<Option<String>>,
+        network_details: Option<Option<NetworkErrorDetails>>,
+    ) -> Option<Option<Self>> {
+        if code.is_none() && message.is_none() && network_details.is_none() {
             None
+        } else {
+            let code_val = code.flatten();
+            let message_val = message.flatten();
+            let network_details_val = network_details.flatten();
+
+            if code_val.is_some() || message_val.is_some() || network_details_val.is_some() {
+                Some(Some(Self {
+                    code: code_val,
+                    message: message_val,
+                    network_details: network_details_val,
+                }))
+            } else {
+                Some(None)
+            }
         }
     }
 }
@@ -504,18 +540,25 @@ pub struct NetworkErrorDetails {
 #[cfg(feature = "v1")]
 impl NetworkErrorDetails {
     fn new(
-        network_details: Option<NetworkDetails>,
-        network_error_message: Option<String>,
+        network_details: Option<Option<NetworkDetails>>,
+        network_error_message: Option<Option<String>>,
         card_network: Option<storage_enums::CardNetwork>,
-    ) -> Option<Self> {
-        if network_details.is_some() || network_error_message.is_some() {
-            Some(Self {
-                name: card_network,
-                advice_code: network_details.and_then(|n| n.network_advice_code),
-                advice_message: network_error_message,
-            })
-        } else {
+    ) -> Option<Option<Self>> {
+        if network_details.is_none() && network_error_message.is_none() {
             None
+        } else {
+            let network_details_val = network_details.flatten();
+            let network_error_message_val = network_error_message.flatten();
+
+            if network_details_val.is_some() || network_error_message_val.is_some() {
+                Some(Some(Self {
+                    name: card_network,
+                    advice_code: network_details_val.and_then(|n| n.network_advice_code),
+                    advice_message: network_error_message_val,
+                }))
+            } else {
+                Some(None)
+            }
         }
     }
 }
@@ -530,15 +573,27 @@ pub struct ConnectorErrorDetails {
 
 #[cfg(feature = "v1")]
 impl ConnectorErrorDetails {
-    fn new(code: Option<String>, message: Option<String>, reason: Option<String>) -> Option<Self> {
-        if code.is_some() || message.is_some() || reason.is_some() {
-            Some(Self {
-                code,
-                message,
-                reason,
-            })
-        } else {
+    fn new(
+        code: Option<Option<String>>,
+        message: Option<Option<String>>,
+        reason: Option<Option<String>>,
+    ) -> Option<Option<Self>> {
+        if code.is_none() && message.is_none() && reason.is_none() {
             None
+        } else {
+            let code_val = code.flatten();
+            let message_val = message.flatten();
+            let reason_val = reason.flatten();
+
+            if code_val.is_some() || message_val.is_some() || reason_val.is_some() {
+                Some(Some(Self {
+                    code: code_val,
+                    message: message_val,
+                    reason: reason_val,
+                }))
+            } else {
+                Some(None)
+            }
         }
     }
 }
@@ -1903,11 +1958,11 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<Value>,
         encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        issuer_error_code: Option<String>,
-        issuer_error_message: Option<String>,
-        network_details: Option<NetworkDetails>,
-        network_error_message: Option<String>,
-        recommended_action: Option<storage_enums::RecommendedAction>,
+        issuer_error_code: Option<Option<String>>,
+        issuer_error_message: Option<Option<String>>,
+        network_details: Option<Option<NetworkDetails>>,
+        network_error_message: Option<Option<String>>,
+        recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
     CaptureUpdate {
@@ -2210,26 +2265,26 @@ impl PaymentAttemptUpdate {
                 card_network,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
-                    error_code.clone().flatten(),
-                    error_message.clone().flatten(),
-                    error_reason.clone().flatten(),
+                    error_code.clone(),
+                    error_message.clone(),
+                    error_reason.clone(),
                 );
                 let unified_details = UnifiedErrorDetails::new(
-                    unified_code.clone().flatten(),
-                    unified_message.clone().flatten(),
-                    standardised_code.flatten(),
-                    description.clone().flatten(),
-                    user_guidance_message.clone().flatten(),
-                    recommended_action.flatten(),
+                    unified_code.clone(),
+                    unified_message.clone(),
+                    standardised_code,
+                    description.clone(),
+                    user_guidance_message.clone(),
+                    recommended_action,
                 );
                 let network_error_details = NetworkErrorDetails::new(
-                    network_details.flatten(),
-                    network_error_message.clone().flatten(),
+                    network_details,
+                    network_error_message.clone(),
                     card_network,
                 );
                 let issuer_details = IssuerErrorDetails::new(
-                    issuer_error_code.clone().flatten(),
-                    issuer_error_message.clone().flatten(),
+                    issuer_error_code.clone(),
+                    issuer_error_message.clone(),
                     network_error_details,
                 );
                 let error_details = Box::new(
@@ -2287,9 +2342,9 @@ impl PaymentAttemptUpdate {
                 updated_by,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
-                    error_code.clone().flatten(),
-                    error_message.clone().flatten(),
-                    error_reason.clone().flatten(),
+                    error_code.clone(),
+                    error_message.clone(),
+                    error_reason.clone(),
                 );
                 // This flow is used by crypto payment connectors (Coinbase, OpenNode) for ambiguous payment states
                 // (e.g., underpayment, context issues) that require manual resolution in the connector's dashboard.
@@ -2353,16 +2408,16 @@ impl PaymentAttemptUpdate {
                 card_network,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
-                    error_code.clone().flatten(),
-                    error_message.clone().flatten(),
-                    error_reason.clone().flatten(),
+                    error_code.clone(),
+                    error_message.clone(),
+                    error_reason.clone(),
                 );
                 let unified_details = UnifiedErrorDetails::new(
-                    unified_code.clone().flatten(),
-                    unified_message.clone().flatten(),
-                    standardised_code.flatten(),
-                    description.clone().flatten(),
-                    user_guidance_message.clone().flatten(),
+                    unified_code.clone(),
+                    unified_message.clone(),
+                    standardised_code,
+                    description.clone(),
+                    user_guidance_message.clone(),
                     recommended_action,
                 );
                 let network_error_details = NetworkErrorDetails::new(
