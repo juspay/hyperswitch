@@ -1007,5 +1007,14 @@ export const connectorDetails = {
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
     },
+    
+  },
+  webhook: {  
+    TransactionIdConfig: { 
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads 
+      path: "data.object.id",  
+      // Type of payment reference ID
+      type: "string",  
+    }  
   },
 };

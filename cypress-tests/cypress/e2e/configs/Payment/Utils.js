@@ -448,20 +448,6 @@ export const shouldIncludeConnector = (connectorId, list) => {
   return !list.includes(connectorId);
 };
 
-export const webhookTransactionIdConfig = {
-  stripe: {
-    path: "data.object.id",
-    type: "string",
-  },
-  authorizedotnet: {
-    path: "payload.id",
-    type: "string",
-  },
-  noon: {
-    path: "orderId",
-    type: "number",
-  },
-};
 
 export function setNormalizedValue(
   webhookBody,
@@ -476,11 +462,11 @@ export function setNormalizedValue(
   let target = webhookBody;
 
   // Traverse the object until the parent of the final key
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (target[keys[i]] == null) {
+  for (const key of keys.slice(0, -1)) {
+    if (!Object.prototype.hasOwnProperty.call(target, key)) {
       throw new Error(`Path does not exist: ${config.path}`);
     }
-    target = target[keys[i]];
+    target = target[key];
   }
   // The final key where the normalized value will be assigned
   const finalKey = keys[keys.length - 1];
