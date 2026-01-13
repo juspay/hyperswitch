@@ -3,7 +3,6 @@ use common_enums::PaymentMethodType;
 use common_utils::request;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
-    encryption::Encryption,
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
