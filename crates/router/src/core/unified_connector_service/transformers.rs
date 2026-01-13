@@ -361,6 +361,9 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            redirection_response: None,
+            threeds_method_comp_ind: None,
         })
     }
 }
@@ -523,6 +526,20 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            redirection_response: router_data
+                .request
+                .redirect_response
+                .clone()
+                .map(|redirection_response| {
+                    payments_grpc::RedirectionResponse::foreign_try_from(redirection_response)
+                })
+                .transpose()?,
+            threeds_method_comp_ind: router_data
+                .request
+                .threeds_method_comp_ind
+                .clone()
+                .map(|ind| ind.foreign_into()),
         })
     }
 }
