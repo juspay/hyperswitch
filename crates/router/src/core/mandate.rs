@@ -137,7 +137,7 @@ pub async fn revoke_mandate(
                 platform: platform.clone(),
                 header_payload: HeaderPayload::default(),
                 lineage_ids,
-                merchant_connector_account: merchant_connector_account,
+                merchant_connector_account,
                 execution_path,
                 execution_mode,
             };
