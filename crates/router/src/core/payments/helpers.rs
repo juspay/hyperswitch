@@ -74,7 +74,7 @@ use crate::core::{
     utils as core_utils,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
+    configs::settings::{ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -7020,51 +7020,19 @@ pub async fn get_unified_translation(
         .ok()
 }
 
-/// Creates a lookup key for merchant advice codes with network and code
-/// Returns format: "Network:{network}|MerchantAdviceCode:{code:0>2}"
-fn create_merchant_advice_code_lookup_key(network: &str, advice_code: &str) -> String {
-    format!("Network:{}|MerchantAdviceCode:{:0>2}", network, advice_code)
-}
-
-/// Configuration structure for merchant advice codes from the config table
-#[derive(Debug, Deserialize)]
-pub struct MerchantAdviceCodeConfig {
-    pub recommended_action: common_enums::RecommendedAction,
-    pub description: Option<String>,
-}
-
 /// Look up merchant advice code config to get recommended action for MIT transactions.
 /// This is used when a payment fails with a network_advice_code to determine retry recommendations.
-pub async fn lookup_merchant_advice_code_config(
+/// Now reads from application settings instead of database.
+pub fn lookup_merchant_advice_code_config(
     state: &SessionState,
     card_network: &str,
     network_advice_code: &str,
 ) -> Option<MerchantAdviceCodeConfig> {
-    let merchant_advice_lookup_key =
-        create_merchant_advice_code_lookup_key(card_network, network_advice_code);
-
-    let config = state
-        .store
-        .find_config_by_key(&merchant_advice_lookup_key)
-        .await
-        .map_err(|err| {
-            logger::warn!(
-                merchant_advice_code_config_error = ?err,
-                "Failed to fetch merchant advice code config"
-            );
-        })
-        .ok()?;
-
-    config
-        .config
-        .parse_struct("MerchantAdviceCodeConfig")
-        .map_err(|err| {
-            logger::warn!(
-                merchant_advice_code_parse_error = ?err,
-                "Failed to parse merchant advice code config"
-            );
-        })
-        .ok()
+    state
+        .conf
+        .merchant_advice_codes
+        .get_config(card_network, network_advice_code)
+        .cloned()
 }
 
 pub fn validate_order_details_amount(

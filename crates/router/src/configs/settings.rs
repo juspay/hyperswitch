@@ -169,6 +169,7 @@ pub struct Settings<S: SecretState> {
     pub open_router: OpenRouter,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub merchant_advice_codes: MerchantAdviceCodesConfig,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
     pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
@@ -1024,6 +1025,76 @@ pub struct UserAuthMethodSettings {
 pub struct NetworkTokenizationSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+}
+
+/// Single entry in merchant advice codes configuration
+#[derive(Debug, Deserialize, Clone)]
+pub struct MerchantAdviceCodeEntry {
+    pub key: String,
+    pub recommended_action: common_enums::RecommendedAction,
+    pub description: Option<String>,
+}
+
+/// Configuration structure for merchant advice codes
+#[derive(Debug, Deserialize, Clone)]
+pub struct MerchantAdviceCodeConfig {
+    pub recommended_action: common_enums::RecommendedAction,
+    pub description: Option<String>,
+}
+
+/// Wrapper for merchant advice code configurations
+#[derive(Debug, Clone, Default)]
+pub struct MerchantAdviceCodesConfig {
+    pub data: HashMap<String, MerchantAdviceCodeConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MerchantAdviceCodesSection {
+    merchant_advice_codes: String,
+}
+
+impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        let section = MerchantAdviceCodesSection::deserialize(deserializer)?;
+        let entries: Vec<MerchantAdviceCodeEntry> =
+            serde_json::from_str(&section.merchant_advice_codes).map_err(|e| {
+                D::Error::custom(format!("Failed to parse merchant_advice_codes JSON: {}", e))
+            })?;
+
+        let map: HashMap<String, MerchantAdviceCodeConfig> = entries
+            .into_iter()
+            .map(|entry| {
+                (
+                    entry.key,
+                    MerchantAdviceCodeConfig {
+                        recommended_action: entry.recommended_action,
+                        description: entry.description,
+                    },
+                )
+            })
+            .collect();
+
+        Ok(Self { data: map })
+    }
+}
+
+impl MerchantAdviceCodesConfig {
+    /// Get merchant advice code configuration for a specific network and advice code
+    pub fn get_config(&self, network: &str, advice_code: &str) -> Option<&MerchantAdviceCodeConfig> {
+        let key = Self::create_lookup_key(network, advice_code);
+        self.data.get(&key)
+    }
+
+    /// Creates a lookup key for merchant advice codes with network and code
+    /// Returns format: "Network:{network}|MerchantAdviceCode:{code:0>2}"
+    pub fn create_lookup_key(network: &str, advice_code: &str) -> String {
+        format!("Network:{}|MerchantAdviceCode:{:0>2}", network, advice_code)
+    }
 }
 
 impl Settings<SecuredSecret> {

@@ -1587,13 +1587,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             err.network_advice_code.as_ref(),
                         ) {
                             (Some(true), Some(network), Some(advice_code)) => {
-                                payments_helpers::lookup_merchant_advice_code_config(
+                                let merchant_advice_config = payments_helpers::lookup_merchant_advice_code_config(
                                     state,
                                     network,
                                     advice_code,
-                                )
-                                .await
-                                .map(|config| config.recommended_action)
+                                );
+
+                                if merchant_advice_config.is_none() {
+                                    logger::warn!(
+                                        network = %network,
+                                        advice_code = %advice_code,
+                                        "No merchant advice code config found"
+                                    );
+                                }
+
+                                merchant_advice_config.map(|config| config.recommended_action)
                             }
                             _ => None,
                         };

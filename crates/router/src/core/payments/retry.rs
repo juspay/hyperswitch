@@ -642,13 +642,21 @@ where
                 error_response.network_advice_code.as_ref(),
             ) {
                 (Some(true), Some(network), Some(advice_code)) => {
-                    payments::helpers::lookup_merchant_advice_code_config(
+                    let merchant_advice_config = payments::helpers::lookup_merchant_advice_code_config(
                         state,
                         network,
                         advice_code,
-                    )
-                    .await
-                    .map(|config| config.recommended_action)
+                    );
+
+                    if merchant_advice_config.is_none() {
+                        logger::warn!(
+                            network = %network,
+                            advice_code = %advice_code,
+                            "No merchant advice code config found"
+                        );
+                    }
+
+                    merchant_advice_config.map(|config| config.recommended_action)
                 }
                 _ => None,
             };
