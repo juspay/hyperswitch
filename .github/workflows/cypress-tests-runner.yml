@@ -158,7 +158,7 @@ jobs:
         id: set-matrix
         shell: bash
         run: |
-          echo "run_tests=${RUN_TESTS}" >> "$GITHUB_OUTPUT"
+          echo "run_tests='${RUN_TESTS}'" >> "$GITHUB_OUTPUT"
           {
             echo "mandatory-matrix<<EOF" # Changed from "matrix<<EOF"
             echo '{
@@ -217,41 +217,41 @@ jobs:
 
     steps:
       - name: Skip tests for PRs from forks
-        if: matrix.run_tests == 'false'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'false'
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: actions/checkout@v5
 
       - name: Install Rust
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
       
       - name: Install sccache
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Download hyperswitch server artifact
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: actions/download-artifact@v4
         with:
           name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -268,13 +268,13 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -282,7 +282,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
@@ -290,42 +290,42 @@ jobs:
           args: --no-default-features
 
       - name: Install Just
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
       - name: Install Cypress and dependencies
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Insert GSM info into the database
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Setup Local Server
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -352,7 +352,7 @@ jobs:
           done
 
       - name: Run Cypress tests
-        if: matrix.run_tests == 'true'
+        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
