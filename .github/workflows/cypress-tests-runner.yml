@@ -186,7 +186,7 @@ jobs:
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-matrix.outputs.mandatory-matrix) }}
+      matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs.mandatory-matrix) }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
