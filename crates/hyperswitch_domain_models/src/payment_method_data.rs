@@ -742,6 +742,7 @@ pub enum RealTimePaymentData {
     Fps {},
     PromptPay {},
     VietQr {},
+    Qris {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2259,6 +2260,7 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
             api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
+            api_models::payments::RealTimePaymentData::Qris {} => Self::VietQr {},
         }
     }
 }
@@ -2270,6 +2272,7 @@ impl From<RealTimePaymentData> for api_models::payments::RealTimePaymentData {
             RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             RealTimePaymentData::VietQr {} => Self::VietQr {},
+            RealTimePaymentData::Qris {} => Self::Qris {},
         }
     }
 }
@@ -2580,6 +2583,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris {},
         }
     }
 }
