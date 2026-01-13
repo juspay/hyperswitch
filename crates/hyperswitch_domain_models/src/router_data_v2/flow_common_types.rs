@@ -1,3 +1,4 @@
+use common_enums;
 use common_utils::{pii, types::MinorUnit};
 
 use crate::{
@@ -8,7 +9,6 @@ use crate::{
         RecurringMandatePaymentData,
     },
 };
-use common_enums;
 
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
