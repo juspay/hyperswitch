@@ -151,7 +151,7 @@ jobs:
     name: Prepare Mandatory Connectors matrix to run cypress tests
     runs-on: hyperswitch-runners
     outputs:
-      mandatory-matrix: ${{ steps.set-matrix.outputs.mandatory-matrix }}
+      mandatory-matrix: ${{ steps.set-matrix.outputs.mandatory-matrix }} # Key must match
       run_tests: ${{ steps.set-matrix.outputs.run_tests }}
     steps:    
       - name : Set matrix for mandatory connectors batches
@@ -160,7 +160,7 @@ jobs:
         run: |
           echo "run_tests=${RUN_TESTS}" >> "$GITHUB_OUTPUT"
           {
-            echo "matrix<<EOF"
+            echo "mandatory-matrix<<EOF" # Changed from "matrix<<EOF"
             echo '{
               "batch": [
                 {
