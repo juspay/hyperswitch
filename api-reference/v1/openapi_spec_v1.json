@@ -9110,51 +9110,6 @@
           }
         }
       },
-      "ApiConnectorErrorDetails": {
-        "type": "object",
-        "description": "Error details from the payment connector",
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Connector-specific error code",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "Connector-specific error message",
-            "nullable": true
-          },
-          "reason": {
-            "type": "string",
-            "description": "Additional error reason/details",
-            "nullable": true
-          }
-        }
-      },
-      "ApiIssuerErrorDetails": {
-        "type": "object",
-        "description": "Error details from the card issuer",
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Error code from the issuer",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "Error message from the issuer",
-            "nullable": true
-          },
-          "network_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ApiNetworkErrorDetails"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "ApiKeyExpiration": {
         "oneOf": [
           {
@@ -38045,6 +38000,14 @@
             "description": "Masked VPA ID",
             "example": "ab********@okhdfcbank",
             "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -38053,7 +38016,16 @@
         "properties": {
           "vpa_id": {
             "type": "string",
+            "description": "The Virtual Payment Address (VPA) for UPI collect payment",
             "example": "successtest@iata",
+            "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
             "nullable": true
           }
         }
@@ -38096,10 +38068,30 @@
         ]
       },
       "UpiIntentData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiQrData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiResponse": {
         "allOf": [
@@ -38114,6 +38106,16 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "UpiSource": {
+        "type": "string",
+        "description": "The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.",
+        "enum": [
+          "UPI_CC",
+          "UPI_CL",
+          "UPI_ACCOUNT",
+          "UPI_CC_CL"
         ]
       },
       "ValueType": {
