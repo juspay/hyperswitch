@@ -1,4 +1,5 @@
 use common_utils::{errors::CustomResult, id_type};
+use std::str::FromStr;
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
@@ -1080,6 +1081,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone(),
             connector_customer: old_router_data.connector_customer.clone(),
+            connector: common_enums::connector_enums::Connector::from_str(&old_router_data.connector).expect("connector"),
             payment_id: old_router_data.payment_id.clone(),
             attempt_id: old_router_data.attempt_id.clone(),
             status: old_router_data.status,
@@ -1126,6 +1128,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
             merchant_id,
             customer_id,
             connector_customer,
+            connector,
             payment_id,
             attempt_id,
             status,
@@ -1161,6 +1164,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.connector_customer = connector_customer;
+        router_data.connector = connector.to_string();
         router_data.payment_id = payment_id;
         router_data.attempt_id = attempt_id;
         router_data.status = status;

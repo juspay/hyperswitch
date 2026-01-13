@@ -240,6 +240,7 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector_customer: connector_customer_id,
+        connector: merchant_connector_account.get_connector_name().expect("connector"),
         payment_id: payment_data
             .payment_attempt
             .payment_id
@@ -729,6 +730,11 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     )
     .await?;
 
+    router_env::logger::debug!(
+        "Constructed RouterDataV2 for External Vault Proxy: {:?}",
+        router_data_v2
+    );
+
     // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
     let router_data =
         flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
@@ -736,6 +742,11 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             .attach_printable(
                 "Cannot construct router data for making the unified connector service call",
             )?;
+    
+    router_env::logger::debug!(
+        "Converted RouterDataV2 to RouterData (v1) for External Vault Proxy: {:?}",
+        router_data
+    );
 
     Ok(router_data)
 }
