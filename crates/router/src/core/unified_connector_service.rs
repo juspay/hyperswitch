@@ -661,6 +661,30 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::Card(card_details)),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
+            card_redirect_data,
+        ) => {
+            let card_redirect_type = match card_redirect_data {
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Knet
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Benefit {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Benefit
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::MomoAtm {} => {
+                    payments_grpc::card_redirect::CardRedirectType::MomoAtm
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::CardRedirect {} => {
+                    payments_grpc::card_redirect::CardRedirectType::CardRedirect
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardRedirect(payments_grpc::CardRedirect {
+                    r#type: card_redirect_type as i32,
+                })),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
             let upi_type = match upi_data {
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
