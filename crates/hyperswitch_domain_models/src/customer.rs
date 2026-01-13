@@ -275,7 +275,8 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            id: self.id,
+            id: self.id.clone(),
+            customer_id: Some(self.id),
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
