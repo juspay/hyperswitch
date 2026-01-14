@@ -257,10 +257,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/payment_requests", self.base_url(connectors)))
+        let base_url = self.base_url(connectors);
+        match req.request.payment_method_type {
+            Some(PaymentMethodType::Qris) => Ok(format!("{}/qr_codes", base_url)),
+            _ => Ok(format!("{}/payment_requests", self.base_url(connectors))),
+        }
     }
 
     fn get_request_body(
@@ -310,7 +314,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let response_integrity_object = connector_utils::get_authorise_integrity_object(
             self.amount_converter,
             response.amount,
-            response.currency.to_string().clone(),
+            response
+                .currency
+                .unwrap_or(data.request.currency)
+                .to_string()
+                .clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -590,13 +598,27 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
             xendit::XenditResponse::Payment(p) => connector_utils::get_sync_integrity_object(
                 self.amount_converter,
                 p.amount,
-                p.currency.to_string().clone(),
+                p.currency
+                    .unwrap_or(data.request.currency)
+                    .to_string()
+                    .clone(),
             ),
-            xendit::XenditResponse::Webhook(p) => connector_utils::get_sync_integrity_object(
-                self.amount_converter,
-                p.data.amount,
-                p.data.currency.to_string().clone(),
-            ),
+            xendit::XenditResponse::Webhook(webhook_response_data) => match webhook_response_data {
+                XenditWebhookEvent::CommonEvent(event_data) => {
+                    connector_utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        event_data.data.amount,
+                        event_data.data.currency.clone(),
+                    )
+                }
+                XenditWebhookEvent::QrEvent(xendit_qris_webhook_response_data) => {
+                    connector_utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        xendit_qris_webhook_response_data.amount,
+                        data.request.currency.to_string(),
+                    )
+                }
+            },
         };
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -988,23 +1010,36 @@ impl webhooks::IncomingWebhook for Xendit {
             .body
             .parse_struct("XenditWebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match details.event {
-            XenditEventType::PaymentSucceeded
-            | XenditEventType::PaymentAwaitingCapture
-            | XenditEventType::PaymentFailed
-            | XenditEventType::CaptureSucceeded
-            | XenditEventType::CaptureFailed => {
+        match details {
+            XenditWebhookEvent::CommonEvent(event_data) => match event_data.event {
+                XenditEventType::PaymentSucceeded
+                | XenditEventType::PaymentAwaitingCapture
+                | XenditEventType::PaymentFailed
+                | XenditEventType::CaptureSucceeded
+                | XenditEventType::CaptureFailed => {
+                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            event_data
+                                .data
+                                .payment_request_id
+                                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        ),
+                    ))
+                }
+                XenditEventType::QrPayment => {
+                    Err(errors::ConnectorError::WebhookReferenceIdNotFound.into())
+                }
+            },
+            XenditWebhookEvent::QrEvent(xendit_qris_webhook_event_data) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        details
-                            .data
-                            .payment_request_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        xendit_qris_webhook_event_data.qr_code.external_id,
                     ),
                 ))
             }
         }
     }
+
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1013,17 +1048,23 @@ impl webhooks::IncomingWebhook for Xendit {
             .body
             .parse_struct("XenditWebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match body.event {
-            XenditEventType::PaymentSucceeded => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
-            XenditEventType::CaptureSucceeded => {
-                Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess)
-            }
-            XenditEventType::PaymentAwaitingCapture => {
-                Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
-            }
-            XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
-                Ok(IncomingWebhookEvent::PaymentIntentFailure)
-            }
+        match body {
+            XenditWebhookEvent::CommonEvent(event_data) => match event_data.event {
+                XenditEventType::PaymentSucceeded | XenditEventType::QrPayment => {
+                    Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                }
+                XenditEventType::CaptureSucceeded => {
+                    Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess)
+                }
+                XenditEventType::PaymentAwaitingCapture => {
+                    Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                }
+                XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
+                    Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                }
+            },
+            // Xendit’s QR Code system currently only sends a webhook for a successful payment
+            XenditWebhookEvent::QrEvent(_) => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
         }
     }
 
@@ -1041,6 +1082,7 @@ impl webhooks::IncomingWebhook for Xendit {
 
 static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
+    let automatic_capture_supported = vec![CaptureMethod::Automatic];
 
     let supported_card_network = vec![
         common_enums::CardNetwork::Mastercard,
@@ -1091,6 +1133,17 @@ static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                     }
                 }),
             ),
+        },
+    );
+
+    xendit_supported_payment_methods.add(
+        enums::PaymentMethod::RealTimePayment,
+        PaymentMethodType::Qris,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
         },
     );
 
