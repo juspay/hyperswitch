@@ -261,10 +261,10 @@ where
                 )
                 .await?;
 
-            let router_data = decide_unified_connector_service_call(
+            let (router_data, updated_customer) = decide_unified_connector_service_call(
                 state,
                 req_state.clone(),
-                &platform,
+                platform.get_processor(),
                 connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
@@ -284,6 +284,17 @@ where
                 tokenization_action,
             )
             .await?;
+
+            // Update customer at provider level after connector operations complete
+            operation
+                .to_domain()?
+                .update_customer(
+                    state,
+                    platform.get_provider(),
+                    customer.clone(),
+                    updated_customer,
+                )
+                .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
                 raw_connector_response: router_data.raw_connector_response.clone(),
@@ -330,10 +341,10 @@ where
                 )
                 .await?;
 
-            let router_data = decide_unified_connector_service_call(
+            let (router_data, updated_customer) = decide_unified_connector_service_call(
                 state,
                 req_state.clone(),
-                &platform,
+                platform.get_processor(),
                 connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
@@ -353,6 +364,17 @@ where
                 tokenization_action,
             )
             .await?;
+
+            // Update customer at provider level after connector operations complete
+            operation
+                .to_domain()?
+                .update_customer(
+                    state,
+                    platform.get_provider(),
+                    customer.clone(),
+                    updated_customer,
+                )
+                .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
                 raw_connector_response: router_data.raw_connector_response.clone(),
@@ -842,31 +864,43 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = decide_unified_connector_service_call(
-                        state,
-                        req_state.clone(),
-                        platform,
-                        connector.connector_data.clone(),
-                        &operation,
-                        &mut payment_data,
-                        &customer,
-                        call_connector_action.clone(),
-                        shadow_ucs_call_connector_action.clone(),
-                        &validate_result,
-                        schedule_time,
-                        header_payload.clone(),
-                        #[cfg(feature = "frm")]
-                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
-                        #[cfg(not(feature = "frm"))]
-                        None,
-                        &business_profile,
-                        false,
-                        <Req as Authenticate>::should_return_raw_response(&req),
-                        merchant_connector_account,
-                        router_data,
-                        tokenization_action,
-                    )
-                    .await?;
+                    let (router_data, mca, updated_customer) =
+                        decide_unified_connector_service_call(
+                            state,
+                            req_state.clone(),
+                            platform.get_processor(),
+                            connector.connector_data.clone(),
+                            &operation,
+                            &mut payment_data,
+                            &customer,
+                            call_connector_action.clone(),
+                            shadow_ucs_call_connector_action.clone(),
+                            &validate_result,
+                            schedule_time,
+                            header_payload.clone(),
+                            #[cfg(feature = "frm")]
+                            frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                            #[cfg(not(feature = "frm"))]
+                            None,
+                            &business_profile,
+                            false,
+                            <Req as Authenticate>::should_return_raw_response(&req),
+                            merchant_connector_account,
+                            router_data,
+                            tokenization_action,
+                        )
+                        .await?;
+
+                    // Update customer at provider level after connector operations complete
+                    operation
+                        .to_domain()?
+                        .update_customer(
+                            state,
+                            platform.get_provider(),
+                            customer.clone(),
+                            updated_customer,
+                        )
+                        .await?;
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -975,32 +1009,43 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = decide_unified_connector_service_call(
-                        state,
-                        req_state.clone(),
-                        platform,
-                        connector_data.clone(),
-                        &operation,
-                        &mut payment_data,
-                        &customer,
-                        call_connector_action.clone(),
-                        shadow_ucs_call_connector_action,
-                        &validate_result,
-                        schedule_time,
-                        header_payload.clone(),
-                        #[cfg(feature = "frm")]
-                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
-                        #[cfg(not(feature = "frm"))]
-                        None,
-                        &business_profile,
-                        false,
-                        <Req as Authenticate>::should_return_raw_response(&req),
-                        merchant_connector_account,
-                        router_data,
-                        tokenization_action,
-                    )
-                    .await?;
+                    let (router_data, mca, updated_customer) =
+                        decide_unified_connector_service_call(
+                            state,
+                            req_state.clone(),
+                            platform.get_processor(),
+                            connector_data.clone(),
+                            &operation,
+                            &mut payment_data,
+                            &customer,
+                            call_connector_action.clone(),
+                            shadow_ucs_call_connector_action,
+                            &validate_result,
+                            schedule_time,
+                            header_payload.clone(),
+                            #[cfg(feature = "frm")]
+                            frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                            #[cfg(not(feature = "frm"))]
+                            None,
+                            &business_profile,
+                            false,
+                            <Req as Authenticate>::should_return_raw_response(&req),
+                            merchant_connector_account,
+                            router_data,
+                            tokenization_action,
+                        )
+                        .await?;
 
+                    // Update customer at provider level after connector operations complete
+                    operation
+                        .to_domain()?
+                        .update_customer(
+                            state,
+                            platform.get_provider(),
+                            customer.clone(),
+                            updated_customer,
+                        )
+                        .await?;
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
                     #[cfg(all(feature = "retry", feature = "v1"))]
@@ -4481,11 +4526,12 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 #[instrument(skip_all)]
 pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest, D>(
     state: &'a SessionState,
     req_state: ReqState,
-    platform: &'a domain::Platform,
+    processor: &'a domain::Processor,
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
@@ -4505,6 +4551,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
+    Option<storage::CustomerUpdate>,
 )>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -4524,7 +4571,7 @@ where
 
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
-        platform.get_processor(),
+        processor,
         &router_data,
         previous_gateway,
         call_connector_action.clone(),
@@ -4546,7 +4593,7 @@ where
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        processor: platform.get_processor().clone(),
+        processor: processor.clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
@@ -4555,10 +4602,10 @@ where
     };
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, gateway_context.get_gateway_system())?;
-    let (router_data, merchant_connector_account, updated_customer) = call_connector_service(
+    call_connector_service(
         &updated_state,
         req_state,
-        platform.get_processor(),
+        processor,
         connector,
         operation,
         payment_data,
@@ -4576,20 +4623,7 @@ where
         tokenization_action,
         gateway_context,
     )
-    .await?;
-
-    // Update customer at provider level after connector operations complete
-    operation
-        .to_domain()?
-        .update_customer(
-            state,
-            platform.get_provider(),
-            customer.clone(),
-            updated_customer,
-        )
-        .await?;
-
-    Ok((router_data, merchant_connector_account))
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -5124,11 +5158,12 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 #[instrument(skip_all)]
 pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
@@ -5145,7 +5180,7 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     updated_customer: Option<storage::CustomerUpdate>,
     tokenization_action: TokenizationAction,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<(RouterData<F, RouterDReq, router_types::PaymentsResponseData>, Option<storage::CustomerUpdate>)>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
@@ -5164,7 +5199,7 @@ where
 
         let (execution_path, updated_state) = should_call_unified_connector_service(
             state,
-            platform.get_processor(),
+            processor,
             &router_data,
             previous_gateway,
             call_connector_action.clone(),
@@ -5185,17 +5220,17 @@ where
 
         let gateway_context = gateway_context::RouterGatewayContext {
             creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-            processor: platform.get_processor().clone(),
+            processor: processor.clone(),
             header_payload: header_payload.clone(),
             lineage_ids,
             merchant_connector_account: merchant_connector_account_type_details.clone(),
             execution_path,
             execution_mode,
         };
-        let (router_data, updated_customer) = call_connector_service(
+        call_connector_service(
             &updated_state,
             req_state,
-            platform.get_processor(),
+            processor,
             connector,
             operation,
             payment_data,
@@ -5214,20 +5249,7 @@ where
             tokenization_action,
             gateway_context,
         )
-        .await?;
-
-        // Update customer at provider level after connector operations complete
-        operation
-            .to_domain()?
-            .update_customer(
-                state,
-                platform.get_provider(),
-                customer.clone(),
-                updated_customer,
-            )
-            .await?;
-
-        Ok(router_data)
+        .await
     })
     .await
 }
