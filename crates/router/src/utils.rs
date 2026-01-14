@@ -699,6 +699,18 @@ pub fn get_http_status_code_type(
     Ok(status_code_type.to_string())
 }
 
+// Trims whitespace from a Secret string and returns None if empty
+pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+    let trimmed = secret.expose().trim().to_string();
+    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+}
+
+// Trims whitespace from a regular string and returns None if empty
+pub fn trim_string(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    (!trimmed.is_empty()).then_some(trimmed)
+}
+
 pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     if let Some(status_code) = option_status_code {
         let status_code_type = get_http_status_code_type(status_code).ok();
@@ -1023,17 +1035,18 @@ pub fn add_apple_pay_flow_metrics(
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
-                1,
-                router_env::metric_attributes!(
-                    (
-                        "connector",
-                        connector.to_owned().unwrap_or("null".to_string()),
+            domain::ApplePayFlow::DecryptAtApplication(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW
+                .add(
+                    1,
+                    router_env::metric_attributes!(
+                        (
+                            "connector",
+                            connector.to_owned().unwrap_or("null".to_string()),
+                        ),
+                        ("merchant_id", merchant_id.clone()),
                     ),
-                    ("merchant_id", merchant_id.clone()),
                 ),
-            ),
-            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::SkipDecryption => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 1,
                 router_env::metric_attributes!(
                     (
@@ -1056,7 +1069,7 @@ pub fn add_apple_pay_payment_status_metrics(
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptAtApplication(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1068,8 +1081,8 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
-                    .add(
+                domain::ApplePayFlow::SkipDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
                             (
@@ -1078,13 +1091,14 @@ pub fn add_apple_pay_payment_status_metrics(
                             ),
                             ("merchant_id", merchant_id.clone()),
                         ),
-                    ),
+                    )
+                }
             }
         }
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptAtApplication(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1096,16 +1110,18 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
-                    1,
-                    router_env::metric_attributes!(
-                        (
-                            "connector",
-                            connector.to_owned().unwrap_or("null".to_string()),
+                domain::ApplePayFlow::SkipDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            ("merchant_id", merchant_id.clone()),
                         ),
-                        ("merchant_id", merchant_id.clone()),
-                    ),
-                ),
+                    )
+                }
             }
         }
     }

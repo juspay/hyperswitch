@@ -154,10 +154,14 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub network_transaction_id: Secret<String>,
 }
 
+// Determines if decryption should be performed
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
-    Simplified(api_models::payments::PaymentProcessingDetails),
-    Manual,
+    // Either Merchant provided certificates i.e decryption by hyperswitch or Hyperswitch certificates i.e simplified flow
+    // decryption is performed in hyperswitch
+    DecryptAtApplication(api_models::payments::PaymentProcessingDetails),
+    // decryption by connector or predecrypted token
+    SkipDecryption,
 }
 
 impl PaymentMethodData {
