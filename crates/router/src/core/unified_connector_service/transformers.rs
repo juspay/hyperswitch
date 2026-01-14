@@ -95,13 +95,13 @@ fn convert_secret_string_to_map(
         .and_then(|json_value| json_value.as_object().cloned())
         .map(|obj| {
             obj.into_iter()
-                .filter_map(|(k, v)| {
-                    Some((
+                .map(|(k, v)| {
+                    (
                         k,
                         v.as_str()
                             .unwrap_or(&serde_json::to_string(&v).unwrap_or_default())
                             .to_string(),
-                    ))
+                    )
                 })
                 .collect()
         })
