@@ -4253,6 +4253,10 @@ where
                 .contains(&connector.connector_name)
         })
     {
+        logger::info!(
+            "Using granular settlement split steps for connector: {}",
+            connector.connector_name
+        );
         if should_continue_further {
             router_data
                 .settlement_split_call(state, &connector, &context)
