@@ -4,7 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, organization as org_types, routing as routing_types,
 };
-use common_enums::{MerchantAccountType, OrganizationType};
+use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -498,8 +498,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let merchant_account_type = match organization.get_organization_type() {
             OrganizationType::Standard => match self.merchant_account_type.unwrap_or_default() {
-                MerchantAccountType::Standard => MerchantAccountType::Standard,
-                MerchantAccountType::Platform | MerchantAccountType::Connected => {
+                MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                MerchantAccountRequestType::Connected => {
                     return Err(errors::ApiErrorResponse::InvalidRequestData {
                         message:
                             "Merchant account type must be Standard for a Standard Organization"
@@ -525,15 +525,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     MerchantAccountType::Platform
                 } else {
                     match self.merchant_account_type.unwrap_or_default() {
-                        MerchantAccountType::Platform => {
-                            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                                message: "Only one Platform merchant allowed per organization"
-                                    .to_string(),
-                            }
-                            .into());
-                        }
-                        MerchantAccountType::Standard => MerchantAccountType::Standard,
-                        MerchantAccountType::Connected => {
+                        MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                        MerchantAccountRequestType::Connected => {
                             if state.conf.platform.allow_connected_merchants {
                                 MerchantAccountType::Connected
                             } else {
@@ -4695,32 +4688,6 @@ async fn locker_recipient_create_call(
         .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
-}
-
-pub async fn enable_platform_account(
-    state: SessionState,
-    merchant_id: id_type::MerchantId,
-) -> RouterResponse<()> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    db.update_merchant(
-        merchant_account,
-        storage::MerchantAccountUpdate::ToPlatformAccount,
-        &key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while enabling platform merchant account")
-    .map(|_| services::ApplicationResponse::StatusOk)
 }
 
 impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest {

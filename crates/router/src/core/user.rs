@@ -39,7 +39,7 @@ use crate::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
     },
-    routes::{app::ReqState, SessionState},
+    routes::{app::ReqState, app::SessionStateInfo, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{
@@ -1714,10 +1714,8 @@ pub async fn create_platform_account(
         .accounts_store
         .update_organization_by_org_id(
             &organization.get_organization_id(),
-            diesel_models::organization::OrganizationUpdate::Update {
-                organization_name: None,
-                organization_details: None,
-                metadata: None,
+            diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
+                platform_merchant_id: Some(merchant_account.get_id().clone()),
             },
         )
         .await
