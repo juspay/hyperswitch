@@ -1133,7 +1133,7 @@ impl Default for CustomerType {
             setup_future_usage: None,
             customer_id: None,
             billing_address: None,
-            currency:None,
+            currency: None,
             metadata: None,
         };
         Self(data)
