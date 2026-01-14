@@ -74,9 +74,7 @@ use crate::core::{
     utils as core_utils,
 };
 use crate::{
-    configs::settings::{
-        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig, TempLockerEnableConfig,
-    },
+    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -7020,20 +7018,6 @@ pub async fn get_unified_translation(
             logger::warn!(get_translation_error=?err, "error fetching unified translations");
         })
         .ok()
-}
-
-/// Look up merchant advice code config to get recommended action for MIT transactions.
-/// This is used when a payment fails with a network_advice_code to determine retry recommendations.
-pub fn lookup_merchant_advice_code_config(
-    state: &SessionState,
-    card_network: &str,
-    network_advice_code: &str,
-) -> Option<MerchantAdviceCodeConfig> {
-    state
-        .conf
-        .merchant_advice_codes
-        .get_config(card_network, network_advice_code)
-        .cloned()
 }
 
 pub fn validate_order_details_amount(
