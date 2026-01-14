@@ -7024,7 +7024,6 @@ pub async fn get_unified_translation(
 
 /// Look up merchant advice code config to get recommended action for MIT transactions.
 /// This is used when a payment fails with a network_advice_code to determine retry recommendations.
-/// Now reads from application settings instead of database.
 pub fn lookup_merchant_advice_code_config(
     state: &SessionState,
     card_network: &str,
