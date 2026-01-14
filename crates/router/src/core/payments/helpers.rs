@@ -4941,6 +4941,7 @@ impl AttemptType {
             issuer_error_message: None,
             debit_routing_savings: None,
             is_overcapture_enabled: None,
+            error_details: None,
         }
     }
 
@@ -5678,14 +5679,15 @@ pub fn is_apple_pay_simplified_flow(
         .ok();
 
     // return true only if the apple flow type is simplified
-    Ok(matches!(
-        option_apple_pay_metadata,
-        Some(
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
-            )
-        )
-    ))
+    Ok(match option_apple_pay_metadata {
+        Some(api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+            combined_data,
+        )) => matches!(
+            combined_data.data,
+            Some(api_models::payments::ApplePayCombinedMetadata::Simplified { .. })
+        ),
+        _ => false,
+    })
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
@@ -5810,6 +5812,30 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
+pub fn is_googlepay_predecrypted_flow_supported(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .map(|metadata| metadata.google_pay.is_predecrypted_token_supported())
+        .unwrap_or(false)
+}
+pub fn is_applepay_predecrypted_flow_supported(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .ok()
+        .map(|apple_pay_metadata| {
+            apple_pay_metadata
+                .apple_pay_combined
+                .is_predecrypted_token_supported()
+        })
+        .unwrap_or(false)
+}
 pub fn get_applepay_metadata(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
@@ -5818,6 +5844,7 @@ pub fn get_applepay_metadata(
         .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
             "ApplepayCombinedSessionTokenData",
         )
+        .change_context(errors::ConnectorError::ParsingFailed)
         .map(|combined_metadata| {
             api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                 combined_metadata.apple_pay_combined,
@@ -5828,6 +5855,7 @@ pub fn get_applepay_metadata(
                 .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                     "ApplepaySessionTokenData",
                 )
+                .change_context(errors::ConnectorError::ParsingFailed)
                 .map(|old_metadata| {
                     api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
                         old_metadata.apple_pay,
