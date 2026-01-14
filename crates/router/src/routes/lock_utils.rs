@@ -366,7 +366,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthenticationAuthenticate
             | Flow::AuthenticationSessionToken
             | Flow::AuthenticationEligibilityCheck
-            | Flow::AuthenticationRetrieveEligibilityCheck => Self::Authentication,
+            | Flow::AuthenticationRetrieveEligibilityCheck
+            | Flow::AuthenticationServiceAddOrgConfig => Self::Authentication,
             Flow::Proxy => Self::Proxy,
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
