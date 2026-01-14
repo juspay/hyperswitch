@@ -73,7 +73,7 @@ pub async fn profile_acquirer_update(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 allow_connected_scope_operation: false,
-                allow_platform_self_operation: true,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,

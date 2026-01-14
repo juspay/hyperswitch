@@ -720,6 +720,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        // This is currently used for profile and connector CRUD operations
         let api_auth = ApiKeyAuth {
             allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
@@ -4995,7 +4996,7 @@ where
 pub fn check_merchant_access<A>(
     state: &A,
     request_headers: &HeaderMap,
-    merchant_account_type: MerchantAccountType,
+    initiator_merchant_account_type: MerchantAccountType,
     allow_connected_scope_operation: bool,
     allow_platform_self_operation: bool,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>>
@@ -5012,7 +5013,7 @@ where
         })?
         .is_some();
 
-    match merchant_account_type {
+    match initiator_merchant_account_type {
         MerchantAccountType::Connected => {
             // Check if platform feature is enabled
             state.conf().platform.enabled.then_some(()).ok_or_else(|| {
@@ -5117,7 +5118,7 @@ async fn resolve_platform<A>(
     state: &A,
     request_headers: &HeaderMap,
     initiator_merchant_account: domain::MerchantAccount,
-    merchant_key_store: domain::MerchantKeyStore,
+    initiator_merchant_key_store: domain::MerchantKeyStore,
 ) -> RouterResult<domain::Platform>
 where
     A: SessionStateInfo + Sync,
@@ -5146,7 +5147,7 @@ where
                     }
                     None => (
                         initiator_merchant_account.clone(),
-                        merchant_key_store.clone(),
+                        initiator_merchant_key_store.clone(),
                     ),
                 };
 
@@ -5155,7 +5156,7 @@ where
                     processor_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: initiator_merchant_account.clone(),
-                        key_store: merchant_key_store,
+                        key_store: initiator_merchant_key_store,
                     }),
                 )
             }
@@ -5179,7 +5180,7 @@ where
 
                 (
                     initiator_merchant_account.clone(),
-                    merchant_key_store,
+                    initiator_merchant_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: platform_account,
                         key_store: platform_key_store,
@@ -5201,7 +5202,11 @@ where
                     },
                 )?;
 
-                (initiator_merchant_account.clone(), merchant_key_store, None)
+                (
+                    initiator_merchant_account.clone(),
+                    initiator_merchant_key_store,
+                    None,
+                )
             }
         };
 
