@@ -185,10 +185,14 @@ impl Paypal {
                 .clone()
                 .map(|error_code_message| error_code_message.error_code)
                 .unwrap_or(NO_ERROR_CODE.to_string()),
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_message)
+            message: error_reason
+                .or(Some(response.message))
                 .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.or(Some(response.message)),
+            reason: Some(
+                option_error_code_message
+                    .map(|error_code_message| error_code_message.error_message)
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            ),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
             connector_response_reference_id: None,
@@ -362,10 +366,9 @@ impl ConnectorCommon for Paypal {
                 .clone()
                 .map(|error_code_message| error_code_message.error_code)
                 .unwrap_or(NO_ERROR_CODE.to_string()),
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-            reason,
+            message: reason.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: option_error_code_message
+                .map(|error_code_message| error_code_message.error_message),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
             connector_response_reference_id: None,

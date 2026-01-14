@@ -2326,9 +2326,10 @@ where
                 response: Err(ErrorResponse {
                     code: error_code.unwrap_or(NO_ERROR_CODE.to_string()),
                     message: error_message
+                        .clone()
                         .unwrap_or(NO_ERROR_MESSAGE.to_string())
                         .to_string(),
-                    reason: None,
+                    reason: error_message,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.id.clone()),
@@ -3885,7 +3886,7 @@ impl From<OrderErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: OrderErrorDetails) -> Self {
         Self {
             error_code: error.issue.to_string(),
-            error_message: error.issue.to_string(),
+            error_message: error.description,
         }
     }
 }
@@ -3894,7 +3895,7 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: ErrorDetails) -> Self {
         Self {
             error_code: error.issue.to_string(),
-            error_message: error.issue.to_string(),
+            error_message: error.description.unwrap_or(NO_ERROR_MESSAGE.to_string()),
         }
     }
 }
