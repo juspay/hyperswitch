@@ -4121,7 +4121,13 @@ where
         None => should_continue_further,
     };
 
-    // Settlement split call if required
+    if should_continue_further {
+        router_data
+            .settlement_split_call(state, &connector, &context)
+            .await?
+    } else {
+        (router_data, should_continue_further)
+    }
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -4254,16 +4260,10 @@ where
         })
     {
         logger::info!(
-            "Using granular settlement split steps for connector: {}",
+            "skipping preprocessing steps for connector as settlement split is bloated: {}",
             connector.connector_name
         );
-        if should_continue_further {
-            router_data
-                .settlement_split_call(state, &connector, &context)
-                .await?
-        } else {
-            (router_data, should_continue_further)
-        }
+        (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
             state,
