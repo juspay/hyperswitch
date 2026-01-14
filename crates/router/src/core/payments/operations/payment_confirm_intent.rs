@@ -1,14 +1,5 @@
-use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
-use async_trait::async_trait;
-use common_utils::{ext_traits::{Encode, BytesExt}, fp_utils::when, id_type, types::keymanager::ToEncryptable, encryption::Encryption};
-use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::PaymentConfirmData;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing};
-use crate::core::payment_methods::cards::decrypt_generic_data;
-use hyperswitch_domain_models::behaviour::Conversion;
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use crate::core::payment_methods::cards::decrypt_generic_data;
 use crate::{
     core::{
         admin,
@@ -32,6 +23,21 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
+use async_trait::async_trait;
+use common_utils::{
+    encryption::Encryption,
+    ext_traits::{BytesExt, Encode},
+    fp_utils::when,
+    id_type,
+    types::keymanager::ToEncryptable,
+};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::behaviour::Conversion;
+use hyperswitch_domain_models::payments::PaymentConfirmData;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
+use masking::{ExposeOptionInterface, PeekInterface};
+use router_env::{instrument, tracing};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentIntentConfirm;
@@ -240,12 +246,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                         state,
                         &payment_method_id.get_string_repr().to_string(),
                         platform.get_processor().get_key_store(),
-                    ).await.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "payment_method not found / expired".to_string(),
-                })?;
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "payment_method not found / expired".to_string(),
+                    })
+                    .ok();
 
                 let payment_method = match storage_type {
-                    common_enums::StorageType::Volatile => {
+                    Some(common_enums::StorageType::Volatile) => {
                         let encryption_key =
                             platform.get_processor().get_key_store().key.get_inner();
 
@@ -255,7 +264,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to get redis connection")?;
 
-                        let response = redis_conn.get_key::<bytes::Bytes>(&payment_method_id.get_string_repr().into()).await;
+                        let response = redis_conn
+                            .get_key::<bytes::Bytes>(&payment_method_id.get_string_repr().into())
+                            .await;
 
                         let payment_method_record = match response {
                             Ok(resp) => {
@@ -289,15 +300,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                         payment_method_record
                     }
                     _ => {
-                        let pm_record= db
-                        .find_payment_method(
-                            platform.get_processor().get_key_store(),
-                            payment_method_id,
-                            storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-                    pm_record
+                        let pm_record = db
+                            .find_payment_method(
+                                platform.get_processor().get_key_store(),
+                                payment_method_id,
+                                storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::PaymentMethodNotFound,
+                            )?;
+                        pm_record
                     }
                 };
                 Some(payment_method)
@@ -689,12 +702,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                         state,
                         &pm_id.get_string_repr().to_string(),
                         platform.get_processor().get_key_store(),
-                    ).await.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "payment_method not found / expired".to_string(),
-                })?;
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "payment_method not found / expired".to_string(),
+                    })
+                    .ok();
 
                 let payment_method = match storage_type {
-                    common_enums::StorageType::Volatile => {
+                    Some(common_enums::StorageType::Volatile) => {
                         let encryption_key =
                             platform.get_processor().get_key_store().key.get_inner();
 
@@ -704,7 +720,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to get redis connection")?;
 
-                        let response = redis_conn.get_key::<bytes::Bytes>(&pm_id.get_string_repr().into()).await;
+                        let response = redis_conn
+                            .get_key::<bytes::Bytes>(&pm_id.get_string_repr().into())
+                            .await;
 
                         let payment_method_record = match response {
                             Ok(resp) => {
@@ -738,15 +756,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                         payment_method_record
                     }
                     _ => {
-                        let pm_record= db
-                        .find_payment_method(
-                            platform.get_processor().get_key_store(),
-                            pm_id,
-                            storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                    pm_record
+                        let pm_record = db
+                            .find_payment_method(
+                                platform.get_processor().get_key_store(),
+                                pm_id,
+                                storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                        pm_record
                     }
                 };
 
@@ -761,7 +779,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 })?;
 
                 let vault_data = match storage_type {
-                    common_enums::StorageType::Volatile => {
+                    Some(common_enums::StorageType::Volatile) => {
                         let vault_id = payment_method
                             .locker_id
                             .as_ref()
@@ -801,7 +819,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             ),
                         }?;
                         vault_data
-
                     }
                     _ => {
                         let vault_data =

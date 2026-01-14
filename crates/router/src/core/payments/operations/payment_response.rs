@@ -2755,31 +2755,35 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
                     // payment_methods microservice call
                     let storage_type =
-                    payment_methods::vault::retrieve_storage_type_from_payment_method_id(
-                        state,
-                        &payment_method.get_id().get_string_repr().to_string(),
-                        processor.get_key_store(),
-                    ).await.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "payment_method not found / expired".to_string(),
-                })?;
-                match storage_type{
-                    common_enums::StorageType::Volatile =>{
-                        logger::info!("Skipping payment method status update for volatile storage type");
-                    }
-                    _ => {
-                        payment_methods::update_payment_method_status_internal(
-                        state,
-                        processor.get_key_store(),
-                        processor.get_account().storage_scheme,
-                        pm_update_status,
-                        payment_method.get_id(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method status")?;
-                    }
-                };
-                    
+                        payment_methods::vault::retrieve_storage_type_from_payment_method_id(
+                            state,
+                            &payment_method.get_id().get_string_repr().to_string(),
+                            processor.get_key_store(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "payment_method not found / expired".to_string(),
+                        })
+                        .ok();
+                    match storage_type {
+                        Some(common_enums::StorageType::Volatile) => {
+                            logger::info!(
+                                "Skipping payment method status update for volatile storage type"
+                            );
+                        }
+                        _ => {
+                            payment_methods::update_payment_method_status_internal(
+                                state,
+                                processor.get_key_store(),
+                                processor.get_account().storage_scheme,
+                                pm_update_status,
+                                payment_method.get_id(),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to update payment method status")?;
+                        }
+                    };
                 }
             }
         }
