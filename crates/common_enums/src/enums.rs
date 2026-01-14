@@ -2328,6 +2328,7 @@ pub enum PaymentMethodType {
     Przelewy24,
     PromptPay,
     Pse,
+    Qris,
     RedCompra,
     RedPagos,
     SamsungPay,
@@ -2430,6 +2431,7 @@ impl PaymentMethodType {
             Self::InstantBankTransfer => "Instant Bank Transfer",
             Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
             Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
+            Self::Qris => "QRIS",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -9738,6 +9740,36 @@ impl ErrorCategory {
             | Self::SoftDecline => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[allow(non_camel_case_types)]
+pub enum UnifiedCode {
+    /// Customer Error - Issue with payment method details
+    UE_1000,
+    /// Connector Declines - Issue with Configurations
+    UE_2000,
+    /// Connector Error - Technical issue with PSP
+    UE_3000,
+    /// Integration Error - Issue in the integration
+    UE_4000,
+    /// Others - Something went wrong
+    UE_9000,
 }
 
 #[derive(
