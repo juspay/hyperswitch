@@ -1636,7 +1636,13 @@ async fn process_payout_incoming_webhook(
             .await
         }
         PaoyoutWebhookAction::RetrieveStatus => {
-            payout_incoming_webhook_retrieve_status(state, platform, &mut payout_data).await
+            payout_incoming_webhook_retrieve_status(
+                state,
+                platform,
+                business_profile,
+                &mut payout_data,
+            )
+            .await
         }
         PaoyoutWebhookAction::NoAction => Ok(WebhookResponseTracker::Payout {
             payout_id: payout_data.payout_attempt.payout_id,
@@ -1760,12 +1766,14 @@ async fn payout_incoming_webhook_update_status(
     })
 }
 
+// source verified = false
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 async fn payout_incoming_webhook_retrieve_status(
     state: SessionState,
     platform: domain::Platform,
+    business_profile: domain::Profile,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
@@ -1796,6 +1804,30 @@ async fn payout_incoming_webhook_retrieve_status(
     ))
     .await
     .attach_printable("Payout retrieval failed for given Payout request")?;
+
+    let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
+
+    // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+    if let Some(outgoing_event_type) = event_type {
+        let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
+
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state,
+            platform.get_processor().clone(),
+            business_profile,
+            outgoing_event_type,
+            enums::EventClass::Payouts,
+            payout_data
+                .payout_attempt
+                .payout_id
+                .get_string_repr()
+                .to_string(),
+            enums::EventObjectType::PayoutDetails,
+            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
+            Some(payout_data.payout_attempt.created_at),
+        ))
+        .await?;
+    }
 
     Ok(WebhookResponseTracker::Payout {
         payout_id: payout_data.payout_attempt.payout_id.clone(),
