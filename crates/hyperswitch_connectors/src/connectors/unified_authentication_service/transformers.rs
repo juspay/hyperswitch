@@ -1,4 +1,4 @@
-use common_enums::{enums, MerchantCategoryCode};
+use common_enums::{enums, MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
 use common_utils::{ext_traits::OptionExt as _, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
         authentication::{AuthNFlowType, ChallengeParams},
         unified_authentication_service::{
             AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
-            RawCardDetails, RoutingRegion, TokenDetails, UasAuthenticationResponseData,
+            RawCardDetails, TokenDetails, UasAuthenticationResponseData,
         },
     },
     types::{
@@ -53,6 +53,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub transaction_details: Option<TransactionDetails>,
     pub acquirer_details: Option<Acquirer>,
     pub billing_address: Option<Address>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Serialize)]
@@ -312,6 +313,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                 three_ds_data: None,
                 message_category: None,
             }),
+            routing_region: item.router_data.request.routing_region.clone(),
         })
     }
 }
@@ -671,6 +673,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             transaction_details: None,
             acquirer_details: Some(acquirer),
             billing_address,
+            routing_region: item.request.routing_region.clone(),
         })
     }
 }
@@ -831,6 +834,7 @@ pub struct UnifiedAuthenticationServiceAuthenticateRequest {
     pub customer_details: Option<CustomerDetails>,
     pub auth_creds: UnifiedAuthenticationServiceAuthType,
     pub authentication_info: Option<AuthenticationInfo>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -994,6 +998,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
             device_details,
             customer_details: None,
             authentication_info,
+            routing_region: item.router_data.request.routing_region.clone(),
         })
     }
 }
@@ -1134,7 +1139,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponseResult, T, UasAuthentica
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    connector_response_reference_id: None
+                    connector_response_reference_id: None,
                 })
             }
         };
@@ -1166,9 +1171,9 @@ pub struct WebhookResponse {
     /// authentication_id
     pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
     /// The received Results Request from the Directory Server.
-    pub results_request: Option<serde_json::Value>,
+    pub results_request: Option<common_utils::pii::SecretSerdeValue>,
     /// The sent Results Response to the Directory Server.
-    pub results_response: Option<serde_json::Value>,
+    pub results_response: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl WebhookResponse {

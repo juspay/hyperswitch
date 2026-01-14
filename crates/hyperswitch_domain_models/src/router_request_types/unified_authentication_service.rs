@@ -1,5 +1,5 @@
 use api_models::payments::DeviceChannel;
-use common_enums::MerchantCategoryCode;
+use common_enums::{MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
 use masking::Secret;
@@ -16,6 +16,7 @@ pub struct UasPreAuthenticationRequestData {
     pub billing_address: Option<Address>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Clone)]
@@ -41,14 +42,6 @@ pub struct AuthenticationInfo {
     pub locale: Option<String>,
     pub supported_card_brands: Option<String>,
     pub encrypted_payload: Option<Secret<String>>,
-    pub routing_region: Option<RoutingRegion>,
-}
-
-#[derive(Debug, serde::Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum RoutingRegion {
-    Region1,
-    Region2,
 }
 
 #[derive(Clone, Debug)]
@@ -62,6 +55,7 @@ pub struct UasAuthenticationRequestData {
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub webhook_url: String,
     pub authentication_info: Option<AuthenticationInfo>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -125,8 +119,8 @@ pub enum UasAuthenticationResponseData {
         eci: Option<String>,
         three_ds_server_transaction_id: String,
         authentication_id: Option<common_utils::id_type::AuthenticationId>,
-        results_request: Option<serde_json::Value>,
-        results_response: Option<serde_json::Value>,
+        results_request: Option<common_utils::pii::SecretSerdeValue>,
+        results_response: Option<common_utils::pii::SecretSerdeValue>,
     },
 }
 

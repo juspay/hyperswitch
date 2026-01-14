@@ -16,13 +16,17 @@ use common_utils::{
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
+use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
-    router_request_types::VerifyWebhookSourceRequestData,
+    router_request_types::{
+        unified_authentication_service::UasAuthenticationResponseData,
+        VerifyWebhookSourceRequestData,
+    },
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
@@ -40,7 +44,9 @@ use crate::{
         payment_methods::cards,
         payments::{self, tokenization},
         refunds, relay,
-        unified_authentication_service::types::UNIFIED_AUTHENTICATION_SERVICE,
+        unified_authentication_service::{
+            types::UNIFIED_AUTHENTICATION_SERVICE, utils as uas_utils,
+        },
         unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
@@ -230,9 +236,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         body: &body,
     };
 
+    // Fetch Threeds Execution Path to decode webhook Body
+    // Checks if the merchant and connector is eligible for authentication service
+    // If Yes, then it will return UnifiedAuthenticationService
+    // If No, then it will return Direct
+    // Direct Signifies its not a authentication connector
     let three_ds_execution_path =
         fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state).await?;
 
+    // Decodes webhook body based on execution path, and returns connector Integration, connector_name and webhook_processing_result back to the flow without disturbing the current flow
     let (connector, connector_name, webhook_processing_result) = match three_ds_execution_path {
         ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
             // Mutating connector to Unified Authentication Service from connector_name since for authentication we need to go to authentication service connector integration
@@ -241,15 +253,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-            let webhook_processing_result =
-                crate::core::unified_authentication_service::process_uas_incoming_webhook(
-                    &state,
-                    &request_details,
-                    connector_name.clone(),
-                    uas_connector.clone(),
-                    platform.clone(),
-                )
-                .await;
+            let webhook_processing_result = process_uas_incoming_webhook(
+                &state,
+                &request_details,
+                connector_name.clone(),
+                uas_connector.clone(),
+                platform.clone(),
+            )
+            .await;
 
             (uas_connector, connector_name, webhook_processing_result)
         }
@@ -489,13 +500,14 @@ async fn fetch_three_ds_execution_path(
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    let is_eligible_for_uas = payments::helpers::is_merchant_eligible_authentication_service(
-        &platform.get_processor().get_account().get_id().clone(),
-        state,
-    )
-    .await?;
+    let is_merchant_eligible_for_uas =
+        payments::helpers::is_merchant_eligible_authentication_service(
+            &platform.get_processor().get_account().get_id().clone(),
+            state,
+        )
+        .await?;
 
-    if is_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
+    if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(
             mca_details,
         ))
@@ -3234,4 +3246,98 @@ fn insert_mandate_details(
         connector_mandate_request_reference_id,
     )?;
     Ok(connector_mandate_details)
+}
+
+#[cfg(feature = "v1")]
+pub async fn process_uas_incoming_webhook<'a>(
+    state: &'a SessionState,
+    incoming_webhook_request: &IncomingWebhookRequestDetails<'a>,
+    connector_name: String,
+    connector_integration: ConnectorEnum,
+    platform: domain::Platform,
+) -> errors::RouterResult<WebhookProcessingResult<'a>> {
+    let routing_region = uas_utils::fetch_routing_region_for_uas(
+        state,
+        platform.get_processor().get_account().get_id().clone(),
+        platform
+            .get_processor()
+            .get_account()
+            .organization_id
+            .clone(),
+    )
+    .await?;
+    let webhook_data =
+        uas_utils::get_webhook_request_data_for_uas(incoming_webhook_request, Some(routing_region));
+
+    let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
+        uas_utils::construct_uas_webhook_router_data(
+            state,
+            connector_name.to_string(),
+            webhook_data,
+            None,
+        )?; // check of paymentId is present
+
+    let response = uas_utils::do_auth_connector_call(
+        state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        webhook_router_data,
+    )
+    .await?;
+
+    let response_body = match response.response {
+        Ok(resp) => match resp {
+            UasAuthenticationResponseData::Webhook {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+                authentication_id,
+                results_request,
+                results_response,
+            } => Ok(WebhookResponse {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+                authentication_id,
+                results_request,
+                results_response,
+            }),
+            _ => {
+                router_env::logger::error!("received unknown webhook response from uas");
+                Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            }
+        },
+        Err(err) => {
+            router_env::logger::error!("error processing webhook {:?}", err);
+            Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+        }
+    }?;
+
+    let event_type = connector_integration
+        .get_webhook_event_type(incoming_webhook_request)
+        .switch()
+        .attach_printable("Could not get webhook event")?;
+
+    let decoded_body = response_body
+        .to_bytes()
+        .inspect_err(|err| {
+            router_env::logger::error!("error converting uas webhook response to bytes: {}", err);
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error converting uas webhook response to bytes")?;
+
+    // The payload in `decoded_body` is not taken directly from an external caller.
+    // It is the response from the Unified Authentication Service obtained via
+    // `utils::do_auth_connector_call`, which uses the router's authenticated
+    // connector infrastructure. As such, we consider the source to be verified.
+    let webhook_result = WebhookProcessingResult {
+        event_type,
+        source_verified: false,
+        transform_data: None,
+        decoded_body: Some(decoded_body),
+        shadow_ucs_data: None,
+    };
+
+    Ok(webhook_result)
 }

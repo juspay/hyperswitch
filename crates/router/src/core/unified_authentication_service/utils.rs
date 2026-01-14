@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v1")]
 use api_models::payments::BrowserInformation;
-use common_enums::enums::PaymentMethod;
+use common_enums::enums::{PaymentMethod, RoutingRegion};
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     types::keymanager::ToEncryptable,
@@ -16,8 +16,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::{
-        PostAuthenticationDetails, RoutingRegion, UasAuthenticationResponseData,
-        UasWebhookRequestData,
+        PostAuthenticationDetails, UasAuthenticationResponseData, UasWebhookRequestData,
     },
     type_encryption::AsyncLift,
 };
@@ -706,25 +705,22 @@ pub async fn fetch_routing_region_for_uas(
     merchant_id: common_utils::id_type::MerchantId,
     organization_id: common_utils::id_type::OrganizationId,
 ) -> RouterResult<RoutingRegion> {
-    let merchant_path = fetch_region(state, &merchant_id.routing_region_threeds_uas()).await;
+    let merchant_path =
+        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
 
-    let org_path = fetch_region(state, &organization_id.routing_region_threeds_uas())
-        .await
-        .unwrap_or(RoutingRegion::Region1);
-
-    Ok(merchant_path.unwrap_or(org_path))
+    Ok(merchant_path
+        .async_unwrap_or_else(|| async {
+            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
+                .await
+                .unwrap_or(RoutingRegion::Region1)
+        })
+        .await)
 }
 
 async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
     let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key, None)
+    db.find_config_by_key(key)
         .await
         .ok()
-        .map(|conf| {
-            if conf.config == "region2" {
-                RoutingRegion::Region2
-            } else {
-                RoutingRegion::Region1
-            }
-        })
+        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }

@@ -44,6 +44,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use masking::PeekInterface;
 use transformers as unified_authentication_service;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -760,13 +761,13 @@ impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
         let challenge_cancel = webhook_body
             .results_request
             .as_ref()
-            .and_then(|v| v.get("challengeCancel").and_then(|v| v.as_str()))
+            .and_then(|v| v.peek().get("challengeCancel").and_then(|v| v.as_str()))
             .map(|s| s.to_string());
 
         let challenge_code_reason = webhook_body
             .results_request
             .as_ref()
-            .and_then(|v| v.get("transStatusReason").and_then(|v| v.as_str()))
+            .and_then(|v| v.peek().get("transStatusReason").and_then(|v| v.as_str()))
             .map(|s| s.to_string());
 
         Ok(

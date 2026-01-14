@@ -1,10 +1,11 @@
 use api_models::payments;
+use common_enums::RoutingRegion;
 use hyperswitch_domain_models::{
     errors::api_error_response::{self as errors, NotImplementedMessage},
     router_request_types::{
         authentication::MessageCategory,
         unified_authentication_service::{
-            RoutingRegion, UasAuthenticationRequestData, UasPostAuthenticationRequestData,
+            UasAuthenticationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
         BrowserInformation,

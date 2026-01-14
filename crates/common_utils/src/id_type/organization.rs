@@ -22,8 +22,8 @@ impl OrganizationId {
         Self::try_from(std::borrow::Cow::from(org_id))
     }
 
-    /// fetch routing_region_threeds_uas for organization
-    pub fn routing_region_threeds_uas(&self) -> String {
-        format!("routing_region_threeds_uas_{}", self.get_string_repr())
+    /// fetch Get threeds_routing_region key for organization
+    pub fn get_threeds_routing_region_uas_key(&self) -> String {
+        format!("threeds_routing_region_uas_{}", self.get_string_repr())
     }
 }
