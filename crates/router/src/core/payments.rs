@@ -5180,7 +5180,10 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     updated_customer: Option<storage::CustomerUpdate>,
     tokenization_action: TokenizationAction,
-) -> RouterResult<(RouterData<F, RouterDReq, router_types::PaymentsResponseData>, Option<storage::CustomerUpdate>)>
+) -> RouterResult<(
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    Option<storage::CustomerUpdate>,
+)>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
