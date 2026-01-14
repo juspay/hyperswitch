@@ -153,6 +153,8 @@ impl SecretsHandler for settings::ApplePayDecryptConfig {
             apple_pay_ppc_key,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
+            apple_pay_ppc_transitional,
+            apple_pay_ppc_key_transitional,
         ) = tokio::try_join!(
             secret_management_client.get_secret(applepay_decrypt_keys.apple_pay_ppc.clone()),
             secret_management_client.get_secret(applepay_decrypt_keys.apple_pay_ppc_key.clone()),
@@ -160,11 +162,31 @@ impl SecretsHandler for settings::ApplePayDecryptConfig {
                 .get_secret(applepay_decrypt_keys.apple_pay_merchant_cert.clone()),
             secret_management_client
                 .get_secret(applepay_decrypt_keys.apple_pay_merchant_cert_key.clone()),
+            async {
+                match &applepay_decrypt_keys.apple_pay_ppc_transitional {
+                    Some(backup) => secret_management_client
+                        .get_secret(backup.clone())
+                        .await
+                        .map(Some),
+                    None => Ok(None),
+                }
+            },
+            async {
+                match &applepay_decrypt_keys.apple_pay_ppc_key_transitional {
+                    Some(key) => secret_management_client
+                        .get_secret(key.clone())
+                        .await
+                        .map(Some),
+                    None => Ok(None),
+                }
+            }
         )?;
 
         Ok(value.transition_state(|_| Self {
             apple_pay_ppc,
             apple_pay_ppc_key,
+            apple_pay_ppc_transitional,
+            apple_pay_ppc_key_transitional,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
         }))

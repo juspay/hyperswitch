@@ -26772,13 +26772,21 @@
         "type": "object",
         "required": [
           "payment_processing_certificate",
-          "payment_processing_certificate_key"
+          "payment_processing_certificate_key",
+          "payment_processing_certificate_transitional",
+          "payment_processing_certificate_key_transitional"
         ],
         "properties": {
           "payment_processing_certificate": {
             "type": "string"
           },
           "payment_processing_certificate_key": {
+            "type": "string"
+          },
+          "payment_processing_certificate_transitional": {
+            "type": "string"
+          },
+          "payment_processing_certificate_key_transitional": {
             "type": "string"
           }
         }

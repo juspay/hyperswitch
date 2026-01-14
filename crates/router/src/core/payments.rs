@@ -5942,17 +5942,42 @@ where
                     "Apple Pay wallet data not found in the payment method data during the Apple Pay decryption flow",
                 )?;
 
-        let apple_pay_data =
-            ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to parse apple pay token to json")?
+        let apple_pay_data = {
+            let token_json = ApplePayData::token_json(domain::WalletData::ApplePay(
+                apple_pay_wallet_data.clone(),
+            ))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse apple pay token to json")?;
+
+            let primary_result = token_json
                 .decrypt(
                     &apple_pay_payment_processing_details.payment_processing_certificate,
                     &apple_pay_payment_processing_details.payment_processing_certificate_key,
                 )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to decrypt apple pay token")?;
+                .await;
+
+            match primary_result {
+                Ok(data) => data,
+                Err(primary_error) => {
+                    // After the payment processing certificate is rotated for a new one, there will be around 20 minutes window before the old certificate is completely revoked.
+                    // During this period, Apple Pay tokens might still be encrypted with the old certificate.
+                    // To handle this, we attempt to decrypt the token using the transitional (old) certificate if the primary decryption (with the new certificate) fails.
+                    if let (Some(ppc_backup), Some(ppc_key_backup)) = (
+                        &apple_pay_payment_processing_details
+                            .payment_processing_certificate_transitional,
+                        &apple_pay_payment_processing_details
+                            .payment_processing_certificate_key_transitional,
+                    ) {
+                        logger::info!("Failed to decrypt apple pay token with primary credential, falling back to transitional credentials");
+                        token_json.decrypt(ppc_backup, ppc_key_backup).await.change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("failed to decrypt apple pay token with both primary and backup certificates")?
+                    } else {
+                        return Err(primary_error
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("failed to decrypt apple pay token"));
+                    }
+                }
+            }
+        };
 
         let apple_pay_predecrypt_internal = apple_pay_data
             .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
@@ -7518,6 +7543,18 @@ fn check_apple_pay_metadata(
                                 .applepay_decrypt_keys
                                 .get_inner()
                                 .apple_pay_ppc_key
+                                .clone(),
+                            payment_processing_certificate_transitional: state
+                                .conf
+                                .applepay_decrypt_keys
+                                .get_inner()
+                                .apple_pay_ppc_transitional
+                                .clone(),
+                            payment_processing_certificate_key_transitional: state
+                                .conf
+                                .applepay_decrypt_keys
+                                .get_inner()
+                                .apple_pay_ppc_key_transitional
                                 .clone(),
                         })
                     }
