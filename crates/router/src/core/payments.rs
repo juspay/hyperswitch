@@ -4121,13 +4121,13 @@ where
         None => should_continue_further,
     };
 
-    if should_continue_further {
+    let (mut router_data, should_continue_further) = if should_continue_further {
         router_data
             .settlement_split_call(state, &connector, &context)
             .await?
     } else {
         (router_data, should_continue_further)
-    }
+    };
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
