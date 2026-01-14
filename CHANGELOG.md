@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.25.0-hotfix5
+
+### Bug Fixes
+
+- **connector:** Worldpay modular Rsync id issue ([#10938](https://github.com/juspay/hyperswitch/pull/10938)) ([`620706f`](https://github.com/juspay/hyperswitch/commit/620706f51774bcdfb3e588419ec1e25d9a828740))
+
+**Full Changelog:** [`2025.12.25.0-hotfix4...2025.12.25.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0-hotfix4...2025.12.25.0-hotfix5)
+
+- - -
+
 ## 2025.12.25.0-hotfix4
 
 ### Bug Fixes
