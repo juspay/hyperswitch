@@ -1030,9 +1030,9 @@ impl<F> TryFrom<&SantanderRouterData<&RefundsRouterData<F>>> for SantanderRefund
 impl From<SantanderRefundStatus> for enums::RefundStatus {
     fn from(item: SantanderRefundStatus) -> Self {
         match item {
-            SantanderRefundStatus::Returned => Self::Success,
-            SantanderRefundStatus::NotDone => Self::Failure,
-            SantanderRefundStatus::InProcessing => Self::Pending,
+            SantanderRefundStatus::Devolvido => Self::Success,
+            SantanderRefundStatus::NaoRealizado => Self::Failure,
+            SantanderRefundStatus::EmProcessamento => Self::Pending,
         }
     }
 }

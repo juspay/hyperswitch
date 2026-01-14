@@ -454,6 +454,23 @@ impl ConnectorCommon for Santander {
                         connector_response_reference_id: None,
                     })
                 }
+                SantanderGenericErrorResponse::Pattern4(response) => {
+                    let detail = response.detail;
+
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: detail.unwrap_or(NO_ERROR_CODE.to_string()),
+                        message: detail.clone().unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                        reason: None,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                        connector_response_reference_id: None,
+                    })
+                }
             },
         }
     }
@@ -1205,9 +1222,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
                             field_name: "end_to_end_id",
                         })?;
 
-                    let refund_id = req.request.connector_refund_id.clone();
+                    let refund_id = req.request.refund_id.clone();
                     Ok(format!(
-                        "{}pix/{end_to_end_id}/refund/{:?}",
+                        "{}pix/{}/devolucao/{}",
+                        end_to_end_id,
                         self.base_url(connectors),
                         refund_id
                     ))

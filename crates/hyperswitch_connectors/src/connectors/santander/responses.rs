@@ -341,18 +341,21 @@ pub struct SantanderUpdateBoletoResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderRefundStatus {
-    InProcessing,
-    Returned,
-    NotDone,
+    /// The refund is currently being processed and not yet completed
+    EmProcessamento,
+    /// The refund has been successfully completed and the amount was returned
+    Devolvido,
+    /// The refund was not carried out
+    NaoRealizado,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderRefundResponse {
-    // Unique refund identifier
+    // Hyperswitch Refund Id
     pub id: Secret<String>,
-    // Unique RTR (Return) identifier
-    pub rtr_id: Secret<String>,
+    // Connector Refund Id
+    pub rtr_id: Secret<String>, // Need to confirm with Santander on what this id is
     // Refund amount
     pub valor: StringMajorUnit,
     // Time information related to the refund
@@ -388,6 +391,16 @@ pub enum SantanderGenericErrorResponse {
     Pattern2(SantanderPattern2ErrorResponse),
     // When JWT is expired
     Pattern3(SantanderPattern3ErrorResponse),
+    // On Refund Failures
+    Pattern4(SantanderPattern4ErrorResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPattern4ErrorResponse {
+    pub timestamp: Option<String>,
+    #[serde(rename = "httpStatusCode")]
+    pub http_status_code: Option<String>,
+    pub detail: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
