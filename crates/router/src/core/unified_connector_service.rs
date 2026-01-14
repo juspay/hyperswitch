@@ -681,7 +681,7 @@ pub fn build_unified_connector_service_payment_method(
 
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::CardRedirect(payments_grpc::CardRedirect {
-                    r#type: card_redirect_type as i32,
+                    r#type: card_redirect_type.into(),
                 })),
             })
         }
