@@ -2318,7 +2318,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
         };
 
         // Extract connector_metadata from response if present
-        let connector_metadata = (!response.connector_metadata.is_none())
+        let connector_metadata = response
+            .connector_metadata
+            .is_some()
             .then(|| {
                 let connector_metadata_map =
                     convert_secret_string_to_map(response.connector_metadata.clone());
@@ -2485,7 +2487,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
             let status = AttemptStatus::foreign_try_from(response.status())?;
 
             // Extract connector_metadata from response if present
-            let connector_metadata = (!response.connector_metadata.is_none())
+            let connector_metadata = response
+                .connector_metadata
+                .is_some()
                 .then(|| {
                     let connector_metadata_map =
                         convert_secret_string_to_map(response.connector_metadata.clone());
@@ -2576,7 +2580,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = (!response.connector_metadata.is_none())
+        let connector_metadata = response
+            .connector_metadata
+            .is_some()
             .then(|| {
                 let connector_metadata_map =
                     convert_secret_string_to_map(response.connector_metadata.clone());
@@ -5267,7 +5273,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = (!response.connector_metadata.is_none())
+        let connector_metadata = response
+            .connector_metadata
+            .is_some()
             .then(|| {
                 let connector_metadata_map =
                     convert_secret_string_to_map(response.connector_metadata.clone());
