@@ -48,9 +48,7 @@ use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, Identifier,
     PaymentServiceTransformRequest, PaymentServiceTransformResponse,
 };
-use unified_connector_service_masking::{
-    ExposeInterface as UcsMaskingExposeInterface, PeekInterface as UcsMaskingPeekInterface,
-};
+use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
@@ -83,28 +81,6 @@ pub fn build_upi_wait_screen_data(
     serde_json::to_value(wait_screen_data)
         .change_context(UnifiedConnectorServiceError::ParsingFailed)
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
-}
-
-/// Helper function to convert Option<Secret<String, WithType>> to Option<HashMap<String, String>>
-/// Used for converting connector metadata from gRPC response format to domain model
-fn convert_secret_string_to_map(
-    connector_metadata: Option<unified_connector_service_masking::Secret<String>>,
-) -> Option<HashMap<String, String>> {
-    connector_metadata
-        .and_then(|secret_str| serde_json::from_str::<serde_json::Value>(secret_str.peek()).ok())
-        .and_then(|json_value| json_value.as_object().cloned())
-        .map(|obj| {
-            obj.into_iter()
-                .map(|(k, v)| {
-                    (
-                        k,
-                        v.as_str()
-                            .unwrap_or(&serde_json::to_string(&v).unwrap_or_default())
-                            .to_string(),
-                    )
-                })
-                .collect()
-        })
 }
 
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
@@ -2165,14 +2141,27 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             None => (None, None),
         };
 
-        // Parse connector_metadata from Option<Secret<String>> to HashMap<String, String>
-        let connector_metadata_map =
-            convert_secret_string_to_map(response.connector_metadata.clone());
+        // Parse connector_metadata from Secret<String> to serde_json::Value
+        let parsed_connector_metadata: Option<serde_json::Value> =
+            response.connector_metadata.clone().and_then(|secret| {
+                let exposed = secret.expose();
+                serde_json::from_str(&exposed)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            serialization_error = ?e,
+                            metadata = ?response.connector_metadata,
+                            "Failed to parse connector_metadata as JSON"
+                        );
+                        e
+                    })
+                    .ok()
+            });
 
-        connector_metadata = if connector_metadata_map
+        connector_metadata = if parsed_connector_metadata
             .as_ref()
-            .and_then(|map| map.get("nextActionData"))
-            .filter(|&s| s == "WaitScreenInstructions")
+            .and_then(|meta| meta.get("nextActionData"))
+            .and_then(|next_action_data| next_action_data.as_str())
+            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
             .is_some()
         {
             let wait_screen_metadata = build_upi_wait_screen_data()?;
@@ -2209,22 +2198,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
         };
 
         // Extract connector_metadata from response if present and not already set
-        if connector_metadata.is_none() {
-            let connector_metadata_map =
-                convert_secret_string_to_map(response.connector_metadata.clone());
-            if connector_metadata_map.is_some() {
-                connector_metadata = serde_json::to_value(&connector_metadata_map)
-                    .map_err(|e| {
-                        tracing::warn!(
-                            serialization_error=?e,
-                            metadata=?connector_metadata_map,
-                            "Failed to serialize connector_metadata from UCS response"
-                        );
-                        e
-                    })
-                    .ok();
-            }
-        }
+        connector_metadata = match (connector_metadata, response.connector_metadata.clone()) {
+            (None, Some(_secret)) => parsed_connector_metadata,
+            (existing, _) => existing, // keep the existing value if already Some or response is None
+        };
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -2318,24 +2295,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
         };
 
         // Extract connector_metadata from response if present
-        let connector_metadata = response
-            .connector_metadata
-            .is_some()
-            .then(|| {
-                let connector_metadata_map =
-                    convert_secret_string_to_map(response.connector_metadata.clone());
-                serde_json::to_value(&connector_metadata_map)
-                    .map_err(|e| {
-                        tracing::warn!(
-                            serialization_error=?e,
-                            metadata=?response.connector_metadata,
-                            "Failed to serialize connector_metadata from UCS capture response"
-                        );
-                        e
-                    })
-                    .ok()
-            })
-            .flatten();
+        let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
+            let connector_metadata = secret.expose();
+            serde_json::from_str(&connector_metadata)
+                .map_err(|e| {
+                    tracing::warn!(
+                        serialization_error = ?e,
+                        metadata = ?response.connector_metadata,
+                        "Failed to serialize connector_metadata from UCS capture response"
+                    );
+                    e
+                })
+                .ok()
+        });
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
@@ -2487,24 +2459,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
             let status = AttemptStatus::foreign_try_from(response.status())?;
 
             // Extract connector_metadata from response if present
-            let connector_metadata = response
-                .connector_metadata
-                .is_some()
-                .then(|| {
-                    let connector_metadata_map =
-                        convert_secret_string_to_map(response.connector_metadata.clone());
-                    serde_json::to_value(&connector_metadata_map)
-                        .map_err(|e| {
-                            tracing::warn!(
-                                serialization_error=?e,
-                                metadata=?response.connector_metadata,
-                                "Failed to serialize connector_metadata from UCS register response"
-                            );
-                            e
-                        })
-                        .ok()
-                })
-                .flatten();
+            let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
+                let connector_metadata = secret.expose();
+                serde_json::from_str(&connector_metadata)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            serialization_error=?e,
+                            metadata=?response.connector_metadata,
+                            "Failed to serialize connector_metadata from UCS register response"
+                        );
+                        e
+                    })
+                    .ok()
+            });
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -2580,13 +2547,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = response
-            .connector_metadata
-            .is_some()
-            .then(|| {
-                let connector_metadata_map =
-                    convert_secret_string_to_map(response.connector_metadata.clone());
-                serde_json::to_value(&connector_metadata_map)
+        let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
+            let connector_metadata = secret.expose();
+            serde_json::from_str(&connector_metadata)
                 .map_err(|e| {
                     tracing::warn!(
                         serialization_error=?e,
@@ -2596,8 +2559,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     e
                 })
                 .ok()
-            })
-            .flatten();
+        });
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
@@ -5273,24 +5235,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = response
-            .connector_metadata
-            .is_some()
-            .then(|| {
-                let connector_metadata_map =
-                    convert_secret_string_to_map(response.connector_metadata.clone());
-                serde_json::to_value(&connector_metadata_map)
-                    .map_err(|e| {
-                        tracing::warn!(
-                            serialization_error=?e,
-                            metadata=?response.connector_metadata,
-                            "Failed to serialize connector_metadata from UCS void response"
-                        );
-                        e
-                    })
-                    .ok()
-            })
-            .flatten();
+        let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
+            let connector_metadata = secret.expose();
+            serde_json::from_str(&connector_metadata)
+                .map_err(|e| {
+                    tracing::warn!(
+                        serialization_error=?e,
+                        metadata=?response.connector_metadata,
+                        "Failed to serialize connector_metadata from UCS void response"
+                    );
+                    e
+                })
+                .ok()
+        });
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
