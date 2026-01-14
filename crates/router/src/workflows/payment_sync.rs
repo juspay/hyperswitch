@@ -88,7 +88,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 _,
                 payment_flows::PaymentData<api::PSync>,
             >(
-                &state,
+                state,
                 state.get_req_state(),
                 &platform,
                 None,
@@ -211,7 +211,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         business_profile,
                         payment_data,
                         customer,
-                        &state,
+                        state,
                         operation,
                     ))
                     .await
