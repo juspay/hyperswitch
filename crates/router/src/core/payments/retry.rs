@@ -402,10 +402,10 @@ where
         )
         .await?;
 
-    let (router_data, _mca) = payments::decide_unified_connector_service_call(
+    let (router_data, _mca, updated_customer) = payments::decide_unified_connector_service_call(
         state,
         req_state,
-        platform,
+        platform.get_processor(),
         connector.clone(),
         operation,
         payment_data,
@@ -424,7 +424,16 @@ where
         tokenization_action,
     )
     .await?;
-
+    // Update customer at provider level after connector operations complete
+    operation
+        .to_domain()?
+        .update_customer(
+            state,
+            platform.get_provider(),
+            customer.clone(),
+            updated_customer,
+        )
+        .await?;
     Ok(router_data)
 }
 

@@ -237,7 +237,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let execution_path =
         unified_connector_service::should_call_unified_connector_service_for_webhooks(
             &state,
-            &platform,
+            platform.get_processor(),
             &connector_name,
         )
         .await?;
@@ -447,7 +447,7 @@ async fn process_ucs_webhook_transform<'a>(
     let (event_type, source_verified, transform_data) =
         unified_connector_service::call_unified_connector_service_for_webhook(
             state,
-            platform,
+            platform.get_processor(),
             connector_name,
             body,
             request_details,
@@ -495,7 +495,7 @@ async fn process_shadow_ucs_webhook_transform<'a>(
     // Execute UCS path
     let ucs_result = unified_connector_service::call_unified_connector_service_for_webhook(
         state,
-        platform,
+        platform.get_processor(),
         connector_name,
         body,
         request_details,

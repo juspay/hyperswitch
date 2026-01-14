@@ -210,7 +210,7 @@ pub async fn trigger_refund_to_gateway(
     .await?;
 
     let gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account.clone(),
         payment_intent.merchant_id.clone(),
         profile_id.clone(),
@@ -245,7 +245,7 @@ pub async fn trigger_refund_to_gateway(
         let (execution_path, updated_state) =
             unified_connector_service::should_call_unified_connector_service(
                 state,
-                platform,
+                platform.get_processor(),
                 &router_data,
                 None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
@@ -264,7 +264,7 @@ pub async fn trigger_refund_to_gateway(
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 unified_connector_service::call_unified_connector_service_for_refund_execute(
                     state,
-                    platform,
+                    platform.get_processor(),
                     router_data.clone(),
                     ExecutionMode::Primary,
                     merchant_connector_account,
@@ -598,7 +598,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                 let ucs_result =
                     unified_connector_service::call_unified_connector_service_for_refund_execute(
                         &ucs_state,
-                        &ucs_platform,
+                        ucs_platform.get_processor(),
                         ucs_router_data,
                         ExecutionMode::Shadow,
                         merchant_connector_account
@@ -856,7 +856,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
 
     let gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account.clone(),
         payment_intent.merchant_id.clone(),
         profile_id.clone(),
@@ -891,7 +891,7 @@ pub async fn sync_refund_with_gateway(
         let (execution_path, updated_state) =
             unified_connector_service::should_call_unified_connector_service(
                 state,
-                platform,
+                platform.get_processor(),
                 &router_data,
                 None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
@@ -910,7 +910,7 @@ pub async fn sync_refund_with_gateway(
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 unified_connector_service::call_unified_connector_service_for_refund_sync(
                     state,
-                    platform,
+                    platform.get_processor(),
                     router_data.clone(),
                     ExecutionMode::Primary,
                     merchant_connector_account,
@@ -1118,7 +1118,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                 let ucs_result =
                     unified_connector_service::call_unified_connector_service_for_refund_sync(
                         &state,
-                        &platform,
+                        platform.get_processor(),
                         router_data,
                         ExecutionMode::Shadow,
                         merchant_connector_account
