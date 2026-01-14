@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.14.0
+
+### Features
+
+- **connector:** [xendit] add QRIS payment methods ([#10759](https://github.com/juspay/hyperswitch/pull/10759)) ([`4abbf30`](https://github.com/juspay/hyperswitch/commit/4abbf30772f71d43e6916d0545e15e5d991b899e))
+- Add gift card balance check support for Blackhawknetwork connector ([#10897](https://github.com/juspay/hyperswitch/pull/10897)) ([`1db356b`](https://github.com/juspay/hyperswitch/commit/1db356b17a27c8deabd890e0a9c8bcaf40adb81f))
+
+### Bug Fixes
+
+- **connector:**
+  - [AIRWALLEX] Map issuer error code and issuer error message ([#10776](https://github.com/juspay/hyperswitch/pull/10776)) ([`2809ed0`](https://github.com/juspay/hyperswitch/commit/2809ed0085cf673b16ae4f496a5dc3aab072edf4))
+  - Worldpay modular Rsync id issue ([#10926](https://github.com/juspay/hyperswitch/pull/10926)) ([`d775e6b`](https://github.com/juspay/hyperswitch/commit/d775e6b045ce0dd300865a8286d99e4815acf2e8))
+- **core:** [payout-sync-webhook] when source verified=false trigger outgoing webhook ([#10903](https://github.com/juspay/hyperswitch/pull/10903)) ([`ee649cb`](https://github.com/juspay/hyperswitch/commit/ee649cbbe649bae19147391bba6d255f322d5644))
+
+**Full Changelog:** [`2026.01.13.0...2026.01.14.0`](https://github.com/juspay/hyperswitch/compare/2026.01.13.0...2026.01.14.0)
+
+- - -
+
 ## 2026.01.13.0
 
 ### Features
