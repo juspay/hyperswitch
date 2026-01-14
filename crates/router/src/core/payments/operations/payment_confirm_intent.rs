@@ -1,12 +1,13 @@
 use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
-use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
+use common_utils::{ext_traits::{Encode, BytesExt}, fp_utils::when, id_type, types::keymanager::ToEncryptable, encryption::Encryption};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
-
+use crate::core::payment_methods::cards::decrypt_generic_data;
+use hyperswitch_domain_models::behaviour::Conversion;
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
@@ -234,14 +235,71 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         // let payment_method_id = request.payment_method_id;
         let payment_method = match &request.payment_method_id {
             Some(payment_method_id) => {
-                let payment_method = db
-                    .find_payment_method(
+                let storage_type =
+                    payment_methods::vault::retrieve_storage_type_from_payment_method_id(
+                        state,
+                        &payment_method_id.get_string_repr().to_string(),
                         platform.get_processor().get_key_store(),
-                        payment_method_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    ).await.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "payment_method not found / expired".to_string(),
+                })?;
+
+                let payment_method = match storage_type {
+                    common_enums::StorageType::Volatile => {
+                        let encryption_key =
+                            platform.get_processor().get_key_store().key.get_inner();
+
+                        let redis_conn = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get redis connection")?;
+
+                        let response = redis_conn.get_key::<bytes::Bytes>(&payment_method_id.get_string_repr().into()).await;
+
+                        let payment_method_record = match response {
+                            Ok(resp) => {
+                                let key_store = platform.get_processor().get_key_store();
+                                let payment_method = resp
+                                    .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Error getting PaymentMethod from redis")?;
+
+                                let keymanager_state = &state.into();
+
+                                let domain_payment_method = domain::PaymentMethod::convert_back(
+                                    keymanager_state,
+                                    payment_method,
+                                    key_store.key.get_inner(),
+                                    key_store.merchant_id.clone().into(),
+                                )
+                                .await
+                                .change_context(errors::StorageError::EncryptionError)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                                Ok(domain_payment_method)
+                            }
+                            Err(err) => Err(err).change_context(
+                                errors::ApiErrorResponse::UnprocessableEntity {
+                                    message: "Token is invalid or expired".into(),
+                                },
+                            ),
+                        }?;
+
+                        payment_method_record
+                    }
+                    _ => {
+                        let pm_record= db
+                        .find_payment_method(
+                            platform.get_processor().get_key_store(),
+                            payment_method_id,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+                    pm_record
+                    }
+                };
                 Some(payment_method)
             }
             _ => None,
@@ -305,9 +363,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             )?;
         };
 
-        let add = payment_method.map(|pm| pm.payment_method_billing_address.clone().map(|address| address.into_inner())).unwrap_or_default();
+        let add = payment_method
+            .map(|pm| {
+                pm.payment_method_billing_address
+                    .clone()
+                    .map(|address| address.into_inner())
+            })
+            .unwrap_or_default();
 
-        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new( // instead of intent, it should be from pm service
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            // instead of intent, it should be from pm service
             payment_intent
                 .shipping_address
                 .clone()
@@ -319,7 +384,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_attempt
                 .payment_method_billing_address
                 .clone()
-                .map(|address| address.into_inner()).or(add),
+                .map(|address| address.into_inner())
+                .or(add),
             Some(true),
         );
 
@@ -615,35 +681,144 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             &payment_data.payment_attempt.payment_method_id,
         ) {
             (None, None, _, Some(pm_id)) => {
-                
                 let db = &*state.store;
 
                 let storage_scheme = platform.get_processor().get_account().storage_scheme;
-
-                let payment_method = db
-                    .find_payment_method(
+                let storage_type =
+                    payment_methods::vault::retrieve_storage_type_from_payment_method_id(
+                        state,
+                        &pm_id.get_string_repr().to_string(),
                         platform.get_processor().get_key_store(),
-                        pm_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    ).await.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "payment_method not found / expired".to_string(),
+                })?;
+
+                let payment_method = match storage_type {
+                    common_enums::StorageType::Volatile => {
+                        let encryption_key =
+                            platform.get_processor().get_key_store().key.get_inner();
+
+                        let redis_conn = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get redis connection")?;
+
+                        let response = redis_conn.get_key::<bytes::Bytes>(&pm_id.get_string_repr().into()).await;
+
+                        let payment_method_record = match response {
+                            Ok(resp) => {
+                                let key_store = platform.get_processor().get_key_store();
+                                let payment_method = resp
+                                    .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Error getting PaymentMethod from redis")?;
+
+                                let keymanager_state = &state.into();
+
+                                let domain_payment_method = domain::PaymentMethod::convert_back(
+                                    keymanager_state,
+                                    payment_method,
+                                    key_store.key.get_inner(),
+                                    key_store.merchant_id.clone().into(),
+                                )
+                                .await
+                                .change_context(errors::StorageError::EncryptionError)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                                Ok(domain_payment_method)
+                            }
+                            Err(err) => Err(err).change_context(
+                                errors::ApiErrorResponse::UnprocessableEntity {
+                                    message: "Token is invalid or expired".into(),
+                                },
+                            ),
+                        }?;
+
+                        payment_method_record
+                    }
+                    _ => {
+                        let pm_record= db
+                        .find_payment_method(
+                            platform.get_processor().get_key_store(),
+                            pm_id,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    pm_record
+                    }
+                };
 
                 let card_cvc = payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
-                                    state,
-                                    &payment_method.get_id().get_string_repr().to_string(),
-                                    platform.get_processor().get_key_store(),
-                                )
-                                .await.change_context(errors::ApiErrorResponse::InvalidRequestData{
-                                    message:"card_cvc not found / expired for the payment method".to_string(),
-                                })?;
+                    state,
+                    &payment_method.get_id().get_string_repr().to_string(),
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "card_cvc not found / expired for the payment method".to_string(),
+                })?;
 
-                let vault_data =
-                    payment_methods::vault::retrieve_payment_method_from_vault(state, platform, business_profile, &payment_method)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to retrieve payment method from vault")?
-                        .data;
+                let vault_data = match storage_type {
+                    common_enums::StorageType::Volatile => {
+                        let vault_id = payment_method
+                            .locker_id
+                            .as_ref()
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Missing locker_id in volatile payment method")?;
+                        let key_store = platform.get_provider().get_key_store();
+                        let encryption_key = key_store.key.get_inner();
+
+                        let redis_conn = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get redis connection")?;
+
+                        let response = redis_conn
+                            .get_and_deserialize_key::<Encryption>(
+                                &vault_id.get_string_repr().into(),
+                                "Vec<u8>",
+                            )
+                            .await;
+
+                        let vault_data = match response {
+                            Ok(resp) => {
+                                let decrypted_payload: domain::PaymentMethodVaultingData = decrypt_generic_data(state, Some(resp), key_store)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to decrypt volatile payment method vault data")?.get_required_value("PaymentMethodVaultingData")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
+
+                                Ok(decrypted_payload)
+                            }
+                            Err(err) => Err(err).change_context(
+                                errors::ApiErrorResponse::UnprocessableEntity {
+                                    message: "Token is invalid or expired".into(),
+                                },
+                            ),
+                        }?;
+                        vault_data
+
+                    }
+                    _ => {
+                        let vault_data =
+                            payment_methods::vault::retrieve_payment_method_from_vault(
+                                state,
+                                platform,
+                                business_profile,
+                                &payment_method,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to retrieve payment method from vault")?
+                            .data;
+                        vault_data
+                    }
+                };
+
                 // let (payment_method, vault_data) =
                 //     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                 //         state,

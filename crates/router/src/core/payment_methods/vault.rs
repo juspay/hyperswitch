@@ -1884,6 +1884,34 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+pub async fn retrieve_storage_type_from_payment_method_id(
+    state: &routes::SessionState,
+    payment_method_id: &String,
+    key_store: &domain::MerchantKeyStore,
+
+) -> RouterResult<common_enums::StorageType> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!("{payment_method_id}_storage_type");
+
+
+    let resp: common_enums::StorageType = redis_conn
+                    .get_and_deserialize_key::<common_enums::StorageType>(
+                        &key.clone().into(),
+                        "StorageType",
+                    )
+                    .await.change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+
+    Ok(resp)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
 pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_id(
     state: &routes::SessionState,
     payment_method_id: id_type::GlobalPaymentMethodId,
