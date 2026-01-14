@@ -586,6 +586,13 @@ pub trait ConnectorSpecifications {
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
     }
+
+    /// Get connector's API webhook configuration object
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type

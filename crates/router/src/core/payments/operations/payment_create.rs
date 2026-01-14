@@ -1441,6 +1441,7 @@ impl PaymentCreate {
                 debit_routing_savings: None,
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
+                error_details: None,
             },
             additional_pm_data,
 
