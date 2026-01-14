@@ -1027,30 +1027,32 @@ pub struct NetworkTokenizationSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
-/// Single entry in merchant advice codes configuration
-#[derive(Debug, Deserialize, Clone)]
-pub struct MerchantAdviceCodeEntry {
-    pub key: String,
-    pub recommended_action: common_enums::RecommendedAction,
-    pub description: Option<String>,
-}
-
-/// Configuration structure for merchant advice codes
+/// Configuration structure for individual merchant advice code
 #[derive(Debug, Deserialize, Clone)]
 pub struct MerchantAdviceCodeConfig {
     pub recommended_action: common_enums::RecommendedAction,
     pub description: Option<String>,
 }
 
+/// Individual code entry in TOML array
+#[derive(Debug, Deserialize)]
+struct MerchantAdviceCodeEntry {
+    code: String,
+    description: Option<String>,
+    recommended_action: common_enums::RecommendedAction,
+}
+
+/// Network section with name and codes
+#[derive(Debug, Deserialize)]
+struct NetworkAdviceCodes {
+    network: String,
+    codes: Vec<MerchantAdviceCodeEntry>,
+}
+
 /// Wrapper for merchant advice code configurations
 #[derive(Debug, Clone, Default)]
 pub struct MerchantAdviceCodesConfig {
-    pub data: HashMap<String, MerchantAdviceCodeConfig>,
-}
-
-#[derive(Debug, Deserialize)]
-struct MerchantAdviceCodesSection {
-    merchant_advice_codes: String,
+    data: HashMap<String, MerchantAdviceCodeConfig>,
 }
 
 impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
@@ -1058,28 +1060,26 @@ impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::Error;
+        // Deserialize as HashMap of section key -> NetworkAdviceCodes
+        let network_sections: HashMap<String, NetworkAdviceCodes> =
+            HashMap::deserialize(deserializer)?;
 
-        let section = MerchantAdviceCodesSection::deserialize(deserializer)?;
-        let entries: Vec<MerchantAdviceCodeEntry> =
-            serde_json::from_str(&section.merchant_advice_codes).map_err(|e| {
-                D::Error::custom(format!("Failed to parse merchant_advice_codes JSON: {}", e))
-            })?;
-
-        let map: HashMap<String, MerchantAdviceCodeConfig> = entries
+        // Flatten into lookup map with composite keys using the network field
+        let data = network_sections
             .into_iter()
-            .map(|entry| {
-                (
-                    entry.key,
-                    MerchantAdviceCodeConfig {
+            .flat_map(|(_, network_data)| {
+                network_data.codes.into_iter().map(move |entry| {
+                    let key = Self::create_lookup_key(&network_data.network, &entry.code);
+                    let config = MerchantAdviceCodeConfig {
                         recommended_action: entry.recommended_action,
                         description: entry.description,
-                    },
-                )
+                    };
+                    (key, config)
+                })
             })
             .collect();
 
-        Ok(Self { data: map })
+        Ok(Self { data })
     }
 }
 
@@ -1096,7 +1096,7 @@ impl MerchantAdviceCodesConfig {
 
     /// Creates a lookup key for merchant advice codes with network and code
     /// Returns format: "Network:{network}|MerchantAdviceCode:{code:0>2}"
-    pub fn create_lookup_key(network: &str, advice_code: &str) -> String {
+    fn create_lookup_key(network: &str, advice_code: &str) -> String {
         format!("Network:{}|MerchantAdviceCode:{:0>2}", network, advice_code)
     }
 }
