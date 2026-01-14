@@ -4559,13 +4559,12 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch business profile")?;
 
-        if self
-            .merchant_id_from_route
-            .as_ref()
-            .is_some_and(|mid_from_route| payload.get_merchant_id() != mid_from_route)
-        {
-            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
-        }
+        fp_utils::when(
+            self.merchant_id_from_route
+                .as_ref()
+                .is_some_and(|mid_from_route| payload.get_merchant_id() != mid_from_route),
+            || Err(report!(errors::ApiErrorResponse::InvalidJwtToken)),
+        )?;
 
         let initiator = if let AuthOrEmbeddedClaims::AuthToken(ref auth_payload) = payload {
             Some(domain::Initiator::Jwt {
