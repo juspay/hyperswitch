@@ -4,6 +4,70 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.14.1
+
+### Features
+
+- **Wallets:** APPLEPAY AND GOOGLE PAY DECRYPTED FLOW support ([#10329](https://github.com/juspay/hyperswitch/pull/10329)) ([`d36b783`](https://github.com/juspay/hyperswitch/commit/d36b7836cb107076e7e43810d1ae1b53e87aad4f))
+
+### Bug Fixes
+
+- **connector:** Handle Mollie failed payments with error details from details object ([#10824](https://github.com/juspay/hyperswitch/pull/10824)) ([`8429e48`](https://github.com/juspay/hyperswitch/commit/8429e486c5edcec3ecc03b0d4e87aa215fbbeab5))
+
+**Full Changelog:** [`2026.01.14.0...2026.01.14.1`](https://github.com/juspay/hyperswitch/compare/2026.01.14.0...2026.01.14.1)
+
+- - -
+
+## 2026.01.14.0
+
+### Features
+
+- **connector:** [xendit] add QRIS payment methods ([#10759](https://github.com/juspay/hyperswitch/pull/10759)) ([`4abbf30`](https://github.com/juspay/hyperswitch/commit/4abbf30772f71d43e6916d0545e15e5d991b899e))
+- Add gift card balance check support for Blackhawknetwork connector ([#10897](https://github.com/juspay/hyperswitch/pull/10897)) ([`1db356b`](https://github.com/juspay/hyperswitch/commit/1db356b17a27c8deabd890e0a9c8bcaf40adb81f))
+
+### Bug Fixes
+
+- **connector:**
+  - [AIRWALLEX] Map issuer error code and issuer error message ([#10776](https://github.com/juspay/hyperswitch/pull/10776)) ([`2809ed0`](https://github.com/juspay/hyperswitch/commit/2809ed0085cf673b16ae4f496a5dc3aab072edf4))
+  - Worldpay modular Rsync id issue ([#10926](https://github.com/juspay/hyperswitch/pull/10926)) ([`d775e6b`](https://github.com/juspay/hyperswitch/commit/d775e6b045ce0dd300865a8286d99e4815acf2e8))
+- **core:** [payout-sync-webhook] when source verified=false trigger outgoing webhook ([#10903](https://github.com/juspay/hyperswitch/pull/10903)) ([`ee649cb`](https://github.com/juspay/hyperswitch/commit/ee649cbbe649bae19147391bba6d255f322d5644))
+
+**Full Changelog:** [`2026.01.13.0...2026.01.14.0`](https://github.com/juspay/hyperswitch/compare/2026.01.13.0...2026.01.14.0)
+
+- - -
+
+## 2026.01.13.0
+
+### Features
+
+- **UCS:** Enable Trustly and Interact in HS<>UCS ([#10838](https://github.com/juspay/hyperswitch/pull/10838)) ([`fa0775c`](https://github.com/juspay/hyperswitch/commit/fa0775c93138a59c1dc66a9023e26e1c98019479))
+- **core:** Add intent_fulfillment_time configuration to temp locker ([#10877](https://github.com/juspay/hyperswitch/pull/10877)) ([`c87e82a`](https://github.com/juspay/hyperswitch/commit/c87e82a244475d40b20a6b6d09dedc0a99fbc2cf))
+- **payments:** Add error details for PaymentsResponse ([#10799](https://github.com/juspay/hyperswitch/pull/10799)) ([`71919ce`](https://github.com/juspay/hyperswitch/commit/71919ce32965712de7d996a44213bfe04192ccea))
+- **router:** Add webhook_setup_capabilities to merchant response ([#10793](https://github.com/juspay/hyperswitch/pull/10793)) ([`9627728`](https://github.com/juspay/hyperswitch/commit/96277280393b0d5926731a5e3f1dfe1b3ef9556c))
+- **ucs:** Added upi_source support for upi ([#10675](https://github.com/juspay/hyperswitch/pull/10675)) ([`3106305`](https://github.com/juspay/hyperswitch/commit/310630561548208a31caa8ff9f7a411930dbc397))
+
+### Miscellaneous Tasks
+
+- **payment-methods:** Card expiry addition to v2 ([#10811](https://github.com/juspay/hyperswitch/pull/10811)) ([`c2f0e59`](https://github.com/juspay/hyperswitch/commit/c2f0e5932a1737b0d08c4ef342aec310b29d72da))
+
+**Full Changelog:** [`2026.01.12.1...2026.01.13.0`](https://github.com/juspay/hyperswitch/compare/2026.01.12.1...2026.01.13.0)
+
+- - -
+
+## 2026.01.12.1
+
+### Features
+
+- Adyen repeat payment dependencies for HS<>UCS ([#10851](https://github.com/juspay/hyperswitch/pull/10851)) ([`dafea2a`](https://github.com/juspay/hyperswitch/commit/dafea2ac34dd4567bed1f54391e2674f0c1d5db4))
+
+### Bug Fixes
+
+- **connector:** [worldpaymodular] capture issue ([#10887](https://github.com/juspay/hyperswitch/pull/10887)) ([`0a43210`](https://github.com/juspay/hyperswitch/commit/0a432103db3e3638e095c7af1141f487c264d6ba))
+
+**Full Changelog:** [`2026.01.12.0...2026.01.12.1`](https://github.com/juspay/hyperswitch/compare/2026.01.12.0...2026.01.12.1)
+
+- - -
+
 ## 2026.01.12.0
 
 ### Features
