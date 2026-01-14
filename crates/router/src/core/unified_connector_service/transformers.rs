@@ -2835,6 +2835,25 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
     }
 }
 
+impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::UpiSource>
+    for payments_grpc::UpiSource
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        upi_source: hyperswitch_domain_models::payment_method_data::UpiSource,
+    ) -> Result<Self, Self::Error> {
+        match upi_source {
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCc => Ok(Self::UpiCc),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCl => Ok(Self::UpiCl),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiAccount => {
+                Ok(Self::UpiAccount)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::NetworkTokenData>
     for payments_grpc::NetworkTokenData
 {

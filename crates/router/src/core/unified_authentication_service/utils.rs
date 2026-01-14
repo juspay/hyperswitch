@@ -315,7 +315,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
-                        payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -384,7 +384,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .and_then(|details| details.dynamic_data_value)
                     .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
-                        payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val,
                             None,
