@@ -2686,6 +2686,10 @@ impl User {
                 .route(web::post().to(user::user_merchant_account_create)),
         );
         route = route.service(
+            web::resource("/merchant-details")
+                .route(web::get().to(user::retrieve_merchant_account_details)),
+        );
+        route = route.service(
             web::scope("/list")
                 .service(
                     web::resource("/merchant")
@@ -2743,6 +2747,10 @@ impl User {
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
+            )
+            .service(
+                web::resource("/merchant_details")
+                    .route(web::get().to(user::retrieve_merchant_account_details)),
             )
             // TODO: To be deprecated
             .service(

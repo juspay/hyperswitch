@@ -1063,3 +1063,21 @@ pub async fn clone_connector(
     ))
     .await
 }
+
+/// Get merchant account details (recon_status and product_type).
+pub async fn retrieve_merchant_account_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountDetailsRetrieve;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::get_merchant_account_details(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

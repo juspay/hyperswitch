@@ -58,6 +58,7 @@ impl From<Flow> for ApiIdentifier {
         match flow {
             Flow::MerchantsAccountCreate
             | Flow::MerchantsAccountRetrieve
+            | Flow::MerchantsAccountDetailsRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey

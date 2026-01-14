@@ -470,3 +470,9 @@ pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
     pub profile_id: id_type::ProfileId,
     pub profile_name: String,
 }
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MerchantAccountDetailsResponse {
+    pub recon_status: common_enums::ReconStatus,
+    pub product_type: Option<common_enums::MerchantProductType>,
+}
