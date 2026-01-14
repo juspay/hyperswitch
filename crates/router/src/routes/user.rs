@@ -1075,7 +1075,13 @@ pub async fn issue_embedded_token(
         state.clone(),
         &http_req,
         (),
-        |state, auth_data, _, _| user_core::issue_embedded_token(state, auth_data),
+        |state, auth_data, _, _| {
+            user_core::issue_embedded_token(
+                state,
+                auth_data.platform.get_processor().clone(),
+                auth_data.profile,
+            )
+        },
         &auth::ApiKeyAuth {
             is_platform_allowed: false,
             is_connected_allowed: false,
@@ -1096,7 +1102,13 @@ pub async fn embedded_token_info(
         state.clone(),
         &http_req,
         (),
-        |state, auth_data, _, _| user_core::embedded_token_info(state, auth_data),
+        |state, auth_data, _, _| {
+            user_core::embedded_token_info(
+                state,
+                auth_data.platform.get_processor().clone(),
+                auth_data.profile,
+            )
+        },
         &auth::JWTAndEmbeddedAuth {
             merchant_id_from_route: None,
             permission: None,

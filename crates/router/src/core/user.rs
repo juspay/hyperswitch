@@ -3908,10 +3908,10 @@ pub async fn clone_connector(
 #[cfg(feature = "v1")]
 pub async fn issue_embedded_token(
     state: SessionState,
-    authentication_data: auth::AuthenticationData,
+    processor: domain::Processor,
+    business_profile: Option<domain::Profile>,
 ) -> UserResponse<user_api::IssueEmbeddedTokenResponse> {
-    let profile_id = authentication_data
-        .profile
+    let profile_id = business_profile
         .ok_or(UserErrors::InvalidEmbeddedOperation(
             "No business profile ID provided".to_string(),
         ))
@@ -3921,39 +3921,18 @@ pub async fn issue_embedded_token(
     state
         .store
         .find_business_profile_by_merchant_id_profile_id(
-            &authentication_data.platform.get_processor().get_key_store(),
-            authentication_data
-                .platform
-                .get_processor()
-                .get_account()
-                .get_id(),
+            processor.get_key_store(),
+            processor.get_account().get_id(),
             &profile_id,
         )
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidEmbeddedOperation(
-                    "Invalid business profile ID".to_string(),
-                ))
-                .attach_printable("Invalid profile id")
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
+        .to_not_found_response(UserErrors::InvalidEmbeddedOperation(
+            "Invalid business profile ID".to_string(),
+        ))?;
     auth::embedded::EmbeddedToken::new_token(
         state.tenant.tenant_id,
-        authentication_data
-            .platform
-            .get_processor()
-            .get_account()
-            .get_org_id()
-            .clone(),
-        authentication_data
-            .platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .clone(),
+        processor.get_account().get_org_id().clone(),
+        processor.get_account().get_id().clone(),
         profile_id,
         &state.conf,
     )
@@ -3968,29 +3947,15 @@ pub async fn issue_embedded_token(
 #[cfg(feature = "v1")]
 pub async fn embedded_token_info(
     _state: SessionState,
-    authentication_data: auth::AuthenticationData,
+    processor: domain::Processor,
+    business_profile: Option<domain::Profile>,
 ) -> UserResponse<user_api::EmbeddedTokenInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_api::EmbeddedTokenInfoResponse {
-            org_id: authentication_data
-                .platform
-                .get_processor()
-                .get_account()
-                .get_org_id()
-                .clone(),
-            merchant_id: authentication_data
-                .platform
-                .get_processor()
-                .get_account()
-                .get_id()
-                .clone(),
-            merchant_account_version: authentication_data
-                .platform
-                .get_processor()
-                .get_account()
-                .version,
-            profile_id: authentication_data
-                .profile
+            org_id: processor.get_account().get_org_id().clone(),
+            merchant_id: processor.get_account().get_id().clone(),
+            merchant_account_version: processor.get_account().version,
+            profile_id: business_profile
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("Missing Profile ID")?
                 .get_id()

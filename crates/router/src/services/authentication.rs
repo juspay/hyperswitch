@@ -4547,13 +4547,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
-        let merchant_id = merchant.get_id().clone();
 
         let profile = state
             .store()
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
-                &merchant_id,
+                payload.get_merchant_id(),
                 payload.get_profile_id(),
             )
             .await
@@ -4563,7 +4562,7 @@ where
         if self
             .merchant_id_from_route
             .as_ref()
-            .is_some_and(|mid_from_route| &merchant_id != mid_from_route)
+            .is_some_and(|mid_from_route| payload.get_merchant_id() != mid_from_route)
         {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
@@ -4574,7 +4573,7 @@ where
             })
         } else {
             Some(domain::Initiator::EmbeddedToken {
-                merchant_id: merchant_id.clone(),
+                merchant_id: payload.get_merchant_id().clone(),
             })
         };
 
@@ -4592,12 +4591,12 @@ where
         };
         let auth_type = match payload {
             AuthOrEmbeddedClaims::AuthToken(auth_payload) => AuthenticationType::MerchantJwt {
-                merchant_id,
+                merchant_id: auth_payload.merchant_id,
                 user_id: Some(auth_payload.user_id),
             },
             AuthOrEmbeddedClaims::EmbeddedToken(embedded_payload) => {
                 AuthenticationType::EmbeddedJwt {
-                    merchant_id,
+                    merchant_id: embedded_payload.merchant_id,
                     profile_id: embedded_payload.profile_id,
                 }
             }
