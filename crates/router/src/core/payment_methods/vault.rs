@@ -1,12 +1,12 @@
 use common_enums::PaymentMethodType;
-#[cfg(feature = "v2")]
-use common_utils::request;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
 };
+#[cfg(feature = "v2")]
+use common_utils::{encryption::Encryption, request};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_flow_types::{
