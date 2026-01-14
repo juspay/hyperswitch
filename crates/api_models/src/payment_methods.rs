@@ -550,7 +550,7 @@ pub enum PaymentMethodCreateData {
 impl PaymentMethodCreateData {
     pub fn get_card(&self) -> Option<CardDetail> {
         match self {
-            PaymentMethodCreateData::Card(card_detail) => Some(card_detail.clone()),
+            Self::Card(card_detail) => Some(card_detail.clone()),
             _ => None,
         }
     }
