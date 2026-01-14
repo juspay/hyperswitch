@@ -379,22 +379,32 @@ jobs:
             cypress-tests/cypress/reports/
           retention-days: 1
   
-  cypress-status-check:
-    name: Cypress Mandatory Tests (Required)
+  mandatory-cypress-status-check:
+    name: Check on Mandatory connector tests
     needs: [runner]
     runs-on: ubuntu-latest
-    if: always() # Runs even if runner is skipped or failed
+    if: always() # CRITICAL: Ensures this runs even if 'runner' fails
     steps:
       - name: Evaluate Matrix Results
+        shell: bash
         run: |
-          # If the matrix was skipped because it's a fork, we pass (success)
-          # If the matrix ran and any leg failed, this job fails.
+          # Possible values: success, failure, cancelled, skipped
           RESULT="${{ needs.runner.result }}"
-          if [[ $RESULT == "success" || $RESULT == "skipped" ]]; then
-            echo "All mandatory tests passed or were skipped correctly."
+          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
+
+          echo "Runner result: $RESULT"
+          echo "Run tests env: $RUN_TESTS_VAL"
+
+          if [ "$RUN_TESTS_VAL" == "false" ]; then
+            echo "Tests were skipped (Fork PR). Marking as success."
+            exit 0
+          fi
+
+          if [ "$RESULT" == "success" ]; then
+            echo "All mandatory tests passed."
             exit 0
           else
-            echo "Mandatory tests failed."
+            echo "Mandatory tests failed or were cancelled."
             exit 1
           fi
 
