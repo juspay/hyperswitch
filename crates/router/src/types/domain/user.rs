@@ -510,7 +510,9 @@ impl NewUserMerchant {
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
             product_type: self.get_product_type(),
-            merchant_account_type: self.merchant_account_type.and_then(|account_type| account_type.get_merchant_account_type()),
+            merchant_account_type: self
+                .merchant_account_type
+                .and_then(|account_type| account_type.get_merchant_account_type()),
         })
     }
 
