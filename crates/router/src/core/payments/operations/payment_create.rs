@@ -36,7 +36,6 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -52,7 +51,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -850,7 +849,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
@@ -927,21 +925,23 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = customer
-            .map(|customer| CustomerData::foreign_try_from(customer.clone()))
-            .transpose()?;
-        let key_manager_state = state.into();
-        // Updation of Customer Details for the cases where both customer_id and specific customer
-        // details are provided in Payment Create Request
-        let customer_details = raw_customer_details
-            .clone()
-            .async_map(|customer_details| {
-                create_encrypted_data(&key_manager_state, key_store, customer_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt customer details")?;
+        // let raw_customer_details = customer
+        //     .map(|customer| CustomerData::foreign_try_from(customer.clone()))
+        //     .transpose()?;
+        // let key_manager_state = state.into();
+        // // Updation of Customer Details for the cases where both customer_id and specific customer
+        // // details are provided in Payment Create Request
+        // let customer_details = raw_customer_details
+        //     .clone()
+        //     .async_map(|customer_details| {
+        //         create_encrypted_data(&key_manager_state, key_store, customer_details)
+        //     })
+        //     .await
+        //     .transpose()
+        //     .change_context(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Unable to encrypt customer details")?;
+
+        let customer_details = payment_data.payment_intent.customer_details.clone();
 
         payment_data.payment_intent = state
             .store

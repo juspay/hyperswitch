@@ -255,7 +255,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
         _req_state: ReqState,
         _processor: &domain::Processor,
         payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateMetadataOperation<'b, F>, PaymentData<F>)>

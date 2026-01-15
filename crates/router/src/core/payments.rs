@@ -1149,7 +1149,6 @@ where
                     req_state,
                     platform.get_processor(),
                     payment_data.clone(),
-                    customer.clone(),
                     #[cfg(feature = "frm")]
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
@@ -1183,7 +1182,6 @@ where
                 req_state,
                 platform.get_processor(),
                 payment_data.clone(),
-                customer.clone(),
                 None,
                 header_payload.clone(),
             )
@@ -1353,7 +1351,7 @@ where
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while populating raw customer details")?;
 
-    let (operation, customer) = operation
+    let (operation, _customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
@@ -1371,7 +1369,6 @@ where
         connector.clone(),
         &operation,
         &mut payment_data,
-        &customer,
         call_connector_action.clone(),
         &validate_result,
         schedule_time,
@@ -4355,7 +4352,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data.clone(),
-            customer.clone(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -5352,7 +5348,6 @@ pub async fn proxy_for_call_connector_service<F, RouterDReq, ApiRequest, D>(
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
-    customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -5520,7 +5515,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data.clone(),
-            customer.clone(),
             frm_suggestion,
             header_payload.clone(),
         )

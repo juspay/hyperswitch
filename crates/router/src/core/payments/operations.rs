@@ -512,7 +512,6 @@ pub trait UpdateTracker<F, D, Req>: Send {
         req_state: ReqState,
         processor: &domain::Processor,
         payment_data: D,
-        customer: Option<domain::Customer>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
