@@ -7463,6 +7463,20 @@ placeholder="Enter Merchant Payment Method Route Id"
 required=true
 type="Text"
 
+[peachpaymentsapm]
+[[peachpaymentsapm.bank_transfer]]
+  payment_method_type = "LocalBankTransfer"
+[[peachpaymentsapm.real_time_payment]]
+  payment_method_type = "Fps"
+[[peachpaymentsapm.voucher]]
+  payment_method_type = "Oxxo"
+[peachpaymentsapm.connector_auth.SignatureKey]
+api_key = "Entity ID"
+key1 = "Username"
+api_secret = "Password"
+[peachpaymentsapm.connector_webhook_details]
+merchant_secret = "Webhook Secret"
+
 [tokenex]
 [tokenex.connector_auth.BodyKey]
 api_key = "API Key"
