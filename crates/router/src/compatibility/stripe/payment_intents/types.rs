@@ -3,7 +3,6 @@ use std::str::FromStr;
 use api_models::payments;
 use common_types::payments as common_payments_types;
 use common_utils::{
-    crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
     id_type,
@@ -554,8 +553,8 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             shipping: resp.shipping,
             billing: resp.billing,
             email: resp.email.map(|inner| inner.into()),
-            name: resp.name.map(Encryptable::into_inner),
-            phone: resp.phone.map(Encryptable::into_inner),
+            name: resp.name,
+            phone: resp.phone,
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,

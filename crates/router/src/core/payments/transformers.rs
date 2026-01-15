@@ -2194,7 +2194,6 @@ where
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         data: D,
-        customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         base_url: &str,
         operation: Op,
@@ -2428,7 +2427,6 @@ where
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         payment_data: D,
-        customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         base_url: &str,
         operation: Op,
@@ -2457,7 +2455,6 @@ where
         payments_to_payments_response(
             payment_data,
             captures,
-            customer,
             auth_flow,
             base_url,
             &operation,
@@ -2481,7 +2478,6 @@ where
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         payment_data: D,
-        _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
         _operation: Op,
@@ -2547,7 +2543,6 @@ where
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         payment_data: D,
-        _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
         _operation: Op,
@@ -3226,7 +3221,6 @@ where
 {
     fn generate_response(
         payment_data: D,
-        _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
         _operation: Op,
@@ -3263,7 +3257,6 @@ where
 {
     fn generate_response(
         payment_data: D,
-        _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
         _operation: Op,
@@ -3366,7 +3359,6 @@ where
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         payment_data: D,
-        customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
         _operation: Op,
@@ -3387,6 +3379,23 @@ where
                 })?;
         let payment_method_data_response =
             additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+        let payment_intent = payment_data.get_payment_intent();
+
+        let customer = payment_intent
+            .customer_details
+            .clone()
+            .map(|customer_details_encrypted| {
+                customer_details_encrypted
+                    .into_inner()
+                    .expose()
+                    .parse_value::<CustomerData>("CustomerData")
+            })
+            .transpose()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to parse customer data from payment intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 verify_id: Some(payment_data.get_payment_intent().payment_id.clone()),
@@ -3396,7 +3405,7 @@ where
                     .client_secret
                     .clone()
                     .map(Secret::new),
-                customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
+                customer_id: payment_intent.customer_id.clone(),
                 email: customer
                     .as_ref()
                     .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -3452,7 +3461,6 @@ where
 pub fn payments_to_payments_response<Op, F: Clone, D>(
     payment_data: D,
     captures: Option<Vec<storage::Capture>>,
-    customer: Option<domain::Customer>,
     _auth_flow: services::AuthFlow,
     base_url: &str,
     operation: &Op,
@@ -3599,61 +3607,25 @@ where
         ))
     }
 
-    // For the case when we don't have Customer data directly stored in Payment intent
-    let customer_table_response: Option<CustomerDetailsResponse> =
-        customer.as_ref().map(ForeignInto::foreign_into);
-
     // If we have customer data in Payment Intent and if the customer is not deleted, We are populating the Retrieve response from the
     // same. If the customer is deleted then we use the customer table to populate customer details
-    let customer_details_response =
-        if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
-            let customer_details_encrypted =
-                serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
-            if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
-                Some(CustomerDetailsResponse {
-                    id: customer_table_response
-                        .as_ref()
-                        .and_then(|customer_data| customer_data.id.clone()),
-                    name: customer_table_response
-                        .as_ref()
-                        .and_then(|customer_data| customer_data.name.clone())
-                        .or(customer_details_encrypted_data
-                            .name
-                            .or(customer.as_ref().and_then(|customer| {
-                                customer.name.as_ref().map(|name| name.clone().into_inner())
-                            }))),
-                    email: customer_table_response
-                        .as_ref()
-                        .and_then(|customer_data| customer_data.email.clone())
-                        .or(customer_details_encrypted_data.email.or(customer
-                            .as_ref()
-                            .and_then(|customer| customer.email.clone().map(pii::Email::from)))),
-                    phone: customer_table_response
-                        .as_ref()
-                        .and_then(|customer_data| customer_data.phone.clone())
-                        .or(customer_details_encrypted_data
-                            .phone
-                            .or(customer.as_ref().and_then(|customer| {
-                                customer
-                                    .phone
-                                    .as_ref()
-                                    .map(|phone| phone.clone().into_inner())
-                            }))),
-                    phone_country_code: customer_table_response
-                        .as_ref()
-                        .and_then(|customer_data| customer_data.phone_country_code.clone())
-                        .or(customer_details_encrypted_data
-                            .phone_country_code
-                            .or(customer
-                                .as_ref()
-                                .and_then(|customer| customer.phone_country_code.clone()))),
-                })
-            } else {
-                customer_table_response
-            }
-        } else {
-            customer_table_response
-        };
+    let customer_details_response = payment_intent
+        .customer_details
+        .clone()
+        .and_then(|customer_details_raw| {
+            customer_details_raw
+                .into_inner()
+                .expose()
+                .parse_value::<CustomerData>("CustomerData")
+                .ok()
+        })
+        .map(|customer_details| CustomerDetailsResponse {
+            id: payment_intent.customer_id.clone(),
+            name: customer_details.name,
+            email: customer_details.email,
+            phone: customer_details.phone,
+            phone_country_code: customer_details.phone_country_code,
+        });
 
     headers.extend(
         external_latency
@@ -3959,8 +3931,10 @@ where
             created: Some(payment_intent.created_at),
             modified_at: Some(payment_intent.modified_at),
             currency: currency.to_string(),
-            customer_id: customer.as_ref().map(|cus| cus.clone().customer_id),
-            customer: customer_details_response,
+            customer_id: customer_details_response
+                .as_ref()
+                .and_then(|cus| cus.id.clone()),
+            customer: customer_details_response.clone(),
             description: payment_intent.description,
             refunds: refunds_response,
             disputes: disputes_response,
@@ -3988,13 +3962,13 @@ where
                 .cloned()
                 .map(From::from),
             order_details: payment_intent.order_details,
-            email: customer
+            email: customer_details_response
                 .as_ref()
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
-            name: customer
+            name: customer_details_response
                 .as_ref()
                 .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
-            phone: customer
+            phone: customer_details_response
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
             return_url: payment_intent.return_url,
