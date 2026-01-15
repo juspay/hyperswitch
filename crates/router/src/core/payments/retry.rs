@@ -394,7 +394,6 @@ where
             connector.clone(),
             operation,
             payment_data,
-            customer,
             validate_result,
             business_profile,
             should_retry_with_pan,

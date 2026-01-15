@@ -99,7 +99,6 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     platform: &domain::Platform,
-    customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
@@ -121,12 +120,28 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
+    let customer_details = payment_data
+        .payment_intent
+        .customer_details
+        .clone()
+        .map(|customer_details_encrypted| {
+            customer_details_encrypted
+                .into_inner()
+                .expose()
+                .parse_value::<CustomerData>("CustomerData")
+        })
+        .transpose()
+        .change_context(errors::StorageError::DeserializationFailed)
+        .attach_printable("Failed to parse customer data from payment intent")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let additional_data = PaymentAdditionalData {
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
-        customer_data: customer,
+        customer_data: customer_details,
+        customer_id: payment_data.payment_intent.customer_id.clone(),
     };
 
     let connector_mandate_request_reference_id = payment_data
@@ -1648,7 +1663,6 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     platform: &domain::Platform,
-    customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -1706,15 +1720,31 @@ where
         charges: None,
     });
 
+    let customer_details = payment_data
+        .payment_intent
+        .customer_details
+        .clone()
+        .map(|customer_details_encrypted| {
+            customer_details_encrypted
+                .into_inner()
+                .expose()
+                .parse_value::<CustomerData>("CustomerData")
+        })
+        .transpose()
+        .change_context(errors::StorageError::DeserializationFailed)
+        .attach_printable("Failed to parse customer data from payment intent")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let additional_data = PaymentAdditionalData {
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
-        customer_data: customer,
+        customer_data: customer_details.clone(),
+        customer_id: payment_data.payment_intent.customer_id.clone(),
     };
 
-    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+    let customer_id = payment_data.payment_intent.customer_id.clone();
 
     let supported_connector = &state
         .conf
@@ -1807,12 +1837,9 @@ where
                 }),
                 tax_info: Some(types::TaxInfo {
                     tax_status: payment_data.payment_intent.tax_status,
-                    customer_tax_registration_id: customer.as_ref().and_then(|customer| {
-                        customer
-                            .tax_registration_id
-                            .as_ref()
-                            .map(|tax_registration_id| tax_registration_id.clone().into_inner())
-                    }),
+                    customer_tax_registration_id: customer_details
+                        .as_ref()
+                        .and_then(|customer| customer.tax_registration_id.clone()),
                     merchant_tax_registration_id,
                     shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
                     order_tax_amount: payment_data
@@ -1822,20 +1849,16 @@ where
                 }),
                 customer_info: Some(types::CustomerInfo {
                     customer_id: payment_data.payment_intent.customer_id.clone(),
-                    customer_email: payment_data.email,
-                    customer_name: customer.as_ref().and_then(|customer_data| {
-                        customer_data
-                            .name
-                            .as_ref()
-                            .map(|name| name.clone().into_inner())
-                    }),
-                    customer_phone_number: customer.as_ref().and_then(|customer_data| {
-                        customer_data
-                            .phone
-                            .as_ref()
-                            .map(|phone| phone.clone().into_inner())
-                    }),
-                    customer_phone_country_code: customer
+                    customer_email: customer_details
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.email.clone()),
+                    customer_name: customer_details
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.name.clone()),
+                    customer_phone_number: customer_details
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone.clone()),
+                    customer_phone_country_code: customer_details
                         .as_ref()
                         .and_then(|customer_data| customer_data.phone_country_code.clone()),
                 }),
@@ -1954,7 +1977,6 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     platform: &domain::Platform,
-    customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -2000,15 +2022,31 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_metadata: None,
     });
 
+    let customer_details = payment_data
+        .payment_intent
+        .customer_details
+        .clone()
+        .map(|customer_details_encrypted| {
+            customer_details_encrypted
+                .into_inner()
+                .expose()
+                .parse_value::<CustomerData>("CustomerData")
+        })
+        .transpose()
+        .change_context(errors::StorageError::DeserializationFailed)
+        .attach_printable("Failed to parse customer data from payment intent")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let additional_data = PaymentAdditionalData {
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
-        customer_data: customer,
+        customer_data: customer_details,
+        customer_id: payment_data.payment_intent.customer_id.clone(),
     };
 
-    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+    let customer_id = payment_data.payment_intent.customer_id.clone();
 
     let supported_connector = &state
         .conf
@@ -4595,7 +4633,8 @@ where
     connector_name: String,
     payment_data: PaymentData<F>,
     state: &'a SessionState,
-    customer_data: &'a Option<domain::Customer>,
+    customer_data: Option<CustomerData>,
+    customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -4855,17 +4894,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let customer_name = additional_data
             .customer_data
             .as_ref()
-            .and_then(|customer_data| {
-                customer_data
-                    .name
-                    .as_ref()
-                    .map(|customer| customer.clone().into_inner())
-            });
+            .and_then(|customer_data| customer_data.name.clone());
 
-        let customer_id = additional_data
-            .customer_data
-            .as_ref()
-            .map(|data| data.customer_id.clone());
+        let customer_id = additional_data.customer_id.clone();
 
         let split_payments = payment_data.payment_intent.split_payments.clone();
 
@@ -5900,12 +5931,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         let customer_name = additional_data
             .customer_data
             .as_ref()
-            .and_then(|customer_data| {
-                customer_data
-                    .name
-                    .as_ref()
-                    .map(|customer| customer.clone().into_inner())
-            });
+            .and_then(|customer_data| customer_data.name.clone());
         let amount = payment_data.payment_attempt.get_total_amount();
         let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt

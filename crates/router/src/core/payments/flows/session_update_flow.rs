@@ -25,7 +25,6 @@ impl
         state: &SessionState,
         connector_id: &str,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -41,7 +40,6 @@ impl
                 self.clone(),
                 connector_id,
                 platform,
-                customer,
                 merchant_connector_account,
             ),
         )
