@@ -6494,6 +6494,7 @@ pub enum PaymentMethodDataType {
     Fps,
     PromptPay,
     VietQr,
+    Qris,
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
@@ -6705,6 +6706,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     payment_method_data::RealTimePaymentData::Fps {} => Self::Fps,
                     payment_method_data::RealTimePaymentData::PromptPay {} => Self::PromptPay,
                     payment_method_data::RealTimePaymentData::VietQr {} => Self::VietQr,
+                    payment_method_data::RealTimePaymentData::Qris {} => Self::Qris,
                 }
             }
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
@@ -6833,6 +6835,16 @@ pub fn is_html_response(response: &str) -> bool {
     response.starts_with("<html>")
         || response.starts_with("<!DOCTYPE html>")
         || response.starts_with("<!doctype html>")
+}
+
+pub fn is_html_response_from_headers(headers: Option<&http::HeaderMap>) -> bool {
+    headers
+        .and_then(|headers| headers.get(http::header::CONTENT_TYPE))
+        .and_then(|content_type| content_type.to_str().ok())
+        .map(|content_type| {
+            content_type.contains("text/html") || content_type.contains("application/xhtml+xml")
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "payouts")]
