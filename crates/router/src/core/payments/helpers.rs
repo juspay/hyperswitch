@@ -2990,7 +2990,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
-    customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
@@ -3064,7 +3063,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
                 card_token_data.as_ref(),
-                customer,
                 storage_scheme,
                 mandate_id,
                 payment_data.payment_method_info.clone(),
@@ -7406,14 +7404,8 @@ pub async fn get_payment_method_details_from_payment_token(
         }
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
-            retrieve_payment_method_from_auth_service(
-                state,
-                key_store,
-                &auth_token,
-                payment_intent,
-                &None,
-            )
-            .await
+            retrieve_payment_method_from_auth_service(state, key_store, &auth_token, payment_intent)
+                .await
         }
 
         storage::PaymentTokenData::WalletToken(_) => Ok(None),

@@ -261,7 +261,6 @@ impl<F: Send + Clone + Sync>
         _payment_data: &mut hyperswitch_domain_models::payments::PaymentCancelData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

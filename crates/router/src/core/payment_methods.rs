@@ -536,7 +536,6 @@ pub async fn retrieve_payment_method_with_token(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     card_token_data: Option<&domain::CardToken>,
-    customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
@@ -671,7 +670,6 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 auth_token,
                 payment_intent,
-                customer,
             )
             .await?
             .map(

@@ -677,7 +677,6 @@ where
         &mut payment_data,
         &validate_result,
         platform.get_processor().get_key_store(),
-        &customer,
         &business_profile,
     )
     .await?;
@@ -4512,7 +4511,6 @@ where
         payment_data,
         validate_result,
         platform.get_processor().get_key_store(),
-        customer,
         business_profile,
         should_retry_with_pan,
     )
@@ -7792,7 +7790,6 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     payment_data: &mut D,
     validate_result: &operations::ValidateResult,
     merchant_key_store: &domain::MerchantKeyStore,
-    customer: &Option<domain::Customer>,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
@@ -7859,7 +7856,6 @@ where
                             payment_data,
                             validate_result.storage_scheme,
                             merchant_key_store,
-                            customer,
                             business_profile,
                             should_retry_with_pan,
                         )
@@ -7878,7 +7874,6 @@ where
                             payment_data,
                             validate_result.storage_scheme,
                             merchant_key_store,
-                            customer,
                             business_profile,
                             should_retry_with_pan,
                         )
@@ -7931,7 +7926,6 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     payment_data: &mut D,
     validate_result: &operations::ValidateResult,
     merchant_key_store: &domain::MerchantKeyStore,
-    customer: &Option<domain::Customer>,
     business_profile: &domain::Profile,
 ) -> RouterResult<D>
 where
@@ -7951,7 +7945,6 @@ where
                     payment_data,
                     validate_result.storage_scheme,
                     merchant_key_store,
-                    customer,
                     business_profile,
                     false,
                 )

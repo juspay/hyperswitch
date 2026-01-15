@@ -338,7 +338,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         _payment_data: &mut PaymentConfirmData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
