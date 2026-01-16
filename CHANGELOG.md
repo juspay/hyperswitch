@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.16.0
+
+### Bug Fixes
+
+- **connector:** [Payjustnowinstore] Fix callback_url Placeholder Value ([#10937](https://github.com/juspay/hyperswitch/pull/10937)) ([`1957a4e`](https://github.com/juspay/hyperswitch/commit/1957a4e67455615b8dc1b0cfa94b7c9f2f6396f6))
+
+**Full Changelog:** [`2026.01.15.0...2026.01.16.0`](https://github.com/juspay/hyperswitch/compare/2026.01.15.0...2026.01.16.0)
+
+- - -
+
+## 2026.01.15.0
+
+### Bug Fixes
+
+- **core:** Trim whitespace from phone numbers and country code ([#10754](https://github.com/juspay/hyperswitch/pull/10754)) ([`af933a3`](https://github.com/juspay/hyperswitch/commit/af933a372630370e084d563a00fb9e2920ec0cc3))
+
+**Full Changelog:** [`2026.01.14.1...2026.01.15.0`](https://github.com/juspay/hyperswitch/compare/2026.01.14.1...2026.01.15.0)
+
+- - -
+
 ## 2026.01.14.1
 
 ### Features

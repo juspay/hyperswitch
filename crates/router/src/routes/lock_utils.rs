@@ -310,6 +310,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserTheme
             | Flow::DeleteUserTheme
             | Flow::GetUserThemeUsingThemeId
+            | Flow::GetUserThemeConfigVersion
             | Flow::UploadFileToUserThemeStorage
             | Flow::GetUserThemeUsingLineage
             | Flow::ListAllThemesInLineage
