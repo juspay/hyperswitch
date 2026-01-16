@@ -513,7 +513,6 @@ pub trait RoutingStage: Send + Sync {
 
 pub struct RoutingContext {
     pub routing_algorithm: Arc<CachedAlgorithm>,
-    pub routing_approach: common_enums::RoutingApproach,
 }
 
 pub struct ConnectorOutcome {
@@ -550,7 +549,7 @@ impl RoutingStage for StaticRoutingStage {
     }
 
     fn routing_approach(&self) -> common_enums::RoutingApproach {
-        self.ctx.routing_approach.clone()
+        common_enums::RoutingApproach::RuleBasedRouting
     }
 }
 

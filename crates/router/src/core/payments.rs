@@ -101,7 +101,7 @@ use self::{
 use super::{
     errors::StorageErrorExt,
     payment_methods::surcharge_decision_configs,
-    routing::TransactionData,
+    routing::{transaction_type_from_payments_dsl, TransactionData},
     unified_connector_service::{
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
     },
@@ -10368,7 +10368,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let routing_algorithm_id: Option<id_type::RoutingId> = {
+    let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
         let algorithm_ref = routing_algorithm
@@ -10381,162 +10381,109 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let get_merchant_fallback_config = || async {
-        #[cfg(feature = "v1")]
-        return routing_helpers::get_merchant_default_config(
-            &*state.clone().store,
-            business_profile.get_id().get_string_repr(),
-            &transaction_type_from_payments_dsl(&transaction_data),
-        )
-        .await
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed);
-        #[cfg(feature = "v2")]
-        return admin::ProfileWrapper::new(business_profile.clone())
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed);
-    };
-
-    let fallback_config = match get_merchant_fallback_config().await {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            logger::error!(
-                error=?err,
-                "euclid: failed to fetch fallback config"
-            );
-
-            return Err(errors::ApiErrorResponse::InternalServerError.into());
-        }
-    };
-
-    let Some(routing_algorithm_id) = routing_algorithm_id else {
-        logger::debug!(
-            "euclid_routing: no routing algorithm configured, falling back to merchant default connectors"
-        );
-
-        return decide_multiplex_connector_for_normal_or_recurring_payment(
-            state,
-            payment_data,
-            routing_data,
-            fallback_config
-                .into_iter()
-                .map(|conn| {
-                    api::ConnectorData::get_connector_by_name(
-                        &state.conf.connectors,
-                        &conn.connector.to_string(),
-                        api::GetToken::Connector,
-                        conn.merchant_connector_id,
-                    )
-                    .map(|connector_data| connector_data.into())
-                })
-                .collect::<CustomResult<Vec<_>, _>>()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("euclid: Invalid fallback connector name")?,
-            mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
-            business_profile.is_network_tokenization_enabled,
-        )
-        .await;
-    };
-
-    let cached_algorithm = match routing::ensure_algorithm_cached_v1(
-        state,
-        &business_profile.merchant_id,
-        &routing_algorithm_id,
-        business_profile.get_id(),
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        business_profile.get_id().get_string_repr(),
         &transaction_type_from_payments_dsl(&transaction_data),
     )
     .await
-    {
-        Ok(algo) => algo,
-        Err(err) => {
-            logger::error!(
-                error=?err,
-                "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
-            );
-
-            return decide_multiplex_connector_for_normal_or_recurring_payment(
-                state,
-                payment_data,
-                routing_data,
-                fallback_config
-                    .into_iter()
-                    .map(|conn| {
-                        api::ConnectorData::get_connector_by_name(
-                            &state.conf.connectors,
-                            &conn.connector.to_string(),
-                            api::GetToken::Connector,
-                            conn.merchant_connector_id,
-                        )
-                        .map(|connector_data| connector_data.into())
-                    })
-                    .collect::<CustomResult<Vec<_>, _>>()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("euclid: Invalid fallback connector name")?,
-                mandate_type,
-                business_profile.is_connector_agnostic_mit_enabled,
-                business_profile.is_network_tokenization_enabled,
-            )
-            .await;
-        }
-    };
-
-    let static_input = routing::StaticRoutingInput {
-        platform,
-        business_profile,
-        eligible_connectors: eligible_connectors.as_ref(),
-        transaction_data: &transaction_data,
-    };
-
-    let static_stage = routing::StaticRoutingStage {
-        ctx: routing::RoutingContext {
-            routing_algorithm: cached_algorithm,
-            routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
-        },
-    };
-
-    let mut routing_outcome = static_stage.route(static_input).await.map_err(|e| {
-        e.change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("euclid: static routing failed")
-    })?;
-
-    let connectors = routing::perform_eligibility_analysis_with_fallback(
-        &state.clone(),
-        platform.get_processor().get_key_store(),
-        routing_outcome.connectors.clone(),
-        &TransactionData::Payment(transaction_data.clone()),
-        eligible_connectors,
-        business_profile,
-    )
-    .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("failed eligibility analysis and fallback")?;
+    .attach_printable("euclid: failed to fetch fallback config")?;
 
-    routing_outcome.connectors = connectors;
-    payment_data.set_routing_approach_in_attempt(Some(static_stage.routing_approach()));
-
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    {
-        if business_profile.dynamic_routing_algorithm.is_some() {
-            let dynamic_input = routing::DynamicRoutingInput {
-                state,
-                business_profile,
-                transaction_data: &transaction_data,
-                static_connectors: &routing_outcome.connectors,
-            };
-
-            let dynamic_stage = routing::DynamicRoutingStage;
-
-            let dynamic_outcome = dynamic_stage.route(dynamic_input).await.map_err(|e| {
-                e.change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("euclid: dynamic routing failed")
-            })?;
-
-            routing_outcome.connectors = dynamic_outcome.connectors;
+    let cached_algorithm = if let Some(routing_algorithm_id) = routing_algorithm_id {
+        match routing::ensure_algorithm_cached_v1(
+            state,
+            &business_profile.merchant_id,
+            &routing_algorithm_id,
+            business_profile.get_id(),
+            &transaction_type_from_payments_dsl(&transaction_data),
+        )
+        .await
+        {
+            Ok(algo) => Some(algo),
+            Err(err) => {
+                logger::error!(
+                    error=?err,
+                    "euclid_routing: ensure_algorithm_cached failed, falling back"
+                );
+                None
+            }
         }
-    }
+    } else {
+        None
+    };
 
-    let connector_data = routing_outcome
-        .connectors
+    let routable_connectors: Vec<api_models::routing::RoutableConnectorChoice> =
+        if let Some(cached_algorithm) = cached_algorithm {
+            let routing_attempt = async {
+                let static_stage = routing::StaticRoutingStage {
+                    ctx: routing::RoutingContext {
+                        routing_algorithm: cached_algorithm,
+                    },
+                };
+
+                let static_input = routing::StaticRoutingInput {
+                    platform,
+                    business_profile,
+                    eligible_connectors: eligible_connectors.as_ref(),
+                    transaction_data: &transaction_data,
+                };
+
+                let mut routing_outcome = static_stage.route(static_input).await?;
+
+                let eligibility = routing::perform_eligibility_analysis_with_fallback(
+                    state,
+                    platform.get_processor().get_key_store(),
+                    routing_outcome.connectors.clone(),
+                    &TransactionData::Payment(transaction_data.clone()),
+                    eligible_connectors,
+                    business_profile,
+                )
+                .await?;
+
+                routing_outcome.connectors = eligibility;
+
+                #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+                {
+                    if business_profile.dynamic_routing_algorithm.is_some() {
+                        let dynamic_input = routing::DynamicRoutingInput {
+                            state,
+                            business_profile,
+                            transaction_data: &transaction_data,
+                            static_connectors: &routing_outcome.connectors,
+                        };
+
+                        let dynamic_stage = routing::DynamicRoutingStage;
+
+                        if let Ok(dynamic_outcome) = dynamic_stage.route(dynamic_input).await {
+                            routing_outcome.connectors = dynamic_outcome.connectors;
+                        }
+                    }
+                }
+
+                Ok::<_, error_stack::Report<errors::RoutingError>>(routing_outcome.connectors)
+            }
+            .await;
+
+            match routing_attempt {
+                Ok(connectors) if !connectors.is_empty() => connectors,
+                Ok(_) => {
+                    logger::warn!("euclid: empty routing result, falling back");
+                    fallback_config.clone()
+                }
+                Err(err) => {
+                    logger::error!(
+                        error=?err,
+                        "euclid: routing failed, falling back to merchant default"
+                    );
+                    fallback_config.clone()
+                }
+            }
+        } else {
+            fallback_config.clone()
+        };
+
+    let connector_data = routable_connectors
         .into_iter()
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
@@ -10561,13 +10508,6 @@ where
         business_profile.is_network_tokenization_enabled,
     )
     .await
-}
-
-fn transaction_type_from_payments_dsl(
-    input: &core_routing::PaymentsDslInput<'_>,
-) -> enums::TransactionType {
-    let txn_data = TransactionData::Payment(input.clone());
-    enums::TransactionType::from(&txn_data)
 }
 
 #[cfg(feature = "payouts")]
