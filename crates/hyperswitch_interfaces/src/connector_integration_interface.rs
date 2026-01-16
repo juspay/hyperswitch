@@ -556,6 +556,12 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),
+            Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
+        }
+    }
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,
@@ -727,6 +733,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
+        }
+    }
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        match self {
+            Self::Old(connector) => connector.get_api_webhook_config(),
+            Self::New(connector) => connector.get_api_webhook_config(),
         }
     }
 }

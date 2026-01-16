@@ -15,7 +15,7 @@ use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PayloadCurrencyAuthKeyType {
     pub api_key: String,
-    pub processing_account_id: String,
+    pub processing_account_id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

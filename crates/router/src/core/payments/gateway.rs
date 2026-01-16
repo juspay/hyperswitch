@@ -7,6 +7,7 @@ pub mod complete_authorize_gateway;
 pub mod context;
 pub mod create_customer_gateway;
 pub mod create_order_gateway;
+pub mod incremental_authorization_gateway;
 pub mod payment_method_token_create_gateway;
 pub mod post_authenticate_gateway;
 pub mod pre_authenticate_gateway;
@@ -46,6 +47,9 @@ pub async fn handle_gateway_call<Flow, Req, Resp, ResourceCommonData, FlowOutput
     router_data: types::RouterData<Flow, Req, Resp>,
     connector: &api::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
+    call_connector_action: common_enums::CallConnectorAction,
+    connector_request: Option<services::Request>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<FlowOutput>
 where
     Flow: gateway::FlowGateway<
@@ -72,9 +76,9 @@ where
         state,
         connector_integration,
         &router_data,
-        common_enums::CallConnectorAction::Trigger,
-        None,
-        None,
+        call_connector_action,
+        connector_request,
+        return_raw_connector_response,
         gateway_context.clone(),
     )
     .await

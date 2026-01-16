@@ -14,6 +14,7 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -384,7 +385,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Fps
             | api_enums::PaymentMethodType::DuitNow
             | api_enums::PaymentMethodType::PromptPay
-            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
+            | api_enums::PaymentMethodType::VietQr
+            | api_enums::PaymentMethodType::Qris => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
         }
@@ -1049,6 +1051,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?,
         };
+
+        let webhook_setup_details =
+            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
+                .get_api_webhook_config();
+
         #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
@@ -1104,6 +1111,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            webhook_setup_capabilities: Some(webhook_setup_details.clone()),
         };
         Ok(response)
     }
