@@ -68,6 +68,16 @@ pub struct Dispute {
     pub dispute_currency: Option<storage_enums::Currency>,
 }
 
+impl Dispute {
+    /// Returns true if the dispute_status is either DisputeLost, or the option is None
+    pub fn is_not_lost_or_none(option: &Option<Self>) -> bool {
+        option
+            .as_ref()
+            .map(|d| d.dispute_status != common_enums::DisputeStatus::DisputeLost)
+            .unwrap_or(true)
+    }
+}
+
 #[derive(Debug)]
 pub enum DisputeUpdate {
     Update {

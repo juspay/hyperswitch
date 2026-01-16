@@ -38,7 +38,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
-        payments::{self, tokenization},
+        payments::{self, tokenization, PaymentIntentStateMetadataExt},
         refunds, relay, unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
@@ -1999,6 +1999,39 @@ async fn refunds_incoming_webhook_flow(
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
         .0
     };
+
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &refund.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to find payment intent for payment_id: {:?}",
+                refund.payment_id
+            )
+        })?;
+    let state_task = state.clone();
+    let platform_task = platform.clone();
+    let payment_intent_task = payment_intent.clone();
+    tokio::spawn(async move {
+        if let Err(err) = PaymentIntentStateMetadataExt::from(
+            payment_intent_task
+                .state_metadata
+                .clone()
+                .unwrap_or_default(),
+        )
+        .update_intent_state_metadata_for_refund(&state_task, &platform_task, payment_intent_task)
+        .await
+        {
+            tracing::error!(?err, "Failed to update intent state metadata for refund");
+        }
+    });
+
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
@@ -2613,7 +2646,7 @@ async fn disputes_incoming_webhook_flow(
 
         let dispute_object = get_or_update_dispute_object(
             state.clone(),
-            option_dispute,
+            option_dispute.clone(),
             dispute_details,
             platform.get_processor().get_account().get_id(),
             &platform.get_processor().get_account().organization_id,
@@ -2623,6 +2656,46 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
+
+        //Updating Payment Intent State Metadata if Dispute is lost and customer got their funds back
+        if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
+            && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+        {
+            tokio::spawn({
+                let state = state.clone();
+                let platform = platform.clone();
+                let payment_intent = db
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        &payment_attempt.payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch payment_intent")?;
+                let dispute_object = dispute_object.clone();
+                let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+                async move {
+                    if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                        .update_intent_state_metadata_for_dispute(
+                            &state,
+                            &platform,
+                            payment_intent,
+                            &dispute_object,
+                        )
+                        .await
+                    {
+                        logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata after dispute lost"
+                        );
+                    }
+                }
+            });
+        }
+
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 
