@@ -14,7 +14,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
-            self,
+            self, complete_connector_service,
             flows::{ConstructFlowSpecificData, Feature},
             operations,
         },
@@ -402,28 +402,28 @@ where
         )
         .await?;
 
-    let (router_data, _mca, updated_customer) = payments::decide_unified_connector_service_call(
-        state,
-        req_state,
-        platform.get_processor(),
-        connector.clone(),
-        operation,
-        payment_data,
-        customer,
-        payments::CallConnectorAction::Trigger,
-        None,
-        validate_result,
-        schedule_time,
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-        frm_suggestion,
-        business_profile,
-        true,
-        None,
-        merchant_connector_account,
-        router_data,
-        tokenization_action,
-    )
-    .await?;
+    let (updated_customer, call_connector_service_response) =
+        payments::decide_unified_connector_service_call(
+            state,
+            req_state,
+            platform.get_processor(),
+            connector.clone(),
+            operation,
+            payment_data,
+            customer,
+            payments::CallConnectorAction::Trigger,
+            None,
+            validate_result,
+            schedule_time,
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+            frm_suggestion,
+            business_profile,
+            true,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+        )
+        .await?;
     // Update customer at provider level after connector operations complete
     operation
         .to_domain()?
@@ -434,6 +434,18 @@ where
             updated_customer,
         )
         .await?;
+
+    let (router_data, _mca) = complete_connector_service(
+        state,
+        platform.get_processor(),
+        operation,
+        payment_data,
+        customer,
+        business_profile,
+        None,
+        call_connector_service_response,
+    )
+    .await?;
     Ok(router_data)
 }
 
