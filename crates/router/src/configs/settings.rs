@@ -40,6 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -198,6 +199,8 @@ pub struct PreProcessingFlowConfig {
     pub authentication_bloated_connectors: HashSet<enums::Connector>,
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub order_create_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub settlement_split_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -741,7 +744,8 @@ impl OidcSettings {
     }
 
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        self.key.values().next()
+        let mut rng = rand::thread_rng();
+        self.key.values().choose_stable(&mut rng)
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {
