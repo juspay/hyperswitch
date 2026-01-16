@@ -4141,6 +4141,14 @@ where
         None => should_continue_further,
     };
 
+    let (mut router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .settlement_split_call(state, &connector, &context)
+            .await?
+    } else {
+        (router_data, should_continue_further)
+    };
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -4275,6 +4283,23 @@ where
         // Skip calling complete_preprocessing_steps_if_required function
         logger::info!(
             "skipping preprocessing steps for connector as balance check is enabled: {}",
+            connector.connector_name
+        );
+        (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If order create flow is bloated up for the current connector
+            // order create call would have already happened in the previous step.
+            config
+                .settlement_split_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        logger::info!(
+            "skipping preprocessing steps for connector as settlement split is bloated: {}",
             connector.connector_name
         );
         (router_data, should_continue_further)

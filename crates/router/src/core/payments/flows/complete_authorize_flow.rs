@@ -414,6 +414,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     authenticate_router_data,
                     connector,
                     gateway_context,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
                 ))
                 .await?;
 
@@ -495,6 +498,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     post_authenticate_router_data,
                     connector,
                     gateway_context,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
                 ))
                 .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data

@@ -14,8 +14,10 @@ use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     core::{
-        payments::gateway::context::RouterGatewayContext, unified_connector_service,
-        unified_connector_service::handle_unified_connector_service_response_for_payment_register,
+        payments::gateway::context::RouterGatewayContext,
+        unified_connector_service::{
+            self, handle_unified_connector_service_response_for_incremental_authorization,
+        },
     },
     routes::SessionState,
     services::logger,
@@ -23,26 +25,30 @@ use crate::{
 };
 
 // =============================================================================
-// PaymentGateway Implementation for domain::SetupMandate
+// PaymentGateway Implementation for domain::IncrementalAuthorization
 // =============================================================================
 
-/// Implementation of PaymentGateway for api::PSync flow
+/// Implementation of PaymentGateway for api::IncrementalAuthorization flow
 #[async_trait]
 impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
         Self,
-        types::SetupMandateRequestData,
+        types::PaymentsIncrementalAuthorizationData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::SetupMandate
+    > for domain::IncrementalAuthorization
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        + RouterDataConversion<
+            Self,
+            types::PaymentsIncrementalAuthorizationData,
+            types::PaymentsResponseData,
+        >,
 {
     async fn execute(
         self: Box<Self>,
@@ -50,16 +56,20 @@ where
         _connector_integration: BoxedConnectorIntegrationInterface<
             Self,
             RCD,
-            types::SetupMandateRequestData,
+            types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
         >,
-        router_data: &RouterData<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        router_data: &RouterData<
+            Self,
+            types::PaymentsIncrementalAuthorizationData,
+            types::PaymentsResponseData,
+        >,
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        RouterData<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        RouterData<Self, types::PaymentsIncrementalAuthorizationData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -75,10 +85,12 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let setup_mandate_request =
-            payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
-                .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payment Get Request")?;
+        let incremental_authorization_request =
+            payments_grpc::PaymentServiceIncrementalAuthorizationRequest::foreign_try_from(
+                router_data,
+            )
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to construct Payment IncrementalAuthorization Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -103,78 +115,64 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
-            router_data.clone(),
-            state,
-            setup_mandate_request,
-            header_payload,
-            |mut router_data, setup_mandate_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_setup_mandate_granular(
-                    setup_mandate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                ))
-                .await
-                .attach_printable("Failed to get payment")?;
+        let updated_router_data =
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
+                router_data.clone(),
+                state,
+                incremental_authorization_request,
+                header_payload,
+                |mut router_data, incremental_authorization_request, grpc_headers| async move {
+                    let response = Box::pin(client.incremental_authorization(
+                        incremental_authorization_request,
+                        connector_auth_metadata,
+                        grpc_headers,
+                    ))
+                    .await
+                    .attach_printable("Failed to in incremental authorize payment")?;
 
-                let setup_mandate_response = response.into_inner();
+                    let incremental_authorization_response = response.into_inner();
 
-                let ucs_data = handle_unified_connector_service_response_for_payment_register(
-                    setup_mandate_response.clone(),
-                )
-                .attach_printable("Failed to deserialize UCS response")?;
+                    let (router_data_response, status_code) =
+                        handle_unified_connector_service_response_for_incremental_authorization(
+                            incremental_authorization_response.clone(),
+                        )
+                        .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = match ucs_data.router_data_response {
-                    Ok((response, status)) => {
-                        router_data.status = status;
-                        Ok(response)
-                    }
-                    Err(err) => {
-                        logger::debug!("Error in UCS router data response");
-                        if let Some(attempt_status) = err.attempt_status {
-                            router_data.status = attempt_status;
-                        }
-                        Err(err)
-                    }
-                };
-                router_data.response = router_data_response;
-                router_data.connector_http_status_code = Some(ucs_data.status_code);
+                    router_data.response = router_data_response;
+                    router_data.connector_http_status_code = Some(status_code);
 
-                // Populate connector_customer_id if present
-                ucs_data.connector_customer_id.map(|connector_customer_id| {
-                    router_data.connector_customer = Some(connector_customer_id);
-                });
+                    Ok((router_data, (), incremental_authorization_response))
+                },
+            ))
+            .await
+            .map(|(router_data, _)| router_data)
+            .change_context(ConnectorError::ResponseHandlingFailed)?;
 
-                ucs_data.connector_response.map(|connector_response| {
-                    router_data.connector_response = Some(connector_response);
-                });
-
-                Ok((router_data, (), setup_mandate_response))
-            },
-        ))
-        .await
-        .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        Ok(updated_router_data)
     }
 }
 
-/// Implementation of FlowGateway for api::PSync
+/// Implementation of FlowGateway for api::IncrementalAuthorization
 ///
 /// This allows the flow to provide its specific gateway based on execution path
 impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
-        types::SetupMandateRequestData,
+        types::PaymentsIncrementalAuthorizationData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::SetupMandate
+    > for domain::IncrementalAuthorization
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        + RouterDataConversion<
+            Self,
+            types::PaymentsIncrementalAuthorizationData,
+            types::PaymentsResponseData,
+        >,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
@@ -183,7 +181,7 @@ where
             SessionState,
             RCD,
             Self,
-            types::SetupMandateRequestData,
+            types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
             RouterGatewayContext,
         >,
