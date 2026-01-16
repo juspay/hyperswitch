@@ -37,7 +37,8 @@ const multiUseMandateData = {
   },
 };
 
-const billingAddress = {
+// Base billing address structure
+const baseBillingAddress = {
   address: {
     line1: "1467",
     line2: "Harrison Street",
@@ -45,13 +46,71 @@ const billingAddress = {
     state: "California",
     zip: "94122",
     country: "US",
-    first_name: "Test",
-    last_name: "User",
+    first_name: "John",
+    last_name: "Doe",
   },
   phone: {
     number: "9123456789",
     country_code: "+1",
   },
+};
+
+const billingAddress = {
+  ...baseBillingAddress,
+  address: {
+    ...baseBillingAddress.address,
+    first_name: "Test",
+    last_name: "User",
+  },
+};
+
+const billingAddressNL = {
+  ...baseBillingAddress,
+  address: {
+    ...baseBillingAddress.address,
+    country: "NL",
+  },
+  phone: {
+    ...baseBillingAddress.phone,
+    country_code: "+31",
+  },
+};
+
+const billingAddressAT = {
+  ...baseBillingAddress,
+  address: {
+    ...baseBillingAddress.address,
+    country: "AT",
+  },
+  phone: {
+    ...baseBillingAddress.phone,
+    country_code: "+43",
+  },
+};
+
+const billingAddressDE = {
+  ...baseBillingAddress,
+  address: {
+    ...baseBillingAddress.address,
+    country: "DE",
+  },
+  phone: {
+    ...baseBillingAddress.phone,
+    country_code: "+49",
+  },
+};
+
+const billingAddressPL = {
+  ...baseBillingAddress,
+  address: {
+    ...baseBillingAddress.address,
+    country: "PL",
+  },
+  phone: {
+    ...baseBillingAddress.phone,
+    country_code: "+48",
+  },
+  email: "test@example.com",
 };
 
 export const connectorDetails = {
@@ -663,6 +722,109 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressNL,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressAT,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {},
+          },
+        },
+        billing: billingAddressDE,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: billingAddressDE,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "Unprocessable Entity",
+          error_message: "method",
+        },
+      },
+    },
+    Przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressPL,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },

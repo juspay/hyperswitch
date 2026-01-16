@@ -247,6 +247,7 @@ impl PaymentAttemptInterface for MockDb {
             authorized_amount: payment_attempt.authorized_amount,
             tokenization: payment_attempt.tokenization,
             encrypted_payment_method_data: payment_attempt.encrypted_payment_method_data,
+            error_details: payment_attempt.error_details,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
