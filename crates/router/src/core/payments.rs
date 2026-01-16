@@ -265,7 +265,7 @@ where
                 )
                 .await?;
 
-            let (router_data, updated_customer) = decide_unified_connector_service_call(
+            let router_data = decide_unified_connector_service_call(
                 state,
                 req_state.clone(),
                 platform.get_processor(),
@@ -284,7 +284,6 @@ where
                 req.should_return_raw_response(),
                 mca_type_details,
                 router_data,
-                updated_customer,
                 tokenization_action,
             )
             .await?;
@@ -345,7 +344,7 @@ where
                 )
                 .await?;
 
-            let (router_data, updated_customer) = decide_unified_connector_service_call(
+            let router_data = decide_unified_connector_service_call(
                 state,
                 req_state.clone(),
                 platform.get_processor(),
@@ -364,7 +363,6 @@ where
                 req.should_return_raw_response(),
                 mca_type_details,
                 router_data,
-                updated_customer,
                 tokenization_action,
             )
             .await?;
@@ -4671,13 +4669,9 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    updated_customer: Option<storage::CustomerUpdate>,
     tokenization_action: TokenizationAction,
     gateway_context: gateway_context::RouterGatewayContext,
-) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    Option<storage::CustomerUpdate>,
-)>
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
@@ -4796,7 +4790,7 @@ where
         Ok(router_data)
     }?;
 
-    Ok((router_data, updated_customer))
+    Ok(router_data)
 }
 
 #[cfg(feature = "v2")]
@@ -5167,7 +5161,6 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 #[instrument(skip_all)]
 pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
@@ -5187,12 +5180,8 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    updated_customer: Option<storage::CustomerUpdate>,
     tokenization_action: TokenizationAction,
-) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    Option<storage::CustomerUpdate>,
-)>
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
@@ -5257,7 +5246,6 @@ where
             return_raw_connector_response,
             merchant_connector_account_type_details,
             router_data,
-            updated_customer,
             tokenization_action,
             gateway_context,
         )
