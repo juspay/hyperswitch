@@ -16,8 +16,8 @@ use crate::{
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
         GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, ProcessIncomingWebhook,
-        VerifyWebhookSource, Void,
+        ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
+        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
