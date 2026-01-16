@@ -15,8 +15,7 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payments as domain_payments, router_data,
     router_data_v2::{flow_common_types, PaymentFlowData},
-    router_flow_types, router_request_types, router_flow_types, router_request_types,
-    router_response_types,
+    router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
     api::{self as api_interface, gateway, ConnectorSpecifications},
