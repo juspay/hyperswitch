@@ -17,9 +17,9 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "worldpay zift"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix worldpay"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu zift"
+  # MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "worldpay zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "iatapay cashtocode peachpayments"
@@ -175,12 +175,6 @@ jobs:
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
                   "parallel": 3,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-2"
-                },
-                {
-                  "name": "batch-3",
-                  "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_3}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-mandatory-test-results-batch-3"
                 }
               ]
             }'
