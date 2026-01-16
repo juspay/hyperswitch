@@ -153,6 +153,14 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
     }
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.request_id.clone()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id.clone());
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
+    }
 }
 impl SessionState {
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
