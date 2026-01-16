@@ -2060,10 +2060,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRevokeMandateResp
             })
         } else {
             let mandate_status = match response.status {
+                0 => common_enums::MandateStatus::Pending,
                 1 => common_enums::MandateStatus::Active,
                 2 => common_enums::MandateStatus::Inactive,
-                3 => common_enums::MandateStatus::Pending,
-                4 => common_enums::MandateStatus::Revoked,
+                3 => common_enums::MandateStatus::Revoked,
                 _ => common_enums::MandateStatus::Pending,
             };
 

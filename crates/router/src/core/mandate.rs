@@ -115,7 +115,7 @@ pub async fn revoke_mandate(
                     &state,
                     &platform,
                     &router_data,
-                    None, // No previous gateway for mandate revoke
+                    None,
                     CallConnectorAction::Trigger,
                     None,
                 )
@@ -133,7 +133,7 @@ pub async fn revoke_mandate(
             };
 
             let gateway_context = RouterGatewayContext {
-                creds_identifier: None, // No creds identifier for mandate revoke
+                creds_identifier: None,
                 platform: platform.clone(),
                 header_payload: HeaderPayload::default(),
                 lineage_ids,
