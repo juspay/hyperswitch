@@ -3886,7 +3886,7 @@ impl From<OrderErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: OrderErrorDetails) -> Self {
         Self {
             error_code: error.issue.to_string(),
-            error_message: error.description,
+            error_message: error.issue,
         }
     }
 }
@@ -3895,7 +3895,7 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: ErrorDetails) -> Self {
         Self {
             error_code: error.issue.to_string(),
-            error_message: error.description.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            error_message: error.issue.to_string(),
         }
     }
 }
