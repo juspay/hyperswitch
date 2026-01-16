@@ -64,9 +64,7 @@ pub async fn organization_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| {
-            update_organization(state, org_id.clone(), req)
-        },
+        |state, _, req, _| update_organization(state, org_id.clone(), req),
         auth::auth_type(
             &auth::PlatformOrgAdminAuth {
                 is_admin_auth_allowed: true,
