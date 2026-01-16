@@ -4,6 +4,7 @@ pub use hyperswitch_domain_models::{
 };
 use masking::{PeekInterface, Secret};
 use serde::Deserialize;
+use url::Url;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -90,11 +91,27 @@ pub struct InternalMerchantIdProfileIdAuthSettings {
     pub internal_api_key: Secret<String>,
 }
 
+fn default_payment_methods_base_url() -> Url {
+    #[allow(clippy::expect_used)]
+    Url::parse("http://localhost:8080").expect("Failed to parse default payment_methods_base_url")
+}
+
+impl Default for InternalServicesConfig {
+    fn default() -> Self {
+        Self {
+            payments_base_url: "http://localhost:8080".to_string(),
+            payment_methods_base_url: default_payment_methods_base_url(),
+        }
+    }
+}
+
 #[allow(missing_docs)]
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct InternalServicesConfig {
     pub payments_base_url: String,
+    #[serde(default = "default_payment_methods_base_url")]
+    pub payment_methods_base_url: Url,
 }
 
 #[allow(missing_docs)]
