@@ -186,8 +186,8 @@ impl Paypal {
                 .map(|error_code_message| error_code_message.error_code)
                 .unwrap_or(NO_ERROR_CODE.to_string()),
             message: option_error_code_message
-                    .map(|error_code_message| error_code_message.error_message)
-                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                .map(|error_code_message| error_code_message.error_message)
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
