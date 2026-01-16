@@ -12,7 +12,8 @@ use external_services::grpc_client;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
-    router_data_v2::PaymentFlowData, router_response_types,
+    router_data_v2::PaymentFlowData, router_flow_types, router_request_types,
+    router_response_types,
 };
 use hyperswitch_interfaces::{
     api::{self as api_interface, gateway, ConnectorSpecifications},
@@ -362,17 +363,32 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 pre_authenticate_router_data,
                 connector,
                 gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
             ))
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
-            let authorize_router_data =
+            let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     pre_authenticate_router_data,
                     authorize_request_data,
                     pre_authenticate_response,
                 );
+            if let Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2,
+                related_transaction_id,
+            }) = &authorize_router_data.response
+            {
+                let (enrolled_for_3ds, related_transaction_id) =
+                    (*enrolled_v2, related_transaction_id.clone());
+                authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+                authorize_router_data.request.related_transaction_id = related_transaction_id;
+            }
             let should_continue_after_preauthenticate = match connector.connector_name {
+                // connector specific handling to decide whether to continue with authorize or not should not be done here
+                // this is just a temporary fix for Redsys and Shift4 connectors
                 api_models::enums::Connector::Redsys => match &authorize_router_data.response {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         connector_metadata,
@@ -389,6 +405,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }
                     _ => false,
                 },
+                api_models::enums::Connector::Shift4 => true,
+                api_models::enums::Connector::Nuvei => true,
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
@@ -520,6 +538,86 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 }
             }
             _ => Ok((None, true)),
+        }
+    }
+
+    async fn settlement_split_call<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)> {
+        if connector.connector.is_settlement_split_call_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) && state
+            .conf
+            .preprocessing_flow_config
+            .as_ref()
+            .is_some_and(|config| {
+                // check order create flow is bloated up for the current connector
+                config
+                    .settlement_split_bloated_connectors
+                    .contains(&connector.connector_name)
+            })
+        {
+            logger::info!(
+                "Settlement Split call is required for connector: {}",
+                connector.connector_name
+            );
+            let authorize_request_data = self.request.clone();
+            let settlement_split_request_data =
+                router_request_types::SettlementSplitRequestData::try_from(
+                    self.request.to_owned(),
+                )?;
+            let settlement_split_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let settlement_split_router_data = helpers::router_data_type_conversion::<
+                _,
+                router_flow_types::SettlementSplitCreate,
+                _,
+                _,
+                _,
+                _,
+            >(
+                self.clone(),
+                settlement_split_request_data,
+                settlement_split_response_data,
+            );
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                router_flow_types::SettlementSplitCreate,
+                router_request_types::SettlementSplitRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+            let settlement_split_router_data = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &settlement_split_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_payment_failed_response()?;
+            // Convert back to Authorize router data while preserving preprocessing response data
+            let settlement_split_response = settlement_split_router_data.response.clone();
+            let authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                    settlement_split_router_data,
+                    authorize_request_data,
+                    settlement_split_response,
+                );
+            // Continue the payment only if settlement split call was successful
+            let should_continue_payment = authorize_router_data.response.is_ok();
+            Ok((authorize_router_data, should_continue_payment))
+        } else {
+            // If the connector does not require settlement split call, return the original router data
+            // with should_continue_payment as true
+            Ok((self, true))
         }
     }
 

@@ -153,7 +153,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 phone_number: address
                                     .phone
                                     .as_ref()
-                                    .and_then(|phone| phone.number.clone()),
+                                    .and_then(|phone_details| phone_details.number.clone())
+                                    .and_then(utils::trim_secret_string),
                                 email: address
                                     .email
                                     .as_ref()
@@ -193,7 +194,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                     country_code: address
                         .phone
                         .as_ref()
-                        .and_then(|value| value.country_code.clone()),
+                        .and_then(|phone_details| phone_details.country_code.clone())
+                        .and_then(utils::trim_string),
                     updated_by: storage_scheme.to_string(),
                     email: encryptable_address.email.map(|email| {
                         let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
@@ -361,7 +363,8 @@ pub async fn get_domain_address(
                         phone_number: address
                             .phone
                             .as_ref()
-                            .and_then(|phone| phone.number.clone()),
+                            .and_then(|phone_details| phone_details.number.clone())
+                            .and_then(utils::trim_secret_string),
                         email: address
                             .email
                             .as_ref()
@@ -380,7 +383,11 @@ pub async fn get_domain_address(
                 .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
             phone_number: encryptable_address.phone_number,
-            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+            country_code: address
+                .phone
+                .as_ref()
+                .and_then(|phone_details| phone_details.country_code.clone())
+                .and_then(utils::trim_string),
             merchant_id: merchant_id.to_owned(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
@@ -1623,13 +1630,15 @@ pub fn get_customer_details_from_request(
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone.clone())
-        .or(request.phone.clone());
+        .or(request.phone.clone())
+        .and_then(utils::trim_secret_string);
 
     let customer_phone_code = request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone_country_code.clone())
-        .or(request.phone_country_code.clone());
+        .or(request.phone_country_code.clone())
+        .and_then(utils::trim_string);
 
     let tax_registration_id = request
         .customer
@@ -4242,6 +4251,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4331,6 +4341,7 @@ mod tests {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4418,6 +4429,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4941,6 +4953,7 @@ impl AttemptType {
             issuer_error_message: None,
             debit_routing_savings: None,
             is_overcapture_enabled: None,
+            error_details: None,
         }
     }
 
@@ -5678,14 +5691,15 @@ pub fn is_apple_pay_simplified_flow(
         .ok();
 
     // return true only if the apple flow type is simplified
-    Ok(matches!(
-        option_apple_pay_metadata,
-        Some(
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
-            )
-        )
-    ))
+    Ok(match option_apple_pay_metadata {
+        Some(api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+            combined_data,
+        )) => matches!(
+            combined_data.data,
+            Some(api_models::payments::ApplePayCombinedMetadata::Simplified { .. })
+        ),
+        _ => false,
+    })
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
@@ -5810,6 +5824,30 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
+pub fn is_googlepay_predecrypted_flow_supported(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .map(|metadata| metadata.google_pay.is_predecrypted_token_supported())
+        .unwrap_or(false)
+}
+pub fn is_applepay_predecrypted_flow_supported(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .ok()
+        .map(|apple_pay_metadata| {
+            apple_pay_metadata
+                .apple_pay_combined
+                .is_predecrypted_token_supported()
+        })
+        .unwrap_or(false)
+}
 pub fn get_applepay_metadata(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
@@ -5818,6 +5856,7 @@ pub fn get_applepay_metadata(
         .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
             "ApplepayCombinedSessionTokenData",
         )
+        .change_context(errors::ConnectorError::ParsingFailed)
         .map(|combined_metadata| {
             api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                 combined_metadata.apple_pay_combined,
@@ -5828,6 +5867,7 @@ pub fn get_applepay_metadata(
                 .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                     "ApplepaySessionTokenData",
                 )
+                .change_context(errors::ConnectorError::ParsingFailed)
                 .map(|old_metadata| {
                     api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
                         old_metadata.apple_pay,

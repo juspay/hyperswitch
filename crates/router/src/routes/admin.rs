@@ -560,9 +560,9 @@ pub async fn connector_create(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::ProfileConnectorWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(Permission::ProfileConnectorWrite),
             },
             req.headers(),
         ),
@@ -637,12 +637,12 @@ pub async fn connector_retrieve(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
                 // This should ideally be ProfileConnectorRead, but since this API responds with
                 // sensitive data, keeping this as ProfileConnectorWrite
                 // TODO: Convert this to ProfileConnectorRead once data is masked.
-                required_permission: Permission::ProfileConnectorWrite,
+                permission: Some(Permission::ProfileConnectorWrite),
             },
             req.headers(),
         ),
@@ -779,9 +779,9 @@ pub async fn connector_list_profile(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::ProfileConnectorRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id),
+                permission: Some(Permission::ProfileConnectorRead),
             },
             req.headers(),
         ),
@@ -823,9 +823,9 @@ pub async fn connector_update(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::ProfileConnectorWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(Permission::ProfileConnectorWrite),
             },
             req.headers(),
         ),

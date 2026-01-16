@@ -781,6 +781,7 @@ pub fn make_new_payment_attempt(
         issuer_error_message: Default::default(),
         debit_routing_savings: Default::default(),
         is_overcapture_enabled: Default::default(),
+        error_details: Default::default(),
     }
 }
 

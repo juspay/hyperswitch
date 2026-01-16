@@ -405,6 +405,12 @@ pub enum CurrentFlowInfo<'a> {
         /// The payment method that is used
         payment_method: Option<PaymentMethod>,
     },
+
+    /// SetupMandate flow information
+    SetupMandate {
+        /// The authentication type being used
+        auth_type: &'a enums::AuthenticationType,
+    },
 }
 
 /// Alternate API flow that must be made instead of the current flow.
@@ -452,6 +458,10 @@ pub trait ConnectorSpecifications {
     }
     /// Check if post-authentication flow is required
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
+    /// Check if pre-authentication flow is required
+    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
@@ -579,6 +589,13 @@ pub trait ConnectorSpecifications {
     /// Check if connector needs tokenization call before setup mandate flow
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
+    }
+
+    /// Get connector's API webhook configuration object
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
     }
 }
 
