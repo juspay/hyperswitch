@@ -1,7 +1,8 @@
+use super::{
+    request::{DeleteV1Request, DeleteV2Request},
+    response::{DeleteV1Response, DeleteV2Response},
+};
 use crate::services::clients::payment_methods::error::PaymentMethodClientError;
-
-use super::request::{DeleteV1Request, DeleteV2Request};
-use super::response::{DeleteV1Response, DeleteV2Response};
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 

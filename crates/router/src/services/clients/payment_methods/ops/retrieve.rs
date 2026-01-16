@@ -2,10 +2,11 @@ pub mod request;
 pub mod response;
 pub mod transformers;
 
-use super::ClientOperation;
-use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 use request::{RetrieveV1Request, RetrieveV2Request};
 use response::{RetrieveV1Response, RetrieveV2Response};
+
+use super::ClientOperation;
+use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 
 pub struct RetrievePaymentMethod {
     payment_method_id: String,
@@ -52,12 +53,12 @@ impl ClientOperation for RetrievePaymentMethod {
         let path = format!("/v2/payment-methods/{}", self.payment_method_id);
         let payload: RetrieveV2Response = client
             .execute_request(
-            common_utils::request::Method::Get,
-            &path,
-            request.body,
-            self.operation(),
-        )
-        .await?;
+                common_utils::request::Method::Get,
+                &path,
+                request.body,
+                self.operation(),
+            )
+            .await?;
         Ok(payload)
     }
 

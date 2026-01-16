@@ -2,10 +2,11 @@ pub mod request;
 pub mod response;
 pub mod transformers;
 
-use super::ClientOperation;
-use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 use request::{DeleteV1Request, DeleteV2Request};
 use response::{DeleteV1Response, DeleteV2Response};
+
+use super::ClientOperation;
+use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 
 pub struct DeletePaymentMethod {
     payment_method_id: String,
@@ -52,12 +53,12 @@ impl ClientOperation for DeletePaymentMethod {
         let path = format!("/v2/payment-methods/{}", self.payment_method_id);
         let payload: DeleteV2Response = client
             .execute_request(
-            common_utils::request::Method::Delete,
-            &path,
-            request.body,
-            self.operation(),
-        )
-        .await?;
+                common_utils::request::Method::Delete,
+                &path,
+                request.body,
+                self.operation(),
+            )
+            .await?;
         Ok(payload)
     }
 

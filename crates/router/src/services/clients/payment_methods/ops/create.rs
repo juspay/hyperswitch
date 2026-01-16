@@ -2,10 +2,11 @@ pub mod request;
 pub mod response;
 pub mod transformers;
 
-use super::ClientOperation;
-use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 use request::{CreateV1Request, CreateV2Request};
 use response::{CreateV1Response, CreateV2Response};
+
+use super::ClientOperation;
+use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 
 pub struct CreatePaymentMethod {
     payload: serde_json::Value,
@@ -46,12 +47,12 @@ impl ClientOperation for CreatePaymentMethod {
         let path = "/v2/payment-methods";
         let payload: CreateV2Response = client
             .execute_request(
-            common_utils::request::Method::Post,
-            path,
-            request.body,
-            self.operation(),
-        )
-        .await?;
+                common_utils::request::Method::Post,
+                path,
+                request.body,
+                self.operation(),
+            )
+            .await?;
         Ok(payload)
     }
 

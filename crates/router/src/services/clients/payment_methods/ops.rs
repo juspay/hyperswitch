@@ -3,10 +3,11 @@ pub mod delete;
 pub mod retrieve;
 pub mod update;
 
+use router_env::logger;
+
 use crate::services::clients::payment_methods::{
     client::ModularPaymentMethodClient, error::PaymentMethodClientError,
 };
-use router_env::logger;
 
 #[async_trait::async_trait]
 pub trait ClientOperation {

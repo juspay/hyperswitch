@@ -2,10 +2,11 @@ pub mod request;
 pub mod response;
 pub mod transformers;
 
-use super::ClientOperation;
-use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 use request::{UpdateV1Request, UpdateV2Request};
 use response::{UpdateV1Response, UpdateV2Response};
+
+use super::ClientOperation;
+use crate::services::clients::payment_methods::error::PaymentMethodClientError;
 
 pub struct UpdatePaymentMethod {
     payment_method_id: String,
@@ -60,12 +61,12 @@ impl ClientOperation for UpdatePaymentMethod {
         );
         let payload: UpdateV2Response = client
             .execute_request(
-            common_utils::request::Method::Patch,
-            &path,
-            request.body,
-            self.operation(),
-        )
-        .await?;
+                common_utils::request::Method::Patch,
+                &path,
+                request.body,
+                self.operation(),
+            )
+            .await?;
         Ok(payload)
     }
 

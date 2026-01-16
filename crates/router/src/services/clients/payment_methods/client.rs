@@ -1,12 +1,13 @@
-use crate::services::clients::payment_methods::{error::PaymentMethodClientError, ops};
-use crate::services::clients::payment_methods::ops::ClientOperation;
 use common_utils::request::{Method as RequestMethod, Request, RequestContent};
-use hyperswitch_interfaces::api_client::call_connector_api;
+use hyperswitch_interfaces::api_client::{call_connector_api, ApiClientWrapper};
 use router_env::logger;
 use serde::de::DeserializeOwned;
-use hyperswitch_interfaces::api_client::ApiClientWrapper;
 use serde_json::Value;
 use url::Url;
+
+use crate::services::clients::payment_methods::{
+    error::PaymentMethodClientError, ops, ops::ClientOperation,
+};
 
 pub struct ModularPaymentMethodClient<'a> {
     state: &'a dyn ApiClientWrapper,

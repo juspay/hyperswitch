@@ -1,7 +1,8 @@
+use super::{
+    request::{CreateV1Request, CreateV2Request},
+    response::{CreateV1Response, CreateV2Response},
+};
 use crate::services::clients::payment_methods::error::PaymentMethodClientError;
-
-use super::request::{CreateV1Request, CreateV2Request};
-use super::response::{CreateV1Response, CreateV2Response};
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 

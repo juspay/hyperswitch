@@ -34,8 +34,6 @@ use router_env::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
-#[cfg(feature = "v1")]
-use crate::services::clients::payment_methods::ModularPaymentMethodClient;
 
 use self::settings::Tenant;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -100,6 +98,8 @@ use crate::routes::fraud_check as frm_routes;
 use crate::routes::profile_acquirer;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
+#[cfg(feature = "v1")]
+use crate::services::clients::payment_methods::ModularPaymentMethodClient;
 pub use crate::{
     configs::settings,
     db::{
@@ -197,10 +197,7 @@ impl SessionState {
     }
     #[cfg(feature = "v1")]
     pub fn modular_pm_client(&self) -> ModularPaymentMethodClient<'_> {
-        ModularPaymentMethodClient::new(
-            self,
-            &self.conf.internal_services.payment_methods_base_url,
-        )
+        ModularPaymentMethodClient::new(self, &self.conf.internal_services.payment_methods_base_url)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
