@@ -22,8 +22,10 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> =
-        QueryBuilder::new(AnalyticsCollection::ConnectorEvents);
+    let mut query_builder: QueryBuilder<T> = match query_param.payment_id {
+        Some(_) => QueryBuilder::new(AnalyticsCollection::ConnectorEvents),
+        None => QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents),
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
@@ -65,7 +67,8 @@ where
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorEventsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: Option<String>,
+    pub payout_id: Option<String>,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,
     pub flow: String,

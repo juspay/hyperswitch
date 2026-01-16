@@ -348,6 +348,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::InstantBankTransferFinland
                 | PaymentMethodType::InstantBankTransferPoland
                 | PaymentMethodType::IndonesianBankTransfer
+                | PaymentMethodType::Qris
                 | PaymentMethodType::SepaBankTransfer
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
@@ -1028,12 +1029,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                 field_name: "currency",
             })?,
         };
-        let amount = match data.request.minor_amount {
-            Some(amount) => amount,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?,
-        };
+        let amount = data.request.minor_amount;
 
         let amount = convert_amount(self.amount_converter, amount, currency)?;
 
@@ -3347,7 +3343,6 @@ impl ConnectorSpecifications for Adyen {
         Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    #[cfg(feature = "v1")]
     fn generate_connector_customer_id(
         &self,
         customer_id: &Option<common_utils::id_type::CustomerId>,

@@ -82,7 +82,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, convert_amount, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        RefundsRequestData, RouterData as OtherRouterData,
+        PaymentsPreAuthenticateRequestData, RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -665,12 +665,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
+        let minor_amount = req.request.minor_amount;
         let currency =
             req.request
                 .currency
@@ -759,14 +754,8 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount = req.request.minor_amount;
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-
+        let minor_amount = req.request.get_minor_amount();
+        let currency = req.request.get_currency()?;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
 
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
@@ -2312,6 +2301,7 @@ impl ConnectorSpecifications for Cybersource {
                     Some(_) | None => Some(api::PreProcessingFlowName::PostAuthenticate),
                 }
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => None,
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2331,6 +2321,7 @@ impl ConnectorSpecifications for Cybersource {
             }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
+            api::CurrentFlowInfo::SetupMandate { .. } => None,
         }
     }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
@@ -2341,6 +2332,7 @@ impl ConnectorSpecifications for Cybersource {
             } => self.is_3ds_setup_required(request_data, *auth_type),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -2364,6 +2356,7 @@ impl ConnectorSpecifications for Cybersource {
                     Some(_) | None => false,
                 }
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -2387,6 +2380,7 @@ impl ConnectorSpecifications for Cybersource {
                     Some(_) | None => true,
                 }
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 }

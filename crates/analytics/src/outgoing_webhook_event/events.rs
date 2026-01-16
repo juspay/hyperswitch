@@ -22,8 +22,10 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> =
-        QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEvent);
+    let mut query_builder: QueryBuilder<T> = match query_param.payment_id.as_ref() {
+        Some(_) => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEvent),
+        None => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookPayoutEvent),
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
@@ -85,7 +87,8 @@ pub struct OutgoingWebhookLogsResult {
     pub event_id: String,
     pub event_type: String,
     pub outgoing_webhook_event_type: String,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub payout_id: Option<common_utils::id_type::PayoutId>,
     pub refund_id: Option<String>,
     pub attempt_id: Option<String>,
     pub dispute_id: Option<String>,

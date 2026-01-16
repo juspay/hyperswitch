@@ -1669,6 +1669,19 @@ impl ConnectorSpecifications for Nuvei {
         Some(&NUVEI_CONNECTOR_INFO)
     }
 
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data: _,
+            } => *auth_type == enums::AuthenticationType::ThreeDs,
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { auth_type } => {
+                *auth_type == enums::AuthenticationType::ThreeDs
+            }
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*NUVEI_SUPPORTED_PAYMENT_METHODS)
     }

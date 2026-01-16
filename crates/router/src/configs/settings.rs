@@ -182,6 +182,14 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+    pub save_payment_method_on_session: OnSessionConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OnSessionConfig {
+    #[serde(default, deserialize_with = "deserialize_hashmap")]
+    pub unsupported_payment_methods:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -593,6 +601,7 @@ pub struct NetworkTokenizationService {
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
+    pub allowed_card_authentication_type: Option<common_enums::AuthenticationType>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
