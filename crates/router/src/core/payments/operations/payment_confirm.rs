@@ -1589,9 +1589,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 &payment_data.payment_attempt.clone(),
                 payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
             );
-            let optional_mca_id = three_ds_connector_account.get_mca_id();
+            let three_ds_mca_id = three_ds_connector_account.get_mca_id();
 
-            let merchant_connector_account_id_or_connector_name = optional_mca_id
+            let merchant_connector_account_id_or_connector_name = three_ds_mca_id
                 .as_ref()
                 .map(|mca_id| mca_id.get_string_repr())
                 .unwrap_or(&authentication_connector_name);

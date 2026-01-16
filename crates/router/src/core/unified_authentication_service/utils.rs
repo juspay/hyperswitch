@@ -721,6 +721,9 @@ async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> 
     let db = &*state.store;
     db.find_config_by_key(key)
         .await
+        .inspect_err(|err| {
+            router_env::logger::error!("Failed to fetch region for key as {err}");
+        })
         .ok()
         .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }
