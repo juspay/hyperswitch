@@ -197,7 +197,6 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-      RUN_TESTS: ${{env.RUN_TESTS}}
 
     services:
       redis:
