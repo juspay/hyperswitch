@@ -8997,8 +8997,8 @@ async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsFo
     connector_choice: T,
     business_profile: &domain::Profile,
 ) -> RouterResult<(
-    api_models::payments::MandateReferenceId,
-    hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    Option<api_models::payments::MandateReferenceId>,
+    Option<hyperswitch_domain_models::payment_method_data::PaymentMethodData>,
     api::ConnectorData,
 )>
 where
@@ -9043,12 +9043,7 @@ where
 
     let recurring_details = domain_recurring_details::try_from(recurring_payment_details.clone())?;
     let (mandate_reference_id, payment_method_details_for_network_transaction_id) =
-        recurring_details
-            .get_nti_and_payment_method_data_for_mit_flow()
-            .get_required_value("network transaction id and payment method details")
-            .attach_printable(
-                "Failed to fetch network transaction id and payment method details for mit",
-            )?;
+        recurring_details.get_nti_and_payment_method_data_for_mit_flow();
     Ok((
         mandate_reference_id,
         payment_method_details_for_network_transaction_id,
@@ -9067,37 +9062,34 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let (
-        mandate_reference_id,
-        payment_method_details_for_network_transaction_id,
-        eligible_connector_data,
-    ) = match connector_choice {
-        api::ConnectorChoice::StraightThrough(straight_through) => {
-            get_eligible_connector_for_nti(
-                state,
-                key_store,
-                payment_data,
-                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                business_profile,
-            )
-            .await?
-        }
-        api::ConnectorChoice::Decide => {
-            get_eligible_connector_for_nti(
-                state,
-                key_store,
-                payment_data,
-                core_routing::DecideConnector,
-                business_profile,
-            )
-            .await?
-        }
-        api::ConnectorChoice::SessionMultiple(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Invalid routing rule configured for nti and card details based mit flow",
-            )?
-        }
-    };
+    let (mandate_reference_id, payment_method_details, eligible_connector_data) =
+        match connector_choice {
+            api::ConnectorChoice::StraightThrough(straight_through) => {
+                get_eligible_connector_for_nti(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    business_profile,
+                )
+                .await?
+            }
+            api::ConnectorChoice::Decide => {
+                get_eligible_connector_for_nti(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    business_profile,
+                )
+                .await?
+            }
+            api::ConnectorChoice::SessionMultiple(_) => {
+                Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid routing rule configured for nti and card details based mit flow",
+                )?
+            }
+        };
 
     // Set the eligible connector in the attempt
     payment_data
@@ -9106,11 +9098,11 @@ where
     // Set `NetworkMandateId` as the MandateId
     payment_data.set_mandate_id(payments_api::MandateIds {
         mandate_id: None,
-        mandate_reference_id: Some(mandate_reference_id),
+        mandate_reference_id,
     });
 
     // Set the card details received in the recurring details within the payment method data.
-    payment_data.set_payment_method_data(Some(payment_method_details_for_network_transaction_id));
+    payment_data.set_payment_method_data(payment_method_details);
 
     Ok(eligible_connector_data)
 }

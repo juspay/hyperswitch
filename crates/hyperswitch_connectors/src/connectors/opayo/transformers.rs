@@ -89,6 +89,7 @@ impl TryFrom<&OpayoRouterData<&PaymentsAuthorizeRouterData>> for OpayoPaymentsRe
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     crate::utils::get_unimplemented_payment_method_error_message("Opayo"),

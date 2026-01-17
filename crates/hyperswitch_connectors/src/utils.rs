@@ -6386,6 +6386,7 @@ pub enum PaymentMethodDataType {
     Benefit,
     MomoAtm,
     CardRedirect,
+    CardWithLimitedDetails,
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
@@ -6515,6 +6516,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails
             }
+            PaymentMethodData::CardWithLimitedDetails(_) => Self::CardWithLimitedDetails,
             PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndNetworkTokenDetails
             }
