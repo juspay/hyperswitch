@@ -17,9 +17,9 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix worldpay"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu zift"
-  # MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "worldpay zift"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "worldpay zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "iatapay cashtocode peachpayments"
@@ -152,7 +152,7 @@ jobs:
     name: Prepare Mandatory Connectors matrix to run cypress tests
     runs-on: hyperswitch-runners
     outputs:
-      mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.mandatory-matrix }} # Key must match
+      mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
       run_tests: ${{ steps.set-mandatory-matrix.outputs.run_tests }}
     steps:    
       - name : Set matrix for mandatory connectors batches
@@ -161,7 +161,7 @@ jobs:
         run: |
           echo "run_tests=${RUN_TESTS}" >> "$GITHUB_OUTPUT"
           {
-            echo "mandatory-matrix<<EOF" # Changed from "matrix<<EOF"
+            echo "matrix<<EOF"
             echo '{
               "batch": [
                 {
@@ -193,10 +193,11 @@ jobs:
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
+      matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['matrix']) }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      RUN_TESTS: ${{env.RUN_TESTS}}
 
     services:
       redis:
@@ -224,12 +225,12 @@ jobs:
 
     steps:
       - name: Skip tests for PRs from forks
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'false'
+        if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v5
 
       - name: Install Rust
