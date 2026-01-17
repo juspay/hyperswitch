@@ -18,7 +18,7 @@ env:
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay paypal"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "worldpay zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
@@ -153,13 +153,11 @@ jobs:
     runs-on: hyperswitch-runners
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
-      run_tests: ${{ steps.set-mandatory-matrix.outputs.run_tests }}
     steps:    
       - name : Set matrix for mandatory connectors batches
         id: set-mandatory-matrix
         shell: bash
         run: |
-          echo "run_tests=${RUN_TESTS}" >> "$GITHUB_OUTPUT"
           {
             echo "matrix<<EOF"
             echo '{
@@ -233,32 +231,32 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Install Rust
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
       
       - name: Install sccache
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Download hyperswitch server artifact
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -275,13 +273,13 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -289,7 +287,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
@@ -297,42 +295,42 @@ jobs:
           args: --no-default-features
 
       - name: Install Just
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
       - name: Install Cypress and dependencies
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Insert GSM info into the database
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Setup Local Server
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -359,7 +357,7 @@ jobs:
           done
 
       - name: Run Cypress tests
-        if: needs.prepare-mandatory-matrix.outputs.run_tests == 'true'
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -371,7 +369,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
-        if: matrix.run_tests && failure()
+        if: ${{ env.RUN_TESTS == 'true' }} && failure()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.batch.report_artifact_name }}
@@ -383,7 +381,7 @@ jobs:
     name: Check on Mandatory connector tests
     needs: [runner]
     runs-on: ubuntu-latest
-    if: always() # CRITICAL: Ensures this runs even if 'runner' fails
+    if: always()
     steps:
       - name: Evaluate Matrix Results
         shell: bash
