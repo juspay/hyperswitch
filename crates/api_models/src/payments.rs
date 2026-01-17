@@ -4808,14 +4808,10 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         #[smithy(value_type = "Option<String>")]
         pix_key: Option<Secret<String>>,
-        /// CPF is a Brazilian tax identification number
-        #[schema(value_type = Option<String>, example = "10599054689")]
-        #[smithy(value_type = "Option<String>")]
-        cpf: Option<Secret<String>>,
-        /// CNPJ is a Brazilian company tax identification number
-        #[schema(value_type = Option<String>, example = "74469027417312")]
-        #[smithy(value_type = "Option<String>")]
-        cnpj: Option<Secret<String>>,
+        /// Document details for pix transfer
+        #[schema(value_type = Option<DocumentType>, )]
+        #[smithy(value_type = "Option<DocumentType>")]
+        document_details: Option<DocumentDetails>,
         /// Source bank account number
         #[schema(value_type = Option<String>, example = "8b******-****-****-****-*******08bc5")]
         #[smithy(value_type = "Option<String>")]
@@ -4849,6 +4845,18 @@ pub enum BankTransferData {
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DocumentDetails {
+    /// Specifies the type of document - Cpf or Cnpj
+    pub document_type: enums::DocumentKind,
+    /// Cpf or Cnpj number
+    pub document_number: Secret<String>,
 }
 
 #[derive(
@@ -6776,6 +6784,7 @@ pub enum QrCodeInformation {
     QrCodeImageUrl {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
+        expiry_type: Option<ExpiryType>,
     },
     QrColorDataUrl {
         color_image_data_url: Url,
@@ -6783,6 +6792,13 @@ pub enum QrCodeInformation {
         display_text: Option<String>,
         border_color: Option<String>,
     },
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpiryType {
+    Immediate,
+    Scheduled,
 }
 
 #[derive(
@@ -9417,7 +9433,9 @@ pub struct PaymentsUpdateMetadataRequest {
     pub payment_id: id_type::PaymentId,
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: pii::SecretSerdeValue,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -9428,6 +9446,12 @@ pub struct PaymentsUpdateMetadataResponse {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The status of the payment intent after the metadata update
+    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    pub status: api_enums::IntentStatus,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub feature_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -11225,6 +11249,10 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11244,6 +11272,8 @@ impl FeatureMetadata {
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
             revenue_recovery: Some(payment_revenue_recovery_metadata),
+            pix_additional_details: self.pix_additional_details,
+            boleto_additional_details: self.boleto_additional_details,
         }
     }
 }
@@ -11264,6 +11294,75 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+}
+
+#[cfg(feature = "v1")]
+impl FeatureMetadata {
+    pub fn merge(self, other: Option<Self>) -> Self {
+        if let Some(other) = other {
+            Self {
+                redirect_response: self.redirect_response.or(other.redirect_response),
+                search_tags: self.search_tags.or(other.search_tags),
+                apple_pay_recurring_details: self
+                    .apple_pay_recurring_details
+                    .or(other.apple_pay_recurring_details),
+                pix_additional_details: self
+                    .pix_additional_details
+                    .or(other.pix_additional_details),
+
+                boleto_additional_details: match (
+                    self.boleto_additional_details,
+                    other.boleto_additional_details,
+                ) {
+                    (Some(s), Some(o)) => Some(s.merge(o)),
+                    (Some(s), None) => Some(s),
+                    (None, Some(o)) => Some(o),
+                    (None, None) => None,
+                },
+            }
+        } else {
+            self
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BoletoAdditionalDetails {
+    /// Due Date for the Boleto
+    pub due_date: Option<String>,
+}
+
+impl BoletoAdditionalDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            due_date: self.due_date.or(other.due_date),
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PixAdditionalDetails {
+    Immediate(ImmediateExpirationTime),
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    pub time: i32,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    pub date: String,
+    /// Days after expiration date for which the QR code remains valid
+    pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]

@@ -264,6 +264,7 @@ pub enum PaymentIntentUpdate {
     MetadataUpdate {
         metadata: serde_json::Value,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
@@ -998,10 +999,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self {
                 metadata: Some(metadata),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1293,9 +1296,11 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,

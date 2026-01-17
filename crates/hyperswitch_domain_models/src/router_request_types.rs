@@ -97,6 +97,7 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -221,6 +222,12 @@ pub struct PaymentsPostSessionTokensData {
 pub struct PaymentsUpdateMetadataData {
     pub metadata: pii::SecretSerdeValue,
     pub connector_transaction_id: String,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub connector_meta: Option<serde_json::Value>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -936,6 +943,7 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -961,6 +969,8 @@ pub struct PaymentsCancelData {
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1213,6 +1223,7 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
