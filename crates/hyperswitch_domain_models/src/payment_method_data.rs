@@ -154,10 +154,14 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub network_transaction_id: Secret<String>,
 }
 
+// Determines if decryption should be performed
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
-    Simplified(api_models::payments::PaymentProcessingDetails),
-    Manual,
+    // Either Merchant provided certificates i.e decryption by hyperswitch or Hyperswitch certificates i.e simplified flow
+    // decryption is performed in hyperswitch
+    DecryptAtApplication(api_models::payments::PaymentProcessingDetails),
+    // decryption by connector or predecrypted token
+    SkipDecryption,
 }
 
 impl PaymentMethodData {
@@ -742,6 +746,7 @@ pub enum RealTimePaymentData {
     Fps {},
     PromptPay {},
     VietQr {},
+    Qris {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2259,6 +2264,7 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
             api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
+            api_models::payments::RealTimePaymentData::Qris {} => Self::VietQr {},
         }
     }
 }
@@ -2270,6 +2276,7 @@ impl From<RealTimePaymentData> for api_models::payments::RealTimePaymentData {
             RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             RealTimePaymentData::VietQr {} => Self::VietQr {},
+            RealTimePaymentData::Qris {} => Self::Qris {},
         }
     }
 }
@@ -2580,6 +2587,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris {},
         }
     }
 }
