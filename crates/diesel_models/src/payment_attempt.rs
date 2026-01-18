@@ -674,7 +674,7 @@ pub enum PaymentAttemptUpdate {
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
-        error_details: Box<Option<ErrorDetails>>,
+        error_details: Box<Option<Option<ErrorDetails>>>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -686,7 +686,7 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         updated_by: String,
-        error_details: Box<Option<ErrorDetails>>,
+        error_details: Box<Option<Option<ErrorDetails>>>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -710,7 +710,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_code: Option<Option<String>>,
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
-        error_details: Box<Option<ErrorDetails>>,
+        error_details: Box<Option<Option<ErrorDetails>>>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -1202,7 +1202,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub is_stored_credential: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub authorized_amount: Option<MinorUnit>,
-    pub error_details: Option<ErrorDetails>,
+    pub error_details: Option<Option<ErrorDetails>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1485,7 +1485,7 @@ impl PaymentAttemptUpdate {
                 .or(source.request_extended_authorization),
             authorized_amount: authorized_amount.or(source.authorized_amount),
             tokenization: tokenization.or(source.tokenization),
-            error_details: error_details.or(source.error_details),
+            error_details: error_details.unwrap_or(source.error_details),
             ..source
         }
     }

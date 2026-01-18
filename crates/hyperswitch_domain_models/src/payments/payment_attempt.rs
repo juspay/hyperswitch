@@ -411,7 +411,7 @@ impl PaymentAttemptErrorDetails {
         unified_details: Option<Option<UnifiedErrorDetails>>,
         issuer_details: Option<Option<IssuerErrorDetails>>,
         connector_details: Option<Option<ConnectorErrorDetails>>,
-    ) -> Option<Self> {
+    ) -> Option<Option<Self>> {
         if connector_details.is_none() && unified_details.is_none() && issuer_details.is_none() {
             None
         } else {
@@ -423,13 +423,13 @@ impl PaymentAttemptErrorDetails {
                 || unified_details_val.is_some()
                 || issuer_details_val.is_some()
             {
-                Some(Self {
+                Some(Some(Self {
                     unified_details: unified_details_val,
                     issuer_details: issuer_details_val,
                     connector_details: connector_details_val,
-                })
+                }))
             } else {
-                None
+                Some(None)
             }
         }
     }
@@ -2293,7 +2293,7 @@ impl PaymentAttemptUpdate {
                         issuer_details,
                         connector_details,
                     )
-                    .map(Into::into),
+                    .map(|opt| opt.map(Into::into)),
                 );
                 DieselPaymentAttemptUpdate::ResponseUpdate {
                     status,
@@ -2364,7 +2364,7 @@ impl PaymentAttemptUpdate {
                         issuer_details,
                         connector_details,
                     )
-                    .map(Into::into),
+                    .map(|opt| opt.map(Into::into)),
                 );
                 DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                     status,
@@ -2436,7 +2436,7 @@ impl PaymentAttemptUpdate {
                         issuer_details,
                         connector_details,
                     )
-                    .map(Into::into),
+                    .map(|opt| opt.map(Into::into)),
                 );
                 DieselPaymentAttemptUpdate::ErrorUpdate {
                     connector,
