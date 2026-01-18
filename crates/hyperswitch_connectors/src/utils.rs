@@ -55,7 +55,7 @@ use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
     payment_method_data::{
-        self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
+        self, Card, CardDetailsForNetworkTransactionId, CardWithLimitedDetails, GooglePayPaymentMethodInfo,
         NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
     },
     router_data::{
@@ -1549,6 +1549,23 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = 
         map
     },
 );
+
+pub trait CardWithLimitedData {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Option<Secret<String>>, errors::ConnectorError>;
+}
+
+impl CardWithLimitedData for CardWithLimitedDetails {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Option<Secret<String>>, errors::ConnectorError> {
+        self.card_exp_year.clone().map(|card_exp_year| {
+            let year = card_exp_year.peek();
+        
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                .map(|value| Secret::new(value.to_string()))
+        })
+        .transpose()
+    }
+}
 
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
