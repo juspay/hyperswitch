@@ -55,8 +55,8 @@ use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
     payment_method_data::{
-        self, Card, CardDetailsForNetworkTransactionId, CardWithLimitedDetails, GooglePayPaymentMethodInfo,
-        NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
+        self, Card, CardDetailsForNetworkTransactionId, CardWithLimitedDetails,
+        GooglePayPaymentMethodInfo, NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
     },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
@@ -1551,19 +1551,25 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = 
 );
 
 pub trait CardWithLimitedData {
-    fn get_card_expiry_year_2_digit(&self) -> Result<Option<Secret<String>>, errors::ConnectorError>;
+    fn get_card_expiry_year_2_digit(
+        &self,
+    ) -> Result<Option<Secret<String>>, errors::ConnectorError>;
 }
 
 impl CardWithLimitedData for CardWithLimitedDetails {
-    fn get_card_expiry_year_2_digit(&self) -> Result<Option<Secret<String>>, errors::ConnectorError> {
-        self.card_exp_year.clone().map(|card_exp_year| {
-            let year = card_exp_year.peek();
-        
-            year.get(year.len() - 2..)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)
-                .map(|value| Secret::new(value.to_string()))
-        })
-        .transpose()
+    fn get_card_expiry_year_2_digit(
+        &self,
+    ) -> Result<Option<Secret<String>>, errors::ConnectorError> {
+        self.card_exp_year
+            .clone()
+            .map(|card_exp_year| {
+                let year = card_exp_year.peek();
+
+                year.get(year.len() - 2..)
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                    .map(|value| Secret::new(value.to_string()))
+            })
+            .transpose()
     }
 }
 

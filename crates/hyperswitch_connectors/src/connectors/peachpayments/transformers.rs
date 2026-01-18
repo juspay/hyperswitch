@@ -5,7 +5,7 @@ use common_enums::enums as storage_enums;
 use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, NetworkTokenData, PaymentMethodData, CardWithLimitedDetails},
+    payment_method_data::{Card, CardWithLimitedDetails, NetworkTokenData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{RefundsData, ResponseId},
@@ -25,7 +25,10 @@ use time::OffsetDateTime;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, CardData, NetworkTokenData as _, RouterData as OtherRouterData, CardWithLimitedData as _},
+    utils::{
+        self, CardData, CardWithLimitedData as _, NetworkTokenData as _,
+        RouterData as OtherRouterData,
+    },
 };
 
 pub struct PeachpaymentsRouterData<T> {
@@ -417,7 +420,9 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, req_card)),
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
-            PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => Self::try_from((item, card_with_limited_details)),
+            PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                Self::try_from((item, card_with_limited_details))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -594,12 +599,18 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     }
 }
 
-impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, CardWithLimitedDetails)>
-    for PeachpaymentsPaymentsRequest
+impl
+    TryFrom<(
+        &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        CardWithLimitedDetails,
+    )> for PeachpaymentsPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, card_with_limited_details): (&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, CardWithLimitedDetails),
+        (item, card_with_limited_details): (
+            &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+            CardWithLimitedDetails,
+        ),
     ) -> Result<Self, Self::Error> {
         let amount_in_cents = item.amount;
 
