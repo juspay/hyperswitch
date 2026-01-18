@@ -1487,11 +1487,11 @@ impl ConnectorRedirectResponse for Nuvei {
                                 .parse_struct("NuveiErrorResponse")
                                 .switch()?;
 
-                        return Ok(CallConnectorAction::StatusUpdate {
+                        Ok(CallConnectorAction::StatusUpdate {
                             status: enums::AttemptStatus::AuthenticationFailed,
                             error_code: nuvei_error.error_code,
                             error_message: nuvei_error.error_detail.or(nuvei_error.error_message),
-                        });
+                        })
                     } else if let Some(cres) = redirect_response.cres {
                         let acs_response: nuvei::NuveiACSResponse =
                             utils::safe_base64_decode(cres.expose())?
