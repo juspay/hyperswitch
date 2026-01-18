@@ -1479,20 +1479,41 @@ impl ConnectorRedirectResponse for Nuvei {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
-                    let acs_response: nuvei::NuveiACSResponse =
-                        utils::safe_base64_decode(redirect_response.cres.expose())?
-                            .as_slice()
-                            .parse_struct("NuveiACSResponse")
-                            .switch()?;
-                    match acs_response.trans_status {
-                        None | Some(nuvei::LiabilityShift::Failed) => {
-                            Ok(CallConnectorAction::StatusUpdate {
-                                status: enums::AttemptStatus::AuthenticationFailed,
-                                error_code: None,
-                                error_message: Some("3ds Authentication failed".to_string()),
-                            })
+
+                    if let Some(error) = redirect_response.error {
+                        let nuvei_error: nuvei::NuveiErrorResponse =
+                            utils::safe_base64_decode(error.expose())?
+                                .as_slice()
+                                .parse_struct("NuveiErrorResponse")
+                                .switch()?;
+
+                        return Ok(CallConnectorAction::StatusUpdate {
+                            status: enums::AttemptStatus::AuthenticationFailed,
+                            error_code: nuvei_error.error_code,
+                            error_message: nuvei_error.error_detail.or(nuvei_error.error_message),
+                        });
+                    } else if let Some(cres) = redirect_response.cres {
+                        let acs_response: nuvei::NuveiACSResponse =
+                            utils::safe_base64_decode(cres.expose())?
+                                .as_slice()
+                                .parse_struct("NuveiACSResponse")
+                                .switch()?;
+                        match acs_response.trans_status {
+                            None | Some(nuvei::LiabilityShift::Failed) => {
+                                Ok(CallConnectorAction::StatusUpdate {
+                                    status: enums::AttemptStatus::AuthenticationFailed,
+                                    error_code: None,
+                                    error_message: Some("3ds Authentication failed".to_string()),
+                                })
+                            }
+                            _ => Ok(CallConnectorAction::Trigger),
                         }
-                        _ => Ok(CallConnectorAction::Trigger),
+                    } else {
+                        Ok(CallConnectorAction::StatusUpdate {
+                            status: enums::AttemptStatus::AuthenticationFailed,
+                            error_code: None,
+                            error_message: Some("Invalid Redirection Response".to_string()),
+                        })
                     }
                 } else {
                     Ok(CallConnectorAction::Trigger)

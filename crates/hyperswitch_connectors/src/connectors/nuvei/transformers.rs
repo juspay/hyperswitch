@@ -601,8 +601,18 @@ impl TransactionType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NuveiRedirectionResponse {
-    pub cres: Secret<String>,
+    pub cres: Option<Secret<String>>,
+    pub error: Option<Secret<String>>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiErrorResponse {
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub error_detail: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiACSResponse {
