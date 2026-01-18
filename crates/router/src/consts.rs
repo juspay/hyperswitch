@@ -146,8 +146,6 @@ pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
 pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_9000";
 pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
-// Config key for merchant advice codes lookup
-
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 

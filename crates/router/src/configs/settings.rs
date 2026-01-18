@@ -169,7 +169,7 @@ pub struct Settings<S: SecretState> {
     pub open_router: OpenRouter,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
-    pub merchant_advice_codes: MerchantAdviceCodesConfig,
+    pub merchant_advice_codes: MerchantAdviceCodeLookupConfig,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
     pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
@@ -1049,13 +1049,13 @@ struct NetworkAdviceCodes {
     codes: Vec<MerchantAdviceCodeEntry>,
 }
 
-/// Wrapper for merchant advice code configurations
+/// Lookup map for merchant advice code configurations
 #[derive(Debug, Clone, Default)]
-pub struct MerchantAdviceCodesConfig {
+pub struct MerchantAdviceCodeLookupConfig {
     data: HashMap<String, MerchantAdviceCodeConfig>,
 }
 
-impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
+impl<'de> Deserialize<'de> for MerchantAdviceCodeLookupConfig {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1083,7 +1083,7 @@ impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
     }
 }
 
-impl MerchantAdviceCodesConfig {
+impl MerchantAdviceCodeLookupConfig {
     /// Get merchant advice code configuration for a specific network and advice code
     pub fn get_config(
         &self,
