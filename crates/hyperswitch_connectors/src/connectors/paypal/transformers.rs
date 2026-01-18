@@ -1890,6 +1890,14 @@ pub struct PaymentsCollectionItem {
     id: String,
     final_capture: Option<bool>,
     status: PaypalPaymentStatus,
+    processor_response: Option<ProcessorResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessorResponse {
+    avs_code: Option<String>,
+    cvv_code: Option<String>,
+    response_code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -2302,6 +2310,40 @@ where
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let status = payment_collection_item.status.clone();
         let status = storage_enums::AttemptStatus::from(status);
+
+        if is_payment_failure(status) {
+            let error_code = payment_collection_item
+                .processor_response
+                .as_ref()
+                .and_then(|response| response.response_code.clone());
+
+            let error_message = error_code
+                .as_deref()
+                .and_then(get_paypal_error_message)
+                .map(|message| message.to_string());
+
+            return Ok(Self {
+                status,
+                response: Err(ErrorResponse {
+                    code: error_code.unwrap_or(NO_ERROR_CODE.to_string()),
+                    message: error_message
+                        .clone()
+                        .unwrap_or(NO_ERROR_MESSAGE.to_string())
+                        .to_string(),
+                    reason: error_message,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.id.clone()),
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            });
+        };
+
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -3845,7 +3887,7 @@ impl From<OrderErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: OrderErrorDetails) -> Self {
         Self {
             error_code: error.issue.to_string(),
-            error_message: error.issue.to_string(),
+            error_message: error.issue,
         }
     }
 }
@@ -3856,5 +3898,173 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
             error_code: error.issue.to_string(),
             error_message: error.issue.to_string(),
         }
+    }
+}
+
+fn get_paypal_error_message(error_code: &str) -> Option<&str> {
+    match error_code {
+        "00N7" | "RESPONSE_00N7" => Some("CVV2_FAILURE_POSSIBLE_RETRY_WITH_CVV."),
+        "0390" | "RESPONSE_0390" => Some("ACCOUNT_NOT_FOUND."),
+        "0500" | "RESPONSE_0500" => Some("DO_NOT_HONOR."),
+        "0580" | "RESPONSE_0580" => Some("UNAUTHORIZED_TRANSACTION."),
+        "0800" | "RESPONSE_0800" => Some("BAD_RESPONSE_REVERSAL_REQUIRED."),
+        "0880" | "RESPONSE_0880" => Some("CRYPTOGRAPHIC_FAILURE."),
+        "0890" | "RESPONSE_0890" => Some("UNACCEPTABLE_PIN."),
+        "0960" | "RESPONSE_0960" => Some("SYSTEM_MALFUNCTION."),
+        "0R00" | "RESPONSE_0R00" => Some("CANCELLED_PAYMENT."),
+        "1000" | "RESPONSE_1000" => Some("PARTIAL_AUTHORIZATION."),
+        "10BR" | "RESPONSE_10BR" => Some("ISSUER_REJECTED."),
+        "1300" | "RESPONSE_1300" => Some("INVALID_DATA_FORMAT."),
+        "1310" | "RESPONSE_1310" => Some("INVALID_AMOUNT."),
+        "1312" | "RESPONSE_1312" => Some("INVALID_TRANSACTION_CARD_ISSUER_ACQUIRER."),
+        "1317" | "RESPONSE_1317" => Some("INVALID_CAPTURE_DATE."),
+        "1320" | "RESPONSE_1320" => Some("INVALID_CURRENCY_CODE."),
+        "1330" | "RESPONSE_1330" => Some("INVALID_ACCOUNT."),
+        "1335" | "RESPONSE_1335" => Some("INVALID_ACCOUNT_RECURRING."),
+        "1340" | "RESPONSE_1340" => Some("INVALID_TERMINAL."),
+        "1350" | "RESPONSE_1350" => Some("INVALID_MERCHANT."),
+        "1352" | "RESPONSE_1352" => Some("RESTRICTED_OR_INACTIVE_ACCOUNT."),
+        "1360" | "RESPONSE_1360" => Some("BAD_PROCESSING_CODE."),
+        "1370" | "RESPONSE_1370" => Some("INVALID_MCC."),
+        "1380" | "RESPONSE_1380" => Some("INVALID_EXPIRATION."),
+        "1382" | "RESPONSE_1382" => Some("INVALID_CARD_VERIFICATION_VALUE."),
+        "1384" | "RESPONSE_1384" => Some("INVALID_LIFE_CYCLE_OF_TRANSACTION."),
+        "1390" | "RESPONSE_1390" => Some("INVALID_ORDER."),
+        "1393" | "RESPONSE_1393" => Some("TRANSACTION_CANNOT_BE_COMPLETED."),
+        "5100" | "RESPONSE_5100" => Some("GENERIC_DECLINE."),
+        "5110" | "RESPONSE_5110" => Some("CVV2_FAILURE."),
+        "5120" | "RESPONSE_5120" => Some("INSUFFICIENT_FUNDS."),
+        "5130" | "RESPONSE_5130" => Some("INVALID_PIN."),
+        "5135" | "RESPONSE_5135" => Some("DECLINED_PIN_TRY_EXCEEDED."),
+        "5140" | "RESPONSE_5140" => Some("CARD_CLOSED."),
+        "5150" | "RESPONSE_5150" => Some(
+            "PICKUP_CARD_SPECIAL_CONDITIONS. Try using another card. Do not retry the same card.",
+        ),
+        "5160" | "RESPONSE_5160" => Some("UNAUTHORIZED_USER."),
+        "5170" | "RESPONSE_5170" => Some("AVS_FAILURE."),
+        "5180" | "RESPONSE_5180" => {
+            Some("INVALID_OR_RESTRICTED_CARD. Try using another card. Do not retry the same card.")
+        }
+        "5190" | "RESPONSE_5190" => Some("SOFT_AVS."),
+        "5200" | "RESPONSE_5200" => Some("DUPLICATE_TRANSACTION."),
+        "5210" | "RESPONSE_5210" => Some("INVALID_TRANSACTION."),
+        "5400" | "RESPONSE_5400" => Some("EXPIRED_CARD."),
+        "5500" | "RESPONSE_5500" => Some("INCORRECT_PIN_REENTER."),
+        "5650" | "RESPONSE_5650" => Some("DECLINED_SCA_REQUIRED."),
+        "5700" | "RESPONSE_5700" => {
+            Some("TRANSACTION_NOT_PERMITTED. Outside of scope of accepted business.")
+        }
+        "5710" | "RESPONSE_5710" => Some("TX_ATTEMPTS_EXCEED_LIMIT."),
+        "5800" | "RESPONSE_5800" => Some("REVERSAL_REJECTED."),
+        "5900" | "RESPONSE_5900" => Some("INVALID_ISSUE."),
+        "5910" | "RESPONSE_5910" => Some("ISSUER_NOT_AVAILABLE_NOT_RETRIABLE."),
+        "5920" | "RESPONSE_5920" => Some("ISSUER_NOT_AVAILABLE_RETRIABLE."),
+        "5930" | "RESPONSE_5930" => Some("CARD_NOT_ACTIVATED."),
+        "5950" | "RESPONSE_5950" => Some(
+            "DECLINED_DUE_TO_UPDATED_ACCOUNT. External decline as an updated card has been issued.",
+        ),
+        "6300" | "RESPONSE_6300" => Some("ACCOUNT_NOT_ON_FILE."),
+        "7700" | "RESPONSE_7700" => Some("ERROR_3DS."),
+        "7710" | "RESPONSE_7710" => Some("AUTHENTICATION_FAILED."),
+        "7800" | "RESPONSE_7800" => Some("BIN_ERROR."),
+        "7900" | "RESPONSE_7900" => Some("PIN_ERROR."),
+        "8000" | "RESPONSE_8000" => Some("PROCESSOR_SYSTEM_ERROR."),
+        "8010" | "RESPONSE_8010" => Some("HOST_KEY_ERROR."),
+        "8020" | "RESPONSE_8020" => Some("CONFIGURATION_ERROR."),
+        "8030" | "RESPONSE_8030" => Some("UNSUPPORTED_OPERATION."),
+        "8100" | "RESPONSE_8100" => Some("FATAL_COMMUNICATION_ERROR."),
+        "8110" | "RESPONSE_8110" => Some("RETRIABLE_COMMUNICATION_ERROR."),
+        "8220" | "RESPONSE_8220" => Some("SYSTEM_UNAVAILABLE."),
+        "9100" | "RESPONSE_9100" => Some("DECLINED_PLEASE_RETRY. Retry."),
+        "9500" | "RESPONSE_9500" => {
+            Some("SUSPECTED_FRAUD. Try using another card. Do not retry the same card.")
+        }
+        "9510" | "RESPONSE_9510" => Some("SECURITY_VIOLATION."),
+        "9520" | "RESPONSE_9520" => {
+            Some("LOST_OR_STOLEN. Try using another card. Do not retry the same card.")
+        }
+        "9540" | "RESPONSE_9540" => Some("REFUSED_CARD."),
+        "9600" | "RESPONSE_9600" => Some("UNRECOGNIZED_RESPONSE_CODE."),
+        "PCNR" | "RESPONSE_PCNR" => Some("CONTINGENCIES_NOT_RESOLVED."),
+        "PCVV" | "RESPONSE_PCVV" => Some("CVV_FAILURE."),
+        "PP06" | "RESPONSE_PP06" => Some("ACCOUNT_CLOSED. A previously open account is now closed"),
+        "PPRN" | "RESPONSE_PPRN" => Some("REATTEMPT_NOT_PERMITTED."),
+        "PPAD" | "RESPONSE_PPAD" => Some("BILLING_ADDRESS."),
+        "PPAB" | "RESPONSE_PPAB" => Some("ACCOUNT_BLOCKED_BY_ISSUER."),
+        "PPAE" | "RESPONSE_PPAE" => Some("AMEX_DISABLED."),
+        "PPAG" | "RESPONSE_PPAG" => Some("ADULT_GAMING_UNSUPPORTED."),
+        "PPAI" | "RESPONSE_PPAI" => Some("AMOUNT_INCOMPATIBLE."),
+        "PPAR" | "RESPONSE_PPAR" => Some("AUTH_RESULT."),
+        "PPAU" | "RESPONSE_PPAU" => Some("MCC_CODE."),
+        "PPAV" | "RESPONSE_PPAV" => Some("ARC_AVS."),
+        "PPAX" | "RESPONSE_PPAX" => Some("AMOUNT_EXCEEDED."),
+        "PPBG" | "RESPONSE_PPBG" => Some("BAD_GAMING."),
+        "PPC2" | "RESPONSE_PPC2" => Some("ARC_CVV."),
+        "PPCE" | "RESPONSE_PPCE" => Some("CE_REGISTRATION_INCOMPLETE."),
+        "PPCO" | "RESPONSE_PPCO" => Some("COUNTRY."),
+        "PPCR" | "RESPONSE_PPCR" => Some("CREDIT_ERROR."),
+        "PPCT" | "RESPONSE_PPCT" => Some("CARD_TYPE_UNSUPPORTED."),
+        "PPCU" | "RESPONSE_PPCU" => Some("CURRENCY_USED_INVALID."),
+        "PPD3" | "RESPONSE_PPD3" => Some("SECURE_ERROR_3DS."),
+        "PPDC" | "RESPONSE_PPDC" => Some("DCC_UNSUPPORTED."),
+        "PPDI" | "RESPONSE_PPDI" => Some("DINERS_REJECT."),
+        "PPDV" | "RESPONSE_PPDV" => Some("AUTH_MESSAGE."),
+        "PPDT" | "RESPONSE_PPDT" => Some("DECLINE_THRESHOLD_BREACH."),
+        "PPEF" | "RESPONSE_PPEF" => Some("EXPIRED_FUNDING_INSTRUMENT."),
+        "PPEL" | "RESPONSE_PPEL" => Some("EXCEEDS_FREQUENCY_LIMIT."),
+        "PPER" | "RESPONSE_PPER" => Some("INTERNAL_SYSTEM_ERROR."),
+        "PPEX" | "RESPONSE_PPEX" => Some("EXPIRY_DATE."),
+        "PPFE" | "RESPONSE_PPFE" => Some("FUNDING_SOURCE_ALREADY_EXISTS."),
+        "PPFI" | "RESPONSE_PPFI" => Some("INVALID_FUNDING_INSTRUMENT."),
+        "PPFR" | "RESPONSE_PPFR" => Some("RESTRICTED_FUNDING_INSTRUMENT."),
+        "PPFV" | "RESPONSE_PPFV" => Some("FIELD_VALIDATION_FAILED."),
+        "PPGR" | "RESPONSE_PPGR" => Some("GAMING_REFUND_ERROR."),
+        "PPH1" | "RESPONSE_PPH1" => Some("H1_ERROR."),
+        "PPIF" | "RESPONSE_PPIF" => Some("IDEMPOTENCY_FAILURE."),
+        "PPII" | "RESPONSE_PPII" => Some("INVALID_INPUT_FAILURE."),
+        "PPIM" | "RESPONSE_PPIM" => Some("ID_MISMATCH."),
+        "PPIT" | "RESPONSE_PPIT" => Some("INVALID_TRACE_ID."),
+        "PPLR" | "RESPONSE_PPLR" => Some("LATE_REVERSAL."),
+        "PPLS" | "RESPONSE_PPLS" => Some("LARGE_STATUS_CODE."),
+        "PPMB" | "RESPONSE_PPMB" => Some("MISSING_BUSINESS_RULE_OR_DATA."),
+        "PPMC" | "RESPONSE_PPMC" => Some("BLOCKED_Mastercard."),
+        "PPMD" | "RESPONSE_PPMD" => Some("DEPRECATED The PPMD value has been deprecated."),
+        "PPNC" | "RESPONSE_PPNC" => Some("NOT_SUPPORTED_NRC."),
+        "PPNL" | "RESPONSE_PPNL" => Some("EXCEEDS_NETWORK_FREQUENCY_LIMIT."),
+        "PPNM" | "RESPONSE_PPNM" => Some("NO_MID_FOUND."),
+        "PPNT" | "RESPONSE_PPNT" => Some("NETWORK_ERROR."),
+        "PPPH" | "RESPONSE_PPPH" => Some("NO_PHONE_FOR_DCC_TRANSACTION."),
+        "PPPI" | "RESPONSE_PPPI" => Some("INVALID_PRODUCT."),
+        "PPPM" | "RESPONSE_PPPM" => Some("INVALID_PAYMENT_METHOD."),
+        "PPQC" | "RESPONSE_PPQC" => Some("QUASI_CASH_UNSUPPORTED."),
+        "PPRE" | "RESPONSE_PPRE" => Some("UNSUPPORT_REFUND_ON_PENDING_BC."),
+        "PPRF" | "RESPONSE_PPRF" => Some("INVALID_PARENT_TRANSACTION_STATUS."),
+        "PPRR" | "RESPONSE_PPRR" => Some("MERCHANT_NOT_REGISTERED."),
+        "PPS0" | "RESPONSE_PPS0" => Some("BANKAUTH_ROW_MISMATCH."),
+        "PPS1" | "RESPONSE_PPS1" => Some("BANKAUTH_ROW_SETTLED."),
+        "PPS2" | "RESPONSE_PPS2" => Some("BANKAUTH_ROW_VOIDED."),
+        "PPS3" | "RESPONSE_PPS3" => Some("BANKAUTH_EXPIRED."),
+        "PPS4" | "RESPONSE_PPS4" => Some("CURRENCY_MISMATCH."),
+        "PPS5" | "RESPONSE_PPS5" => Some("CREDITCARD_MISMATCH."),
+        "PPS6" | "RESPONSE_PPS6" => Some("AMOUNT_MISMATCH."),
+        "PPSC" | "RESPONSE_PPSC" => Some("ARC_SCORE."),
+        "PPSD" | "RESPONSE_PPSD" => Some("STATUS_DESCRIPTION."),
+        "PPSE" | "RESPONSE_PPSE" => Some("AMEX_DENIED."),
+        "PPTE" | "RESPONSE_PPTE" => Some("VERIFICATION_TOKEN_EXPIRED."),
+        "PPTF" | "RESPONSE_PPTF" => Some("INVALID_TRACE_REFERENCE."),
+        "PPTI" | "RESPONSE_PPTI" => Some("INVALID_TRANSACTION_ID."),
+        "PPTR" | "RESPONSE_PPTR" => Some("VERIFICATION_TOKEN_REVOKED."),
+        "PPTT" | "RESPONSE_PPTT" => Some("TRANSACTION_TYPE_UNSUPPORTED."),
+        "PPTV" | "RESPONSE_PPTV" => Some("INVALID_VERIFICATION_TOKEN."),
+        "PPUA" | "RESPONSE_PPUA" => Some("USER_NOT_AUTHORIZED."),
+        "PPUC" | "RESPONSE_PPUC" => Some("CURRENCY_CODE_UNSUPPORTED."),
+        "PPUE" | "RESPONSE_PPUE" => Some("UNSUPPORT_ENTITY."),
+        "PPUI" | "RESPONSE_PPUI" => Some("UNSUPPORT_INSTALLMENT."),
+        "PPUP" | "RESPONSE_PPUP" => Some("UNSUPPORT_POS_FLAG."),
+        "PPUR" | "RESPONSE_PPUR" => Some("UNSUPPORTED_REVERSAL."),
+        "PPVC" | "RESPONSE_PPVC" => Some("VALIDATE_CURRENCY."),
+        "PPVE" | "RESPONSE_PPVE" => Some("VALIDATION_ERROR."),
+        "PPVT" | "RESPONSE_PPVT" => Some("VIRTUAL_TERMINAL_UNSUPPORTED."),
+        _ => None,
     }
 }

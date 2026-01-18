@@ -46,10 +46,10 @@ const multiUseMandateData = {
 const paymentMethodData3Ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "06",
@@ -66,7 +66,7 @@ const paymentMethodDataNo3Ds = {
     last4: "0018",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuer: "Intl Hdqtrs Center Owned",
     card_issuing_country: "UNITEDSTATES",
     card_isin: "400000",
     card_extended_bin: null,
