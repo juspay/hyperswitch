@@ -17494,7 +17494,8 @@
           "connector",
           "connector_status",
           "connector_dispute_id",
-          "created_at"
+          "created_at",
+          "is_already_refunded"
         ],
         "properties": {
           "dispute_id": {
@@ -17575,6 +17576,10 @@
             "type": "string",
             "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
             "nullable": true
+          },
+          "is_already_refunded": {
+            "type": "boolean",
+            "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
           }
         }
       },
@@ -17582,6 +17587,7 @@
         "type": "object",
         "required": [
           "dispute_id",
+          "amount",
           "dispute_stage",
           "dispute_status",
           "connector_status",
@@ -17592,6 +17598,9 @@
           "dispute_id": {
             "type": "string",
             "description": "The identifier for dispute"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
@@ -26667,6 +26676,7 @@
           "przelewy24",
           "prompt_pay",
           "pse",
+          "qris",
           "red_compra",
           "red_pagos",
           "samsung_pay",
@@ -34116,6 +34126,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "qris"
+            ],
+            "properties": {
+              "qris": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -37992,6 +38013,14 @@
             "description": "Masked VPA ID",
             "example": "ab********@okhdfcbank",
             "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -38000,7 +38029,16 @@
         "properties": {
           "vpa_id": {
             "type": "string",
+            "description": "The Virtual Payment Address (VPA) for UPI collect payment",
             "example": "successtest@iata",
+            "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
             "nullable": true
           }
         }
@@ -38043,10 +38081,30 @@
         ]
       },
       "UpiIntentData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiQrData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiResponse": {
         "allOf": [
@@ -38061,6 +38119,16 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "UpiSource": {
+        "type": "string",
+        "description": "The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.",
+        "enum": [
+          "UPI_CC",
+          "UPI_CL",
+          "UPI_ACCOUNT",
+          "UPI_CC_CL"
         ]
       },
       "ValueType": {
