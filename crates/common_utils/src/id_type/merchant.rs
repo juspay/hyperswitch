@@ -203,6 +203,14 @@ impl MerchantId {
         )
     }
 
+    /// get should enable MIT with limited card data
+    pub fn get_should_enable_mit_with_limited_card_data(&self) -> String {
+        format!(
+            "should_enable_mit_with_limited_card_data_{}",
+            self.get_string_repr()
+        )
+    }
+
     /// get_max_auto_single_connector_payout_retries_enabled_
     pub fn get_max_auto_single_connector_payout_retries_enabled(
         &self,
