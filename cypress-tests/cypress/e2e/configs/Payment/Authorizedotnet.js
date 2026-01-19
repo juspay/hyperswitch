@@ -733,7 +733,7 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
