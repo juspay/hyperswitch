@@ -735,7 +735,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_16",
+          },
         },
       },
     },
