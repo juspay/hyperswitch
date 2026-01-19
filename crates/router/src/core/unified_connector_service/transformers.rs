@@ -151,8 +151,7 @@ impl
             })
             .transpose()?;
 
-        // TODO: Fix the type of address field in UCS request and pass address
-        // let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         let amount = router_data.request.amount.ok_or(report!(
             UnifiedConnectorServiceError::MissingRequiredField {
@@ -170,7 +169,7 @@ impl
             customer_name: None,
             email: None,
             customer_id: None,
-            address: None,
+            address: Some(address),
             metadata: None,
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
@@ -361,6 +360,10 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -523,6 +526,10 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -1243,6 +1250,10 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -1420,6 +1431,10 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -1580,6 +1595,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1845,6 +1861,12 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let recurring_mandate_payment_data = router_data
+            .recurring_mandate_payment_data
+            .as_ref()
+            .map(|data| payments_grpc::RecurringMandatePaymentData::foreign_try_from(data))
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -1888,7 +1910,7 @@ impl
             connector_customer_id: router_data.connector_customer.clone(),
             address: Some(address),
             off_session: router_data.request.off_session,
-            recurring_mandate_payment_data: None,
+            recurring_mandate_payment_data,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -1923,6 +1945,27 @@ impl
             merchant_configured_currency: router_data
                 .request
                 .merchant_config_currency
+                .map(payments_grpc::Currency::foreign_try_from)
+                .transpose()?
+                .map(|currency| currency.into()),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
+    > for payments_grpc::RecurringMandatePaymentData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        data: &hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            original_payment_authorized_amount: data.original_payment_authorized_amount,
+            original_payment_authorized_currency: data
+                .original_payment_authorized_currency
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
@@ -4788,6 +4831,15 @@ impl ForeignFrom<&SyncRequestType> for payments_grpc::SyncRequestType {
         match sync_type {
             SyncRequestType::MultipleCaptureSync(_) => Self::MultipleCaptureSync,
             SyncRequestType::SinglePaymentSync => Self::SinglePaymentSync,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::Tokenization> for i32 {
+    fn foreign_from(tokenization: common_enums::Tokenization) -> Self {
+        match tokenization {
+            common_enums::Tokenization::TokenizeAtPsp => 1,
+            common_enums::Tokenization::SkipPsp => 2,
         }
     }
 }
