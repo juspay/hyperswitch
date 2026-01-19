@@ -845,14 +845,9 @@ fn get_instruction_details(
     } else if item.router_data.request.mandate_id.is_some() {
         let initial_transaction_id = item
             .router_data
-            .recurring_mandate_payment_data
-            .as_ref()
-            .and_then(|mandate_data| mandate_data.mandate_metadata.as_ref())
-            .and_then(|metadata| {
-                serde_json::from_value::<AciMandateMetadata>(metadata.clone().expose())
-                    .ok()
-                    .map(|m| m.initial_transaction_id)
-            });
+            .request
+            .get_connector_mandate_request_reference_id()
+            .ok();
 
         let transaction_type = match item.router_data.request.mit_category.as_ref() {
             Some(MitCategory::Installment) => InstructionType::Installment,
@@ -1101,10 +1096,8 @@ where
             .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
-                mandate_metadata: Some(Secret::new(serde_json::json!(AciMandateMetadata {
-                    initial_transaction_id: item.response.id.clone()
-                }))),
-                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: Some(item.response.id.clone()),
             });
 
         let auto_capture = matches!(
@@ -1482,10 +1475,8 @@ impl
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
-            mandate_metadata: Some(Secret::new(serde_json::json!(AciMandateMetadata {
-                initial_transaction_id: item.response.id.clone()
-            }))),
-            connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: Some(item.response.id.clone()),
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1614,10 +1605,4 @@ pub struct AciWebhookNotification {
     pub event_type: AciWebhookEventType,
     pub action: Option<AciWebhookAction>,
     pub payload: serde_json::Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct AciMandateMetadata {
-    pub initial_transaction_id: String,
 }
