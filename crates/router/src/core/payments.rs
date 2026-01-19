@@ -496,7 +496,13 @@ where
         .get_payment_intent()
         .metadata
         .as_ref()
-        .and_then(|metadata| metadata.peek().clone().parse_value::<hyperswitch_domain_models::payments::GuestCustomer>("guest_customer").ok());
+        .and_then(|metadata| {
+            metadata
+                .peek()
+                .clone()
+                .parse_value::<hyperswitch_domain_models::payments::GuestCustomer>("guest_customer")
+                .ok()
+        });
 
     let router_data = connector_service_decider(
         state,

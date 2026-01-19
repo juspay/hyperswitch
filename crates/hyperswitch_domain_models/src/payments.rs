@@ -37,14 +37,6 @@ pub mod payment_intent;
 pub mod split_payments;
 
 use common_enums as storage_enums;
-
-#[cfg(feature = "v2")]
-/// Guest customer details for connectors when the customer ID is not a GlobalCustomerId
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
-pub struct GuestCustomer {
-    /// The identifier for the guest customer (not necessarily a GlobalCustomerId format)
-    pub customer_id: id_type::CustomerId,
-}
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
@@ -1421,4 +1413,12 @@ impl VaultData {
             Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
         }
     }
+}
+
+#[cfg(feature = "v2")]
+/// Guest customer details for connectors when the customer ID is not a GlobalCustomerId
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+pub struct GuestCustomer {
+    /// The identifier for the guest customer (not necessarily a GlobalCustomerId format)
+    pub customer_id: id_type::CustomerId,
 }
