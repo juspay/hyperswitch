@@ -242,7 +242,7 @@ impl ConnectorApiIntegrationPayload {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
-                                    payment_experience: method_type.payment_experience,
+                                    payment_experience: None,
                                 },
                             ));
                         }
