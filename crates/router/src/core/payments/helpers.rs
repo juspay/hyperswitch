@@ -8299,10 +8299,10 @@ pub fn get_merchant_advice_code_recommended_action(
         .or_else(|| {
             metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
                 1,
-                &[
-                    router_env::opentelemetry::KeyValue::new("network", network.to_string()),
-                    router_env::opentelemetry::KeyValue::new("advice_code", advice_code.to_owned()),
-                ],
+                router_env::metric_attributes!(
+                    ("network", network.to_string()),
+                    ("advice_code", advice_code.to_owned()),
+                ),
             );
             logger::warn!(
                 network = %network,
