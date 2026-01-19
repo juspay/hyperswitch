@@ -460,6 +460,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey
             | errors::ApiErrorResponse::InvalidPaymentIdProvided { .. }
+            | errors::ApiErrorResponse::ExpiredJwtToken
             | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -865,8 +866,6 @@ impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
         self.clone().into()
     }
 }
-
-impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
 
 impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {

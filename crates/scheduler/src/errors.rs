@@ -6,7 +6,7 @@ pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
 use storage_impl::errors::{RecoveryError, StorageError};
 
-use crate::env::logger::{self, error};
+use crate::env::logger;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProcessTrackerError {

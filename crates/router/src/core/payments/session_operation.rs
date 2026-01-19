@@ -187,11 +187,9 @@ where
                 .update_trackers(
                     state,
                     req_state,
+                    platform.get_processor(),
                     payment_data.clone(),
                     customer.clone(),
-                    platform.get_processor().get_account().storage_scheme,
-                    None,
-                    platform.get_processor().get_key_store(),
                     None,
                     header_payload.clone(),
                 )

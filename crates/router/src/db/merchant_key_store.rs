@@ -42,7 +42,7 @@ mod tests {
             .unwrap();
         let mock_db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create mock DB");
@@ -58,7 +58,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
+                        domain::types::CryptoOperation::EncryptLocally(
                             services::generate_aes256_key().unwrap().to_vec().into(),
                         ),
                         identifier.clone(),
@@ -89,7 +89,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
+                        domain::types::CryptoOperation::EncryptLocally(
                             services::generate_aes256_key().unwrap().to_vec().into(),
                         ),
                         identifier.clone(),

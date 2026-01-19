@@ -23,6 +23,7 @@ use common_utils::{
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
+use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -137,6 +138,7 @@ pub struct PaymentIntent {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 }
 
 impl PaymentIntent {
@@ -334,6 +336,47 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn validate_amount_against_intent_state_metadata(
+        &self,
+        requested_amount: Option<MinorUnit>,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        let captured = self
+            .amount_captured
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64();
+
+        let blocked_amount = self
+            .state_metadata
+            .clone()
+            .unwrap_or_default()
+            .get_blocked_amount()
+            .get_amount_as_i64();
+        let requested = requested_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64();
+
+        let total = blocked_amount + requested;
+
+        if total > captured {
+            Err(
+                Report::new(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Requested amount exceeds available captured amount.".to_string(),
+                })
+                .attach_printable(format!(
+                    "Validation failed because blocked_amount ({}) + requested_amount ({}) \
+             exceeds amount_captured ({}). Available amount: {}",
+                    blocked_amount,
+                    requested,
+                    captured,
+                    (captured - blocked_amount).max(0),
+                )),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -1264,9 +1307,7 @@ where
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
                 total_retry_count: revenue_recovery.as_ref().map_or(
-                    self.revenue_recovery_data
-                        .retry_count
-                        .map_or_else(|| 1, |retry_count| retry_count),
+                    self.revenue_recovery_data.retry_count.unwrap_or(1),
                     |data| (data.total_retry_count + 1),
                 ),
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.

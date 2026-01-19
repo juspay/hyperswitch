@@ -1124,6 +1124,7 @@ impl DataModelExt for PayoutsUpdate {
                 DieselPayoutsUpdate::AttemptCountUpdate { attempt_count }
             }
             Self::StatusUpdate { status } => DieselPayoutsUpdate::StatusUpdate { status },
+            Self::ManualUpdate { status } => DieselPayoutsUpdate::ManualUpdate { status },
         }
     }
 

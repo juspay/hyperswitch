@@ -973,6 +973,55 @@ pub struct PartnerMerchantIdentifierDetails {
 
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
 
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Default,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    AsExpression,
+    FromSqlRow,
+    utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PaymentIntentStateMetadata {
+    /// Shows up the total refunded amount for a payment
+    pub total_refunded_amount: Option<MinorUnit>,
+    /// Shows up the total disputed amount across all disputes for a particular payment
+    pub total_disputed_amount: Option<MinorUnit>,
+}
+
+impl PaymentIntentStateMetadata {
+    /// Builder method to set total_refunded_amount
+    pub fn with_total_refunded_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_refunded_amount = Some(amount);
+        self
+    }
+    /// Builder method to set total_disputed_amount
+    pub fn with_total_disputed_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_disputed_amount = Some(amount);
+        self
+    }
+    /// Get the blocked amount which is the sum of total disputed and total refunded amounts
+    pub fn get_blocked_amount(self) -> MinorUnit {
+        let blocked_amount = self
+            .total_disputed_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            + self
+                .total_refunded_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+
+        MinorUnit::new(blocked_amount)
+    }
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);
+
 /// List of custom T&C messages grouped by payment method
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PaymentMethodsConfig(
@@ -1072,4 +1121,24 @@ impl PaymentMethodsConfig {
         }
         Ok(())
     }
+}
+
+/// Interac Customer Information Details
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracCustomerInfoDetails {
+    /// Customer Name
+    #[schema(value_type = Option<String>)]
+    pub customer_name: Option<Secret<String>>,
+    /// Customer Email
+    #[schema(value_type = Option<String>)]
+    pub customer_email: Option<pii::Email>,
+    /// Customer Phone Number
+    #[schema(value_type = Option<String>)]
+    pub customer_phone_number: Option<Secret<String>>,
+    /// Customer Bank Id
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_id: Option<Secret<String>>,
+    /// Customer Bank Name
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_name: Option<Secret<String>>,
 }

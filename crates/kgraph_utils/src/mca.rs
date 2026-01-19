@@ -138,6 +138,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::InstantBankTransferPoland => {
             Ok(dirval!(BankTransferType = InstantBankTransferPoland))
         }
+        api_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
         api_enums::PaymentMethodType::SepaBankTransfer => {
             Ok(dirval!(BankTransferType = SepaBankTransfer))
         }
@@ -1195,6 +1196,7 @@ mod tests {
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
             connector_wallets_details: None,
+            webhook_setup_capabilities: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {

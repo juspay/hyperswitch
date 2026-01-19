@@ -50,8 +50,7 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            refunds::refund_create_core(state, platform, None, req)
+            refunds::refund_create_core(state, auth.platform, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -98,10 +97,9 @@ pub async fn refund_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.into();
             refunds::refund_response_wrapper(
                 state,
-                platform,
+                auth.platform,
                 None,
                 refund_request,
                 refunds::refund_retrieve_core_with_refund_id,
@@ -145,10 +143,9 @@ pub async fn refund_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.into();
             refunds::refund_response_wrapper(
                 state,
-                platform,
+                auth.platform,
                 None,
                 refund_request,
                 refunds::refund_retrieve_core_with_refund_id,
@@ -189,8 +186,7 @@ pub async fn refund_update(
         &req,
         create_refund_update_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            refunds::refund_update_core(state, platform, req)
+            refunds::refund_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,

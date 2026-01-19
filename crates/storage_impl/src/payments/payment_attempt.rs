@@ -430,8 +430,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         use hyperswitch_domain_models::behaviour::Conversion;
 
         let conn = pg_connection_read(self).await?;
-        let intents = try_join_all(pi.iter().cloned().map(|pi| async {
-            Conversion::convert(pi)
+        let intents = try_join_all(pi.iter().map(|pi| async {
+            Conversion::convert(pi.clone())
                 .await
                 .change_context(errors::StorageError::EncryptionError)
         }))
@@ -813,6 +813,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     extended_authorization_applied: payment_attempt.extended_authorization_applied,
                     extended_authorization_last_applied_at: payment_attempt
                         .extended_authorization_last_applied_at,
+                    error_details: payment_attempt.error_details.clone(),
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,

@@ -149,7 +149,7 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
         let db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");
@@ -177,7 +177,7 @@ mod merchant_connector_account_cache_tests {
                 key: domain::types::crypto_operation(
                     key_manager_state,
                     type_name!(domain::MerchantKeyStore),
-                    domain::types::CryptoOperation::Encrypt(
+                    domain::types::CryptoOperation::EncryptLocally(
                         services::generate_aes256_key().unwrap().to_vec().into(),
                     ),
                     Identifier::Merchant(merchant_id.clone()),
@@ -330,7 +330,7 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
         let db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");
@@ -357,7 +357,7 @@ mod merchant_connector_account_cache_tests {
                 key: domain::types::crypto_operation(
                     key_manager_state,
                     type_name!(domain::MerchantConnectorAccount),
-                    domain::types::CryptoOperation::Encrypt(
+                    domain::types::CryptoOperation::EncryptLocally(
                         services::generate_aes256_key().unwrap().to_vec().into(),
                     ),
                     Identifier::Merchant(merchant_id.clone()),
