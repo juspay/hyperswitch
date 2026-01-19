@@ -453,6 +453,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let mut authorize_request_data = self.request.clone();
             let pre_authenticate_request_data =
                 types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+
             let pre_authenticate_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
@@ -482,15 +483,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             // Convert back to CompleteAuthorize router data while preserving pre authentication response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
 
-            // Extract connector_transaction_id from PreAuthenticate response
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata: Some(metadata),
-                ..
+                connector_metadata, ..
             }) = &pre_authenticate_router_data.response
             {
-                // Store authentication_data in metadata for next step
-                authorize_request_data.metadata = Some(metadata.clone());
-            }
+                connector_metadata.clone_into(&mut authorize_request_data.metadata);
+            };
 
             let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
@@ -580,7 +578,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let mut authenticate_request_data =
                 types::PaymentsAuthenticateData::try_from(self.request.to_owned())?;
 
-            authenticate_request_data.authentication_data = authentication_data;
+            authenticate_request_data.authentication_data = authentication_data.clone();
 
             let authenticate_response_data: Result<
                 types::PaymentsResponseData,
@@ -592,7 +590,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     authenticate_request_data.clone(),
                     authenticate_response_data,
                 );
-            let (authenticate_router_data, _authentication_data) =
+            let (authenticate_router_data, authentication_data) =
                 Box::pin(payments_gateway::handle_gateway_call::<
                     _,
                     _,
@@ -609,22 +607,56 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             let authenticate_response = authenticate_router_data.response.clone();
 
-            // Extract connector_transaction_id from Authenticate response
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata: Some(metadata),
-                ..
-            }) = &authenticate_router_data.response
+                connector_metadata, ..
+            }) = &authenticate_response
             {
-                // Store authentication_data in metadata for next step
-                authorize_request_data.metadata = Some(metadata.clone());
-            }
+                connector_metadata.clone_into(&mut authorize_request_data.metadata);
+            };
 
-            let authorize_router_data =
+            authorize_request_data.authentication_data = authentication_data
+                .clone()
+                .map(|data| router_request_types::AuthenticationData::try_from(data))
+                .transpose()?;
+
+            let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     authenticate_router_data,
-                    authorize_request_data,
-                    authenticate_response,
+                    authorize_request_data.clone(),
+                    authenticate_response.clone(),
                 );
+
+            // Merge authentication_data into connector_metadata for persistence
+            // This ensures authentication_data is available in CompleteAuthorize flow
+            if let Some(auth_data) = authentication_data {
+                if let Ok(ref mut response) = authorize_router_data.response {
+                    if let types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        ..
+                    } = response
+                    {
+                        // Create a JSON object with authentication_data
+                        let auth_value = serde_json::json!({
+                            "authentication_data": auth_data
+                        });
+                        // Merge with existing connector_metadata
+                        *connector_metadata = Some(match connector_metadata.take() {
+                            Some(existing_metadata) => {
+                                let mut merged = existing_metadata;
+                                if let Some(obj) = merged.as_object_mut() {
+                                    obj.insert(
+                                        "authentication_data".to_string(),
+                                        serde_json::to_value(auth_data)
+                                            .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                                    );
+                                }
+                                merged
+                            }
+                            None => auth_value,
+                        });
+                    }
+                }
+            }
 
             let should_continue_after_authenticate = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::TransactionResponse {
