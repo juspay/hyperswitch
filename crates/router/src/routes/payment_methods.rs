@@ -125,8 +125,8 @@ pub async fn get_pm_nt_eligibility_api(
             .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
