@@ -535,6 +535,7 @@ impl NewUserMerchant {
                 Some(AuthenticationDataWithOrg {
                     organization_id: org_id,
                 }),
+                false,
             ))
             .await
             .change_context(UserErrors::InternalServerError)
@@ -576,12 +577,16 @@ impl NewUserMerchant {
             .create_merchant_account_request()
             .attach_printable("unable to construct merchant account create request")?;
 
-        let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request, None),
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?
+        let ApplicationResponse::Json(merchant_account_response) =
+            Box::pin(admin::create_merchant_account(
+                state.clone(),
+                merchant_account_create_request,
+                None,
+                false,
+            ))
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while creating a merchant")?
         else {
             return Err(UserErrors::InternalServerError.into());
         };
@@ -874,8 +879,8 @@ impl NewUser {
         match self.new_merchant.new_organization.0.organization_type {
             common_enums::OrganizationType::Platform => {
                 let org_update =
-                    diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
-                        platform_merchant_id: Some(merchant_id.clone()),
+                    diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                        platform_merchant_id: merchant_id.clone(),
                     };
 
                 state

@@ -1717,8 +1717,8 @@ pub async fn create_platform_account(
         .accounts_store
         .update_organization_by_org_id(
             &organization.get_organization_id(),
-            diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
-                platform_merchant_id: Some(merchant_account.get_id().clone()),
+            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                platform_merchant_id: merchant_account.get_id().clone(),
             },
         )
         .await
@@ -1783,6 +1783,7 @@ pub async fn create_org_merchant_for_user(
         Some(auth::AuthenticationDataWithOrg {
             organization_id: org.get_organization_id(),
         }),
+        false,
     )
     .await
     .change_context(UserErrors::InternalServerError)

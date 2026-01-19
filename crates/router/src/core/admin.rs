@@ -250,18 +250,14 @@ pub async fn convert_organization_to_platform_organization(
 
     // Validate organization doesn't already have a platform_merchant_id
     fp_utils::when(organization.platform_merchant_id.is_some(), || {
-        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Organization already has a platform merchant".to_string(),
-        }))
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
     })?;
 
     state
         .accounts_store
         .update_organization_by_org_id(
             &org_id.organization_id,
-            diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
-                platform_merchant_id: None,
-            },
+            diesel_models::organization::OrganizationUpdate::ConvertToPlatform,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -292,6 +288,7 @@ pub async fn convert_organization_to_platform_organization(
         Some(authentication::AuthenticationDataWithOrg {
             organization_id: org_id.organization_id.clone(),
         }),
+        true,
     ))
     .await?;
 
@@ -299,8 +296,8 @@ pub async fn convert_organization_to_platform_organization(
         .accounts_store
         .update_organization_by_org_id(
             &org_id.organization_id,
-            diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
-                platform_merchant_id: Some(platform_merchant_id.clone()),
+            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                platform_merchant_id: platform_merchant_id.clone(),
             },
         )
         .await
@@ -321,6 +318,7 @@ pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
+    is_platform_creation: bool,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
     use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
@@ -377,6 +375,7 @@ pub async fn create_merchant_account(
             key_store.clone(),
             &merchant_id,
             org_data_from_auth,
+            is_platform_creation,
         )
         .await?;
 
@@ -416,6 +415,7 @@ trait MerchantAccountCreateBridge {
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
         org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
+        is_platform_creation: bool,
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
@@ -428,6 +428,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
         org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
+        is_platform_creation: bool,
     ) -> RouterResult<domain::MerchantAccount> {
         let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
@@ -519,6 +520,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                 let platform_account_exists = accounts
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
+
+                if is_platform_creation && platform_account_exists {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "A platform merchant account already exists for this organization"
+                            .to_string(),
+                    }
+                    .into());
+                }
 
                 if accounts.is_empty() || !platform_account_exists {
                     // First merchant in a Platform org must be Platform
@@ -820,6 +829,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
         _org_data: Option<authentication::AuthenticationDataWithOrg>,
+        _is_platform_creation: bool,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.accounts_store;
