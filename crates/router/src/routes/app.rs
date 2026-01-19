@@ -562,6 +562,7 @@ impl AppState {
             #[cfg(feature = "keymanager_mtls")]
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+            use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -1820,6 +1821,8 @@ impl Oidc {
                     .route(web::get().to(oidc::oidc_discovery)),
             )
             .service(web::resource("/oauth2/jwks").route(web::get().to(oidc::jwks_endpoint)))
+            .service(web::resource("/oidc/authorize").route(web::get().to(oidc::oidc_authorize)))
+            .service(web::resource("/oauth2/token").route(web::post().to(oidc::oidc_token)))
     }
 }
 
@@ -3094,6 +3097,18 @@ impl ConnectorOnboarding {
                 web::resource("/reset_tracking_id")
                     .route(web::post().to(connector_onboarding::reset_tracking_id)),
             )
+    }
+}
+
+pub struct Embedded;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl Embedded {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/embedded")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(user::embedded_token_info)))
+            .service(web::resource("/token").route(web::get().to(user::issue_embedded_token)))
     }
 }
 

@@ -972,6 +972,9 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
+
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
 

@@ -195,6 +195,8 @@ impl
             customer_acceptance: data.request.customer_acceptance.clone(),
             customer_id: None,
             billing_address: None,
+            metadata: None,
+            currency: Some(data.request.currency),
         })
     }
 }
@@ -303,6 +305,8 @@ pub struct ConnectorCustomerData {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub customer_id: Option<id_type::CustomerId>,
     pub billing_address: Option<AddressDetails>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+    pub currency: Option<storage_enums::Currency>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -320,6 +324,8 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             customer_acceptance: data.customer_acceptance,
             customer_id: None,
             billing_address: None,
+            metadata: data.metadata,
+            currency: Some(data.currency),
         })
     }
 }
@@ -382,6 +388,8 @@ impl
             customer_acceptance: data.request.customer_acceptance.clone(),
             customer_id: None,
             billing_address: None,
+            metadata: data.request.metadata.clone().map(Secret::new),
+            currency: Some(data.request.currency),
         })
     }
 }
@@ -410,6 +418,8 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             customer_acceptance: None,
             customer_id: None,
             billing_address: None,
+            metadata: None,
+            currency: Some(data.request.currency),
         })
     }
 }
@@ -1515,6 +1525,27 @@ pub struct SdkPaymentsSessionUpdateData {
     pub currency: storage_enums::Currency,
     pub session_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SettlementSplitRequestData {
+    pub splits: common_types::payments::SplitPaymentsRequest,
+    pub currency: storage_enums::Currency,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for SettlementSplitRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(item: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            splits: item
+                .split_payments
+                .get_required_value("split_payments")
+                .change_context(ApiErrorResponse::MissingRequiredField {
+                    field_name: "split_payments",
+                })?,
+            currency: item.currency,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
