@@ -11,6 +11,7 @@ ignore_errors = false
 
 [key_manager]
 url = "http://localhost:5000"
+use_legacy_key_store_decryption = false
 
 [master_database]
 username = "postgres"

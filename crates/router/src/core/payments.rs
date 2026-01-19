@@ -4109,6 +4109,20 @@ where
         &call_connector_action,
     );
 
+    // Balance check flow for payment methods like Giftcard, Voucher etc.
+    let should_continue_further = if should_continue_further {
+        let balance_check_response = router_data
+            .balance_check_flow(state, &connector, &context)
+            .await?;
+        match balance_check_response.balance_check_result {
+            Ok(balance_check_result) => router_data.payment_method_balance = balance_check_result,
+            Err(err) => router_data.response = Err(err),
+        }
+        balance_check_response.should_continue_payment
+    } else {
+        should_continue_further
+    };
+
     let should_continue_further = match router_data
         .create_order_at_connector(state, &connector, should_continue_further, &context)
         .await?
@@ -4250,6 +4264,25 @@ where
         // Skip calling complete_preprocessing_steps_if_required function
         logger::info!(
             "skipping preprocessing steps for connector as tokenization flow is enabled: {}",
+            connector.connector_name
+        );
+        (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If balance check flow is bloated up for the current connector
+            // balance check call would have already happened in the previous step.
+            config
+                .balance_check_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        // If payment method tokenization flow is enabled for the current connector
+        // Skip calling complete_preprocessing_steps_if_required function
+        logger::info!(
+            "skipping preprocessing steps for connector as balance check is enabled: {}",
             connector.connector_name
         );
         (router_data, should_continue_further)

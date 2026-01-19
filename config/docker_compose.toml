@@ -106,6 +106,7 @@ max_feed_count = 200
 
 [key_manager]
 url = "http://localhost:5000"
+use_legacy_key_store_decryption = false
 
 [cors]
 max_age = 30
