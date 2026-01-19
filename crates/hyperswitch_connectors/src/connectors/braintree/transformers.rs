@@ -2973,12 +2973,18 @@ impl
                                 .change_context(errors::ConnectorError::ParsingFailed)
                                 .attach_printable("Failed to parse gpay metadata")?;
 
+                        let gpay_metadata = gpay_data.google_pay.data.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "gpay_metadata",
+                            },
+                        )?;
+
                         SessionToken::GooglePay(Box::new(
                             api_models::payments::GpaySessionTokenResponse::GooglePaySession(
                                 api_models::payments::GooglePaySessionResponse {
                                     merchant_info: payment_types::GpayMerchantInfo {
-                                        merchant_name: gpay_data.data.merchant_info.merchant_name,
-                                        merchant_id: gpay_data.data.merchant_info.merchant_id,
+                                        merchant_name: gpay_metadata.merchant_info.merchant_name,
+                                        merchant_id: gpay_metadata.merchant_info.merchant_id,
                                     },
                                     shipping_address_required: false,
                                     email_required: false,
@@ -2986,7 +2992,7 @@ impl
                                         payment_types::GpayShippingAddressParameters {
                                             phone_number_required: false,
                                         },
-                                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                                    allowed_payment_methods: gpay_metadata.allowed_payment_methods,
                                     transaction_info: payment_types::GpayTransactionInfo {
                                         country_code: common_enums::CountryAlpha2::US,
                                         currency_code: data.request.currency.ok_or(
