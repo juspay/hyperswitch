@@ -1177,6 +1177,32 @@ pub fn build_unified_connector_service_payment_method(
             )
             .into()),
         },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(
+            gift_card_data,
+        ) => match *gift_card_data {
+            hyperswitch_domain_models::payment_method_data::GiftCardData::Givex(givex_data) => {
+                let givex = payments_grpc::Givex {
+                    number: Some(givex_data.number.expose().into()),
+                    cvc: Some(givex_data.cvc.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Givex(givex)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::GiftCardData::PaySafeCard {} => {
+                Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "PaySafeCard gift card not yet supported in UCS: {payment_method_type:?}"
+                ))
+                .into())
+            }
+            hyperswitch_domain_models::payment_method_data::GiftCardData::BhnCardNetwork(_) => {
+                Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "BhnCardNetwork gift card not yet supported in UCS: {payment_method_type:?}"
+                ))
+                .into())
+            }
+        },
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
