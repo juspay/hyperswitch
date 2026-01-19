@@ -153,9 +153,9 @@ pub async fn profile_retrieve(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: permissions::Permission::ProfileAccountRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(permissions::Permission::ProfileAccountRead),
             },
             req.headers(),
         ),
