@@ -509,6 +509,7 @@ pub struct PaymentMethodUpdate {
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
     pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
@@ -1131,6 +1132,7 @@ pub struct PaymentMethodResponse {
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
     pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
