@@ -1171,6 +1171,7 @@ pub async fn create_payment_method_card_core(
                 fingerprint_id,
                 &payment_method,
                 None,
+                None,
                 network_tokenization_resp,
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
