@@ -279,6 +279,10 @@ sessionizer_disputes = "sessionizer-dispute-events"
 # Configuration for the Key Manager Service
 [key_manager]
 url = "http://localhost:5000" # URL of the encryption service
+# Enable / disable legacy key store decryption behavior.
+# Set to true if upgrading from previous versions of Hyperswitch.
+# Set to false for new deployments to use newer / correct decryption behavior.
+use_legacy_key_store_decryption = false
 
 # This section provides some secret values.
 [secrets]
