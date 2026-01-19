@@ -7,8 +7,9 @@ use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
+use std::time::Instant;
 
-use crate::{events::api_logs::ApiEvent, headers, routes::metrics};
+use crate::{events::api_logs::{ApiEvent, NewApiEvent}, headers, routes::metrics};
 
 /// Test middleware to check if we can access response extensions
 pub struct TestExtensionMiddleware;
@@ -57,27 +58,57 @@ where
     actix_web::dev::forward_ready!(service);
 
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let start_time = Instant::now();
+        let user_agent = req
+                .headers()
+                .get(headers::USER_AGENT)
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_string());
+            let ip_addr = req.peer_addr().map(|addr| addr.to_string());
+        
         let response_fut = self.service.call(req);
+        
         Box::pin(async move {
             let response = response_fut.await?;
+            let latency = start_time.elapsed().as_millis();
+            let status_code = response.status().as_u16() as i64;
             
             // Try to access the test extension data from the response extensions
             let (http_req, res_body) = response.into_parts();
-            
-            if let Some(test_data) = res_body.extensions().get::<String>() {
-                logger::info!("✅ TEST: Successfully accessed extension data from RESPONSE middleware: {}", test_data);
-            } else {
-                logger::info!("❌ TEST: No extension data found in RESPONSE middleware");
-            }
 
+            // Check for ApiEvent in response extensions
             if let Some(api_event) = res_body.extensions().get::<ApiEvent>() {
-                logger::info!("✅ Successfully accessed ApiEvent from RESPONSE middleware: {:?}", api_event);
+                logger::info!("Successfully accessed ApiEvent from RESPONSE middleware: {:?}", api_event);
+                let new_api_event = NewApiEvent::from(api_event.clone());
+                if let Ok(api_event_json) = serde_json::to_string_pretty(&new_api_event) {
+                logger::debug!("NewApiEvent details:\n{}", api_event_json);}
             } else {
-                logger::info!("❌ No ApiEvent found in RESPONSE middleware");
-            }
+                // No ApiEvent found - this means auth or deserialization error occurred
+                logger::info!("No ApiEvent found in RESPONSE middleware");
+                let new_api_event = NewApiEvent {
+                    tenant_id: None,
+                    merchant_id: None,
+                    api_flow: None,
+                    created_at_timestamp: time::OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+                    request_id: None,
+                    latency,
+                    status_code,
+                    auth_type: None,
+                    request: None,
+                    user_agent,
+                    ip_addr,
+                    url_path: Some(http_req.path().to_string()),
+                    response: None,
+                    error: res_body.error().as_ref().map(|e| serde_json::Value::String(e.to_string())),
+                    event_type: None,
+                    hs_latency: None,
+                    http_method: Some(http_req.method().to_string()),
+                    infra_components: None,
+                };
+                if let Ok(api_event_json) = serde_json::to_string_pretty(&new_api_event) {
+                logger::debug!("NewApiEvent details:\n{}", api_event_json);}
+            };
 
-            
-            
             let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
             Ok(response)
         })
