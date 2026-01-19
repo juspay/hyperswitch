@@ -95,6 +95,7 @@ pub struct CustomerNew {
     pub id: common_utils::id_type::GlobalCustomerId,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -124,12 +125,11 @@ impl From<CustomerNew> for Customer {
             merchant_reference_id: customer_new.merchant_reference_id,
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
-            id: customer_new.id.clone(),
+            id: customer_new.id,
             version: customer_new.version,
             status: customer_new.status,
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
-            customer_id: Some(customer_new.id),
         }
     }
 }
@@ -188,7 +188,6 @@ pub struct Customer {
     #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
     pub status: DeleteStatus,
     pub id: common_utils::id_type::GlobalCustomerId,
-    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
 #[cfg(feature = "v1")]
