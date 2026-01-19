@@ -18,10 +18,7 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
-    payments::{
-        payment_attempt::PaymentAttempt, payment_intent::CustomerData,
-        FromRequestEncryptablePaymentIntent,
-    },
+    payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -628,17 +625,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentCreate {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -1508,22 +1494,9 @@ impl PaymentCreate {
         let split_payments = request.split_payments.clone();
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
-            && (request.name.is_some()
-                || request.email.is_some()
-                || request.phone.is_some()
-                || request.phone_country_code.is_some())
-        {
-            Some(CustomerData {
-                name: request.name.clone(),
-                phone: request.phone.clone(),
-                email: request.email.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-                tax_registration_id: None,
-            })
-        } else {
-            None
-        };
+        let raw_customer_details =
+            helpers::get_customer_details_from_request(request).get_customer_data();
+
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

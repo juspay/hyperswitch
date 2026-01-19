@@ -600,18 +600,6 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    operation
-        .to_domain()?
-        .populate_raw_customer_details(
-            state,
-            &mut payment_data,
-            customer_details.as_ref(),
-            platform.get_processor(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while populating raw customer details")?;
-
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
@@ -1338,18 +1326,6 @@ where
     } else {
         None
     };
-
-    operation
-        .to_domain()?
-        .populate_raw_customer_details(
-            state,
-            &mut payment_data,
-            customer_details.as_ref(),
-            platform.get_processor(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while populating raw customer details")?;
 
     let (operation, _customer) = operation
         .to_domain()?

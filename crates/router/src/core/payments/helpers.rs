@@ -1770,6 +1770,43 @@ pub async fn populate_raw_customer_details<F: Clone>(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn merge_request_customer_data_into_payment_intent_customer_data(
+    state: &SessionState,
+    payment_intent: &mut PaymentIntent,
+    request_customer_details: &CustomerDetails,
+    processor: &domain::Processor,
+) -> CustomResult<(), errors::StorageError> {
+    let key_store = processor.get_key_store();
+    let key_manager_state = state.into();
+
+    if let Some(mut request_customer_data) = request_customer_details.get_customer_data() {
+        if let Some(customer_details_encrypted) = &payment_intent.customer_details {
+            let decrypted_data = customer_details_encrypted
+                .clone()
+                .into_inner()
+                .expose()
+                .parse_value::<CustomerData>("CustomerData")
+                .change_context(errors::StorageError::DeserializationFailed)
+                .attach_printable("Failed to parse customer data from payment intent")?;
+
+            // Customer details in request take priority, so only fill missing fields from payment intent
+            request_customer_data.fill_missing_fields(&decrypted_data);
+        }
+
+        // Encrypt and update customer details in payment intent
+        payment_intent.customer_details = Some(
+            create_encrypted_data(&key_manager_state, key_store, request_customer_data)
+                .await
+                .change_context(errors::StorageError::EncryptionError)
+                .attach_printable("Unable to encrypt customer details")?,
+        );
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]

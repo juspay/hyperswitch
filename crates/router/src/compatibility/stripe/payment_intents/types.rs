@@ -552,7 +552,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email.map(|inner| inner.into()),
+            email: resp.email,
             name: resp.name,
             phone: resp.phone,
             authentication_type: resp.authentication_type,
