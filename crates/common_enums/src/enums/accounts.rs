@@ -92,13 +92,3 @@ pub enum MerchantAccountRequestType {
     Standard,
     Connected,
 }
-
-impl MerchantAccountType {
-    pub fn get_merchant_account_type(self) -> Option<MerchantAccountRequestType> {
-        match self {
-            Self::Standard => Some(MerchantAccountRequestType::Standard),
-            Self::Connected => Some(MerchantAccountRequestType::Connected),
-            Self::Platform => None,
-        }
-    }
-}

@@ -418,7 +418,7 @@ pub struct NewUserMerchant {
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
     product_type: Option<common_enums::MerchantProductType>,
-    merchant_account_type: Option<common_enums::MerchantAccountType>,
+    merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -510,9 +510,7 @@ impl NewUserMerchant {
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
             product_type: self.get_product_type(),
-            merchant_account_type: self
-                .merchant_account_type
-                .and_then(|account_type| account_type.get_merchant_account_type()),
+            merchant_account_type: self.merchant_account_type,
         })
     }
 
@@ -672,23 +670,15 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let company_name = Some(UserCompanyName::new(value.company_name.clone())?);
         let merchant_id = MerchantId::new(value.company_name.clone())?;
-        let org_type = value.organization_type.unwrap_or_default();
         let new_organization = NewUserOrganization::try_from(value)?;
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
-        let merchant_account_type = match org_type {
-            common_enums::OrganizationType::Platform => {
-                Some(common_enums::MerchantAccountType::Platform)
-            }
-            common_enums::OrganizationType::Standard => {
-                Some(common_enums::MerchantAccountType::Standard)
-            }
-        };
+
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
             product_type,
-            merchant_account_type,
+            merchant_account_type: None,
         })
     }
 }
@@ -883,20 +873,6 @@ impl NewUser {
         // If Platform org, update organization with platform_merchant_id
         match self.new_merchant.new_organization.0.organization_type {
             common_enums::OrganizationType::Platform => {
-                common_utils::fp_utils::when(
-                    !matches!(
-                        self.new_merchant.merchant_account_type,
-                        Some(common_enums::MerchantAccountType::Platform)
-                    ),
-                    || {
-                        Err(
-                            report!(UserErrors::InvalidPlatformOperation).attach_printable(
-                                "Merchant account type must be Platform for Platform organization",
-                            ),
-                        )
-                    },
-                )?;
-
                 let org_update =
                     diesel_models::organization::OrganizationUpdate::ConvertToPlatform {
                         platform_merchant_id: Some(merchant_id.clone()),

@@ -195,7 +195,7 @@ pub struct PlatformAccountCreateResponse {
 pub struct UserMerchantCreate {
     pub company_name: String,
     pub product_type: Option<common_enums::MerchantProductType>,
-    pub merchant_account_type: Option<common_enums::MerchantAccountType>,
+    pub merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
