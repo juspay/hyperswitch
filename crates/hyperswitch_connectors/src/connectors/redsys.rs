@@ -56,7 +56,7 @@ use transformers as redsys;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self as connector_utils},
+    utils::{self as connector_utils, PaymentsPreAuthenticateRequestData},
 };
 
 #[derive(Clone)]
@@ -1106,6 +1106,7 @@ impl ConnectorSpecifications for Redsys {
                     Some(_) | None => false,
                 }
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 

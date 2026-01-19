@@ -12,9 +12,10 @@ use hyperswitch_connectors::constants as connector_consts;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse, payments as domain_payments,
-    router_data_v2::PaymentFlowData, router_flow_types, router_request_types,
-    router_response_types,
+    errors::api_error_response::ApiErrorResponse,
+    payments as domain_payments, router_data,
+    router_data_v2::{flow_common_types, PaymentFlowData},
+    router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
     api::{self as api_interface, gateway, ConnectorSpecifications},
@@ -602,6 +603,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     authenticate_router_data,
                     connector,
                     gateway_context,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
                 ))
                 .await?;
 

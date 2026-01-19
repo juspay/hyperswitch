@@ -364,6 +364,7 @@ impl
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
             threeds_method_comp_ind: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -548,6 +549,7 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            tokenization_strategy: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: router_data
                 .request
@@ -879,8 +881,8 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None,
             address: Some(address),
-            metadata: None,
             authentication_data,
+            metadata: None,
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
@@ -946,13 +948,6 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
-        let authentication_data = router_data
-            .request
-            .authentication_data
-            .clone()
-            .map(payments_grpc::AuthenticationData::foreign_try_from)
-            .transpose()?;
-
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -974,8 +969,8 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None,
             address: Some(address),
+            authentication_data: None,
             metadata: None,
-            authentication_data,
             return_url: None,
             continue_redirection_url: None,
             state: None,
@@ -995,7 +990,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
-            connector_order_reference_id: router_data.request.connector_transaction_id.clone(),
+            connector_order_reference_id: None,
         })
     }
 }
@@ -1033,6 +1028,7 @@ impl
             .capture_method
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
+
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -1086,7 +1082,6 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
-            webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
@@ -1311,6 +1306,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1488,6 +1484,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: None,
         })
     }
 }
@@ -1648,6 +1645,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
