@@ -1416,9 +1416,8 @@ impl VaultData {
 }
 
 #[cfg(feature = "v2")]
-/// Guest customer details for connectors when the customer ID is not a GlobalCustomerId
+/// Guest customer details for connectors
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct GuestCustomer {
-    /// The identifier for the guest customer (not necessarily a GlobalCustomerId format)
     pub customer_id: id_type::CustomerId,
 }
