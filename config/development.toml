@@ -65,6 +65,7 @@ id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or
 [server]
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32768
+workers = 8
 
 [secrets]
 admin_api_key = "test_admin"
@@ -1477,3 +1478,17 @@ org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[profiling]
+# Pyroscope profiling configuration for memory/performance analysis
+enabled = true
+# Pyroscope server endpoint (use pyroscope:4040 when running in docker)
+server_address = "http://localhost:4040"
+# Application name for profiling data identification
+application_name = "router"
+# Profile types to collect (cpu, mem, mutex, alloc_space, inuse_space, inuse_objects, alloc_space, space, bytes)
+profile_types = ["cpu", "mem", "mutex", "alloc_space", "inuse_space", "inuse_objects", "alloc_space", "space", "bytes"]
+# Sample interval in nanoseconds (1000000 = 1ms)
+sample_interval = "10000000"
+# Whether to include build-id in profiling data
+include_build_id = true

@@ -6,6 +6,27 @@ use router::{
     routes::metrics,
 };
 
+#[cfg(feature = "profiling")]
+use pyroscope::PyroscopeAgent;
+
+#[cfg(feature = "profiling")]
+fn setup_profiling(config: &router::configs::settings::ProfilingConfig) {
+    if !config.enabled {
+        logger::info!("Profiling is disabled");
+        return;
+    }
+
+    logger::info!("Initializing Pyroscope profiler...");
+
+    let profiling_agent = PyroscopeAgent::builder(
+        &config.server_address,
+        &config.application_name,
+    ).build().expect("Failed to build Pyroscope agent");
+
+    profiling_agent.start().expect("Failed to start Pyroscope agent");
+    logger::info!("Pyroscope profiler initialized successfully");
+}
+
 #[tokio::main]
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
@@ -32,6 +53,9 @@ async fn main() -> ApplicationResult<()> {
     .change_context(ApplicationError::ConfigurationError)?;
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
+
+    #[cfg(feature = "profiling")]
+    setup_profiling(&conf.profiling);
 
     // Spawn a thread for collecting metrics at fixed intervals
     metrics::bg_metrics_collector::spawn_metrics_collector(

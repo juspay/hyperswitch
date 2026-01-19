@@ -99,6 +99,10 @@ services:
     volumes:
       - ./config:/local/config
       - ./files:/local/bin/files
+    environment:
+      - PROFILING_ENABLED=${PROFILING_ENABLED:-false}
+      - PYROSCOPE_SERVER_ADDRESS=${PYROSCOPE_SERVER_ADDRESS:-http://localhost:4040}
+      - PYROSCOPE_APPLICATION_NAME=${PYROSCOPE_APPLICATION_NAME:-hyperswitch-router}
     depends_on:
       pg:
         condition: service_healthy
@@ -106,6 +110,9 @@ services:
         condition: service_healthy
       migration_runner:
         condition: service_completed_successfully
+      pyroscope:
+        condition: service_started
+        required: false
     labels:
       logs: "promtail"
     healthcheck:
@@ -351,6 +358,17 @@ services:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
       - "9090"
+    restart: unless-stopped
+
+  pyroscope:
+    image: docker.io/grafana/pyroscope:latest
+    container_name: pyroscope
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    ports:
+      - "4040:4040"
     restart: unless-stopped
 
   tempo:

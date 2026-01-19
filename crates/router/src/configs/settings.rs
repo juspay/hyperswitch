@@ -178,6 +178,8 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    #[cfg(feature = "profiling")]
+    pub profiling: ProfilingConfig,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -1651,4 +1653,17 @@ mod hashset_deserialization_test {
 
         assert!(payment_methods.is_err());
     }
+}
+
+#[cfg(feature = "profiling")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ProfilingConfig {
+    pub enabled: bool,
+    pub server_address: String,
+    pub application_name: String,
+    #[serde(default)]
+    pub profile_types: Vec<String>,
+    pub sample_interval: u64,
+    pub include_build_id: bool,
 }

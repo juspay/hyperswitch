@@ -18,6 +18,16 @@ datasources:
     access: proxy
     url: http://prometheus:9090/
     editable: true
+  - name: Profiling
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope:4040/
+    editable: true
+    isDefault: false
+    jsonData:
+      minStep: '1s'
+      queryType: 'both'
+      groupByKey: ''
     datasources:
   # - name: ClickHouse
   #   type: grafana-clickhouse-datasource

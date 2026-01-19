@@ -10,7 +10,7 @@ license.workspace = true
 
 [features]
 default = ["common_default", "v1"]
-common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition"]
+common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition", "profiling"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
@@ -30,6 +30,7 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "hype
 external_access_dc = ["dummy_connector"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts", "payment_methods/payouts"]
 payout_retry = ["payouts"]
+profiling = ["dep:pyroscope"]
 recon = ["email", "api_models/recon"]
 retry = []
 v2 = [ "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2", "hyperswitch_connectors/v2", "hyperswitch_interfaces/v2", "common_types/v2", "revenue_recovery", "scheduler/v2", "euclid/v2", "payment_methods/v2", "tokenization_v2", "subscriptions/v2"]
@@ -42,6 +43,7 @@ tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2"
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
 # This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
 partial-auth = []
+profiling-alloc = ["mimalloc"]
 
 [dependencies]
 actix-cors = "0.6.5"
@@ -105,6 +107,7 @@ tera = "1.20.0"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+pyroscope = { version = "0.5", optional = true }
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.12.0"
@@ -171,3 +174,8 @@ path = "src/bin/scheduler.rs"
 
 [lints]
 workspace = true
+
+[profile.profiling]
+inherits = "dev"
+opt-level = 1
+debug = true

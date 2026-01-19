@@ -48,5 +48,10 @@ option_map_unit_fn = "allow"
 
 [profile.release]
 strip = true
+
+[profile.profiling]
+inherits = "dev"
+opt-level = 1
+debug = true
 lto = true
 codegen-units = 1

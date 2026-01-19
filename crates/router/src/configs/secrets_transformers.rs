@@ -637,6 +637,8 @@ pub(crate) async fn fetch_raw_secrets(
         trace_header: conf.trace_header,
         internal_services: conf.internal_services,
         superposition,
+        #[cfg(feature = "profiling")]
+        profiling: conf.profiling,
         comparison_service: conf.comparison_service,
         save_payment_method_on_session: conf.save_payment_method_on_session,
     }
