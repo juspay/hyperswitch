@@ -999,7 +999,7 @@ mod tests {
     async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");
@@ -1113,7 +1113,7 @@ mod tests {
     async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");
@@ -1527,6 +1527,7 @@ mod tests {
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
+            error_details: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

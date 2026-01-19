@@ -94,9 +94,9 @@ pub use self::app::Proxy;
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
-    ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,
-    Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, Oidc, PaymentLink,
-    PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
+    ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix, Files, Forex,
+    Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, Oidc,
+    PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
     ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
     User, UserDeprecated, Webhooks,
 };
