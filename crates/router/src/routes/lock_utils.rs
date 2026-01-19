@@ -314,7 +314,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UploadFileToUserThemeStorage
             | Flow::GetUserThemeUsingLineage
             | Flow::ListAllThemesInLineage
-            | Flow::CloneConnector => Self::User,
+            | Flow::CloneConnector
+            | Flow::EmbeddedTokenInfo
+            | Flow::GetEmbeddedToken => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
