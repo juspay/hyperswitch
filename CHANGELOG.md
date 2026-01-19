@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.19.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [ADYEN] skip serializing none in mandate payments ([#10971](https://github.com/juspay/hyperswitch/pull/10971)) ([`b548db9`](https://github.com/juspay/hyperswitch/commit/b548db9c269156a2d9f400ce1888fb3cf1ee211e))
+
+**Full Changelog:** [`2026.01.19.0...2026.01.19.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.01.19.0...2026.01.19.0-hotfix1)
+
+- - -
+
 ## 2026.01.19.0
 
 ### Features
