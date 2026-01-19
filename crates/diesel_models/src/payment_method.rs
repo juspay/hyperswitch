@@ -1005,7 +1005,10 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
             status: payment_method_new.status,
-            network_transaction_id: payment_method_new.network_transaction_id.clone().map(Secret::new),
+            network_transaction_id: payment_method_new
+                .network_transaction_id
+                .clone()
+                .map(Secret::new),
             client_secret: payment_method_new.client_secret.clone(),
             updated_by: payment_method_new.updated_by.clone(),
             payment_method_billing_address: payment_method_new
