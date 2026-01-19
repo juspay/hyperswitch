@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.07.0-hotfix6
+
+### Features
+
+- Generating request id for every retry in consumer workflow ([#10970](https://github.com/juspay/hyperswitch/pull/10970)) ([`2eb7346`](https://github.com/juspay/hyperswitch/commit/2eb73466e63f19b12664c9fd8579e1a4f9940f1e))
+
+**Full Changelog:** [`2026.01.07.0-hotfix5...2026.01.07.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.01.07.0-hotfix5...2026.01.07.0-hotfix6)
+
+- - -
+
 ## 2026.01.07.0-hotfix5
 
 ### Bug Fixes
