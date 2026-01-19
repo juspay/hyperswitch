@@ -376,7 +376,7 @@ impl ConnectorApiIntegrationPayload {
                 debit_details,
                 credit_details,
                 gift_card,
-                network_token_details
+                network_token_details,
             ]),
             metadata: response.metadata,
         }
