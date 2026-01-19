@@ -1357,3 +1357,26 @@ org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+# Merchant Advice Code Configuration
+[merchant_advice_codes.visa]
+"01" = { description = "The issuer will never approve (do not reattempt with the same card)", recommended_action = "do_not_retry" }
+"02" = { description = "The issuer cannot approve at this time (limit the reattempts with the same card to a maximum of 20 times within 30 days)", recommended_action = "retry_later" }
+"03" = { description = "Data quality (monitor for fraud attacks, revalidate the customer data prior to reattempt for a maximum of 20 times within 30 days)", recommended_action = "retry_after_instrument_update" }
+"04" = { description = "Generic response codes (limit the reattempts with the same card to a maximum of 20 times within 30 days)", recommended_action = "retry_later" }
+
+[merchant_advice_codes.mastercard]
+"01" = { description = "New account information available", recommended_action = "retry_after_instrument_update" }
+"02" = { description = "Cannot approve at this time, try again later", recommended_action = "retry_later" }
+"03" = { description = "Do not try again", recommended_action = "do_not_retry" }
+"04" = { description = "Token not supported", recommended_action = "retry_with_different_payment_method_data" }
+"05" = { description = "Negotiated value not approved", recommended_action = "do_not_retry" }
+"21" = { description = "Stop recurring payment", recommended_action = "stop_recurring" }
+"22" = { description = "Merchant does not qualify for product code", recommended_action = "do_not_retry" }
+"24" = { description = "Retry after 1 hour", recommended_action = "retry_after_1_hour" }
+"25" = { description = "Retry after 24 hours", recommended_action = "retry_after_24_hours" }
+"26" = { description = "Retry after 2 days", recommended_action = "retry_after_2_days" }
+"27" = { description = "Retry after 4 days", recommended_action = "retry_after_4_days" }
+"28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
+"29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
+"30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
