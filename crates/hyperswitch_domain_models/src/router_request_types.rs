@@ -6,7 +6,7 @@ pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{
-    consts, errors,
+    consts, date_time, errors,
     ext_traits::OptionExt,
     id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
@@ -1227,10 +1227,35 @@ impl
     }
 }
 
+impl TryFrom<UcsAuthenticationData> for AuthenticationData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(authentication_data: UcsAuthenticationData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: authentication_data.eci,
+            cavv: authentication_data.cavv.unwrap_or_default(),
+            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id,
+            message_version: authentication_data.message_version,
+            ds_trans_id: authentication_data.ds_trans_id,
+            created_at: date_time::now(),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            acs_trans_id: authentication_data.acs_trans_id,
+            authentication_type: None,
+            transaction_status: authentication_data.trans_status,
+            cb_network_params: None,
+            exemption_indicator: None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,
+    #[serde(alias = "three_d_s_server_trans_i_d")]
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<SemanticVersion>,
     pub ds_trans_id: Option<String>,
