@@ -204,7 +204,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Integ"
 base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
-force_cookies = true
+force_cookies = false
 
 [frm]
 enabled = true
@@ -216,7 +216,7 @@ payout_connector_list = "nomupay,stripe,wise"
 connectors_with_delayed_session_response = "trustpay,payme"     # List of connectors which have delayed session response
 
 [save_payment_method_on_session.unsupported_payment_methods]
-pay_later = ["klarna", "affirm"]
+pay_later = "klarna,affirm"
 
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
@@ -956,6 +956,9 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
+
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"

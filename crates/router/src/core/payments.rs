@@ -131,6 +131,10 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
+        payments::helpers::{
+            get_applepay_metadata, is_applepay_predecrypted_flow_supported,
+            is_googlepay_predecrypted_flow_supported,
+        },
         payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
@@ -156,7 +160,7 @@ use crate::{
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core,
+        authentication as authentication_core, unified_authentication_service::utils as uas_utils,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -1209,7 +1213,8 @@ where
         .await?;
 
     utils::trigger_payments_webhook(
-        platform.clone(),
+        platform.get_processor(),
+        platform.get_initiator(),
         business_profile,
         cloned_payment_data,
         cloned_customer,
@@ -1435,7 +1440,8 @@ where
     let cloned_payment_data = payment_data.clone();
 
     utils::trigger_payments_webhook(
-        platform.clone(),
+        platform.get_processor(),
+        platform.get_initiator(),
         business_profile,
         cloned_payment_data,
         None,
@@ -3964,13 +3970,6 @@ where
             _ => return Ok(None),
         };
 
-        // Check if the wallet has already decrypted the token from the payment data.
-        // If a pre-decrypted token is available, use it directly to avoid redundant decryption.
-        if let Some(predecrypted_token) = wallet.check_predecrypted_token(payment_data)? {
-            logger::debug!("Using predecrypted token for wallet");
-            return Ok(Some(predecrypted_token));
-        }
-
         let merchant_connector_account =
             get_merchant_connector_account_for_wallet_decryption_flow::<F, D>(
                 state,
@@ -3979,6 +3978,15 @@ where
                 connector_call_type_optional,
             )
             .await?;
+        // Check if the wallet has already decrypted the token from the payment data and support_predecrypted_token is true.
+        // If a pre-decrypted token is available, check if it is enabled in mca and use it directly to avoid redundant decryption.
+
+        if let Some(predecrypted_token) =
+            wallet.check_predecrypted_token(payment_data, &merchant_connector_account)?
+        {
+            logger::debug!("Using predecrypted token for wallet");
+            return Ok(Some(predecrypted_token));
+        }
 
         let decide_wallet_flow = &wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
@@ -4119,6 +4127,14 @@ where
         None => should_continue_further,
     };
 
+    let (mut router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .settlement_split_call(state, &connector, &context)
+            .await?
+    } else {
+        (router_data, should_continue_further)
+    };
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -4234,6 +4250,23 @@ where
         // Skip calling complete_preprocessing_steps_if_required function
         logger::info!(
             "skipping preprocessing steps for connector as tokenization flow is enabled: {}",
+            connector.connector_name
+        );
+        (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If order create flow is bloated up for the current connector
+            // order create call would have already happened in the previous step.
+            config
+                .settlement_split_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        logger::info!(
+            "skipping preprocessing steps for connector as settlement split is bloated: {}",
             connector.connector_name
         );
         (router_data, should_continue_further)
@@ -4392,6 +4425,7 @@ where
     ) {
         let payment_method_data = payment_data.get_payment_method_data();
         let customer_id = payment_data.get_payment_intent().customer_id.clone();
+
         if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
             (payment_method_data, customer_id)
         {
@@ -5775,6 +5809,7 @@ where
     fn check_predecrypted_token(
         &self,
         _payment_data: &D,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
         // Default implementation returns None (no pre-decrypted data)
         Ok(None)
@@ -5871,15 +5906,16 @@ where
     fn check_predecrypted_token(
         &self,
         payment_data: &D,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
         let apple_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
             .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data());
 
-        let result = if let Some(data) = apple_pay_wallet_data {
+        if let Some(data) = apple_pay_wallet_data {
             match &data.payment_data {
-                common_payments_types::ApplePayPaymentData::Encrypted(_) => None,
+                common_payments_types::ApplePayPaymentData::Encrypted(_) => Ok(None),
                 common_payments_types::ApplePayPaymentData::Decrypted(
                     apple_pay_predecrypt_data,
                 ) => {
@@ -5887,15 +5923,24 @@ where
                         &apple_pay_predecrypt_data.application_expiration_month,
                         &apple_pay_predecrypt_data.application_expiration_year,
                     )?;
-                    Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
-                        apple_pay_predecrypt_data.clone(),
-                    )))
+
+                    if is_applepay_predecrypted_flow_supported(
+                        merchant_connector_account.get_metadata(),
+                    ) {
+                        Ok(Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
+                            apple_pay_predecrypt_data.clone(),
+                        ))))
+                    } else {
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Predecrypted token is not enabled for ApplePay.".to_string(),
+                        }
+                        .into())
+                    }
                 }
             }
         } else {
-            None
-        };
-        Ok(result)
+            Ok(None)
+        }
     }
 
     fn decide_wallet_flow(
@@ -5913,10 +5958,10 @@ where
         );
 
         let wallet_flow = match apple_pay_metadata {
-            Some(domain::ApplePayFlow::Simplified(payment_processing_details)) => Some(
+            Some(domain::ApplePayFlow::DecryptAtApplication(payment_processing_details)) => Some(
                 DecideWalletFlow::ApplePayDecrypt(payment_processing_details),
             ),
-            Some(domain::ApplePayFlow::Manual) | None => None,
+            Some(domain::ApplePayFlow::SkipDecryption) | None => None,
         };
         Ok(wallet_flow)
     }
@@ -5983,31 +6028,41 @@ where
     fn check_predecrypted_token(
         &self,
         payment_data: &D,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
         let google_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
             .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data());
 
-        let result = if let Some(data) = google_pay_wallet_data {
+        if let Some(data) = google_pay_wallet_data {
             match &data.tokenization_data {
-                common_payments_types::GpayTokenizationData::Encrypted(_) => None,
+                common_payments_types::GpayTokenizationData::Encrypted(_) => Ok(None),
                 common_payments_types::GpayTokenizationData::Decrypted(
                     google_pay_predecrypt_data,
                 ) => {
-                    helpers::validate_card_expiry(
-                        &google_pay_predecrypt_data.card_exp_month,
-                        &google_pay_predecrypt_data.card_exp_year,
-                    )?;
-                    Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
-                        google_pay_predecrypt_data.clone(),
-                    )))
+                    if is_googlepay_predecrypted_flow_supported(
+                        merchant_connector_account.get_metadata(),
+                    ) {
+                        helpers::validate_card_expiry(
+                            &google_pay_predecrypt_data.card_exp_month,
+                            &google_pay_predecrypt_data.card_exp_year,
+                        )?;
+                        Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                            google_pay_predecrypt_data.clone(),
+                        ))))
+                    } else {
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Predecrypted token flow is not enabled for GooglePay."
+                                .to_string(),
+                        }
+                        .into())
+                    }
                 }
             }
         } else {
-            None
-        };
-        Ok(result)
+            Ok(None)
+        }
     }
     fn decide_wallet_flow(
         &self,
@@ -7474,73 +7529,62 @@ fn check_apple_pay_metadata(
     merchant_connector_account.and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
-            let parsed_metadata = apple_pay_metadata
-                .clone()
-                .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-                    "ApplepayCombinedSessionTokenData",
-                )
-                .map(|combined_metadata| {
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                        combined_metadata.apple_pay_combined,
-                    )
-                })
-                .or_else(|_| {
-                    apple_pay_metadata
-                        .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                            "ApplepaySessionTokenData",
-                        )
-                        .map(|old_metadata| {
-                            api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                                old_metadata.apple_pay,
-                            )
-                        })
-                })
-                .map_err(|error| {
-                    logger::warn!(?error, "Failed to Parse Value to ApplepaySessionTokenData")
-                });
+            let parsed_metadata = get_applepay_metadata(Some(apple_pay_metadata.clone()));
 
-            parsed_metadata.ok().map(|metadata| match metadata {
+            parsed_metadata.ok().and_then(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                     apple_pay_combined,
-                ) => match apple_pay_combined {
-                    api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => {
-                        domain::ApplePayFlow::Simplified(payments_api::PaymentProcessingDetails {
-                            payment_processing_certificate: state
-                                .conf
-                                .applepay_decrypt_keys
-                                .get_inner()
-                                .apple_pay_ppc
-                                .clone(),
-                            payment_processing_certificate_key: state
-                                .conf
-                                .applepay_decrypt_keys
-                                .get_inner()
-                                .apple_pay_ppc_key
-                                .clone(),
-                        })
+                ) => match apple_pay_combined.get_combined_metadata_required() {
+                    Ok(api_models::payments::ApplePayCombinedMetadata::Simplified { .. }) => {
+                        Some(domain::ApplePayFlow::DecryptAtApplication(
+                            payments_api::PaymentProcessingDetails {
+                                payment_processing_certificate: state
+                                    .conf
+                                    .applepay_decrypt_keys
+                                    .get_inner()
+                                    .apple_pay_ppc
+                                    .clone(),
+                                payment_processing_certificate_key: state
+                                    .conf
+                                    .applepay_decrypt_keys
+                                    .get_inner()
+                                    .apple_pay_ppc_key
+                                    .clone(),
+                            },
+                        ))
                     }
-                    api_models::payments::ApplePayCombinedMetadata::Manual {
+                    Ok(api_models::payments::ApplePayCombinedMetadata::Manual {
                         payment_request_data: _,
                         session_token_data,
-                    } => {
+                    }) => {
                         if let Some(manual_payment_processing_details_at) =
                             session_token_data.payment_processing_details_at
                         {
                             match manual_payment_processing_details_at {
                                 payments_api::PaymentProcessingDetailsAt::Hyperswitch(
                                     payment_processing_details,
-                                ) => domain::ApplePayFlow::Simplified(payment_processing_details),
+                                ) => Some(domain::ApplePayFlow::DecryptAtApplication(
+                                    payment_processing_details,
+                                )),
                                 payments_api::PaymentProcessingDetailsAt::Connector => {
-                                    domain::ApplePayFlow::Manual
+                                    Some(domain::ApplePayFlow::SkipDecryption)
                                 }
                             }
                         } else {
-                            domain::ApplePayFlow::Manual
+                            Some(domain::ApplePayFlow::SkipDecryption)
+                        }
+                    }
+                    Err(_) => {
+                        // In the case were only predecrypted token in enabled donot throw error , just skip decryption
+                        if apple_pay_combined.is_predecrypted_token_supported() {
+                            Some(domain::ApplePayFlow::SkipDecryption)
+                        } else {
+                            None
                         }
                     }
                 },
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => {
-                    domain::ApplePayFlow::Manual
+                    Some(domain::ApplePayFlow::SkipDecryption)
                 }
             })
         })
@@ -7567,12 +7611,10 @@ fn get_google_pay_connector_wallet_details(
                 });
 
             google_pay_wallet_details
-                .ok()
+                .ok().map(|details| details.google_pay)
                 .and_then(
                     |google_pay_wallet_details| {
-                        match google_pay_wallet_details
-                        .google_pay
-                        .provider_details {
+                        match google_pay_wallet_details.provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
                                 match (
                                     merchant_details
@@ -10803,6 +10845,18 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )
     .await?
     {
+        let routing_region = uas_utils::fetch_routing_region_for_uas(
+            &state,
+            merchant_id.clone(),
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch routing path")?;
         let auth_response =
             <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                 &state,
@@ -10824,6 +10878,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 Some(payment_intent.payment_id),
                 authentication.force_3ds_challenge,
                 authentication.psd2_sca_exemption_type,
+                Some(routing_region),
             )
             .await?;
         let authentication = Box::pin(external_authentication_update_trackers(
@@ -13601,5 +13656,118 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
 
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
         self.payment_attempt.cancellation_reason = cancellation_reason;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentIntentStateMetadataExt(pub common_payments_types::PaymentIntentStateMetadata);
+
+impl From<common_payments_types::PaymentIntentStateMetadata> for PaymentIntentStateMetadataExt {
+    fn from(meta: common_payments_types::PaymentIntentStateMetadata) -> Self {
+        Self(meta)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl PaymentIntentStateMetadataExt {
+    pub async fn update_intent_state_metadata_for_refund(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: payments::PaymentIntent,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let db = state.store.clone();
+        let key_store = platform.get_processor().get_key_store().clone();
+        let merchant_account = platform.get_processor().get_account().clone();
+        // Update payment_intent for the refund's payment_id
+        // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
+        let all_refunds_for_payment = db
+            .find_refund_by_payment_id_merchant_id(
+                &payment_intent.payment_id,
+                merchant_account.get_id(),
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed to fetch refunds for payment_id: {:?}",
+                    payment_intent.payment_id
+                )
+            })?;
+
+        let total_refunded_amount: i64 = all_refunds_for_payment
+            .iter()
+            .filter(|r| r.refund_status.is_success())
+            .map(|r| r.refund_amount.get_amount_as_i64())
+            .sum();
+
+        let current_state = payment_intent
+            .state_metadata
+            .clone()
+            .unwrap_or_default()
+            .with_total_refunded_amount(MinorUnit::new(total_refunded_amount));
+
+        let domain_update = payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
+            state_metadata: current_state.clone(),
+            updated_by: merchant_account.storage_scheme.to_string(),
+        };
+
+        db.update_payment_intent(
+            payment_intent.clone(),
+            domain_update,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment intent with total_refunded_amount")?;
+
+        Ok(())
+    }
+
+    pub async fn update_intent_state_metadata_for_dispute(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: payments::PaymentIntent,
+        dispute: &diesel_models::dispute::Dispute,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let db = state.store.clone();
+        let key_store = platform.get_processor().get_key_store().clone();
+        let merchant_account = platform.get_processor().get_account().clone();
+        let dispute_clone = dispute.clone();
+        let total_disputed_amount = payment_intent
+            .state_metadata
+            .clone()
+            .unwrap_or_default()
+            .total_disputed_amount
+            .map(|amount| amount + dispute_clone.dispute_amount)
+            .or(Some(dispute_clone.dispute_amount));
+
+        if let Some(disputed_amount) = total_disputed_amount {
+            let current_state = payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .with_total_disputed_amount(disputed_amount);
+
+            let domain_update =
+                payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
+                    state_metadata: current_state,
+                    updated_by: merchant_account.storage_scheme.to_string(),
+                };
+
+            db.update_payment_intent(
+                payment_intent,
+                domain_update,
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment_intent.state metadata")?;
+        }
+        Ok(())
     }
 }
