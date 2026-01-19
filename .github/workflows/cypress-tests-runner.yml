@@ -35,9 +35,7 @@ env:
 jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
-    if: |
-      github.event_name == 'pull_request' && 
-      contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
@@ -595,8 +593,7 @@ jobs:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
