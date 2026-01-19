@@ -37,9 +37,9 @@ const billingAddress = {
 const payment_method_data_visa = {
   card: {
     last4: "0026",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
+    card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
     card_isin: "401200",
     card_extended_bin: null,

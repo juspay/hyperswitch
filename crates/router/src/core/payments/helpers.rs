@@ -4251,6 +4251,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4340,6 +4341,7 @@ mod tests {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4427,6 +4429,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

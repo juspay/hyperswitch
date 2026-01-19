@@ -871,6 +871,18 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::MultibancoBankTransfer {  }
                 )),
             }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransfer(payments_grpc::InstantBankTransfer {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransferFinland {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransferFinland(payments_grpc::InstantBankTransferFinland {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransferPoland {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransferPoland(payments_grpc::InstantBankTransferPoland {})),
+                    }),
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented payment method subtype: {payment_method_type:?}"
             ))
@@ -1027,6 +1039,11 @@ pub fn build_unified_connector_service_payment_method(
                         payments_grpc::RevolutPayWallet {  }
                     )),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::BluecodeRedirect {} => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Bluecode(
+                        payments_grpc::Bluecode {  }
+                    )),
+                }),
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
                     paypal_redirection,
                 ) => Ok(payments_grpc::PaymentMethod {
@@ -1064,6 +1081,94 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::NetworkToken(network_token)),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(
+            bank_debit_data,
+        ) => match bank_debit_data {
+            hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                card_holder_name,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => {
+                let bank_name = bank_name
+                    .map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?;
+                let bank_type = bank_type
+                    .map(payments_grpc::BankType::foreign_try_from)
+                    .transpose()?;
+                let bank_holder_type = bank_holder_type
+                    .map(payments_grpc::BankHolderType::foreign_try_from)
+                    .transpose()?;
+
+                let ach = payments_grpc::Ach {
+                    account_number: Some(account_number.expose().into()),
+                    routing_number: Some(routing_number.expose().into()),
+                    card_holder_name: card_holder_name.map(|name| name.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                    bank_name: bank_name.map(Into::into).unwrap_or_default(),
+                    bank_type: bank_type.map(Into::into).unwrap_or_default(),
+                    bank_holder_type: bank_holder_type.map(Into::into).unwrap_or_default(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Ach(ach)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => {
+                let sepa = payments_grpc::Sepa {
+                    iban: Some(iban.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Sepa(sepa)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::BecsBankDebit {
+                account_number,
+                bsb_number,
+                bank_account_holder_name,
+            } => {
+                let becs = payments_grpc::Becs {
+                    account_number: Some(account_number.expose().into()),
+                    bsb_number: Some(bsb_number.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Becs(becs)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::BacsBankDebit {
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+            } => {
+                let bacs = payments_grpc::Bacs {
+                    account_number: Some(account_number.expose().into()),
+                    sort_code: Some(sort_code.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Bacs(bacs)),
+                })
+            }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(
+                "Unimplemented bank debit variant".to_string(),
+            )
+            .into()),
+        },
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
@@ -1338,6 +1443,18 @@ pub fn handle_unified_connector_service_response_for_payment_method_token_create
 
 pub fn handle_unified_connector_service_response_for_sdk_session_token(
     response: payments_grpc::PaymentServiceSdkSessionTokenResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_incremental_authorization(
+    response: payments_grpc::PaymentServiceIncrementalAuthorizationResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
