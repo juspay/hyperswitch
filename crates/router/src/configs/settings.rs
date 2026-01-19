@@ -1034,70 +1034,53 @@ pub struct MerchantAdviceCodeConfig {
     pub description: Option<String>,
 }
 
-/// Individual code entry in TOML array
-#[derive(Debug, Deserialize)]
-struct MerchantAdviceCodeEntry {
-    code: String,
-    description: Option<String>,
-    recommended_action: common_enums::RecommendedAction,
-}
+/// Domain type for merchant advice code mappings
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(transparent)]
+pub struct MerchantAdviceCodeMap(HashMap<String, MerchantAdviceCodeConfig>);
 
-/// Network section with name and codes
-#[derive(Debug, Deserialize)]
-struct NetworkAdviceCodes {
-    network: String,
-    codes: Vec<MerchantAdviceCodeEntry>,
-}
-
-/// Lookup map for merchant advice code configurations
-#[derive(Debug, Clone, Default)]
-pub struct MerchantAdviceCodeLookupConfig {
-    data: HashMap<String, MerchantAdviceCodeConfig>,
-}
-
-impl<'de> Deserialize<'de> for MerchantAdviceCodeLookupConfig {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // Deserialize as HashMap of section key -> NetworkAdviceCodes
-        let network_sections: HashMap<String, NetworkAdviceCodes> =
-            HashMap::deserialize(deserializer)?;
-
-        // Flatten into lookup map with composite keys using the network field
-        let data = network_sections
-            .into_iter()
-            .flat_map(|(_, network_data)| {
-                network_data.codes.into_iter().map(move |entry| {
-                    let key = Self::create_lookup_key(&network_data.network, &entry.code);
-                    let config = MerchantAdviceCodeConfig {
-                        recommended_action: entry.recommended_action,
-                        description: entry.description,
-                    };
-                    (key, config)
-                })
-            })
-            .collect();
-
-        Ok(Self { data })
+impl MerchantAdviceCodeMap {
+    /// Get merchant advice code configuration for a specific advice code
+    /// Pads single digit codes to double digit (e.g., "1" -> "01")
+    pub fn get_config(&self, advice_code: &str) -> Option<&MerchantAdviceCodeConfig> {
+        let padded_code = format!("{:0>2}", advice_code);
+        self.0.get(&padded_code)
     }
+}
+
+/// Each network has its own field for direct lookup
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct MerchantAdviceCodeLookupConfig {
+    pub visa: Option<MerchantAdviceCodeMap>,
+    pub mastercard: Option<MerchantAdviceCodeMap>,
 }
 
 impl MerchantAdviceCodeLookupConfig {
     /// Get merchant advice code configuration for a specific network and advice code
     pub fn get_config(
         &self,
-        network: &str,
+        network: &common_enums::CardNetwork,
         advice_code: &str,
     ) -> Option<&MerchantAdviceCodeConfig> {
-        let key = Self::create_lookup_key(network, advice_code);
-        self.data.get(&key)
-    }
-
-    /// Creates a lookup key for merchant advice codes with network and code
-    /// Returns format: "Network:{network}|MerchantAdviceCode:{code:0>2}"
-    fn create_lookup_key(network: &str, advice_code: &str) -> String {
-        format!("Network:{}|MerchantAdviceCode:{:0>2}", network, advice_code)
+        match network {
+            common_enums::CardNetwork::Visa => self.visa.as_ref()?.get_config(advice_code),
+            common_enums::CardNetwork::Mastercard => {
+                self.mastercard.as_ref()?.get_config(advice_code)
+            }
+            common_enums::CardNetwork::AmericanExpress
+            | common_enums::CardNetwork::JCB
+            | common_enums::CardNetwork::DinersClub
+            | common_enums::CardNetwork::Discover
+            | common_enums::CardNetwork::CartesBancaires
+            | common_enums::CardNetwork::UnionPay
+            | common_enums::CardNetwork::Interac
+            | common_enums::CardNetwork::RuPay
+            | common_enums::CardNetwork::Maestro
+            | common_enums::CardNetwork::Star
+            | common_enums::CardNetwork::Pulse
+            | common_enums::CardNetwork::Accel
+            | common_enums::CardNetwork::Nyce => None,
+        }
     }
 }
 

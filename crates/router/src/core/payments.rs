@@ -11076,9 +11076,7 @@ pub async fn payments_manual_update(
         .zip(error_message.as_ref())
         .zip(payment_attempt.connector.as_ref())
     {
-        let card_network = payment_attempt
-            .extract_card_network()
-            .map(|network| network.to_string());
+        let card_network = payment_attempt.extract_card_network();
         helpers::get_gsm_record(
             &state,
             connector_name.to_string(),

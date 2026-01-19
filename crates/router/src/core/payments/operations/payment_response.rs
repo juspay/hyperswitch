@@ -1548,11 +1548,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     None => {
                         let sub_flow = core_utils::get_flow_name::<F>()?;
 
-                        // Extract card_network from payment_method_data for GSM lookup
-                        let card_network = payment_data
-                            .payment_attempt
-                            .extract_card_network()
-                            .map(|card_network| card_network.to_string());
+                        let card_network = payment_data.payment_attempt.extract_card_network();
 
                         // GSM lookup for error object construction
                         let option_gsm = payments_helpers::get_gsm_record(

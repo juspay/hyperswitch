@@ -6918,7 +6918,7 @@ pub fn validate_payment_link_request(
 
 /// Creates a lookup key for issuer error codes with network and code
 /// Returns format: "Network:{network}|IssuerCode:{code:0>2}"
-fn create_issuer_code_lookup_key(network: &str, issuer_code: &str) -> String {
+fn create_issuer_code_lookup_key(network: &common_enums::CardNetwork, issuer_code: &str) -> String {
     format!("Network:{}|IssuerCode:{:0>2}", network, issuer_code)
 }
 
@@ -6931,7 +6931,7 @@ pub async fn get_gsm_record(
     connector_error_code: Option<String>,
     connector_error_message: Option<String>,
     issuer_error_code: Option<String>,
-    card_network: Option<String>,
+    card_network: Option<common_enums::CardNetwork>,
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
     let issuer_result =

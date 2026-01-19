@@ -65,10 +65,7 @@ where
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
-    let card_network = payment_data
-        .get_payment_attempt()
-        .extract_card_network()
-        .map(|card_network| card_network.to_string());
+    let card_network = payment_data.get_payment_attempt().extract_card_network();
 
     let mut initial_gsm = get_gsm(state, &router_data, card_network.clone()).await?;
 
@@ -306,7 +303,7 @@ pub async fn get_retries(
 pub async fn get_gsm<F, FData>(
     state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
-    card_network: Option<String>,
+    card_network: Option<common_enums::CardNetwork>,
 ) -> RouterResult<Option<hyperswitch_domain_models::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
     let subflow = get_flow_name::<F>()?;
@@ -623,10 +620,7 @@ where
             return Ok(());
         }
         Err(ref error_response) => {
-            let card_network = payment_data
-                .get_payment_attempt()
-                .extract_card_network()
-                .map(|card_network| card_network.to_string());
+            let card_network = payment_data.get_payment_attempt().extract_card_network();
             let auth_update = if Some(router_data.auth_type)
                 != payment_data.get_payment_attempt().authentication_type
             {
