@@ -1864,7 +1864,7 @@ impl
         let recurring_mandate_payment_data = router_data
             .recurring_mandate_payment_data
             .as_ref()
-            .map(|data| payments_grpc::RecurringMandatePaymentData::foreign_try_from(data))
+            .map(payments_grpc::RecurringMandatePaymentData::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
