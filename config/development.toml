@@ -16,6 +16,7 @@ bg_metrics_collection_interval_in_secs = 15
 
 [key_manager]
 enabled = false
+use_legacy_key_store_decryption = false
 
 # TODO: Update database credentials before running application
 [master_database]

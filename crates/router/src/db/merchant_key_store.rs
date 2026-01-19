@@ -42,7 +42,7 @@ mod tests {
             .unwrap();
         let mock_db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create mock DB");
