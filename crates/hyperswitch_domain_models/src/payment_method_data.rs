@@ -944,6 +944,9 @@ pub enum GiftCardData {
 }
 
 impl GiftCardData {
+    pub fn is_givex(&self) -> bool {
+        matches!(self, Self::Givex(_))
+    }
     /// Returns a key that uniquely identifies the gift card. Used in
     /// Payment Method Balance Check Flow for storing the balance
     /// data in Redis.
