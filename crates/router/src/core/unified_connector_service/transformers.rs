@@ -363,7 +363,8 @@ impl
             tokenization_strategy: router_data
                 .request
                 .tokenization
-                .map(ForeignFrom::foreign_from),
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -529,7 +530,8 @@ impl
             tokenization_strategy: router_data
                 .request
                 .tokenization
-                .map(ForeignFrom::foreign_from),
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -1253,7 +1255,8 @@ impl
             tokenization_strategy: router_data
                 .request
                 .tokenization
-                .map(ForeignFrom::foreign_from),
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -1434,7 +1437,8 @@ impl
             tokenization_strategy: router_data
                 .request
                 .tokenization
-                .map(ForeignFrom::foreign_from),
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -4835,11 +4839,11 @@ impl ForeignFrom<&SyncRequestType> for payments_grpc::SyncRequestType {
     }
 }
 
-impl ForeignFrom<common_enums::Tokenization> for i32 {
+impl ForeignFrom<common_enums::Tokenization> for payments_grpc::Tokenization {
     fn foreign_from(tokenization: common_enums::Tokenization) -> Self {
         match tokenization {
-            common_enums::Tokenization::TokenizeAtPsp => 1,
-            common_enums::Tokenization::SkipPsp => 2,
+            common_enums::Tokenization::TokenizeAtPsp => Self::TokenizeAtPsp,
+            common_enums::Tokenization::SkipPsp => Self::SkipPsp,
         }
     }
 }
