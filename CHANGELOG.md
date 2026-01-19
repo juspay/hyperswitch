@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.07.0-hotfix5
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Updated connector_request_reference_id generation to its default logic ([#10972](https://github.com/juspay/hyperswitch/pull/10972)) ([`743e449`](https://github.com/juspay/hyperswitch/commit/743e449d196caed37f987e188b9566fea8e55dec))
+
+**Full Changelog:** [`2026.01.07.0-hotfix4...2026.01.07.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.01.07.0-hotfix4...2026.01.07.0-hotfix5)
+
+- - -
+
 ## 2026.01.07.0-hotfix4
 
 ### Bug Fixes
