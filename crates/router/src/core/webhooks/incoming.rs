@@ -38,7 +38,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
-        payments::{self, tokenization},
+        payments::{self, tokenization, PaymentIntentStateMetadataExt},
         refunds, relay, unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
@@ -1636,7 +1636,13 @@ async fn process_payout_incoming_webhook(
             .await
         }
         PaoyoutWebhookAction::RetrieveStatus => {
-            payout_incoming_webhook_retrieve_status(state, platform, &mut payout_data).await
+            payout_incoming_webhook_retrieve_status(
+                state,
+                platform,
+                business_profile,
+                &mut payout_data,
+            )
+            .await
         }
         PaoyoutWebhookAction::NoAction => Ok(WebhookResponseTracker::Payout {
             payout_id: payout_data.payout_attempt.payout_id,
@@ -1760,12 +1766,14 @@ async fn payout_incoming_webhook_update_status(
     })
 }
 
+// source verified = false
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 async fn payout_incoming_webhook_retrieve_status(
     state: SessionState,
     platform: domain::Platform,
+    business_profile: domain::Profile,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
@@ -1796,6 +1804,30 @@ async fn payout_incoming_webhook_retrieve_status(
     ))
     .await
     .attach_printable("Payout retrieval failed for given Payout request")?;
+
+    let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
+
+    // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+    if let Some(outgoing_event_type) = event_type {
+        let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
+
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state,
+            platform.get_processor().clone(),
+            business_profile,
+            outgoing_event_type,
+            enums::EventClass::Payouts,
+            payout_data
+                .payout_attempt
+                .payout_id
+                .get_string_repr()
+                .to_string(),
+            enums::EventObjectType::PayoutDetails,
+            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
+            Some(payout_data.payout_attempt.created_at),
+        ))
+        .await?;
+    }
 
     Ok(WebhookResponseTracker::Payout {
         payout_id: payout_data.payout_attempt.payout_id.clone(),
@@ -1967,6 +1999,39 @@ async fn refunds_incoming_webhook_flow(
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
         .0
     };
+
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &refund.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to find payment intent for payment_id: {:?}",
+                refund.payment_id
+            )
+        })?;
+    let state_task = state.clone();
+    let platform_task = platform.clone();
+    let payment_intent_task = payment_intent.clone();
+    tokio::spawn(async move {
+        if let Err(err) = PaymentIntentStateMetadataExt::from(
+            payment_intent_task
+                .state_metadata
+                .clone()
+                .unwrap_or_default(),
+        )
+        .update_intent_state_metadata_for_refund(&state_task, &platform_task, payment_intent_task)
+        .await
+        {
+            tracing::error!(?err, "Failed to update intent state metadata for refund");
+        }
+    });
+
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
@@ -2236,7 +2301,7 @@ async fn external_authentication_incoming_webhook_flow(
         authentication_details
             .authentication_value
             .async_map(|auth_val| {
-                payment_methods::vault::create_tokenize(
+                payment_methods::vault::create_tokenize_without_configurable_expiry(
                     &state,
                     auth_val.expose(),
                     None,
@@ -2581,7 +2646,7 @@ async fn disputes_incoming_webhook_flow(
 
         let dispute_object = get_or_update_dispute_object(
             state.clone(),
-            option_dispute,
+            option_dispute.clone(),
             dispute_details,
             platform.get_processor().get_account().get_id(),
             &platform.get_processor().get_account().organization_id,
@@ -2591,6 +2656,46 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
+
+        //Updating Payment Intent State Metadata if Dispute is lost and customer got their funds back
+        if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
+            && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+        {
+            tokio::spawn({
+                let state = state.clone();
+                let platform = platform.clone();
+                let payment_intent = db
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        &payment_attempt.payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch payment_intent")?;
+                let dispute_object = dispute_object.clone();
+                let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+                async move {
+                    if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                        .update_intent_state_metadata_for_dispute(
+                            &state,
+                            &platform,
+                            payment_intent,
+                            &dispute_object,
+                        )
+                        .await
+                    {
+                        logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata after dispute lost"
+                        );
+                    }
+                }
+            });
+        }
+
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 
