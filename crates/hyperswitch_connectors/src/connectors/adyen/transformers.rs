@@ -158,6 +158,7 @@ pub struct AdditionalData {
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
+    capture_delay_hours: Option<u64>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -976,6 +977,8 @@ struct AdyenMetadata {
     pub store: Option<String>,
     #[serde(alias = "platform_chargeback_logic")]
     pub platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
+    #[serde(alias = "capture_delay_hours")]
+    pub capture_delay_hours: Option<u64>,
 }
 
 fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
@@ -986,6 +989,8 @@ fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
         map.remove("platform_chargeback_logic");
         map.remove("platformChargebackLogic");
         map.remove("store");
+        map.remove("capture_delay_hours");
+        map.remove("captureDelayHours");
 
         serde_json::Value::Object(map)
     } else {
@@ -1359,6 +1364,7 @@ pub struct BankRedirectionWithIssuer<'a> {
     issuer: Option<&'a str>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenMandate {
@@ -2085,7 +2091,9 @@ fn get_browser_info(item: &PaymentsAuthorizeRouterData) -> Result<Option<AdyenBr
     }
 }
 
-fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
+fn get_additional_data(
+    item: &PaymentsAuthorizeRouterData,
+) -> Result<Option<AdditionalData>, Error> {
     let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(storage_enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
             (Some(AuthType::PreAuth), Some("true".to_string()))
@@ -2110,7 +2118,40 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
         }
         _ => None,
     };
-    Some(AdditionalData {
+
+    let capture_delay_hours = {
+        let metadata_capture_delay =
+            get_adyen_metadata(item.request.metadata.clone()).capture_delay_hours;
+
+        match item.request.capture_method.unwrap_or_default() {
+            enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
+                // For manual capture, capture_delay_hours should be None
+                if metadata_capture_delay.is_some() {
+                    return Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name:
+                            "metadata.capture_delay_hours should be None for manual capture",
+                    }
+                    .into());
+                }
+                None
+            }
+            _ => {
+                // For automatic capture
+                match metadata_capture_delay {
+                    None => None,
+                    Some(0) => Some(0),
+                    Some(_) => {
+                        return Err(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "metadata.capture_delay_hours should be 0 or None for automatic capture",
+                        }
+                        .into());
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
         execute_three_d,
@@ -2125,8 +2166,9 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
                 .and_then(to_adyen_exemption)
         }),
         paymentdatasource,
+        capture_delay_hours,
         ..AdditionalData::default()
-    })
+    }))
 }
 
 fn get_channel_type(pm_type: Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
@@ -3054,7 +3096,7 @@ impl
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = None;
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method_type = item.router_data.request.payment_method_type;
         let testing_data = item
@@ -3265,7 +3307,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let country_code = get_country_code(item.router_data.get_optional_billing());
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let testing_data = item
             .router_data
@@ -3408,7 +3450,7 @@ impl
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((bank_debit_data, item.router_data))?,
@@ -3496,7 +3538,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let recurring_processing_model = get_recurring_processing_model(item.router_data)?.0;
         let browser_info = get_browser_info(item.router_data)?;
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((voucher_data, item.router_data))?,
         ));
@@ -3793,7 +3835,7 @@ impl
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((bank_redirect_data, item.router_data))?,
@@ -3904,7 +3946,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let browser_info = get_browser_info(item.router_data)?;
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((wallet_data, item.router_data))?,
         ));
@@ -4048,7 +4090,7 @@ impl
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let browser_info = get_browser_info(item.router_data)?;
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -6689,7 +6731,7 @@ impl
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).transpose()?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
-        let additional_data = get_additional_data(item.router_data);
+        let additional_data = get_additional_data(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let testing_data = item
             .router_data
