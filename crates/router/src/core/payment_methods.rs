@@ -2544,7 +2544,7 @@ pub async fn create_pm_additional_data_update(
     vault_fingerprint_id: Option<String>,
     payment_method: &domain::PaymentMethod,
     connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
-    network_transaction_id: Option<String>,
+    network_transaction_id: Option<Secret<String>>,
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,

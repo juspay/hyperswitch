@@ -619,6 +619,7 @@ pub async fn payments_retrieve(
         is_platform_allowed: true,
     };
 
+    // checking or validating
     let (auth_type, auth_flow) = match auth::check_internal_api_key_auth(
         req.headers(),
         &payload,

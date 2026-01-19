@@ -507,8 +507,9 @@ pub struct PaymentMethodUpdate {
     /// The connector token details to be updated for the payment_method
     pub connector_token_details: Option<ConnectorTokenDetails>,
 
-    // The CIT (customer initiated transaction) transaction id associated with the payment method
-    pub network_transaction_id: Option<String>,
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1128,8 +1129,9 @@ pub struct PaymentMethodResponse {
     /// Card CVC token storage details
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
 
-    /// The CIT (customer initiated transaction) transaction id associated with the payment method
-    pub network_transaction_id: Option<String>,
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
