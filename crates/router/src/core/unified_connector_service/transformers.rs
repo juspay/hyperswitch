@@ -83,6 +83,38 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
+/// Convert UCS connector_metadata HashMap<String, String> to serde_json::Value
+/// with proper type conversion (strings to numbers where appropriate)
+/// This is needed because gRPC proto defines connector_metadata as map<string, string>
+/// but we need to deserialize it into types that expect numbers (e.g., display_to_timestamp: Option<i128>)
+fn convert_ucs_connector_metadata_to_json(
+    metadata: &HashMap<String, String>,
+) -> Option<serde_json::Value> {
+    if metadata.is_empty() {
+        return None;
+    }
+
+    let mut json_map = serde_json::Map::new();
+
+    for (key, value) in metadata {
+        // Try to parse as number first (for fields like display_to_timestamp)
+        let json_value = if let Ok(num) = value.parse::<i64>() {
+            serde_json::Value::Number(serde_json::Number::from(num))
+        } else if value == "true" {
+            serde_json::Value::Bool(true)
+        } else if value == "false" {
+            serde_json::Value::Bool(false)
+        } else {
+            // Keep as string
+            serde_json::Value::String(value.clone())
+        };
+
+        json_map.insert(key.clone(), json_value);
+    }
+
+    Some(serde_json::Value::Object(json_map))
+}
+
 /// Utility function to convert serde_json::Value map to HashMap<String, String>
 /// Propagates serialization errors instead of using defaults
 fn convert_value_map_to_hashmap(
@@ -2195,16 +2227,15 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
 
         // Extract connector_metadata from response if present and not already set
         if connector_metadata.is_none() && !response.connector_metadata.is_empty() {
-            connector_metadata = serde_json::to_value(&response.connector_metadata)
-                .map_err(|e| {
-                    tracing::warn!(
-                        serialization_error=?e,
-                        metadata=?response.connector_metadata,
-                        "Failed to serialize connector_metadata from UCS response"
-                    );
-                    e
-                })
-                .ok();
+            connector_metadata =
+                convert_ucs_connector_metadata_to_json(&response.connector_metadata);
+
+            if connector_metadata.is_none() {
+                tracing::warn!(
+                    metadata=?response.connector_metadata,
+                    "Failed to convert connector_metadata from UCS response"
+                );
+            }
         }
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
@@ -2299,20 +2330,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
         };
 
         // Extract connector_metadata from response if present
-        let connector_metadata = (!response.connector_metadata.is_empty())
-            .then(|| {
-                serde_json::to_value(&response.connector_metadata)
-                    .map_err(|e| {
-                        tracing::warn!(
-                            serialization_error=?e,
-                            metadata=?response.connector_metadata,
-                            "Failed to serialize connector_metadata from UCS capture response"
-                        );
-                        e
-                    })
-                    .ok()
-            })
-            .flatten();
+        let connector_metadata = if !response.connector_metadata.is_empty() {
+            convert_ucs_connector_metadata_to_json(&response.connector_metadata)
+        } else {
+            None
+        };
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
@@ -2464,20 +2486,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
             let status = AttemptStatus::foreign_try_from(response.status())?;
 
             // Extract connector_metadata from response if present
-            let connector_metadata = (!response.connector_metadata.is_empty())
-                .then(|| {
-                    serde_json::to_value(&response.connector_metadata)
-                        .map_err(|e| {
-                            tracing::warn!(
-                                serialization_error=?e,
-                                metadata=?response.connector_metadata,
-                                "Failed to serialize connector_metadata from UCS register response"
-                            );
-                            e
-                        })
-                        .ok()
-                })
-                .flatten();
+            let connector_metadata = if !response.connector_metadata.is_empty() {
+                convert_ucs_connector_metadata_to_json(&response.connector_metadata)
+            } else {
+                None
+            };
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -2553,20 +2566,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = (!response.connector_metadata.is_empty())
-            .then(|| {
-                serde_json::to_value(&response.connector_metadata)
-                .map_err(|e| {
-                    tracing::warn!(
-                        serialization_error=?e,
-                        metadata=?response.connector_metadata,
-                        "Failed to serialize connector_metadata from UCS repeat payment response"
-                    );
-                    e
-                })
-                .ok()
-            })
-            .flatten();
+        let connector_metadata = if !response.connector_metadata.is_empty() {
+            convert_ucs_connector_metadata_to_json(&response.connector_metadata)
+        } else {
+            None
+        };
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
