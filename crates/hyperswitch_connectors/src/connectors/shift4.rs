@@ -18,12 +18,13 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CompleteAuthorize, PreProcessing,
+        CompleteAuthorize, PreAuthenticate, PreProcessing,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -31,8 +32,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -53,7 +55,7 @@ use transformers::{self as shift4, Shift4PaymentsRequest, Shift4RefundRequest};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, RefundsRequestData},
+    utils::{convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -156,6 +158,7 @@ impl ConnectorCommon for Shift4 {
 
 impl ConnectorValidation for Shift4 {}
 
+impl api::PaymentsPreAuthenticate for Shift4 {}
 impl api::Payment for Shift4 {}
 impl api::PaymentVoid for Shift4 {}
 impl api::PaymentSync for Shift4 {}
@@ -455,6 +458,113 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Shift4 {
     //TODO: implement sessions flow
+}
+
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for Shift4
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            ),
+            (
+                ACCEPT.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}3d-secure", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request
+                .currency
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
+        let connector_req = Shift4PaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPreAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, errors::ConnectorError> {
+        let response: shift4::Shift4ThreeDsResponse = res
+            .response
+            .parse_struct("Shift4ThreeDsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        PaymentsPreAuthenticateRouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
@@ -977,6 +1087,17 @@ static SHIFT4_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Shift4 {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            // No alternate flow for complete authorize and SetupMandate
+            api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SHIFT4_CONNECTOR_INFO)
     }

@@ -143,6 +143,17 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
+                let access_token_result = match access_token_result {
+                    Ok(response) => Ok(response),
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
+
                 router_data.response = access_token_result;
                 router_data.connector_http_status_code = Some(status_code);
 

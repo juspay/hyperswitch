@@ -144,11 +144,19 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                    let router_data_response =
-                        ucs_data.router_data_response.map(|(response, status)| {
+                    let router_data_response = match ucs_data.router_data_response {
+                        Ok((response, status)) => {
                             router_data.status = status;
-                            response
-                        });
+                            Ok(response)
+                        }
+                        Err(err) => {
+                            logger::debug!("Error in UCS router data response");
+                            if let Some(attempt_status) = err.attempt_status {
+                                router_data.status = attempt_status;
+                            }
+                            Err(err)
+                        }
+                    };
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_repeat_response.captured_amount;
@@ -206,11 +214,19 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                    let router_data_response =
-                        ucs_data.router_data_response.map(|(response, status)| {
+                    let router_data_response = match ucs_data.router_data_response {
+                        Ok((response, status)) => {
                             router_data.status = status;
-                            response
-                        });
+                            Ok(response)
+                        }
+                        Err(err) => {
+                            logger::debug!("Error in UCS router data response");
+                            if let Some(attempt_status) = err.attempt_status {
+                                router_data.status = attempt_status;
+                            }
+                            Err(err)
+                        }
+                    };
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;
@@ -226,8 +242,8 @@ where
                         .map(|raw_connector_response| raw_connector_response.expose().into());
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
-                    ucs_data.connector_response.map(|customer_response| {
-                        router_data.connector_response = Some(customer_response);
+                    ucs_data.connector_response.map(|connector_response| {
+                        router_data.connector_response = Some(connector_response);
                     });
 
                     Ok((router_data, (), payment_authorize_response))

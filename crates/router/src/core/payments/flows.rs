@@ -235,6 +235,21 @@ pub trait Feature<F, T> {
         Ok((None, true))
     }
 
+    async fn settlement_split_call<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        // By default, settlement split call is not required
+        Ok((self, true))
+    }
+
     async fn create_order_at_connector(
         &mut self,
         _state: &SessionState,

@@ -1062,6 +1062,8 @@ pub struct PaymentAttempt {
     pub authorized_amount: Option<MinorUnit>,
     #[encrypt(ty = Value)]
     pub encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    pub error_details: Option<diesel_models::payment_attempt::ErrorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1481,6 +1483,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1704,6 +1708,8 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 payment_method_billing_address_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1723,6 +1729,8 @@ impl PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 network_transaction_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -2334,6 +2342,7 @@ impl behaviour::Conversion for PaymentAttempt {
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            error_details: self.error_details,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -2346,7 +2355,6 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
-            error_details: None,
         })
     }
 
@@ -2473,6 +2481,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 is_stored_credential: storage_model.is_stored_credential,
                 authorized_amount: storage_model.authorized_amount,
                 encrypted_payment_method_data,
+                error_details: storage_model.error_details,
             })
         }
         .await
