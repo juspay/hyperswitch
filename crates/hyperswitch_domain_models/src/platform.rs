@@ -59,6 +59,9 @@ pub enum Initiator {
     Jwt {
         user_id: String,
     },
+    EmbeddedToken {
+        merchant_id: common_utils::id_type::MerchantId,
+    },
     Admin,
 }
 
@@ -74,6 +77,11 @@ impl Initiator {
             Self::Api { merchant_id, .. } => Some(common_utils::types::CreatedBy::Api {
                 merchant_id: merchant_id.get_string_repr().to_string(),
             }),
+            Self::EmbeddedToken { merchant_id, .. } => {
+                Some(common_utils::types::CreatedBy::EmbeddedToken {
+                    merchant_id: merchant_id.get_string_repr().to_string(),
+                })
+            }
             Self::Jwt { user_id } => Some(common_utils::types::CreatedBy::Jwt {
                 user_id: user_id.clone(),
             }),
@@ -96,7 +104,7 @@ impl Initiator {
                 // If this returns Option<Initiator>, just return it directly (NO extra Some)
                 api_models::platform::Initiator::from_merchant_account_type(*merchant_account_type)
             }
-            Self::Jwt { .. } | Self::Admin => None,
+            Self::Jwt { .. } | Self::EmbeddedToken { .. } | Self::Admin => None,
         }
     }
 }

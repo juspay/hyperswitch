@@ -40,6 +40,7 @@ connection_timeout = 10
 [preprocessing_flow_config]
 authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard,shift4"
 order_create_bloated_connectors = "trustpay,payme"
+settlement_split_bloated_connectors = "xendit"
 
 [redis]
 host = "127.0.0.1"
@@ -422,7 +423,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Dev"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
-force_cookies = true
+force_cookies = false
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
