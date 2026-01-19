@@ -183,6 +183,7 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+    pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
 }
 
@@ -566,6 +567,12 @@ where
         .split(',')
         .map(|s| s.trim().parse().map_err(D::Error::custom))
         .collect()
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationServiceEnabledConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

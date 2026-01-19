@@ -14,12 +14,13 @@ use hyperswitch_domain_models::{
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        ProcessIncomingWebhook,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
@@ -79,6 +80,7 @@ impl api::UasPreAuthentication for Juspaythreedsserver {}
 impl api::UasPostAuthentication for Juspaythreedsserver {}
 impl api::UasAuthenticationConfirmation for Juspaythreedsserver {}
 impl api::UasAuthentication for Juspaythreedsserver {}
+impl api::UasProcessWebhook for Juspaythreedsserver {}
 
 impl
     ConnectorIntegration<
@@ -102,6 +104,15 @@ impl
     ConnectorIntegration<
         AuthenticationConfirmation,
         UasConfirmationRequestData,
+        UasAuthenticationResponseData,
+    > for Juspaythreedsserver
+{
+}
+
+impl
+    ConnectorIntegration<
+        ProcessIncomingWebhook,
+        UasWebhookRequestData,
         UasAuthenticationResponseData,
     > for Juspaythreedsserver
 {
