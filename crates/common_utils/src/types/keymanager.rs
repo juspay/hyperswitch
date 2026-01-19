@@ -94,14 +94,7 @@ impl KeyManagerState {
     }
 
     pub fn is_encryption_service_enabled(&self) -> bool {
-        #[cfg(feature = "encryption_service")]
-        {
-            self.enabled
-        }
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            false
-        }
+        cfg!(feature = "encryption_service") && self.enabled
     }
 }
 
