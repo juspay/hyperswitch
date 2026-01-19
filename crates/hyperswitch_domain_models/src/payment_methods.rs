@@ -20,8 +20,7 @@ use common_utils::{
 };
 pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 #[cfg(feature = "v2")]
@@ -675,7 +674,9 @@ impl super::behaviour::Conversion for PaymentMethod {
                 connector_mandate_details: storage_model.connector_mandate_details.map(From::from),
                 customer_acceptance: storage_model.customer_acceptance,
                 status: storage_model.status,
-                network_transaction_id: storage_model.network_transaction_id.map(ExposeInterface::expose),
+                network_transaction_id: storage_model
+                    .network_transaction_id
+                    .map(ExposeInterface::expose),
                 client_secret: storage_model.client_secret,
                 payment_method_billing_address,
                 updated_by: storage_model.updated_by,
