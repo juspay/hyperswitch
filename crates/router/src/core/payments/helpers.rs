@@ -1978,6 +1978,45 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             Some(customer) => {
                 let customer = customer?;
 
+                let customer_record_data = CustomerData {
+                    name: customer.name.clone().map(|val| val.into_inner()),
+                    email: customer.email.clone().map(|val| val.clone().into()),
+                    phone: customer.phone.clone().map(|val| val.into_inner()),
+                    phone_country_code: customer.phone_country_code.clone(),
+                    tax_registration_id: customer
+                        .tax_registration_id
+                        .clone()
+                        .map(|val| val.into_inner()),
+                };
+
+                // Merge with existing payment intent customer details if present
+                let final_customer_data = match &payment_data.payment_intent.customer_details {
+                    Some(encrypted_details) => {
+                        let mut intent_customer_data = encrypted_details
+                            .clone()
+                            .into_inner()
+                            .expose()
+                            .parse_value::<CustomerData>("CustomerData")
+                            .change_context(errors::StorageError::DeserializationFailed)
+                            .attach_printable(
+                                "Failed to parse customer data from payment intent",
+                            )?;
+
+                        // Intent customer data takes priority, so only fill missing fields from customer record
+                        intent_customer_data.fill_missing_fields(&customer_record_data);
+                        intent_customer_data
+                    }
+                    None => customer_record_data,
+                };
+
+                // Encrypt and store the final customer data
+                payment_data.payment_intent.customer_details = Some(
+                    create_encrypted_data(key_manager_state, key_store, final_customer_data)
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)
+                        .attach_printable("Unable to encrypt customer details")?,
+                );
+
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
                 payment_data.email = payment_data.email.clone().or_else(|| {
                     customer
