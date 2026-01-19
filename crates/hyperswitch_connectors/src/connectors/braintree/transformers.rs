@@ -32,7 +32,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{
-        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsPreAuthenticateResponseRouterData, PaymentsResponseRouterData,
         PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     unimplemented_payment_method,
@@ -1818,11 +1818,7 @@ impl
                                 session_token_data,
                                 payment_request_data: Some(
                                     api_models::payments::ApplePayPaymentRequest {
-                                        country_code: data.request.country.ok_or(
-                                            errors::ConnectorError::MissingRequiredField {
-                                                field_name: "country",
-                                            },
-                                        )?,
+                                        country_code: common_enums::CountryAlpha2::US,
                                         currency_code: data.request.currency,
                                         total: api_models::payments::AmountInfo {
                                             label: payment_request_data.label,
@@ -1887,11 +1883,7 @@ impl
                                         },
                                     allowed_payment_methods: gpay_data.data.allowed_payment_methods,
                                     transaction_info: payment_types::GpayTransactionInfo {
-                                        country_code: data.request.country.ok_or(
-                                            errors::ConnectorError::MissingRequiredField {
-                                                field_name: "country",
-                                            },
-                                        )?,
+                                        country_code: common_enums::CountryAlpha2::US,
                                         currency_code: data.request.currency,
                                         total_price_status: GooglePayPriceStatus::Final.to_string(),
                                         total_price: StringMajorUnitForConnector
@@ -2877,6 +2869,220 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for BraintreeTokenReq
                 utils::get_unimplemented_payment_method_error_message("braintree"),
             )
             .into()),
+        }
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        PaymentsPreAuthenticateResponseRouterData<BraintreeSessionResponse>,
+        Self,
+    )> for types::PaymentsPreAuthenticateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, data): (
+            PaymentsPreAuthenticateResponseRouterData<BraintreeSessionResponse>,
+            Self,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        match response {
+            BraintreeSessionResponse::SessionTokenResponse(res) => {
+                let session_token = match data.payment_method_type {
+                    Some(common_enums::PaymentMethodType::ApplePay) => {
+                        let payment_request_data: payment_types::PaymentRequestMetadata =
+                            data.connector_meta_data
+                                .clone()
+                                .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                .attach_printable("connector_meta_data is None")?
+                                .expose()
+                                .parse_value("PaymentRequestMetadata")
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                                .attach_printable("Failed to parse apple pay metadata")?;
+
+                        SessionToken::ApplePay(Box::new(
+                            api_models::payments::ApplepaySessionTokenResponse {
+                                session_token_data: None,
+                                payment_request_data: Some(
+                                    api_models::payments::ApplePayPaymentRequest {
+                                        country_code: common_enums::CountryAlpha2::US,
+                                        currency_code: data.request.currency.ok_or(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "currency",
+                                            },
+                                        )?,
+                                        total: api_models::payments::AmountInfo {
+                                            label: payment_request_data.label,
+                                            total_type: None,
+                                            amount: StringMajorUnitForConnector
+                                                .convert(
+                                                    MinorUnit::new(data.request.amount),
+                                                    data.request.currency.ok_or(
+                                                        errors::ConnectorError::MissingRequiredField {
+                                                            field_name: "currency",
+                                                        },
+                                                    )?,
+                                                )
+                                                .change_context(
+                                                    errors::ConnectorError::AmountConversionFailed,
+                                                )?,
+                                        },
+                                        merchant_capabilities: Some(
+                                            payment_request_data.merchant_capabilities,
+                                        ),
+                                        supported_networks: Some(
+                                            payment_request_data.supported_networks,
+                                        ),
+                                        merchant_identifier: None,
+                                        required_billing_contact_fields: None,
+                                        required_shipping_contact_fields: None,
+                                        recurring_payment_request: None,
+                                    },
+                                ),
+                                connector: data.connector.clone(),
+                                delayed_session_token: false,
+                                sdk_next_action: api_models::payments::SdkNextAction {
+                                    next_action: api_models::payments::NextActionCall::Confirm,
+                                },
+                                connector_reference_id: None,
+                                connector_sdk_public_key: None,
+                                connector_merchant_id: None,
+                            },
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::GooglePay) => {
+                        let gpay_data: payment_types::GpaySessionTokenData =
+                            data.connector_meta_data
+                                .clone()
+                                .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                .attach_printable("connector_meta_data is None")?
+                                .expose()
+                                .parse_value("GpaySessionTokenData")
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                                .attach_printable("Failed to parse gpay metadata")?;
+
+                        SessionToken::GooglePay(Box::new(
+                            api_models::payments::GpaySessionTokenResponse::GooglePaySession(
+                                api_models::payments::GooglePaySessionResponse {
+                                    merchant_info: payment_types::GpayMerchantInfo {
+                                        merchant_name: gpay_data.data.merchant_info.merchant_name,
+                                        merchant_id: gpay_data.data.merchant_info.merchant_id,
+                                    },
+                                    shipping_address_required: false,
+                                    email_required: false,
+                                    shipping_address_parameters:
+                                        payment_types::GpayShippingAddressParameters {
+                                            phone_number_required: false,
+                                        },
+                                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                                    transaction_info: payment_types::GpayTransactionInfo {
+                                        country_code: common_enums::CountryAlpha2::US,
+                                        currency_code: data.request.currency.ok_or(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "currency",
+                                            },
+                                        )?,
+                                        total_price_status: GooglePayPriceStatus::Final.to_string(),
+                                        total_price: StringMajorUnitForConnector
+                                            .convert(
+                                                MinorUnit::new(data.request.amount),
+                                                data.request.currency.ok_or(
+                                                    errors::ConnectorError::MissingRequiredField {
+                                                        field_name: "currency",
+                                                    },
+                                                )?,
+                                            )
+                                            .change_context(
+                                                errors::ConnectorError::AmountConversionFailed,
+                                            )?,
+                                    },
+                                    secrets: Some(payment_types::SecretInfoToInitiateSdk {
+                                        display: res.data.create_client_token.client_token.clone(),
+                                        payment: None,
+                                    }),
+                                    delayed_session_token: false,
+                                    connector: data.connector.clone(),
+                                    sdk_next_action: payment_types::SdkNextAction {
+                                        next_action: payment_types::NextActionCall::Confirm,
+                                    },
+                                },
+                            ),
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::Paypal) => {
+                        let paypal_sdk_data = data
+                            .connector_meta_data
+                            .clone()
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                            .attach_printable("connector_meta_data is None")?
+                            .expose()
+                            .parse_value::<payment_types::PaypalSdkSessionTokenData>(
+                                "PaypalSdkSessionTokenData",
+                            )
+                            .change_context(errors::ConnectorError::NoConnectorMetaData)
+                            .attach_printable("Failed to parse paypal_sdk metadata.".to_string())?;
+
+                        SessionToken::Paypal(Box::new(
+                            api_models::payments::PaypalSessionTokenResponse {
+                                connector: data.connector.clone(),
+                                session_token: paypal_sdk_data.data.client_id,
+                                sdk_next_action: api_models::payments::SdkNextAction {
+                                    next_action: api_models::payments::NextActionCall::Confirm,
+                                },
+                                client_token: Some(
+                                    res.data.create_client_token.client_token.clone().expose(),
+                                ),
+                                transaction_info: Some(
+                                    api_models::payments::PaypalTransactionInfo {
+                                        flow: PaypalFlow::Checkout.into(),
+                                        currency_code: data.request.currency.ok_or(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "currency",
+                                            },
+                                        )?,
+                                        total_price: StringMajorUnitForConnector
+                                            .convert(
+                                                MinorUnit::new(data.request.amount),
+                                                data.request.currency.ok_or(
+                                                    errors::ConnectorError::MissingRequiredField {
+                                                        field_name: "currency",
+                                                    },
+                                                )?,
+                                            )
+                                            .change_context(
+                                                errors::ConnectorError::AmountConversionFailed,
+                                            )?,
+                                    },
+                                ),
+                            },
+                        ))
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "{:?} payment method is not supported",
+                                data.payment_method_type
+                            ),
+                            connector: "Braintree",
+                        }
+                        .into());
+                    }
+                };
+
+                Ok(Self {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(PaymentsResponseData::SessionResponse {
+                        session_token,
+                    }),
+                    ..data
+                })
+            }
+            BraintreeSessionResponse::ErrorResponse(error_data) => Ok(Self {
+                response: Err(*build_error_response::<()>(&error_data.errors, item.http_code).unwrap_err()),
+                ..data
+            }),
         }
     }
 }
