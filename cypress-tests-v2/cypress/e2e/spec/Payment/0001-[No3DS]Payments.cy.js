@@ -1,4 +1,4 @@
-*
+/*
 V2 No 3DS Payment Tests
 Test scenarios:
 1. No 3DS Auto capture payment flow
