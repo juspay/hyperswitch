@@ -375,8 +375,8 @@ where
 
 #[derive(Debug, Default)]
 pub struct ApiKeyAuth {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
 }
 
 pub struct NoAuth;
@@ -440,17 +440,17 @@ impl GetAuthType for ApiKeyAuth {
 
 #[cfg(feature = "partial-auth")]
 pub trait GetMerchantAccessFlags {
-    fn get_is_connected_allowed(&self) -> bool;
-    fn get_is_platform_allowed(&self) -> bool;
+    fn is_connected_scope_operation_allowed(&self) -> bool;
+    fn is_platform_self_operation_allowed(&self) -> bool;
 }
 
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for ApiKeyAuth {
-    fn get_is_connected_allowed(&self) -> bool {
-        self.is_connected_allowed
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
     }
-    fn get_is_platform_allowed(&self) -> bool {
-        self.is_platform_allowed
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
     }
 }
 
@@ -597,18 +597,26 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -692,11 +700,13 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
 
         let initiator = Some(domain::Initiator::Api {
@@ -760,9 +770,10 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        // This is currently used for profile and connector CRUD operations
         let api_auth = ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         };
         let (auth_data, auth_type) = api_auth
             .authenticate_and_fetch(request_headers, state)
@@ -1210,8 +1221,8 @@ where
                         &merchant_id,
                         request_headers,
                         profile_id,
-                        self.0.get_is_connected_allowed(),
-                        self.0.get_is_platform_allowed(),
+                        self.0.is_connected_scope_operation_allowed(),
+                        self.0.is_platform_self_operation_allowed(),
                     )
                     .await?;
                     Ok((
@@ -1232,8 +1243,8 @@ where
                         &merchant_id,
                         request_headers,
                         profile_id,
-                        self.0.get_is_connected_allowed(),
-                        self.0.get_is_platform_allowed(),
+                        self.0.is_connected_scope_operation_allowed(),
+                        self.0.is_platform_self_operation_allowed(),
                     )
                     .await?;
                     Ok((
@@ -1309,8 +1320,8 @@ async fn construct_authentication_data<A>(
     merchant_id: &id_type::MerchantId,
     request_headers: &HeaderMap,
     profile_id: Option<id_type::ProfileId>,
-    is_connected_allowed: bool,
-    is_platform_allowed: bool,
+    allow_connected_scope_operation: bool,
+    allow_platform_self_operation: bool,
 ) -> RouterResult<AuthenticationData>
 where
     A: SessionStateInfo + Sync,
@@ -1331,12 +1342,13 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-    // Validate merchant account type access
+    // Validate access based on merchant type and header presence
     check_merchant_access(
         state,
+        request_headers,
         initiator_merchant.merchant_account_type,
-        is_connected_allowed,
-        is_platform_allowed,
+        allow_connected_scope_operation,
+        allow_platform_self_operation,
     )?;
 
     let initiator = Some(domain::Initiator::Api {
@@ -2689,8 +2701,8 @@ where
 #[cfg(feature = "v2")]
 #[derive(Debug)]
 pub struct V2ApiKeyAuth {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2769,18 +2781,26 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -2954,8 +2974,8 @@ where
 }
 #[derive(Debug, Default)]
 pub struct PublishableKeyAuth {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
 }
 
 #[cfg(feature = "partial-auth")]
@@ -2967,11 +2987,11 @@ impl GetAuthType for PublishableKeyAuth {
 
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for PublishableKeyAuth {
-    fn get_is_connected_allowed(&self) -> bool {
-        self.is_connected_allowed
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
     }
-    fn get_is_platform_allowed(&self) -> bool {
-        self.is_platform_allowed
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
     }
 }
 
@@ -2996,12 +3016,13 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Check access permissions using existing function
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
 
         let initiator = Some(domain::Initiator::Api {
@@ -3055,12 +3076,13 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Check access permissions using existing function
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
 
         let initiator = Some(domain::Initiator::Api {
@@ -4181,7 +4203,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let initiator_merchant = state
+        let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
@@ -4205,7 +4227,7 @@ where
         let platform = resolve_platform(
             state,
             request_headers,
-            initiator_merchant.clone(),
+            merchant.clone(),
             key_store,
             initiator,
         )
@@ -4271,7 +4293,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let initiator_merchant = state
+        let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
@@ -4285,7 +4307,7 @@ where
         let platform = resolve_platform(
             state,
             request_headers,
-            initiator_merchant.clone(),
+            merchant.clone(),
             key_store,
             initiator,
         )
@@ -4797,8 +4819,8 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     if api_key.starts_with("pk_") {
         return Ok((
             Box::new(HeaderAuth(PublishableKeyAuth {
-                is_connected_allowed: api_auth.is_connected_allowed,
-                is_platform_allowed: api_auth.is_platform_allowed,
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
             })),
             api::AuthFlow::Client,
         ));
@@ -4829,8 +4851,8 @@ where
             })?;
         return Ok((
             Box::new(HeaderAuth(PublishableKeyAuth {
-                is_connected_allowed: api_auth.is_connected_allowed,
-                is_platform_allowed: api_auth.is_platform_allowed,
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
             })),
             api::AuthFlow::Client,
         ));
@@ -5158,16 +5180,36 @@ where
 }
 
 /// Validates whether the merchant account type is authorized to access the resource
+///
+/// # Access Control Logic:
+/// - **Connected Merchant**: Allowed if `allow_connected_scope_operation` is true (no header required)
+/// - **Platform Merchant**:
+///   - With `X-Connected-Merchant-Id` header: Allowed if `allow_connected_scope_operation` is true
+///     (platform acting on behalf of connected merchant)
+///   - Without header: Allowed if `allow_platform_self_operation` is true
+///     (platform self operation)
+/// - **Standard Merchant**: Always allowed
 pub fn check_merchant_access<A>(
     state: &A,
-    merchant_account_type: MerchantAccountType,
-    is_connected_allowed: bool,
-    is_platform_allowed: bool,
+    request_headers: &HeaderMap,
+    initiator_merchant_account_type: MerchantAccountType,
+    allow_connected_scope_operation: bool,
+    allow_platform_self_operation: bool,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>>
 where
     A: SessionStateInfo + Sync,
 {
-    match merchant_account_type {
+    // Check if connected merchant header is present
+    let has_connected_merchant_header = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header_if_present::<id_type::MerchantId>(headers::X_CONNECTED_MERCHANT_ID)
+        .map_err(|e| {
+            e.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid X-Connected-Merchant-Id header".to_string(),
+            })
+        })?
+        .is_some();
+
+    match initiator_merchant_account_type {
         MerchantAccountType::Connected => {
             // Check if platform feature is enabled
             state.conf().platform.enabled.then_some(()).ok_or_else(|| {
@@ -5175,10 +5217,15 @@ where
                     .attach_printable("Platform feature is not enabled")
             })?;
 
-            is_connected_allowed.then_some(()).ok_or_else(|| {
-                report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
-                    .attach_printable("Connected Merchant is not authorized to access the resource")
-            })
+            // Connected merchant can perform operation if allow_connected_scope_operation is true
+            allow_connected_scope_operation
+                .then_some(())
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                        .attach_printable(
+                            "Connected Merchant is not authorized to access the resource",
+                        )
+                })
         }
         MerchantAccountType::Platform => {
             // Check if platform feature is enabled
@@ -5187,11 +5234,23 @@ where
                     .attach_printable("Platform feature is not enabled")
             })?;
 
-            // Check if platform is allowed for this resource
-            is_platform_allowed.then_some(()).ok_or_else(|| {
-                report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
-                    .attach_printable("Platform Merchant is not authorized to access the resource")
-            })
+            if has_connected_merchant_header {
+                // Platform is acting on behalf of a connected merchant
+                // Requires allow_connected_scope_operation to be true
+                allow_connected_scope_operation.then_some(()).ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                        .attach_printable("Platform is not authorized to perform this operation on behalf of connected merchant")
+                })
+            } else {
+                // Platform is performing a self operation (no connected merchant header)
+                // Requires allow_platform_self_operation to be true
+                allow_platform_self_operation.then_some(()).ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
+                        .attach_printable(
+                            "Platform Merchant is not authorized to access the resource",
+                        )
+                })
+            }
         }
         MerchantAccountType::Standard => Ok(()),
     }
@@ -5242,12 +5301,20 @@ where
     Ok((connected_merchant_account, key_store))
 }
 
-/// Resolves processor and provider merchant accounts
+/// Resolves processor and provider merchant accounts based on merchant type and headers
+///
+/// This function handles the resolution of merchant accounts for platform operations:
+/// - **Platform Merchant**: Uses `X-Connected-Merchant-Id` header to act on behalf of connected merchant,
+///   or operates as self if header is absent
+/// - **Connected Merchant**: Resolves the platform account for the connected merchant
+/// - **Standard Merchant**: Returns the merchant as-is
+///
+/// Note: Access control validation should be done via `check_merchant_access` before calling this function
 async fn resolve_platform<A>(
     state: &A,
     request_headers: &HeaderMap,
     initiator_merchant_account: domain::MerchantAccount,
-    merchant_key_store: domain::MerchantKeyStore,
+    initiator_merchant_key_store: domain::MerchantKeyStore,
     initiator: Option<domain::Initiator>,
 ) -> RouterResult<domain::Platform>
 where
@@ -5277,7 +5344,7 @@ where
                     }
                     None => (
                         initiator_merchant_account.clone(),
-                        merchant_key_store.clone(),
+                        initiator_merchant_key_store.clone(),
                     ),
                 };
 
@@ -5286,7 +5353,7 @@ where
                     processor_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: initiator_merchant_account.clone(),
-                        key_store: merchant_key_store,
+                        key_store: initiator_merchant_key_store,
                     }),
                 )
             }
@@ -5310,7 +5377,7 @@ where
 
                 (
                     initiator_merchant_account.clone(),
-                    merchant_key_store,
+                    initiator_merchant_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: platform_account,
                         key_store: platform_key_store,
@@ -5332,7 +5399,11 @@ where
                     },
                 )?;
 
-                (initiator_merchant_account.clone(), merchant_key_store, None)
+                (
+                    initiator_merchant_account.clone(),
+                    initiator_merchant_key_store,
+                    None,
+                )
             }
         };
 

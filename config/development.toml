@@ -16,6 +16,7 @@ bg_metrics_collection_interval_in_secs = 15
 
 [key_manager]
 enabled = false
+use_legacy_key_store_decryption = false
 
 # TODO: Update database credentials before running application
 [master_database]
@@ -39,7 +40,8 @@ connection_timeout = 10
 
 [preprocessing_flow_config]
 authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard,shift4"
-order_create_bloated_connectors = "trustpay,payme"
+order_create_bloated_connectors = "trustpay,payme,nordea"
+balance_check_bloated_connectors = "adyen"
 settlement_split_bloated_connectors = "xendit"
 
 [redis]
@@ -1401,6 +1403,9 @@ allow_connected_merchants = true
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
+
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [open_router]
 dynamic_routing_enabled = false
