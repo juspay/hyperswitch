@@ -1480,40 +1480,41 @@ impl ConnectorRedirectResponse for Nuvei {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
 
-                    if let Some(error) = redirect_response.error {
-                        let nuvei_error: nuvei::NuveiErrorResponse =
-                            utils::safe_base64_decode(error.expose())?
-                                .as_slice()
-                                .parse_struct("NuveiErrorResponse")
-                                .switch()?;
-
-                        Ok(CallConnectorAction::StatusUpdate {
-                            status: enums::AttemptStatus::AuthenticationFailed,
-                            error_code: nuvei_error.error_code,
-                            error_message: nuvei_error.error_detail.or(nuvei_error.error_message),
-                        })
-                    } else if let Some(cres) = redirect_response.cres {
-                        let acs_response: nuvei::NuveiACSResponse =
-                            utils::safe_base64_decode(cres.expose())?
-                                .as_slice()
-                                .parse_struct("NuveiACSResponse")
-                                .switch()?;
-                        match acs_response.trans_status {
-                            None | Some(nuvei::LiabilityShift::Failed) => {
-                                Ok(CallConnectorAction::StatusUpdate {
-                                    status: enums::AttemptStatus::AuthenticationFailed,
-                                    error_code: None,
-                                    error_message: Some("3ds Authentication failed".to_string()),
-                                })
+                    match redirect_response {
+                        nuvei::NuveiRedirectionResponse::Redirection(response) => {
+                            let acs_response: nuvei::NuveiACSResponse =
+                                utils::safe_base64_decode(response.cres.expose())?
+                                    .as_slice()
+                                    .parse_struct("NuveiACSResponse")
+                                    .switch()?;
+                            match acs_response.trans_status {
+                                None | Some(nuvei::LiabilityShift::Failed) => {
+                                    Ok(CallConnectorAction::StatusUpdate {
+                                        status: enums::AttemptStatus::AuthenticationFailed,
+                                        error_code: None,
+                                        error_message: Some(
+                                            "3ds Authentication failed".to_string(),
+                                        ),
+                                    })
+                                }
+                                _ => Ok(CallConnectorAction::Trigger),
                             }
-                            _ => Ok(CallConnectorAction::Trigger),
                         }
-                    } else {
-                        Ok(CallConnectorAction::StatusUpdate {
-                            status: enums::AttemptStatus::AuthenticationFailed,
-                            error_code: None,
-                            error_message: Some("Invalid Redirection Response".to_string()),
-                        })
+                        nuvei::NuveiRedirectionResponse::Error(error) => {
+                            let nuvei_error: nuvei::NuveiErrorResponse =
+                                utils::safe_base64_decode(error.error.expose())?
+                                    .as_slice()
+                                    .parse_struct("NuveiErrorResponse")
+                                    .switch()?;
+
+                            Ok(CallConnectorAction::StatusUpdate {
+                                status: enums::AttemptStatus::AuthenticationFailed,
+                                error_code: nuvei_error.error_code,
+                                error_message: nuvei_error
+                                    .error_detail
+                                    .or(nuvei_error.error_message),
+                            })
+                        }
                     }
                 } else {
                     Ok(CallConnectorAction::Trigger)

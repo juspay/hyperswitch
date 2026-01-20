@@ -600,9 +600,20 @@ impl TransactionType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NuveiRedirectionResponse {
-    pub cres: Option<Secret<String>>,
-    pub error: Option<Secret<String>>,
+#[serde(untagged)]
+pub enum NuveiRedirectionResponse {
+    Redirection(NuveiCresRedirectResponse),
+    Error(NuveiErrorRedirectResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiCresRedirectResponse {
+    pub cres: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiErrorRedirectResponse {
+    pub error: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
