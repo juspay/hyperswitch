@@ -6327,6 +6327,8 @@ options=["Connector","Hyperswitch"]
   payment_method_type = "Visa"
 [[peachpayments.debit]]
   payment_method_type = "AmericanExpress"
+[[peachpayments.network_token]]
+  payment_method_type = "network_token"
 [peachpayments.connector_auth.BodyKey]
 api_key="API Key"
 key1="Tenant ID"
