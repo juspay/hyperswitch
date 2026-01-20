@@ -252,6 +252,35 @@ impl RequestIdentifier {
             ..self
         }
     }
+
+    /// Get the header name used for request ID extraction.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use router_env::RequestIdentifier;
+    ///
+    /// let identifier = RequestIdentifier::new("x-request-id");
+    /// assert_eq!(identifier.header_name(), "x-request-id");
+    /// ```
+    pub fn header_name(&self) -> &str {
+        &self.header_name
+    }
+
+    /// Get the configured strategy for reusing incoming request IDs.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use router_env::{IdReuse, RequestIdentifier};
+    ///
+    /// let identifier = RequestIdentifier::new("x-request-id")
+    ///     .use_incoming_id(IdReuse::IgnoreIncoming);
+    /// assert_eq!(identifier.id_reuse_strategy(), IdReuse::IgnoreIncoming);
+    /// ```
+    pub fn id_reuse_strategy(&self) -> IdReuse {
+        self.use_incoming_id
+    }
 }
 
 impl<S, B> Transform<S, ServiceRequest> for RequestIdentifier

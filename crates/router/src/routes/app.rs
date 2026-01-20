@@ -98,8 +98,6 @@ use crate::routes::fraud_check as frm_routes;
 use crate::routes::profile_acquirer;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(feature = "v1")]
-use crate::services::clients::payment_methods::ModularPaymentMethodClient;
 pub use crate::{
     configs::settings,
     db::{
@@ -194,10 +192,6 @@ impl SessionState {
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
-    }
-    #[cfg(feature = "v1")]
-    pub fn modular_pm_client(&self) -> ModularPaymentMethodClient<'_> {
-        ModularPaymentMethodClient::new(self, &self.conf.internal_services.payment_methods_base_url)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
