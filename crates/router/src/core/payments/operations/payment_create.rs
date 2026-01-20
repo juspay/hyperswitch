@@ -911,22 +911,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        // let raw_customer_details = customer
-        //     .map(|customer| CustomerData::foreign_try_from(customer.clone()))
-        //     .transpose()?;
-        // let key_manager_state = state.into();
-        // // Updation of Customer Details for the cases where both customer_id and specific customer
-        // // details are provided in Payment Create Request
-        // let customer_details = raw_customer_details
-        //     .clone()
-        //     .async_map(|customer_details| {
-        //         create_encrypted_data(&key_manager_state, key_store, customer_details)
-        //     })
-        //     .await
-        //     .transpose()
-        //     .change_context(errors::ApiErrorResponse::InternalServerError)
-        //     .attach_printable("Unable to encrypt customer details")?;
-
         let customer_details = payment_data.payment_intent.customer_details.clone();
 
         payment_data.payment_intent = state
