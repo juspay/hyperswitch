@@ -8290,25 +8290,29 @@ where
 /// Lookup recommended action from merchant advice codes configuration.
 pub fn get_merchant_advice_code_recommended_action(
     config: &MerchantAdviceCodeLookupConfig,
-    network: &common_enums::CardNetwork,
-    advice_code: &str,
+    off_session: Option<bool>,
+    network: Option<&common_enums::CardNetwork>,
+    advice_code: Option<&str>,
 ) -> Option<common_enums::RecommendedAction> {
-    config
-        .get_config(network, advice_code)
-        .map(|config| config.recommended_action)
-        .or_else(|| {
-            metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
-                1,
-                router_env::metric_attributes!(
-                    ("network", network.to_string()),
-                    ("advice_code", advice_code.to_owned()),
-                ),
-            );
-            logger::warn!(
-                network = %network,
-                advice_code = %advice_code,
-                "No merchant advice code config found"
-            );
-            None
-        })
+    match (off_session, network, advice_code) {
+        (Some(true), Some(network), Some(advice_code)) => config
+            .get_config(network, advice_code)
+            .map(|config| config.recommended_action)
+            .or_else(|| {
+                metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
+                    1,
+                    router_env::metric_attributes!(
+                        ("network", network.to_string()),
+                        ("advice_code", advice_code.to_owned()),
+                    ),
+                );
+                logger::warn!(
+                    network = %network,
+                    advice_code = %advice_code,
+                    "No merchant advice code config found"
+                );
+                None
+            }),
+        _ => None,
+    }
 }

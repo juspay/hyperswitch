@@ -1577,20 +1577,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .and_then(|gsm| gsm.user_guidance_message.clone());
 
                         // For MIT transactions, lookup recommended action from merchant_advice_codes config
-                        let recommended_action = match (
-                            payment_data.payment_intent.off_session,
-                            card_network.as_ref(),
-                            err.network_advice_code.as_ref(),
-                        ) {
-                            (Some(true), Some(network), Some(advice_code)) => {
-                                payments_helpers::get_merchant_advice_code_recommended_action(
-                                    &state.conf.merchant_advice_codes,
-                                    network,
-                                    advice_code,
-                                )
-                            }
-                            _ => None,
-                        };
+                        let recommended_action =
+                            payments_helpers::get_merchant_advice_code_recommended_action(
+                                &state.conf.merchant_advice_codes,
+                                payment_data.payment_intent.off_session,
+                                card_network.as_ref(),
+                                err.network_advice_code.as_deref(),
+                            );
 
                         let (unified_code, unified_message) = if let Some((code, message)) =
                             gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())

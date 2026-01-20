@@ -630,20 +630,12 @@ where
             };
 
             // For MIT transactions, lookup recommended action from merchant_advice_codes config
-            let recommended_action = match (
+            let recommended_action = payments_helpers::get_merchant_advice_code_recommended_action(
+                &state.conf.merchant_advice_codes,
                 payment_data.get_payment_intent().off_session,
                 card_network.as_ref(),
-                error_response.network_advice_code.as_ref(),
-            ) {
-                (Some(true), Some(network), Some(advice_code)) => {
-                    payments_helpers::get_merchant_advice_code_recommended_action(
-                        &state.conf.merchant_advice_codes,
-                        network,
-                        advice_code,
-                    )
-                }
-                _ => None,
-            };
+                error_response.network_advice_code.as_deref(),
+            );
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
