@@ -113,8 +113,7 @@ describe("Payment Webhook Tests", () => {
     });
 
     it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest( { globalState, expectedIntentStatus}
-      );
+      cy.retrievePaymentCallTest({ globalState, expectedIntentStatus });
     });
   });
 });
