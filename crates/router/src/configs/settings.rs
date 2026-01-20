@@ -40,6 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -182,12 +183,27 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+    pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
+    pub save_payment_method_on_session: OnSessionConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OnSessionConfig {
+    #[serde(default, deserialize_with = "deserialize_hashmap")]
+    pub unsupported_payment_methods:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PreProcessingFlowConfig {
-    #[serde(deserialize_with = "deserialize_hashset")]
+    #[serde(default, deserialize_with = "deserialize_hashset")]
     pub authentication_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub order_create_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub balance_check_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub settlement_split_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -376,6 +392,12 @@ pub struct KeyManagerConfig {
     pub cert: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
+    #[serde(default = "default_key_store_decryption_behavior")]
+    pub use_legacy_key_store_decryption: bool,
+}
+
+fn default_key_store_decryption_behavior() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -556,6 +578,12 @@ where
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationServiceEnabledConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
@@ -578,6 +606,7 @@ pub struct NetworkTokenizationSupportedCardNetworks {
 pub struct NetworkTokenizationService {
     pub generate_token_url: url::Url,
     pub fetch_token_url: url::Url,
+    pub check_tokenize_eligibility_url: url::Url,
     pub token_service_api_key: Secret<String>,
     pub public_key: Secret<String>,
     pub private_key: Secret<String>,
@@ -591,6 +620,7 @@ pub struct NetworkTokenizationService {
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
+    pub allowed_card_authentication_type: Option<common_enums::AuthenticationType>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
@@ -729,7 +759,8 @@ impl OidcSettings {
     }
 
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        self.key.values().next()
+        let mut rng = rand::thread_rng();
+        self.key.values().choose_stable(&mut rng)
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {

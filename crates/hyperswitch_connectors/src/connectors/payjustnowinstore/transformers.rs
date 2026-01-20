@@ -121,9 +121,9 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
                 .merchant_order_reference_id
                 .clone()
                 .unwrap_or(item.router_data.payment_id.clone()),
-            // Webhooks are not implemented yet for PJN In-Store, and `callback_url` is a mandatory field.
-            // Since PJN Instore does not accept null or empty values, a placeholder is used here.
-            callback_url: "callback_url".to_string(),
+            // callback_url is a required field but we don't listen to callbacks.
+            // PJN In-Store requires the value to be exactly "n/a"; any other placeholder will cause the payment to auto-refund.
+            callback_url: "n/a".to_string(),
             items,
         })
     }
@@ -228,6 +228,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.token.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -338,6 +339,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PayjustnowinstoreRefundResponse>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,

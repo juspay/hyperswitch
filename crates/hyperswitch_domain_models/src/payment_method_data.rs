@@ -154,10 +154,14 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub network_transaction_id: Secret<String>,
 }
 
+// Determines if decryption should be performed
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
-    Simplified(api_models::payments::PaymentProcessingDetails),
-    Manual,
+    // Either Merchant provided certificates i.e decryption by hyperswitch or Hyperswitch certificates i.e simplified flow
+    // decryption is performed in hyperswitch
+    DecryptAtApplication(api_models::payments::PaymentProcessingDetails),
+    // decryption by connector or predecrypted token
+    SkipDecryption,
 }
 
 impl PaymentMethodData {
@@ -742,6 +746,7 @@ pub enum RealTimePaymentData {
     Fps {},
     PromptPay {},
     VietQr {},
+    Qris {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -833,16 +838,52 @@ pub enum UpiData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpiCollectData {
-    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UpiSource {
+    UpiCc,      // UPI Credit Card
+    UpiCl,      // UPI Credit Line
+    UpiAccount, // UPI Bank Account (Savings)
+    UpiCcCl,    // UPI Credit Card + Credit Line
+}
+
+impl From<api_models::payments::UpiSource> for UpiSource {
+    fn from(value: api_models::payments::UpiSource) -> Self {
+        match value {
+            api_models::payments::UpiSource::UpiCc => Self::UpiCc,
+            api_models::payments::UpiSource::UpiCl => Self::UpiCl,
+            api_models::payments::UpiSource::UpiAccount => Self::UpiAccount,
+            api_models::payments::UpiSource::UpiCcCl => Self::UpiCcCl,
+        }
+    }
+}
+
+impl From<UpiSource> for api_models::payments::UpiSource {
+    fn from(value: UpiSource) -> Self {
+        match value {
+            UpiSource::UpiCc => Self::UpiCc,
+            UpiSource::UpiCl => Self::UpiCl,
+            UpiSource::UpiAccount => Self::UpiAccount,
+            UpiSource::UpiCcCl => Self::UpiCcCl,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UpiIntentData {}
+#[serde(rename_all = "snake_case")]
+pub struct UpiCollectData {
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UpiQrData {}
+pub struct UpiIntentData {
+    pub upi_source: Option<UpiSource>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct UpiQrData {
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -903,6 +944,9 @@ pub enum GiftCardData {
 }
 
 impl GiftCardData {
+    pub fn is_givex(&self) -> bool {
+        matches!(self, Self::Givex(_))
+    }
     /// Returns a key that uniquely identifies the gift card. Used in
     /// Payment Method Balance Check Flow for storing the balance
     /// data in Redis.
@@ -1763,11 +1807,16 @@ impl From<CryptoData> for api_models::payments::CryptoData {
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
         match value {
-            api_models::payments::UpiData::UpiCollect(upi) => {
-                Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
-            }
-            api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
-            api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQrData {}),
+            api_models::payments::UpiData::UpiCollect(upi) => Self::UpiCollect(UpiCollectData {
+                vpa_id: upi.vpa_id,
+                upi_source: upi.upi_source.map(UpiSource::from),
+            }),
+            api_models::payments::UpiData::UpiIntent(upi) => Self::UpiIntent(UpiIntentData {
+                upi_source: upi.upi_source.map(UpiSource::from),
+            }),
+            api_models::payments::UpiData::UpiQr(upi) => Self::UpiQr(UpiQrData {
+                upi_source: upi.upi_source.map(UpiSource::from),
+            }),
         }
     }
 }
@@ -1778,12 +1827,17 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiCollect(upi) => Self::UpiCollect(Box::new(
                 payment_additional_types::UpiCollectAdditionalData {
                     vpa_id: upi.vpa_id.map(MaskedUpiVpaId::from),
+                    upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
                 },
             )),
-            UpiData::UpiIntent(_) => {
-                Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
+            UpiData::UpiIntent(upi) => {
+                Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                    upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+                }))
             }
-            UpiData::UpiQr(_) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {})),
+            UpiData::UpiQr(upi) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {
+                upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+            })),
         }
     }
 }
@@ -2213,6 +2267,7 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
             api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
+            api_models::payments::RealTimePaymentData::Qris {} => Self::VietQr {},
         }
     }
 }
@@ -2224,6 +2279,7 @@ impl From<RealTimePaymentData> for api_models::payments::RealTimePaymentData {
             RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             RealTimePaymentData::VietQr {} => Self::VietQr {},
+            RealTimePaymentData::Qris {} => Self::Qris {},
         }
     }
 }
@@ -2534,6 +2590,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris {},
         }
     }
 }

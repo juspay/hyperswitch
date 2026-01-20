@@ -3888,12 +3888,13 @@ pub async fn clone_connector(
         destination_key_store.clone(),
         destination_merchant_account.clone(),
         destination_key_store.clone(),
+        None,
     );
 
     admin::create_connector(
         state,
         merchant_connector_create,
-        destination_context,
+        destination_context.get_processor().clone(),
         Some(request.destination.profile_id),
     )
     .await
@@ -3902,4 +3903,63 @@ pub async fn clone_connector(
         e.change_context(UserErrors::ErrorCloningConnector(message))
     })
     .attach_printable("Failed to create cloned connector")
+}
+
+#[cfg(feature = "v1")]
+pub async fn issue_embedded_token(
+    state: SessionState,
+    processor: domain::Processor,
+    business_profile: Option<domain::Profile>,
+) -> UserResponse<user_api::IssueEmbeddedTokenResponse> {
+    let profile_id = business_profile
+        .ok_or(UserErrors::InvalidEmbeddedOperation(
+            "No business profile ID provided".to_string(),
+        ))
+        .attach_printable("No profile_id provided in headers for embedded token")?
+        .get_id()
+        .clone();
+    state
+        .store
+        .find_business_profile_by_merchant_id_profile_id(
+            processor.get_key_store(),
+            processor.get_account().get_id(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidEmbeddedOperation(
+            "Invalid business profile ID".to_string(),
+        ))?;
+    auth::embedded::EmbeddedToken::new_token(
+        state.tenant.tenant_id,
+        processor.get_account().get_org_id().clone(),
+        processor.get_account().get_id().clone(),
+        profile_id,
+        &state.conf,
+    )
+    .await
+    .map(|token| {
+        ApplicationResponse::Json(user_api::IssueEmbeddedTokenResponse {
+            token: token.into(),
+        })
+    })
+}
+
+#[cfg(feature = "v1")]
+pub async fn embedded_token_info(
+    _state: SessionState,
+    processor: domain::Processor,
+    business_profile: Option<domain::Profile>,
+) -> UserResponse<user_api::EmbeddedTokenInfoResponse> {
+    Ok(ApplicationResponse::Json(
+        user_api::EmbeddedTokenInfoResponse {
+            org_id: processor.get_account().get_org_id().clone(),
+            merchant_id: processor.get_account().get_id().clone(),
+            merchant_account_version: processor.get_account().version,
+            profile_id: business_profile
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Missing Profile ID")?
+                .get_id()
+                .clone(),
+        },
+    ))
 }

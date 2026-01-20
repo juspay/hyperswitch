@@ -385,7 +385,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Fps
             | api_enums::PaymentMethodType::DuitNow
             | api_enums::PaymentMethodType::PromptPay
-            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
+            | api_enums::PaymentMethodType::VietQr
+            | api_enums::PaymentMethodType::Qris => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
         }
@@ -714,6 +715,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             created_at: dispute.created_at,
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
+            is_already_refunded: false,
         }
     }
 }
@@ -760,6 +762,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
             dispute_id: dispute.dispute_id,
+            amount: dispute.amount,
             dispute_stage: dispute.dispute_stage,
             dispute_status: dispute.dispute_status,
             connector_status: dispute.connector_status,
@@ -795,6 +798,80 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<diesel_models::payment_attempt::UnifiedErrorDetails>
+    for payments::ApiUnifiedErrorDetails
+{
+    fn foreign_from(unified: diesel_models::payment_attempt::UnifiedErrorDetails) -> Self {
+        Self {
+            category: unified.category,
+            message: unified.message,
+            standardised_code: unified.standardised_code,
+            description: unified.description,
+            user_guidance_message: unified.user_guidance_message,
+            recommended_action: unified.recommended_action,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<diesel_models::payment_attempt::NetworkErrorDetails>
+    for payments::ApiNetworkErrorDetails
+{
+    fn foreign_from(network: diesel_models::payment_attempt::NetworkErrorDetails) -> Self {
+        Self {
+            name: network.name,
+            advice_code: network.advice_code,
+            advice_message: network.advice_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<diesel_models::payment_attempt::IssuerErrorDetails>
+    for payments::ApiIssuerErrorDetails
+{
+    fn foreign_from(issuer: diesel_models::payment_attempt::IssuerErrorDetails) -> Self {
+        Self {
+            code: issuer.code,
+            message: issuer.message,
+            network_details: issuer
+                .network_details
+                .map(payments::ApiNetworkErrorDetails::foreign_from),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<diesel_models::payment_attempt::ConnectorErrorDetails>
+    for payments::ApiConnectorErrorDetails
+{
+    fn foreign_from(connector: diesel_models::payment_attempt::ConnectorErrorDetails) -> Self {
+        Self {
+            code: connector.code,
+            message: connector.message,
+            reason: connector.reason,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<diesel_models::payment_attempt::ErrorDetails> for payments::PaymentErrorDetails {
+    fn foreign_from(details: diesel_models::payment_attempt::ErrorDetails) -> Self {
+        Self {
+            unified_details: details
+                .unified_details
+                .map(payments::ApiUnifiedErrorDetails::foreign_from),
+            issuer_details: details
+                .issuer_details
+                .map(payments::ApiIssuerErrorDetails::foreign_from),
+            connector_details: details
+                .connector_details
+                .map(payments::ApiConnectorErrorDetails::foreign_from),
         }
     }
 }
