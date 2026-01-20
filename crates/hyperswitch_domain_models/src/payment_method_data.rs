@@ -3383,7 +3383,7 @@ impl From<mandates::CardWithLimitedData> for CardWithLimitedData {
 }
 
 impl RecurringDetails {
-    pub fn get_mandate_reference_id_and_payment_method_data_for_mit_flow(
+    pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
     ) -> CustomResult<(api_models::payments::MandateReferenceId, PaymentMethodData), ApiErrorResponse>
     {
@@ -3397,7 +3397,9 @@ impl RecurringDetails {
             Self::CardWithLimitedData(card_with_limited_data) => {
                 Ok(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
             }
-            _ => Err(ApiErrorResponse::NotSupported { message: "Recurring Flow via Proxy not Supported".to_string() }.into()),
+            Self::PaymentMethodId(_)
+            | Self::MandateId(_)
+            | Self::ProcessorPaymentToken(_) => Err(ApiErrorResponse::NotSupported { message: "Recurring Flow via Proxy not Supported".to_string() }.into()),
         }
     }
 }

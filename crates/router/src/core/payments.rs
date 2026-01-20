@@ -9044,10 +9044,12 @@ where
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
         .attach_printable("Failed to fetch recurring details for mit")?;
 
+    let proxy_connector_filters = get_proxy_connector_filters(state, recurring_payment_details)?;
+
     let eligible_connector_data_list = connector_choice
         .get_routable_connectors(&*state.store, business_profile)
         .await?
-        .filter_recurring_flow_supported_connectors(state, recurring_payment_details)
+        .filter_proxy_flow_supported_connectors(proxy_connector_filters)
         .construct_dsl_and_perform_eligibility_analysis(
             state,
             key_store,
@@ -9066,12 +9068,47 @@ where
 
     let recurring_details = domain_recurring_details::try_from(recurring_payment_details.clone())?;
     let (mandate_reference_id, payment_method_details_for_network_transaction_id) =
-        recurring_details.get_mandate_reference_id_and_payment_method_data_for_mit_flow()?;
+        recurring_details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()?;
     Ok((
         mandate_reference_id,
         payment_method_details_for_network_transaction_id,
         eligible_connector_data.clone(),
     ))
+}
+
+pub fn get_proxy_connector_filters(
+    state: &SessionState,
+    recurring_details: &RecurringDetails,
+) -> RouterResult<HashSet<String>> {
+    match recurring_details {
+        RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
+            Ok(state
+                .conf
+                .network_transaction_id_supported_connectors
+                .connector_list
+                .iter()
+                .map(|value| value.to_string())
+                .collect::<HashSet<_>>())
+        }
+        RecurringDetails::CardWithLimitedData(_) => {
+            Ok(state
+                .conf
+                .card_only_mit_supported_connectors
+                .connector_list
+                .iter()
+                .map(|value| value.to_string())
+                .collect::<HashSet<_>>())
+        }
+        RecurringDetails::MandateId(_)
+        | RecurringDetails::PaymentMethodId(_)
+        | RecurringDetails::ProcessorPaymentToken(_) => {
+            Err(errors::ApiErrorResponse::NotSupported {
+                message: "Recurring Flow via Proxy not Supported".to_string(),
+            }
+            .into())
+        }
+    }
 }
 
 pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
