@@ -117,8 +117,8 @@ impl From<String> for MaskedBankAccount {
 
 impl MaskedBankAccount {
     /// Expose the inner secret
-    pub fn expose_inner(&self) -> String {
-        self.0.clone().expose()
+    pub fn expose_inner(self) -> String {
+        self.0.expose()
     }
 }
 impl From<Secret<String>> for MaskedBankAccount {
