@@ -562,6 +562,7 @@ impl AppState {
             #[cfg(feature = "keymanager_mtls")]
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+            use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -1587,6 +1588,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/create-intent")
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
+                )
+                .service(
+                    web::resource("/get-network-token-eligibility")
+                        .route(web::get().to(payment_methods::get_pm_nt_eligibility_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/check-network-token-status")

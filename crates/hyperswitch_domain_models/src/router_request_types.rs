@@ -643,6 +643,44 @@ pub struct GiftCardBalanceCheckRequestData {
     pub minor_amount: Option<MinorUnit>,
 }
 
+impl TryFrom<SetupMandateRequestData> for GiftCardBalanceCheckRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            currency: Some(data.currency),
+            minor_amount: Some(data.minor_amount),
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for GiftCardBalanceCheckRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data
+                .payment_method_data
+                .get_required_value("payment_method_data")
+                .change_context(ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_data",
+                })?,
+            currency: Some(data.currency),
+            minor_amount: Some(data.minor_amount),
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for GiftCardBalanceCheckRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            currency: Some(data.currency),
+            minor_amount: Some(data.minor_amount),
+        })
+    }
+}
+
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
