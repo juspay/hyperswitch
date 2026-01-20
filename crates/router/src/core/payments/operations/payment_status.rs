@@ -60,13 +60,23 @@ impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for &PaymentStat
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentStatus {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        request: Option<&CustomerDetails>,
+        processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
+    }
+
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> CustomResult<
         (
             PaymentStatusOperation<'a, F, api::PaymentsRequest>,
@@ -74,16 +84,41 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         ),
         errors::StorageError,
     > {
-        helpers::create_customer_if_not_exist(
-            state,
-            Box::new(self),
-            payment_data,
-            request,
-            &key_store.merchant_id,
-            key_store,
-            storage_scheme,
-        )
-        .await
+        match provider.get_account().merchant_account_type {
+            common_enums::MerchantAccountType::Standard => {
+                helpers::create_customer_if_not_exist(
+                    state,
+                    Box::new(self),
+                    payment_data,
+                    request,
+                    provider,
+                )
+                .await
+            }
+            common_enums::MerchantAccountType::Platform => {
+                let customer = helpers::get_customer_if_exists(
+                    state,
+                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
+                    payment_data.payment_intent.customer_id.as_ref(),
+                    provider,
+                )
+                .await?
+                .inspect(|cust| {
+                    payment_data.email = payment_data
+                        .email
+                        .clone()
+                        .or_else(|| cust.email.clone().map(Into::into));
+                });
+
+                Ok((Box::new(self), customer))
+            }
+            common_enums::MerchantAccountType::Connected => {
+                Err(errors::StorageError::ValueNotFound(
+                    "Connected merchant cannot be a provider".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     #[instrument(skip_all)]
@@ -142,11 +177,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         &'b self,
         _state: &'b SessionState,
         req_state: ReqState,
+        _processor: &domain::Processor,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -174,11 +207,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequ
         &'b self,
         _state: &'b SessionState,
         req_state: ReqState,
+        _processor: &domain::Processor,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -449,30 +480,35 @@ async fn get_tracker_for_sync<
         };
 
     let merchant_id = payment_intent.merchant_id.clone();
+    let key_manager_state = &(state).into();
 
-    let authentication_store = if let Some(ref authentication_id) =
-        payment_attempt.authentication_id
-    {
-        let authentication = db
-            .find_authentication_by_merchant_id_authentication_id(&merchant_id, authentication_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Error while fetching authentication record with authentication_id {}",
-                    authentication_id.get_string_repr()
+    let authentication_store =
+        if let Some(ref authentication_id) = payment_attempt.authentication_id {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    &merchant_id,
+                    authentication_id,
+                    platform.get_processor().get_key_store(),
+                    key_manager_state,
                 )
-            })?;
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Error while fetching authentication record with authentication_id {}",
+                        authentication_id.get_string_repr()
+                    )
+                })?;
 
-        Some(
+            Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                 authentication,
                 cavv: None, // marking this as None since we don't need authentication value in payment status flow
             },
         )
-    } else {
-        None
-    };
+        } else {
+            None
+        };
 
     let payment_link_data = payment_intent
         .payment_link_id

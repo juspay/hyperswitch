@@ -20,6 +20,7 @@ use diesel_models::business_profile::{
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 
 use crate::{
     behaviour::Conversion,
@@ -1494,6 +1495,31 @@ impl Profile {
             .transpose()
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to deserialize routing algorithm ref from merchant account")
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_three_ds_decision_rule_algorithm_id(
+        &self,
+    ) -> Option<common_utils::id_type::RoutingId> {
+        self.three_ds_decision_rule_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize three_ds_decision_rule_algorithm ref from profile",
+            )
+            .inspect_err(|err| {
+                logger::error!(
+                    "Error while parsing three_ds_decision_rule_algorithm ref from profile {:?}",
+                    err
+                )
+            })
+            .ok()
+            .flatten()
+            .and_then(|algorithm| algorithm.algorithm_id)
     }
 
     #[cfg(feature = "v1")]

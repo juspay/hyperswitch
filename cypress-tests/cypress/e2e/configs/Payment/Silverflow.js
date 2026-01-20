@@ -62,10 +62,10 @@ const billingAddress = {
 const payment_method_data_visa = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -100,8 +100,8 @@ const payment_method_data_failed = {
     last4: "0002",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -757,15 +757,13 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request_error",
-            code: "feature_not_supported",
-            message: "Zero auth is not supported",
-          },
+          status: "processing",
         },
       },
     }),

@@ -1,7 +1,7 @@
 import {
-  customerAcceptance,
   cardRequiredField,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -54,8 +54,8 @@ const payment_method_data_3ds = {
     last4: "3155",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -72,8 +72,8 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "AmericanExpress",
-    card_issuing_country: "INDIA",
+    card_issuer: "American Express US Cars",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -296,8 +296,8 @@ export const connectorDetails = {
           error_code: "card_declined",
           error_message:
             "message - Your card was declined., decline_code - generic_decline",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "UE_1000",
+          unified_message: "Issue with Payment Method details",
         },
       },
     },
@@ -595,6 +595,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

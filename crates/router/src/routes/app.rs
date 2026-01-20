@@ -67,7 +67,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
+    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*, oidc,
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
@@ -152,6 +152,14 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
+    }
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.request_id.clone()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id.clone());
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
     }
 }
 impl SessionState {
@@ -442,14 +450,14 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
                 &conf,
                 &conf.multitenancy.global_tenant,
                 Arc::clone(&cache_store),
                 testable,
-            )
+            ))
             .await
             .get_global_storage_interface();
             #[cfg(feature = "olap")]
@@ -554,6 +562,7 @@ impl AppState {
             #[cfg(feature = "keymanager_mtls")]
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+            use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -1536,6 +1545,10 @@ impl Payouts {
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
+                )
+                .service(
+                    web::resource("/{payout_id}/manual-update")
+                        .route(web::put().to(payouts_manual_update)),
                 );
         }
         route = route
@@ -1577,8 +1590,17 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
                 )
                 .service(
+                    web::resource("/get-network-token-eligibility")
+                        .route(web::get().to(payment_methods::get_pm_nt_eligibility_api)),
+                )
+                .service(
                     web::resource("/{payment_method_id}/check-network-token-status")
                         .route(web::get().to(payment_methods::network_token_status_check_api)),
+                )
+                .service(
+                    web::resource("/token/{payment_method_temporary_token}/details").route(
+                        web::get().to(payment_methods::payment_method_get_token_details_api),
+                    ),
                 );
 
             route = route.service(
@@ -1639,6 +1661,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/update-batch")
                         .route(web::post().to(payment_methods::update_payment_methods)),
+                )
+                .service(
+                    web::resource("/batch")
+                        .route(web::get().to(payment_methods::payment_methods_batch_retrieve_api)),
                 )
                 .service(
                     web::resource("/tokenize-card")
@@ -1785,6 +1811,22 @@ impl Hypersense {
                 web::resource("/signout")
                     .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             )
+    }
+}
+
+pub struct Oidc;
+
+impl Oidc {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/.well-known/openid-configuration")
+                    .route(web::get().to(oidc::oidc_discovery)),
+            )
+            .service(web::resource("/oauth2/jwks").route(web::get().to(oidc::jwks_endpoint)))
+            .service(web::resource("/oidc/authorize").route(web::get().to(oidc::oidc_authorize)))
+            .service(web::resource("/oauth2/token").route(web::post().to(oidc::oidc_token)))
     }
 }
 
@@ -2415,10 +2457,6 @@ impl Profile {
                     .service(
                         web::scope("/success_based")
                             .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_success_based_routing)),
-                            )
-                            .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
                             )
@@ -2440,10 +2478,6 @@ impl Profile {
                     )
                     .service(
                         web::scope("/elimination")
-                            .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_elimination_routing)),
-                            )
                             .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),
@@ -3028,11 +3062,20 @@ impl User {
                         .route(web::get().to(user::theme::list_all_themes_in_lineage)),
                 )
                 .service(
-                    web::resource("/{theme_id}")
-                        .route(web::get().to(user::theme::get_user_theme_using_theme_id))
-                        .route(web::put().to(user::theme::update_user_theme))
-                        .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
-                        .route(web::delete().to(user::theme::delete_user_theme)),
+                    web::scope("/{theme_id}")
+                        .service(
+                            web::resource("")
+                                .route(web::get().to(user::theme::get_user_theme_using_theme_id))
+                                .route(web::put().to(user::theme::update_user_theme))
+                                .route(
+                                    web::post().to(user::theme::upload_file_to_user_theme_storage),
+                                )
+                                .route(web::delete().to(user::theme::delete_user_theme)),
+                        )
+                        .service(
+                            web::resource("/version")
+                                .route(web::get().to(user::theme::get_theme_version)),
+                        ),
                 ),
         );
         route
@@ -3058,6 +3101,18 @@ impl ConnectorOnboarding {
                 web::resource("/reset_tracking_id")
                     .route(web::post().to(connector_onboarding::reset_tracking_id)),
             )
+    }
+}
+
+pub struct Embedded;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl Embedded {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/embedded")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(user::embedded_token_info)))
+            .service(web::resource("/token").route(web::get().to(user::issue_embedded_token)))
     }
 }
 
@@ -3168,7 +3223,8 @@ impl Authentication {
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/redirect")
-                    .route(web::post().to(authentication::authentication_sync_post_update)),
+                    .route(web::post().to(authentication::authentication_sync_post_update))
+                    .route(web::get().to(authentication::authentication_sync_post_update)),
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")

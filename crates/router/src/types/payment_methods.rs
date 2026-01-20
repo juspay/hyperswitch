@@ -1,9 +1,6 @@
 use std::fmt::Debug;
 
 use api_models::enums as api_enums;
-#[cfg(feature = "v1")]
-use cards::CardNumber;
-#[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_types::primitive_wrappers;
@@ -211,6 +208,39 @@ pub struct CardNetworkTokenResponse {
     pub payload: Secret<String>, //encrypted payload
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize)]
+pub struct NTEligibilityRequest {
+    pub check_tokenize_support: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NTEligibilityResponse {
+    /// country associated with the card
+    pub country: Option<String>,
+    /// extended card type
+    pub extended_card_type: Option<String>,
+    /// card brand (like VISA, MASTERCARD etc)
+    pub brand: Option<String>,
+    /// bank code as per juspay
+    pub juspay_bank_code: Option<String>,
+    /// object type
+    pub object: Option<String>,
+    /// card bin length
+    pub id: String,
+    /// card sub type
+    pub card_sub_type: Option<String>,
+    /// indicates whether the (merchant + card_bin) is enabled tokenization
+    #[serde(default)]
+    pub tokenize_support: bool,
+
+    /// card type (like CREDIT, DEBIT etc)
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
+    /// bank associated with the card
+    pub bank: Option<String>,
+}
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -265,14 +295,14 @@ pub struct GetCardToken {
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: CardNumber, //network token
+    pub token: NetworkToken,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: NetworkToken, //network token
+    pub token: NetworkToken,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

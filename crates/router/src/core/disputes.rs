@@ -161,13 +161,17 @@ pub async fn retrieve_dispute(
         } else {
             api_models::disputes::DisputeResponse::foreign_from(dispute.clone())
         };
-
     #[cfg(feature = "v1")]
     {
-        let state = payment_intent.state_metadata.clone().unwrap_or_default();
-        dispute_response.is_already_refunded = payment_intent
-            .validate_against_intent_state_metadata(state.total_disputed_amount)
-            .is_err();
+        let validation_result = payment_intent.validate_amount_against_intent_state_metadata(None);
+
+        if let Err(err) = &validation_result {
+            logger::debug!(
+                ?err,
+                "Dispute validation failed against intent state metadata"
+            );
+        }
+        dispute_response.is_already_refunded = validation_result.is_err();
     }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
@@ -192,10 +196,32 @@ pub async fn retrieve_disputes_list(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;
-    let disputes_list = disputes
+    let mut disputes_list: Vec<api_models::disputes::DisputeResponse> = disputes
         .into_iter()
         .map(api_models::disputes::DisputeResponse::foreign_from)
         .collect();
+    #[cfg(feature = "v1")]
+    for dispute_response in &mut disputes_list {
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_merchant_id(
+                &dispute_response.payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let validation_result = payment_intent.validate_amount_against_intent_state_metadata(None);
+
+        if let Err(err) = &validation_result {
+            logger::debug!(
+                ?err,
+                "Dispute validation failed against intent state metadata"
+            );
+        }
+        dispute_response.is_already_refunded = validation_result.is_err();
+    }
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
@@ -220,7 +246,7 @@ pub async fn get_filters_for_disputes(
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            platform.get_processor().get_account().get_id().to_owned(),
+            platform.get_processor().clone(),
             profile_id_list,
         )
         .await?
@@ -909,7 +935,7 @@ pub async fn update_dispute_data(
 
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        platform,
+        platform.get_processor().clone(),
         business_profile,
         event_type,
         storage_enums::EventClass::Disputes,

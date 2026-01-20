@@ -114,7 +114,7 @@ pub struct DebitRoutingOutput {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CoBadgedCardNetworksInfo {
     pub network: common_enums::CardNetwork,
-    pub saving_percentage: f64,
+    pub saving_percentage: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

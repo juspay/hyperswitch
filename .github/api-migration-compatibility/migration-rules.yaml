@@ -1,0 +1,108 @@
+# Migration Rules Configuration
+# This file defines SQL patterns that are considered breaking changes or warnings
+# for database migrations, with folder-specific rule application.
+
+# Define reusable rule patterns
+rule_patterns:
+  drop_table:
+    pattern: 'DROP\s+TABLE\s+'
+    description: "Dropping a table removes data and breaks existing queries"
+
+  drop_column:
+    pattern: 'DROP\s+COLUMN\s+'
+    description: "Dropping a column breaks applications expecting it"
+
+  delete_data:
+    pattern: 'DELETE\s+FROM\s+'
+    description: "Deleting data can break application logic"
+
+  truncate_table:
+    pattern: 'TRUNCATE\s+'
+    description: "Truncating removes all data from a table"
+
+  rename_table:
+    pattern: 'RENAME\s+TO\s+'
+    description: "Renaming a table breaks existing queries and code references"
+
+  rename_column:
+    pattern: 'RENAME\s+COLUMN\s+'
+    description: "Renaming a column breaks applications using the old name"
+
+  set_not_null:
+    pattern: 'ALTER\s+COLUMN\s+.*\s+SET\s+NOT\s+NULL'
+    description: "Making an existing nullable column NOT NULL can fail with existing NULL data"
+
+  add_column_not_null_no_default:
+    pattern: 'ALTER\s+TABLE\s+.*\s+ADD\s+COLUMN\s+(?!.*DEFAULT).*NOT\s+NULL'
+    description: "Adding a NOT NULL column without a DEFAULT to an existing table will fail"
+
+  alter_column_type:
+    pattern: '(ALTER\s+COLUMN\s+.*\s+TYPE|ALTER\s+COLUMN\s+.*\s+SET\s+DATA\s+TYPE)'
+    description: "Changing column type may cause data loss or conversion issues"
+
+  drop_index:
+    pattern: 'DROP\s+INDEX\s+'
+    description: "Dropping an index can significantly impact query performance"
+
+  drop_constraint:
+    pattern: 'DROP\s+CONSTRAINT\s+'
+    description: "Dropping a constraint may allow invalid data"
+
+  alter_default:
+    pattern: '(SET\s+DEFAULT|DROP\s+DEFAULT)'
+    description: "Changing defaults affects new rows only, may cause inconsistency"
+
+# Apply rules per migration folder
+# Each folder can have its own set of breaking and warning rules
+folder_rules:
+  # V1 migrations
+  migrations:
+    breaking:
+      - drop_table
+      - drop_column
+      - delete_data
+      - truncate_table
+      - rename_table
+      - rename_column
+      - set_not_null
+      - add_column_not_null_no_default
+      - alter_column_type
+    warnings:
+      - drop_index
+      - drop_constraint
+      - alter_default
+
+  # V2 migrations
+  v2_migrations:
+    breaking:
+      - drop_table
+      - drop_column
+      - delete_data
+      - truncate_table
+      - rename_table
+      - rename_column
+      - set_not_null
+      - add_column_not_null_no_default
+      - alter_column_type
+    warnings:
+      - drop_index
+      - drop_constraint
+      - alter_default
+
+  # V2 compatible migrations
+  v2_compatible_migrations:
+    breaking:
+      - drop_table
+      - drop_column
+      - delete_data
+      - truncate_table
+      - rename_table
+      - rename_column
+      - set_not_null
+      - add_column_not_null_no_default
+      - alter_column_type
+    warnings:
+      - drop_index
+      - drop_constraint
+      - alter_default
+

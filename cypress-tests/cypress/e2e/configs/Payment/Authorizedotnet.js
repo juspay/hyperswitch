@@ -1,9 +1,9 @@
+import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
-import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -35,10 +35,10 @@ const failedNo3DSCardDetails = {
 const paymentMethodData = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -533,6 +533,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
         email: generateRandomEmail(),
       },
       Response: {

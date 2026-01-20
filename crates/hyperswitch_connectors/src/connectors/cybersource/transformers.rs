@@ -2,6 +2,7 @@ use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 use base64::Engine;
+use cards::NetworkToken;
 use common_enums::{enums, FutureUsage};
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::{
@@ -19,7 +20,6 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
         SamsungPayWalletData, WalletData,
@@ -216,7 +216,6 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     None,
                 )
             }
-
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone() {
                     Some(payment_method_token) => match payment_method_token {
@@ -358,8 +357,9 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?
@@ -534,7 +534,7 @@ pub struct CaptureOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkTokenizedCard {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Option<Secret<String>>,
@@ -2615,7 +2615,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
-                    | PaymentMethodData::CardToken(_) => {
+                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         )
@@ -2746,7 +2747,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
@@ -2810,7 +2812,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
@@ -3374,6 +3377,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -3486,7 +3490,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))
@@ -3627,7 +3632,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))
@@ -3748,7 +3754,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))
@@ -3823,7 +3830,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
@@ -4007,6 +4015,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -4352,6 +4361,7 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -4481,6 +4491,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -4612,6 +4623,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -5229,6 +5241,7 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id),
+        connector_response_reference_id: None,
         network_advice_code,
         network_decline_code,
         network_error_message: None,

@@ -42,37 +42,60 @@ pub async fn list_initial_delivery_attempts(
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let (events, total_count) = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter {
-            object_id,
-            event_id,
-        } => {
-            let events =
-                match account {
-                    MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
-                        .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
+            let events = match account {
+                MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
+                    store
+                        .list_initial_events_by_merchant_id_primary_object_id(
                             merchant_account.get_id(),
-                            &object_id,
-                            &event_id,
+                            object_id.as_str(),
                             &key_store,
                         )
-                        .await,
-                    MerchantAccountOrProfile::Profile(business_profile) => {
-                        store
-                            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
-                                business_profile.get_id(),
-                                &object_id,
-                                &event_id,
-                                &key_store,
-                            )
-                            .await
-                    }
+                        .await
                 }
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to list events with specified constraints")?;
+                MerchantAccountOrProfile::Profile(business_profile) => {
+                    store
+                        .list_initial_events_by_profile_id_primary_object_id(
+                            business_profile.get_id(),
+                            object_id.as_str(),
+                            &key_store,
+                        )
+                        .await
+                }
+            }
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to list events with specified constraints")?;
 
             let total_count = i64::try_from(events.len())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error while converting from usize to i64")?;
+            (events, total_count)
+        }
+        api_models::webhook_events::EventListConstraintsInternal::EventIdFilter { event_id } => {
+            let event_opt = match account {
+                MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
+                    store
+                        .find_initial_event_by_merchant_id_initial_attempt_id(
+                            merchant_account.get_id(),
+                            event_id.as_str(),
+                            &key_store,
+                        )
+                        .await
+                }
+                MerchantAccountOrProfile::Profile(business_profile) => {
+                    store
+                        .find_initial_event_by_profile_id_initial_attempt_id(
+                            business_profile.get_id(),
+                            event_id.as_str(),
+                            &key_store,
+                        )
+                        .await
+                }
+            }
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to find event with specified event_id")?;
+
+            let (events, total_count) = event_opt.map_or((vec![], 0), |event| (vec![event], 1));
             (events, total_count)
         }
         api_models::webhook_events::EventListConstraintsInternal::GenericFilter {

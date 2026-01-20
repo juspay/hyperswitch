@@ -24,6 +24,7 @@ use services::kafka;
 use storage::business_status;
 
 use crate::{
+    consts,
     core::{
         self, admin,
         errors::{self, CustomResult},
@@ -920,7 +921,8 @@ impl RevenueRecoveryAttempt {
             error_code.clone(),
             error_message,
             connector_name,
-            REVENUE_RECOVERY.to_string(),
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
         )
         .await;
 

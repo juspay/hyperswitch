@@ -13,6 +13,8 @@ pub mod pm_auth;
 
 pub mod card_testing_guard;
 #[cfg(feature = "olap")]
+pub mod oidc_provider;
+#[cfg(feature = "olap")]
 pub mod openidconnect;
 
 use std::sync::Arc;

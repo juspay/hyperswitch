@@ -29,6 +29,7 @@ pub const DEFAULT_PAYMENT_WEBHOOK_TRIGGER_STATUSES: &[common_enums::IntentStatus
     common_enums::IntentStatus::Failed,
     common_enums::IntentStatus::PartiallyCaptured,
     common_enums::IntentStatus::RequiresMerchantAction,
+    common_enums::IntentStatus::RequiresCapture,
 ];
 
 /// Default refund statuses that trigger a webhook

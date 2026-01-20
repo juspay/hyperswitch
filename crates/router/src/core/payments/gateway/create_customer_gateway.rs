@@ -21,6 +21,7 @@ use crate::{
         unified_connector_service::handle_unified_connector_service_response_for_create_connector_customer,
     },
     routes::SessionState,
+    services::logger,
     types::{self, transformers::ForeignTryFrom},
 };
 
@@ -101,7 +102,7 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(None)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
             create_connector_customer_request,
@@ -123,16 +124,26 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
+                let connector_customer_result = match connector_customer_result {
+                    Ok(response) => Ok(response),
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
+
                 router_data.response = connector_customer_result;
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, create_connector_customer_response))
+                Ok((router_data, (), create_connector_customer_response))
             },
         ))
         .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(updated_router_data)
+        .map(|(router_data, _)| router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 

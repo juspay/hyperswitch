@@ -1,4 +1,7 @@
-use common_utils::{errors as common_utils_errors, request};
+use common_utils::{
+    consts::{X_CONNECTOR_NAME, X_SUB_FLOW_NAME},
+    errors as common_utils_errors, request,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data;
 use masking;
@@ -44,6 +47,9 @@ where
 {
     logger::info!("Simulating UCS call for shadow mode comparison");
 
+    let connector_name = hyperswitch_router_data.connector.clone();
+    let sub_flow_name = api_client::get_flow_name::<F>().ok();
+
     let [hyperswitch_data, unified_connector_service_data] = [
         (hyperswitch_router_data, "hyperswitch"),
         (unified_connector_service_router_data, "ucs"),
@@ -67,6 +73,8 @@ where
         state,
         comparison_data,
         comparison_service_config,
+        connector_name,
+        sub_flow_name,
         request_id,
     )
     .await
@@ -81,6 +89,8 @@ pub async fn send_comparison_data(
     state: &dyn api_client::ApiClientWrapper,
     comparison_data: ComparisonData,
     comparison_service_config: types::ComparisonServiceConfig,
+    connector_name: String,
+    sub_flow_name: Option<String>,
     request_id: Option<String>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError> {
     let mut request = request::RequestBuilder::new()
@@ -90,6 +100,12 @@ pub async fn send_comparison_data(
         .header(consts::X_FLOW_NAME, "router-data")
         .set_body(request::RequestContent::Json(Box::new(comparison_data)))
         .build();
+
+    request.add_header(X_CONNECTOR_NAME, masking::Maskable::Normal(connector_name));
+
+    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
+        request.add_header(X_SUB_FLOW_NAME, masking::Maskable::Normal(sub_flow_name));
+    }
 
     if let Some(req_id) = request_id {
         request.add_header(consts::X_REQUEST_ID, masking::Maskable::Normal(req_id));

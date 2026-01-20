@@ -256,6 +256,10 @@ impl
                     .card_issuing_country
                     .clone()
                     .or(card_bin_info.card_issuing_country),
+                issuer_country_code: card_details
+                    .card_issuing_country_code
+                    .clone()
+                    .or(card_bin_info.country_code),
                 card_number: None,
                 expiry_month: Some(card_details.card_exp_month.clone()),
                 expiry_year: Some(card_details.card_exp_year.clone()),
@@ -283,6 +287,7 @@ impl
                     .map(|card_network| card_network.to_string()),
                 last4_digits: Some(last4_digits.clone()),
                 issuer_country: card_details.card_issuing_country.clone(),
+                issuer_country_code: card_details.card_issuing_country_code.clone(),
                 card_number: None,
                 expiry_month: Some(card_details.card_exp_month.clone()),
                 expiry_year: Some(card_details.card_exp_year.clone()),

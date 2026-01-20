@@ -60,7 +60,6 @@ use masking::{Mask, PeekInterface};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
-use url::form_urlencoded;
 use uuid::Uuid;
 
 #[cfg(feature = "payouts")]
@@ -182,6 +181,7 @@ impl ConnectorCommon for Gigadat {
             reason: Some(response.err).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -592,6 +592,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             reason: Some(response.message).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -959,20 +960,10 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+        let webhook_type = details.webhook_type;
 
-        let webhook_type = details
-            .iter()
-            .find(|&entry| entry.key == "type")
-            .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let reference_id = match transformers::GigadatFlow::get_flow(webhook_type.value.as_str())? {
+        let reference_id = match transformers::GigadatFlow::get_flow(&webhook_type)? {
             transformers::GigadatFlow::Payment => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
@@ -996,20 +987,11 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
 
-        let webhook_type = details
-            .iter()
-            .find(|&entry| entry.key == "type")
-            .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let webhook_type = details.webhook_type;
 
-        let flow_type = transformers::GigadatFlow::get_flow(webhook_type.value.as_str())?;
+        let flow_type = transformers::GigadatFlow::get_flow(&webhook_type)?;
         let event_type =
             transformers::get_gigadat_webhook_event_type(query_params.status, flow_type);
         Ok(event_type)
@@ -1022,16 +1004,8 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
-        let resource_object = serde_json::to_string(&details)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(Box::new(resource_object))
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+        Ok(Box::new(details))
     }
     async fn verify_webhook_source(
         &self,

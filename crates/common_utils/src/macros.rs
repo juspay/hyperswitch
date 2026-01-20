@@ -730,8 +730,6 @@ macro_rules! impl_enum_str {
 mod tests {
     use serde_json::{json, Value as JsonValue};
 
-    use crate::impl_enum_str;
-
     impl_enum_str!(
         tag_delimiter = ":",
         #[derive(Debug, PartialEq, Clone)]

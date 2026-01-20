@@ -48,7 +48,8 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::MobilePayment
-                | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
+                | global_enums::PaymentMethod::GiftCard
+                | global_enums::PaymentMethod::NetworkToken => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Bacs => match self.1 {
                 global_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Bacs)),
@@ -65,7 +66,8 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::MobilePayment
-                | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
+                | global_enums::PaymentMethod::GiftCard
+                | global_enums::PaymentMethod::NetworkToken => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
             global_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
@@ -175,6 +177,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::InstantBankTransferPoland => {
                 Ok(dirval!(BankTransferType = InstantBankTransferPoland))
             }
+            global_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
             global_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
             }
@@ -214,6 +217,9 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             }
             global_enums::PaymentMethodType::OpenBanking => {
                 Ok(dirval!(BankRedirectType = OpenBanking))
+            }
+            global_enums::PaymentMethodType::NetworkToken => {
+                Ok(dirval!(NetworkTokenType = NetworkToken))
             }
         }
     }

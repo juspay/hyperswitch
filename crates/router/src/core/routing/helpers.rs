@@ -799,7 +799,7 @@ pub async fn update_gateway_score_helper_with_open_router(
 
         let routable_connector = routing_types::RoutableConnectorChoice {
             choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-            connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+            connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to infer routable_connector from connector")?,
             merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -856,7 +856,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let routable_connector = routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -1257,7 +1257,7 @@ pub async fn update_window_for_elimination_routing(
                 vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                        connector: common_enums::RoutableConnectors::from_str(
+                        connector: euclid::enums::RoutableConnectors::from_str(
                             payment_connector.as_str(),
                         )
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1359,7 +1359,7 @@ pub async fn update_window_for_elimination_routing(
             routing_event.set_status_code(200);
             routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -1552,7 +1552,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                     choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                    connector: common_enums::RoutableConnectors::from_str(
+                    connector: euclid::enums::RoutableConnectors::from_str(
                         final_label_info.label.as_str(),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)

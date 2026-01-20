@@ -1,6 +1,6 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -69,8 +69,8 @@ const payment_method_data_3ds = {
     last4: "2701",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "01",
@@ -834,6 +834,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

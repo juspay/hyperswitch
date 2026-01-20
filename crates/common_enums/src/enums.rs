@@ -24,7 +24,7 @@ use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
+pub use super::connector_enums::InvoiceStatus;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -358,8 +358,100 @@ pub enum GsmDecision {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
+pub enum RecommendedAction {
+    DoNotRetry,
+    RetryAfter10Days,
+    RetryAfter1Hour,
+    RetryAfter24Hours,
+    RetryAfter2Days,
+    RetryAfter4Days,
+    RetryAfter6Days,
+    RetryAfter8Days,
+    RetryAfterInstrumentUpdate,
+    RetryLater,
+    RetryWithDifferentPaymentMethodData,
+    StopRecurring,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
+}
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum StandardisedCode {
+    AccountClosedOrInvalid,
+    AuthenticationFailed,
+    AuthenticationRequired,
+    AuthorizationMissingOrRevoked,
+    CardLostOrStolen,
+    CardNotSupportedRestricted,
+    CfgPmNotEnabledOrMisconfigured,
+    ComplianceOrSanctionsRestriction,
+    ConfigurationIssue,
+    CreditLimitExceeded,
+    CurrencyOrCorridorNotEnabled,
+    DoNotHonor,
+    DownstreamTechnicalIssue,
+    DuplicateRequest,
+    GenericUnknownError,
+    IncorrectAuthenticationCode,
+    InsufficientFunds,
+    IntegCryptographicIssue,
+    IntegrationIssue,
+    InvalidCardNumber,
+    InvalidCredentials,
+    InvalidCvv,
+    InvalidExpiryDate,
+    InvalidState,
+    IssuerUnavailable,
+    MerchantInactive,
+    MissingOrInvalidParam,
+    OperationNotAllowed,
+    PaymentCancelledByUser,
+    PaymentMethodIssue,
+    PaymentSessionTimeout,
+    PmAddressMismatch,
+    PspAcquirerError,
+    PspFraudEngineDecline,
+    RateLimit,
+    StoredCredentialOrMitNotEnabled,
+    SubscriptionPlanInactive,
+    SuspectedFraud,
+    ThreeDsAuthenticationServiceIssue,
+    ThreeDsConfigurationIssue,
+    ThreeDsDataOrProtocolInvalid,
+    TransactionNotPermitted,
+    TransactionTimedOut,
+    VelocityLimitExceeded,
+    WalletOrTokenConfigIssue,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
@@ -1979,6 +2071,13 @@ impl FutureUsage {
             Self::OnSession => false,
         }
     }
+    /// Indicates whether to save the payment method for future use when a customer is present.
+    pub fn is_on_session(self) -> bool {
+        match self {
+            Self::OffSession => false,
+            Self::OnSession => true,
+        }
+    }
 }
 
 #[derive(
@@ -2229,6 +2328,7 @@ pub enum PaymentMethodType {
     Przelewy24,
     PromptPay,
     Pse,
+    Qris,
     RedCompra,
     RedPagos,
     SamsungPay,
@@ -2266,6 +2366,7 @@ pub enum PaymentMethodType {
     RevolutPay,
     IndonesianBankTransfer,
     OpenBanking,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2330,6 +2431,7 @@ impl PaymentMethodType {
             Self::InstantBankTransfer => "Instant Bank Transfer",
             Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
             Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
+            Self::Qris => "QRIS",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -2392,6 +2494,7 @@ impl PaymentMethodType {
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2440,6 +2543,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2459,7 +2563,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
@@ -2479,7 +2584,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 }
@@ -2571,31 +2677,6 @@ impl ExecutionPath {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum ShadowRolloutAvailability {
-    IsAvailable,
-    NotAvailable,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum UcsAvailability {
     Enabled,
     Disabled,
@@ -2649,8 +2730,10 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
+    /// Represents only UCS Connector integration
     UcsConnector,
-    DirectConnector,
+    /// Represents Connector integration which may be on both Direct and UCS
+    DirectandUCSConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -3127,7 +3210,7 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
 #[schema(
     value_type = String,
     title = "4 digit Merchant category code (MCC)",
@@ -3158,7 +3241,6 @@ impl MerchantCategoryCode {
     pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
         let code = self.get_code()?;
         match code {
-            // specific mapping needs to be depricated
             5411 => Ok("Grocery Stores, Supermarkets (5411)"),
             7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
             763 => Ok("Agricultural Cooperatives (0763)"),
@@ -3166,6 +3248,47 @@ impl MerchantCategoryCode {
             5021 => Ok("Office and Commercial Furniture (5021)"),
             4816 => Ok("Computer Network/Information Services (4816)"),
             5661 => Ok("Shoe Stores (5661)"),
+            743 => Ok("Wine producers"),
+            744 => Ok("Champagne producers"),
+            4011 => Ok("Railroads"),
+            4511 => Ok("Airlines and air carriers"),
+            4733 => Ok("Ticket Sales for Large Scenic Spots"),
+            4813 => Ok("Key-entry Telecom Merchant providing single local and long-distance phone calls using a central access number in a non-face-to-face environment using key entry"),
+            4815 => Ok("Monthly summary telephone charges"),
+            4829 => Ok("Wire transfers and money orders"),
+            5262 => Ok("Marketplaces"),
+            5552 => Ok("Electric Vehicle Charging"),
+            5715 => Ok("Alcoholic beverage wholesalers"),
+            6050 => Ok("Quasi Cash: Customer Financial Institution"),
+            6532 => Ok("Payment Transaction: Customer Financial Institution"),
+            6533 => Ok("Payment Transaction: Merchant"),
+            6536 => Ok("MoneySend Intracountry"),
+            6537 => Ok("MoneySend Intercountry"),
+            6538 => Ok("Funding Transactions for MoneySend"),
+            6540 => Ok("Non-Financial Institutions - Stored Value Card Purchase/Load"),
+            7013 => Ok("Real Estate Agent - Brokers"),
+            7280 => Ok("Private Hospital"),
+            7295 => Ok("Housekeeping Service (China)"),
+            7322 => Ok("Debt collection agencies"),
+            7512 => Ok("Automobile rentals"),
+            7523 => Ok("Parking lots and garages"),
+            7800 => Ok("Government-Owned Lotteries (US Region only)"),
+            7801 => Ok("Government Licensed On-Line Casinos (On-Line Gambling) (US Region only)"),
+            7802 => Ok("Government-Licensed Horse/Dog Racing (US Region only)"),
+            8912 => Ok("Fitments, Ornaments and Gardening"),
+            9211 => Ok("Court costs, including alimony and child support"),
+            9222 => Ok("Fines"),
+            9223 => Ok("Bail and bond payments"),
+            9311 => Ok("Tax payments"),
+            9399 => Ok("Government services -- not elsewhere classified"),
+            9400 => Ok("Embassy Fee Payments"),
+            9402 => Ok("Postal services -- government only"),
+            9405 => Ok("U.S. Federal Government Agencies or Departments"),
+            9406 => Ok("Government-Owned Lotteries (Non-U.S. region)"),
+            9700 => Ok("Automated Referral Service ( For Visa Only)"),
+            9701 => Ok("Visa Credential Service ( For Visa Only)"),
+            9702 => Ok("Emergency Services (GCAS) (Visa use only)"),
+            9950 => Ok("Intra-Company Purchases"),
 
             _ => Err(InvalidMccError {
                 message: format!("Category name not found for {}", code),
@@ -9627,6 +9750,36 @@ impl ErrorCategory {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[allow(non_camel_case_types)]
+pub enum UnifiedCode {
+    /// Customer Error - Issue with payment method details
+    UE_1000,
+    /// Connector Declines - Issue with Configurations
+    UE_2000,
+    /// Connector Error - Technical issue with PSP
+    UE_3000,
+    /// Integration Error - Issue in the integration
+    UE_4000,
+    /// Others - Something went wrong
+    UE_9000,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     PartialEq,
@@ -10308,6 +10461,37 @@ pub enum VaultTokenType {
     /// Token cryptogram
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum StorageType {
+    Volatile,
+    #[default]
+    Persistent,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.

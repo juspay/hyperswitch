@@ -314,6 +314,7 @@ impl ConnectorCommon for Amazonpay {
             message: response.message.clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             reason: None,
             network_advice_code: None,
             network_decline_code: None,

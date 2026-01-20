@@ -165,6 +165,7 @@ pub fn make_dsl_input_for_payouts(
     let payment = dsl_inputs::PaymentInput {
         amount: payout_data.payouts.amount,
         card_bin: None,
+        transaction_initiator: None,
         extended_card_bin: None,
         currency: payout_data.payouts.destination_currency,
         authentication_type: None,
@@ -296,6 +297,7 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: None,
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -406,6 +408,33 @@ pub fn make_dsl_input(
             }),
     };
 
+    let issuer_data_input = dsl_inputs::IssuerDataInput {
+        name: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
+                _ => None,
+            }),
+        country: payments_dsl_input.payment_method_data.as_ref().and_then(
+            |pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => {
+                    card.card_issuing_country_code.clone().and_then(|code| {
+                        CountryAlpha2::from_str(&code)
+                            .ok()
+                            .map(common_enums::Country::from_alpha2)
+                    })
+                }
+                _ => None,
+            },
+        ),
+    };
+
+    let issuer_data = match (&issuer_data_input.name, &issuer_data_input.country) {
+        (None, None) => None,
+        _ => Some(issuer_data_input),
+    };
+
     let payment_input = dsl_inputs::PaymentInput {
         amount: payments_dsl_input.payment_attempt.get_total_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
@@ -416,6 +445,10 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: match payments_dsl_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -459,7 +492,7 @@ pub fn make_dsl_input(
         mandate: mandate_data,
         acquirer_data: None,
         customer_device_data: None,
-        issuer_data: None,
+        issuer_data,
     })
 }
 
@@ -1167,6 +1200,7 @@ pub async fn perform_session_flow_routing<'a>(
             .payment_intent
             .amount_details
             .calculate_net_amount(),
+        transaction_initiator: None,
         currency: session_input.payment_intent.amount_details.currency,
         authentication_type: session_input.payment_intent.authentication_type,
         card_bin: None,
@@ -1311,6 +1345,10 @@ pub async fn perform_session_flow_routing(
 
     let payment_input = dsl_inputs::PaymentInput {
         amount: session_input.payment_attempt.get_total_amount(),
+        transaction_initiator: match session_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         currency: session_input
             .payment_intent
             .currency
@@ -1648,6 +1686,10 @@ pub fn make_dsl_input_for_surcharge(
 
     let payment_input = dsl_inputs::PaymentInput {
         amount: payment_attempt.get_total_amount(),
+        transaction_initiator: match payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency
@@ -2311,7 +2353,7 @@ where
                 )?;
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2490,7 +2532,7 @@ pub async fn perform_elimination_routing(
 
             let routable_connector = api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2719,7 +2761,7 @@ where
 
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),

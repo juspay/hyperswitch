@@ -73,8 +73,8 @@ const payment_method_data_failed = {
     last4: "0002",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -747,13 +747,9 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request_error",
-            code: "feature_not_supported",
-            message: "Zero auth is not supported",
-          },
+          status: "processing",
         },
       },
     }),
