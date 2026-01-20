@@ -385,7 +385,6 @@ jobs:
       - name: Evaluate Matrix Results
         shell: bash
         run: |
-          # Possible values: success, failure, cancelled, skipped
           RESULT="${{ needs.runner.result }}"
           RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
