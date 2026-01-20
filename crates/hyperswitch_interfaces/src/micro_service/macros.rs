@@ -1,3 +1,43 @@
+/// Generate a `ClientOperation` impl and a `call` helper for a flow type.
+///
+/// # Examples
+///
+/// ```rust
+/// use common_utils::request::{Method, RequestContent};
+/// use hyperswitch_interfaces::micro_service::payment_method::PaymentMethodClient;
+///
+/// struct ExampleFlow;
+/// struct ExampleV2Request;
+/// struct ExampleV2Response;
+/// struct ExampleResponse;
+///
+/// impl TryFrom<&ExampleFlow> for ExampleV2Request {
+///     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
+///
+///     fn try_from(_: &ExampleFlow) -> Result<Self, Self::Error> {
+///         Ok(Self)
+///     }
+/// }
+///
+/// impl TryFrom<ExampleV2Response> for ExampleResponse {
+///     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
+///
+///     fn try_from(_: ExampleV2Response) -> Result<Self, Self::Error> {
+///         Ok(Self)
+///     }
+/// }
+///
+/// impl_microservice_flow!(
+///     ExampleFlow,
+///     method = Method::Post,
+///     path = "/v2/example",
+///     v2_request = ExampleV2Request,
+///     v2_response = ExampleV2Response,
+///     v1_response = ExampleResponse,
+///     client = PaymentMethodClient<'_>,
+///     body = |_, _| Some(RequestContent::Json(Box::new(serde_json::json!({}))))
+/// );
+/// ```
 #[macro_export]
 macro_rules! impl_microservice_flow {
     (
@@ -59,6 +99,7 @@ macro_rules! impl_microservice_flow {
         }
 
         impl $flow {
+            /// Execute the flow using the generic microservice pipeline.
             pub async fn call(
                 state: &dyn $crate::api_client::ApiClientWrapper,
                 client: &$client_ty,

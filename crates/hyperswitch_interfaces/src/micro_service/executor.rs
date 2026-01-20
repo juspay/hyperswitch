@@ -1,17 +1,19 @@
 use common_utils::{
     consts::{TENANT_HEADER, X_REQUEST_ID},
-    request::{Headers, Request, RequestContent},
+    request::{Headers, Request},
 };
 use masking::Maskable;
 use router_env::{logger, IdReuse, RequestIdentifier};
 use url::Url;
 
+use super::{
+    error::{MicroserviceClientError, MicroserviceClientErrorKind},
+    state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated},
+};
 use crate::api_client::{call_connector_api, ApiClientWrapper};
 
-use super::error::{MicroserviceClientError, MicroserviceClientErrorKind};
-use super::state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated};
-
 impl<O: ClientOperation> Validated<O> {
+    /// Validate the flow and move into the `Validated` state.
     pub fn new(op: O) -> Result<Self, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
         op.validate().map_err(|err| {
@@ -21,7 +23,10 @@ impl<O: ClientOperation> Validated<O> {
         Ok(Self(op))
     }
 
-    pub fn into_transformed_request(self) -> Result<TransformedRequest<O>, MicroserviceClientError> {
+    /// Transform the validated flow into a request payload.
+    pub fn into_transformed_request(
+        self,
+    ) -> Result<TransformedRequest<O>, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
         let request = self.0.transform_request().map_err(|err| {
             logger::warn!(
@@ -39,6 +44,7 @@ impl<O: ClientOperation> Validated<O> {
 }
 
 impl<O: ClientOperation> TransformedRequest<O> {
+    /// Execute the HTTP call for this operation and capture the raw response payload.
     pub async fn execute(
         self,
         state: &dyn ApiClientWrapper,
@@ -47,7 +53,15 @@ impl<O: ClientOperation> TransformedRequest<O> {
         trace_header: &RequestIdentifier,
     ) -> Result<Executed<O>, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
-        let path = build_path(O::PATH_TEMPLATE, self.op.path_params(&self.request));
+        // Step 1: Build path and URL.
+        let path = {
+            let mut path = O::PATH_TEMPLATE.to_string();
+            for (key, value) in self.op.path_params(&self.request) {
+                let token = format!("{{{key}}}");
+                path = path.replace(&token, &value);
+            }
+            path
+        };
         let url = base_url.join(&path).map_err(|e| {
             logger::error!(operation, error = ?e, "microservice URL join failed");
             MicroserviceClientError {
@@ -58,14 +72,47 @@ impl<O: ClientOperation> TransformedRequest<O> {
             }
         })?;
 
+        // Step 2: Build headers and inject trace/request/tenant context.
         let mut http_request = Request::new(O::METHOD, url.as_str());
         http_request.headers = parent_headers;
-        inject_trace_headers(state, &mut http_request.headers, trace_header);
+        {
+            let header_name = trace_header.header_name();
+            let trace_id = match trace_header.id_reuse_strategy() {
+                IdReuse::UseIncoming => http_request
+                    .headers
+                    .iter()
+                    .find(|(key, _)| key.eq_ignore_ascii_case(header_name))
+                    .map(|(_, value)| value.clone().into_inner())
+                    .unwrap_or_else(common_utils::generate_time_ordered_id_without_prefix),
+                IdReuse::IgnoreIncoming => common_utils::generate_time_ordered_id_without_prefix(),
+            };
 
+            http_request
+                .headers
+                .insert((header_name.to_string(), Maskable::Normal(trace_id)));
+
+            if header_name != X_REQUEST_ID {
+                if let Some(request_id) = state.get_request_id_str() {
+                    http_request
+                        .headers
+                        .insert((X_REQUEST_ID.to_string(), Maskable::Normal(request_id)));
+                }
+            }
+
+            let tenant_id = state.get_tenant().tenant_id.get_string_repr().to_string();
+            if !tenant_id.is_empty() {
+                http_request
+                    .headers
+                    .insert((TENANT_HEADER.to_string(), Maskable::Normal(tenant_id)));
+            }
+        }
+
+        // Step 3: Attach body (if any).
         if let Some(body) = self.op.body(self.request) {
             http_request.set_body(body);
         }
 
+        // Step 4: Execute request and decode response.
         let response = call_connector_api(state, http_request, operation)
             .await
             .map_err(|e| {
@@ -87,7 +134,7 @@ impl<O: ClientOperation> TransformedRequest<O> {
                 );
                 MicroserviceClientError {
                     operation: operation.to_string(),
-                    kind: MicroserviceClientErrorKind::Serde(format!(
+                    kind: MicroserviceClientErrorKind::Deserialize(format!(
                         "Failed to parse response: {e}"
                     )),
                 }
@@ -116,7 +163,10 @@ impl<O: ClientOperation> TransformedRequest<O> {
 }
 
 impl<O: ClientOperation> Executed<O> {
-    pub fn into_transformed_response(self) -> Result<TransformedResponse<O>, MicroserviceClientError> {
+    /// Transform the upstream response into the v1 response shape.
+    pub fn into_transformed_response(
+        self,
+    ) -> Result<TransformedResponse<O>, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
         let output = self.op.transform_response(self.response).map_err(|err| {
             logger::error!(
@@ -133,6 +183,7 @@ impl<O: ClientOperation> Executed<O> {
     }
 }
 
+/// Execute the full pipeline: validate → transform → execute → transform.
 pub async fn execute_microservice_operation<O: ClientOperation>(
     state: &dyn ApiClientWrapper,
     client: &super::payment_method::PaymentMethodClient<'_>,
@@ -149,49 +200,4 @@ pub async fn execute_microservice_operation<O: ClientOperation>(
         )
         .await?;
     Ok(executed.into_transformed_response()?.output)
-}
-
-fn build_path(template: &str, params: Vec<(&'static str, String)>) -> String {
-    let mut path = template.to_string();
-    for (key, value) in params {
-        let token = format!("{{{key}}}");
-        path = path.replace(&token, &value);
-    }
-    path
-}
-
-fn find_header(headers: &Headers, name: &str) -> Option<String> {
-    headers
-        .iter()
-        .find(|(key, _)| key.eq_ignore_ascii_case(name))
-        .map(|(_, value)| value.clone().into_inner())
-}
-
-fn inject_trace_headers(
-    state: &dyn ApiClientWrapper,
-    headers: &mut Headers,
-    trace_header: &RequestIdentifier,
-) {
-    let header_name = trace_header.header_name();
-    let trace_id = match trace_header.id_reuse_strategy() {
-        IdReuse::UseIncoming => find_header(headers, header_name)
-            .unwrap_or_else(common_utils::generate_time_ordered_id_without_prefix),
-        IdReuse::IgnoreIncoming => common_utils::generate_time_ordered_id_without_prefix(),
-    };
-
-    headers.insert((
-        header_name.to_string(),
-        Maskable::Normal(trace_id),
-    ));
-
-    if header_name != X_REQUEST_ID {
-        if let Some(request_id) = state.get_request_id_str() {
-            headers.insert((X_REQUEST_ID.to_string(), Maskable::Normal(request_id)));
-        }
-    }
-
-    let tenant_id = state.get_tenant().tenant_id.get_string_repr().to_string();
-    if !tenant_id.is_empty() {
-        headers.insert((TENANT_HEADER.to_string(), Maskable::Normal(tenant_id)));
-    }
 }

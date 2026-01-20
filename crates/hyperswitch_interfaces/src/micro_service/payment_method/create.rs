@@ -1,30 +1,42 @@
+//! Create payment method flow types and dummy models.
+
 use common_utils::request::{Method, RequestContent};
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::micro_service::MicroserviceClientError;
 
+/// V1-facing create flow input.
+#[derive(Debug)]
 pub struct CreatePaymentMethod {
+    /// Raw payload forwarded to the modular service.
     pub payload: Value,
 }
 
 const DUMMY_PM_ID: &str = "pm_dummy";
+/// Dummy modular service request payload.
 #[derive(Clone, Debug)]
-// TODO: replace dummy request types with real v1/v2 models.
+// TODO: replace dummy request types with real v1/modular models.
 pub struct CreatePaymentMethodV2Request {
+    /// Payload to send in the request body.
     pub payload: Value,
 }
 
+/// Dummy modular service response payload.
 #[derive(Clone, Debug, Deserialize)]
-// TODO: replace dummy response types with real v1/v2 models.
+// TODO: replace dummy response types with real v1/modular models.
 pub struct CreatePaymentMethodV2Response {
+    /// Dummy identifier returned by the modular service.
     pub id: String,
 }
 
+/// V1-facing create response (dummy for now).
 #[derive(Clone, Debug)]
-// TODO: replace dummy response types with real v1/v2 models.
+// TODO: replace dummy response types with real v1/modular models.
 pub struct CreatePaymentMethodResponse {
+    /// V1 payment method identifier.
     pub payment_method_id: String,
+    /// Dummy delete marker (unused).
     pub deleted: Option<bool>,
 }
 

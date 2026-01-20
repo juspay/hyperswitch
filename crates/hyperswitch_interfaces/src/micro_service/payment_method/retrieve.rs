@@ -1,3 +1,5 @@
+//! Retrieve payment method flow types and dummy models.
+
 use api_models::payment_methods::PaymentMethodId;
 use common_utils::request::Method;
 use serde::Deserialize;
@@ -6,32 +8,43 @@ use crate::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind}
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 
+/// V1-facing retrieve flow input.
+#[derive(Debug)]
 pub struct RetrievePaymentMethod {
+    /// Identifier for the payment method to fetch.
     pub payment_method_id: PaymentMethodId,
 }
 
 impl RetrievePaymentMethod {
+    /// Construct a new retrieve flow.
     pub fn new(payment_method_id: PaymentMethodId) -> Self {
         Self { payment_method_id }
     }
 }
 
+/// Dummy modular service request payload.
 #[derive(Clone, Debug)]
-// TODO: replace dummy request types with real v1/v2 models.
+// TODO: replace dummy request types with real v1/modular models.
 pub struct RetrievePaymentMethodV2Request {
+    /// Identifier for the payment method to fetch.
     pub payment_method_id: PaymentMethodId,
 }
 
+/// Dummy modular service response payload.
 #[derive(Clone, Debug, Deserialize)]
-// TODO: replace dummy response types with real v1/v2 models.
+// TODO: replace dummy response types with real v1/modular models.
 pub struct RetrievePaymentMethodV2Response {
+    /// Dummy identifier returned by the modular service.
     pub id: String,
 }
 
+/// V1-facing retrieve response (dummy for now).
 #[derive(Clone, Debug)]
-// TODO: replace dummy response types with real v1/v2 models.
+// TODO: replace dummy response types with real v1/modular models.
 pub struct RetrievePaymentMethodResponse {
+    /// V1 payment method identifier.
     pub payment_method_id: String,
+    /// Dummy delete marker (unused).
     pub deleted: Option<bool>,
 }
 
@@ -60,7 +73,7 @@ impl RetrievePaymentMethod {
     fn validate_request(&self) -> Result<(), MicroserviceClientError> {
         if self.payment_method_id.payment_method_id.trim().is_empty() {
             return Err(MicroserviceClientError {
-                operation: std::any::type_name::<RetrievePaymentMethod>().to_string(),
+                operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
                     "Payment method ID cannot be empty".to_string(),
                 ),
