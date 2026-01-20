@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.20.0
+
+### Features
+
+- **authentication:** Add webhook integration for Authentication Service ([#10900](https://github.com/juspay/hyperswitch/pull/10900)) ([`e61aef2`](https://github.com/juspay/hyperswitch/commit/e61aef22fd85a1e78aae46b8bac7b805e3b4a1a9))
+- **network_token:** NT eligibility API in v2 ([#10670](https://github.com/juspay/hyperswitch/pull/10670)) ([`de666c8`](https://github.com/juspay/hyperswitch/commit/de666c89c4c22c8c996462445e2262c9ed3d589e))
+
+### Bug Fixes
+
+- **connector:**
+  - [WorldpayWPG] Updated connector_request_reference_id generation to its default logic ([#10961](https://github.com/juspay/hyperswitch/pull/10961)) ([`0f80acf`](https://github.com/juspay/hyperswitch/commit/0f80acfb545f01bf6abd7b0faf670260bcaae0a1))
+  - [ADYEN] skip serializing none in mandate payments ([#10964](https://github.com/juspay/hyperswitch/pull/10964)) ([`5840551`](https://github.com/juspay/hyperswitch/commit/5840551eaecf383f2bdc8aec58620f5e09d15dce))
+- **encryption-service:** Re-introduce legacy key store decryption behavior for backward compatibility ([#10899](https://github.com/juspay/hyperswitch/pull/10899)) ([`9668dcc`](https://github.com/juspay/hyperswitch/commit/9668dccb9deb042cf4c85b92dea760a63ba4f077))
+
+### Refactors
+
+- Introduce balance check core support ([#10896](https://github.com/juspay/hyperswitch/pull/10896)) ([`1ecacfd`](https://github.com/juspay/hyperswitch/commit/1ecacfdb13468cb701c1f6480ea76fd8d52fc1f1))
+
+**Full Changelog:** [`2026.01.19.0...2026.01.20.0`](https://github.com/juspay/hyperswitch/compare/2026.01.19.0...2026.01.20.0)
+
+- - -
+
 ## 2026.01.19.0
 
 ### Features

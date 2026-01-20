@@ -402,10 +402,9 @@ where
         )
         .await?;
 
-    let (updated_customer, call_connector_service_response) =
+    let (updated_customer, call_connector_service_response, updated_state) =
         payments::decide_unified_connector_service_call(
             state,
-            req_state,
             platform.get_processor(),
             connector.clone(),
             operation,
@@ -416,10 +415,9 @@ where
             validate_result,
             schedule_time,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            frm_suggestion,
             business_profile,
             true,
-            merchant_connector_account,
+            merchant_connector_account.clone(),
             router_data,
             tokenization_action,
         )
@@ -428,7 +426,7 @@ where
     operation
         .to_domain()?
         .update_customer(
-            state,
+            &updated_state,
             platform.get_provider(),
             customer.clone(),
             updated_customer,
@@ -436,13 +434,19 @@ where
         .await?;
 
     let (router_data, _mca) = complete_connector_service(
-        state,
+        &updated_state,
         platform.get_processor(),
         operation,
         payment_data,
         customer,
         business_profile,
         None,
+        connector,
+        payments::CallConnectorAction::Trigger,
+        merchant_connector_account,
+        req_state.clone(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+        frm_suggestion,
         call_connector_service_response,
     )
     .await?;
