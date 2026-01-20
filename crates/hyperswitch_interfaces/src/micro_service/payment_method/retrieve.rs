@@ -3,11 +3,8 @@
 use api_models::payment_methods::{CardDetailFromLocker, PaymentMethodId};
 use cards::CardNumber;
 use common_enums::{PaymentMethod, PaymentMethodType};
-use common_utils::request::Method;
-use common_utils::{id_type, pii};
-use hyperswitch_domain_models::{
-    payment_method_data::NetworkTokenDetailsPaymentMethod,
-};
+use common_utils::{id_type, pii, request::Method};
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 use serde::Deserialize;
 use time;
 
