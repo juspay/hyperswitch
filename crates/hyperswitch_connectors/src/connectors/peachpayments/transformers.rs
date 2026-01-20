@@ -827,14 +827,6 @@ pub struct EcommerceCardPaymentOnlyResponseData {
     pub trace_id: Option<String>,
 }
 
-fn is_payment_success(value: Option<&String>) -> bool {
-    if let Some(val) = value {
-        val == "00" || val == "08" || val == "X94"
-    } else {
-        false
-    }
-}
-
 fn get_error_code(response_code: Option<&ResponseCode>) -> String {
     response_code
         .and_then(|code| code.value())
@@ -870,12 +862,7 @@ pub fn get_peachpayments_response(
     errors::ConnectorError,
 > {
     let status = common_enums::AttemptStatus::from(response.transaction_result);
-    let payments_response = if !is_payment_success(
-        response
-            .response_code
-            .as_ref()
-            .and_then(|code| code.value()),
-    ) {
+    let payments_response = if utils::is_payment_failure(status) {
         Err(ErrorResponse {
             code: get_error_code(response.response_code.as_ref()),
             message: get_error_message(response.response_code.as_ref()),
@@ -920,12 +907,7 @@ pub fn get_webhook_response(
         .transaction
         .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
     let status = common_enums::AttemptStatus::from(transaction.transaction_result);
-    let webhook_response = if !is_payment_success(
-        transaction
-            .response_code
-            .as_ref()
-            .and_then(|code| code.value()),
-    ) {
+    let webhook_response = if utils::is_payment_failure(status) {
         Err(ErrorResponse {
             code: get_error_code(transaction.response_code.as_ref()),
             message: get_error_message(transaction.response_code.as_ref()),
@@ -995,12 +977,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
         let status = common_enums::AttemptStatus::from(item.response.transaction_result);
 
         // Check if it's an error response
-        let response = if !is_payment_success(
-            item.response
-                .response_code
-                .as_ref()
-                .and_then(|code| code.value()),
-        ) {
+        let response = if utils::is_payment_failure(status) {
             Err(ErrorResponse {
                 code: get_error_code(item.response.response_code.as_ref()),
                 message: get_error_message(item.response.response_code.as_ref()),
