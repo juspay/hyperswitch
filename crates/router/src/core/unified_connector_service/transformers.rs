@@ -85,69 +85,6 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
-/// Convert UCS connector_metadata HashMap<String, String> to serde_json::Value
-/// with proper type conversion (strings to numbers where appropriate)
-/// This is needed because gRPC proto defines connector_metadata as map<string, string>
-/// but we need to deserialize it into types that expect numbers (e.g., display_to_timestamp: Option<i128>)
-fn convert_ucs_connector_metadata_to_json(
-    metadata: &HashMap<String, String>,
-) -> Option<serde_json::Value> {
-    if metadata.is_empty() {
-        return None;
-    }
-
-    let mut json_map = serde_json::Map::new();
-
-    for (key, value) in metadata {
-        // Try to parse as number first (for fields like display_to_timestamp)
-        let json_value = if let Ok(num) = value.parse::<i64>() {
-            serde_json::Value::Number(serde_json::Number::from(num))
-        } else if value == "true" {
-            serde_json::Value::Bool(true)
-        } else if value == "false" {
-            serde_json::Value::Bool(false)
-        } else {
-            // Keep as string
-            serde_json::Value::String(value.clone())
-        };
-
-        json_map.insert(key.clone(), json_value);
-    }
-
-    Some(serde_json::Value::Object(json_map))
-}
-
-/// Utility function to convert serde_json::Value map to HashMap<String, String>
-/// Propagates serialization errors instead of using defaults
-fn convert_value_map_to_hashmap(
-    value: &serde_json::Value,
-) -> Result<HashMap<String, String>, error_stack::Report<UnifiedConnectorServiceError>> {
-    match value.as_object() {
-        Some(map) => map
-            .iter()
-            .map(|(k, v)| {
-                let string_value = v
-                    .as_str()
-                    .map(|s| s.to_string())
-                    .or_else(|| {
-                        serde_json::to_string(v)
-                            .ok()
-                    })
-                    .ok_or_else(|| {
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
-                                "Failed to serialize metadata value for key: {}",
-                                k
-                            ))
-                        )
-                    })?;
-                Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>((k.clone(), string_value))
-            })
-            .collect::<Result<HashMap<String, String>, error_stack::Report<UnifiedConnectorServiceError>>>(),
-        None => Ok(HashMap::new()),
-    }
-}
-
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
         Self {
@@ -424,6 +361,7 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: None,
         })
     }
 }
@@ -586,6 +524,7 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1306,6 +1245,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1483,6 +1423,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: None,
         })
     }
 }
@@ -1643,6 +1584,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
