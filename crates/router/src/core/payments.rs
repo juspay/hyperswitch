@@ -9082,24 +9082,20 @@ pub fn get_proxy_connector_filters(
 ) -> RouterResult<HashSet<String>> {
     match recurring_details {
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
-        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
-            Ok(state
-                .conf
-                .network_transaction_id_supported_connectors
-                .connector_list
-                .iter()
-                .map(|value| value.to_string())
-                .collect::<HashSet<_>>())
-        }
-        RecurringDetails::CardWithLimitedData(_) => {
-            Ok(state
-                .conf
-                .card_only_mit_supported_connectors
-                .connector_list
-                .iter()
-                .map(|value| value.to_string())
-                .collect::<HashSet<_>>())
-        }
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
+            .conf
+            .network_transaction_id_supported_connectors
+            .connector_list
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>()),
+        RecurringDetails::CardWithLimitedData(_) => Ok(state
+            .conf
+            .card_only_mit_supported_connectors
+            .connector_list
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>()),
         RecurringDetails::MandateId(_)
         | RecurringDetails::PaymentMethodId(_)
         | RecurringDetails::ProcessorPaymentToken(_) => {
