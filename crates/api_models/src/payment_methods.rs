@@ -1281,7 +1281,7 @@ pub struct PaymentMethodDataWalletInfo {
     /// The card's expiry year
     #[schema(value_type = Option<String>,example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
-    /// Unique authentication code for the payment
+    /// Unique authorisation code for the payment
     #[schema(value_type = Option<String>,example = "003225")]
     pub auth_code: Option<String>,
 }
