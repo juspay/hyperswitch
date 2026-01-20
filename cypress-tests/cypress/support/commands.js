@@ -5132,7 +5132,7 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const paymentId = globalState.get("paymentID");
     const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
-    const adminApiKey=globalState.get("adminApiKey");
+    const adminApiKey = globalState.get("adminApiKey");
 
     cy.request({
       method: "PUT",
@@ -5184,7 +5184,6 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
       logRequestId(response.headers["x-request-id"]);
 
       return cy.wrap(response).then(() => {
-        
         // Throw for failed status
         if (response.status !== 200) {
           throw new Error(

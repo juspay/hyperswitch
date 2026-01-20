@@ -114,9 +114,9 @@ describe("Payment Webhook Tests", () => {
 
     it("Retrieve Payment Call Test", () => {
       cy.retrievePaymentCallTest(
-        globalState, 
+        globalState,
         null,
-        // auto retries enabled  
+        // auto retries enabled
         false,
         // attempts count
         1,
