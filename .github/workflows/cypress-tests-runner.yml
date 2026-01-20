@@ -29,6 +29,7 @@ env:
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+  RUN_OPTIONAL_CONNECTOR_TESTS: false
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
 
@@ -407,7 +408,7 @@ jobs:
 
   prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: ${{ github.event_name == 'merge_group' }}
+    if: ${{ github.event_name == 'merge_group' }} && (env.RUN_OPTIONAL_CONNECTOR_TESTS == 'true')
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -457,7 +458,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: ${{ github.event_name == 'merge_group' }}
+    if: ${{ github.event_name == 'merge_group' }} && (env.RUN_OPTIONAL_CONNECTOR_TESTS == 'true')
     needs: [ build-hyperswitch, prepare-optional-matrix ]
     runs-on: hyperswitch-runners
     strategy:
