@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
         },
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck,
+        ProcessIncomingWebhook,
     },
     router_request_types::{
         revenue_recovery::{
@@ -44,7 +45,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -321,6 +322,13 @@ pub type UasAuthenticationConfirmationType = dyn ConnectorIntegration<
 pub type UasAuthenticationType = dyn ConnectorIntegration<
     Authenticate,
     UasAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>`
+pub type UasProcessWebhookType = dyn ConnectorIntegration<
+    ProcessIncomingWebhook,
+    UasWebhookRequestData,
     UasAuthenticationResponseData,
 >;
 

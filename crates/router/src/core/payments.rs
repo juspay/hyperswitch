@@ -160,7 +160,7 @@ use crate::{
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core,
+        authentication as authentication_core, unified_authentication_service::utils as uas_utils,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -4226,6 +4226,20 @@ where
         &call_connector_action,
     );
 
+    // Balance check flow for payment methods like Giftcard, Voucher etc.
+    let should_continue_further = if should_continue_further {
+        let balance_check_response = router_data
+            .balance_check_flow(state, &connector, &context)
+            .await?;
+        match balance_check_response.balance_check_result {
+            Ok(balance_check_result) => router_data.payment_method_balance = balance_check_result,
+            Err(err) => router_data.response = Err(err),
+        }
+        balance_check_response.should_continue_payment
+    } else {
+        should_continue_further
+    };
+
     let should_continue_further = match router_data
         .create_order_at_connector(state, &connector, should_continue_further, &context)
         .await?
@@ -4367,6 +4381,25 @@ where
         // Skip calling complete_preprocessing_steps_if_required function
         logger::info!(
             "skipping preprocessing steps for connector as tokenization flow is enabled: {}",
+            connector.connector_name
+        );
+        (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If balance check flow is bloated up for the current connector
+            // balance check call would have already happened in the previous step.
+            config
+                .balance_check_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        // If payment method tokenization flow is enabled for the current connector
+        // Skip calling complete_preprocessing_steps_if_required function
+        logger::info!(
+            "skipping preprocessing steps for connector as balance check is enabled: {}",
             connector.connector_name
         );
         (router_data, should_continue_further)
@@ -11042,6 +11075,18 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )
     .await?
     {
+        let routing_region = uas_utils::fetch_routing_region_for_uas(
+            &state,
+            merchant_id.clone(),
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch routing path")?;
         let auth_response =
             <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                 &state,
@@ -11063,6 +11108,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 Some(payment_intent.payment_id),
                 authentication.force_3ds_challenge,
                 authentication.psd2_sca_exemption_type,
+                Some(routing_region),
             )
             .await?;
         let authentication = Box::pin(external_authentication_update_trackers(

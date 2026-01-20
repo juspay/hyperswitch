@@ -99,6 +99,26 @@ pub trait Feature<F, T> {
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
+    /// In case of payment methods like gifcard, some connectors might support balance check API
+    /// This function can be overridden in those specific connectors to implement balance check flow
+    /// Authorize must be called only if balance is sufficient
+    async fn balance_check_flow<'a>(
+        &self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<types::BalanceCheckResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::BalanceCheckResult {
+            balance_check_result: Ok(None),
+            should_continue_payment: true,
+        })
+    }
+
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,
