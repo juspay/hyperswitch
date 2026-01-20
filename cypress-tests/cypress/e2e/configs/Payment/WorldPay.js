@@ -74,7 +74,7 @@ const paymentMethodDataNoThreeDsResponse = {
 const paymentMethodDataThreeDsResponse = {
   card: {
     last4: "1091",
-    card_type: "CREDIT",
+    card_type: "Credit",
     card_network: "Visa",
     card_issuer: "Intl Hdqtrs Center Owned",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -667,8 +667,8 @@ export const connectorDetails = {
           status: "failed",
           error_code: "13",
           error_message: "INVALID AMOUNT",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "UE_1000",
+          unified_message: "Issue with Payment Method details",
         },
       },
     },
