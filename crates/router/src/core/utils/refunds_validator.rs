@@ -132,12 +132,12 @@ pub fn validate_for_valid_refunds(
 
     let supported_payment_methods = connector_enum.get_supported_payment_methods();
 
-    let is_refund_not_supported =
-        supported_payment_methods.is_some_and(|supported_payment_methods| {
-            supported_payment_methods.is_refund_not_supported(payment_method, &payment_method_type)
+    let is_refund_supported = supported_payment_methods
+        .is_none_or(|supported_payment_method| {
+            supported_payment_method.is_refund_supported(payment_method, &payment_method_type)
         });
 
-    if is_refund_not_supported {
+    if !is_refund_supported {
         Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("Refunds are currently not supported for {payment_method_type} transactions via {connector}"),
             }
