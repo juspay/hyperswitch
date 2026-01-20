@@ -61,6 +61,7 @@ pub async fn generate_sample_data(
         key_store.clone(),
         merchant_from_db.clone(),
         key_store,
+        None,
     );
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
@@ -297,6 +298,7 @@ pub async fn generate_sample_data(
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());

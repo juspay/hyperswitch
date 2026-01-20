@@ -33,13 +33,14 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::Secret;
+use masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
     Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -56,6 +57,7 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    headers, logger,
     routes::app,
     AppState,
 };
@@ -109,6 +111,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
@@ -180,12 +183,27 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+    pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
+    pub save_payment_method_on_session: OnSessionConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OnSessionConfig {
+    #[serde(default, deserialize_with = "deserialize_hashmap")]
+    pub unsupported_payment_methods:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PreProcessingFlowConfig {
-    #[serde(deserialize_with = "deserialize_hashset")]
+    #[serde(default, deserialize_with = "deserialize_hashset")]
     pub authentication_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub order_create_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub balance_check_bloated_connectors: HashSet<enums::Connector>,
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub settlement_split_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -277,14 +295,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_storage_interface();
             (tenant_name.clone(), store)
@@ -310,14 +328,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_accounts_storage_interface();
             (tenant_name.clone(), store)
@@ -374,6 +392,12 @@ pub struct KeyManagerConfig {
     pub cert: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
+    #[serde(default = "default_key_store_decryption_behavior")]
+    pub use_legacy_key_store_decryption: bool,
+}
+
+fn default_key_store_decryption_behavior() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -554,6 +578,12 @@ where
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationServiceEnabledConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
@@ -576,6 +606,7 @@ pub struct NetworkTokenizationSupportedCardNetworks {
 pub struct NetworkTokenizationService {
     pub generate_token_url: url::Url,
     pub fetch_token_url: url::Url,
+    pub check_tokenize_eligibility_url: url::Url,
     pub token_service_api_key: Secret<String>,
     pub public_key: Secret<String>,
     pub private_key: Secret<String>,
@@ -589,6 +620,7 @@ pub struct NetworkTokenizationService {
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
+    pub allowed_card_authentication_type: Option<common_enums::AuthenticationType>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
@@ -701,17 +733,58 @@ pub struct UserSettings {
     pub force_cookies: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.client.values().find(|c| c.client_id == client_id)
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        let mut rng = rand::thread_rng();
+        self.key.values().choose_stable(&mut rng)
+    }
+
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+}
+
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -740,7 +813,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
@@ -816,6 +888,44 @@ pub struct MerchantIdAuthSettings {
 #[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
+}
+
+impl ProxyStatusMapping {
+    pub fn extract_connector_http_status_code(
+        &self,
+        response_headers: &[(String, Maskable<String>)],
+    ) -> Option<actix_web::http::StatusCode> {
+        self.proxy_connector_http_status_code
+            .then_some(response_headers)
+            .and_then(|headers| {
+                headers
+                    .iter()
+                    .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+            })
+            .and_then(|(_, value)| {
+                value
+                    .clone()
+                    .into_inner()
+                    .parse::<u16>()
+                    .map_err(|err| {
+                        logger::error!(
+                            "Failed to parse connector_http_status_code from header: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+            .and_then(|code| {
+                actix_web::http::StatusCode::from_u16(code)
+                    .map_err(|err| {
+                        logger::error!(
+                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

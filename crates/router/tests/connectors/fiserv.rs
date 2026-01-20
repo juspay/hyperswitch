@@ -51,6 +51,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),

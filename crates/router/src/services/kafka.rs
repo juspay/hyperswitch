@@ -28,7 +28,7 @@ mod payment_intent_event;
 mod refund;
 mod refund_event;
 pub mod revenue_recovery;
-use diesel_models::{authentication::Authentication, refund::Refund};
+use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 use time::{OffsetDateTime, PrimitiveDateTime};
@@ -438,8 +438,8 @@ impl KafkaProducer {
 
     pub async fn log_authentication(
         &self,
-        authentication: &Authentication,
-        old_authentication: Option<Authentication>,
+        authentication: &hyperswitch_domain_models::authentication::Authentication,
+        old_authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
         tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_authentication {

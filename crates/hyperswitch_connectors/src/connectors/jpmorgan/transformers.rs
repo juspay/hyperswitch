@@ -1,5 +1,5 @@
 use common_enums::enums::CaptureMethod;
-use common_utils::types::MinorUnit;
+use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        get_unimplemented_payment_method_error_message, CardData, RouterData as OtherRouterData,
+        self, get_unimplemented_payment_method_error_message, CardData,
+        RouterData as OtherRouterData,
     },
 };
 pub struct JpmorganRouterData<T> {
@@ -48,6 +49,24 @@ pub struct JpmorganAuthUpdateResponse {
     pub scope: String,
     pub token_type: String,
     pub expires_in: i64,
+}
+
+/// JPMorgan connector metadata containing merchant software information
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct JpmorganConnectorMetadataObject {
+    pub company_name: Secret<String>,
+    pub product_name: Secret<String>,
+}
+
+impl TryFrom<&Option<SecretSerdeValue>> for JpmorganConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+        Ok(metadata)
+    }
 }
 
 impl TryFrom<&RefreshTokenRouterData> for JpmorganAuthUpdateRequest {
@@ -152,12 +171,16 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let capture_method =
                     map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
 
-                let merchant_software = JpmorganMerchantSoftware {
-                    company_name: String::from("JPMC").into(),
-                    product_name: String::from("Hyperswitch").into(),
-                };
+                let connector_metadata = JpmorganConnectorMetadataObject::try_from(
+                    &item.router_data.connector_meta_data.clone(),
+                )?;
 
-                let merchant = JpmorganMerchant { merchant_software };
+                let merchant = JpmorganMerchant {
+                    merchant_software: JpmorganMerchantSoftware {
+                        company_name: connector_metadata.company_name,
+                        product_name: connector_metadata.product_name,
+                    },
+                };
 
                 let expiry: Expiry = Expiry {
                     month: Secret::new(
@@ -189,6 +212,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -525,11 +549,17 @@ pub struct MerchantRefundReq {
 impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let merchant_software = JpmorganMerchantSoftware {
-            company_name: String::from("JPMC").into(),
-            product_name: String::from("Hyperswitch").into(),
+        let connector_metadata = JpmorganConnectorMetadataObject::try_from(
+            &item.router_data.connector_meta_data.clone(),
+        )?;
+
+        let merchant = MerchantRefundReq {
+            merchant_software: JpmorganMerchantSoftware {
+                company_name: connector_metadata.company_name,
+                product_name: connector_metadata.product_name,
+            },
         };
-        let merchant = MerchantRefundReq { merchant_software };
+
         let amount = item.amount;
         let currency = item.router_data.request.currency;
 

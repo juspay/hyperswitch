@@ -65,6 +65,7 @@ use crate::types::storage::{
 use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
 use crate::{
+    consts,
     core::{
         payments,
         revenue_recovery::{self as pcr},
@@ -119,6 +120,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             revenue_recovery_payment_data.key_store.clone(),
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
+            None,
         );
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
@@ -1156,7 +1158,8 @@ pub async fn check_hard_decline(
         error_code,
         error_message,
         connector_name,
-        REVENUE_RECOVERY.to_string(),
+        REVENUE_RECOVERY,
+        consts::DEFAULT_SUBFLOW_STR,
     )
     .await;
 

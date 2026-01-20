@@ -574,6 +574,7 @@ impl
                         card_issuer: None,
                         card_type: None,
                         card_issuing_country: None,
+                        card_issuing_country_code: None,
                         bank_code: None,
                         last4: None,
                         card_extended_bin: None,

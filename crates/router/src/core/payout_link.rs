@@ -422,7 +422,8 @@ pub async fn filter_payout_methods(
                             | common_enums::PaymentMethod::Upi
                             | common_enums::PaymentMethod::Voucher
                             | common_enums::PaymentMethod::OpenBanking
-                            | common_enums::PaymentMethod::GiftCard => continue,
+                            | common_enums::PaymentMethod::GiftCard
+                            | common_enums::PaymentMethod::NetworkToken => continue,
                         }
                     }
                 }

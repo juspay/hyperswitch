@@ -36,6 +36,8 @@ impl PaymentMethodVaultingData {
                 payment_method_data::CardDetailsPaymentMethod {
                     last4_digits: None,
                     issuer_country: None,
+                    #[cfg(feature = "v1")]
+                    issuer_country_code: None,
                     expiry_month: None,
                     expiry_year: None,
                     nick_name: None,
@@ -100,7 +102,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
     type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
     fn try_from(item: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
         match item {
-            payment_methods::PaymentMethodCreateData::Card(card) => Ok(Self::Card(card)),
+            payment_methods::PaymentMethodCreateData::Card(card) => {
+                Ok(Self::Card(payment_methods::CardDetail {
+                    card_cvc: None, // card cvc should not be used for vaulting
+                    ..card
+                }))
+            }
             payment_methods::PaymentMethodCreateData::ProxyCard(card) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "Proxy Card for PaymentMethodCreateData".to_string(),

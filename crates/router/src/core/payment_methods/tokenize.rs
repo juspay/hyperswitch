@@ -13,7 +13,7 @@ use router_env::logger;
 
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, create_encrypted_data, tokenize_card_flow},
+        cards::{add_card_to_vault, create_encrypted_data, tokenize_card_flow},
         network_tokenization, transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -268,6 +268,7 @@ where
             nick_name: card_details.nick_name.clone(),
             card_holder_name: card_details.card_holder_name.clone(),
             issuer_country: card_details.card_issuing_country.clone(),
+            issuer_country_code: card_details.card_issuing_country_code.clone(),
             card_issuer: card_details.card_issuer.clone(),
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.clone(),
@@ -298,6 +299,7 @@ where
             nick_name: card_details.nick_name.clone(),
             card_holder_name: card_details.card_holder_name.clone(),
             issuer_country: card_details.card_issuing_country.clone(),
+            issuer_country_code: card_details.card_issuing_country_code.clone(),
             card_issuer: card_details.card_issuer.clone(),
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.clone(),
@@ -408,15 +410,10 @@ where
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
 
-        let stored_resp = add_card_to_hs_locker(
-            self.state,
-            &locker_req,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await
-        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let stored_resp = add_card_to_vault(self.state, &locker_req, customer_id)
+            .await
+            .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(stored_resp)
     }

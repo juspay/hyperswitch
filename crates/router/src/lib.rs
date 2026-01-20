@@ -223,7 +223,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
-                .service(routes::FeatureMatrix::server(state.clone()));
+                .service(routes::FeatureMatrix::server(state.clone()))
+                .service(routes::Embedded::server(state.clone()));
         }
 
         #[cfg(feature = "v2")]
@@ -263,7 +264,11 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
-
+    // Registered at the end because this entry has an empty scope
+    #[cfg(feature = "olap")]
+    {
+        server_app = server_app.service(routes::Oidc::server(state.clone()));
+    }
     server_app
 }
 

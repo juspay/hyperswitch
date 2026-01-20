@@ -1,7 +1,12 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
-use common_enums::enums::PaymentMethod;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+#[cfg(feature = "v1")]
+use api_models::payments::BrowserInformation;
+use common_enums::enums::{PaymentMethod, RoutingRegion};
+use common_utils::{
+    ext_traits::{AsyncExt, ValueExt},
+    types::keymanager::ToEncryptable,
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     business_profile,
@@ -11,10 +16,12 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::{
-        PostAuthenticationDetails, UasAuthenticationResponseData,
+        PostAuthenticationDetails, UasAuthenticationResponseData, UasWebhookRequestData,
     },
+    type_encryption::AsyncLift,
 };
-use masking::ExposeInterface;
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -126,6 +133,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         frm_metadata: None,
         dispute_id: None,
         refund_id: None,
+        payout_id: None,
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
@@ -143,66 +151,162 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub async fn external_authentication_update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, UasAuthenticationResponseData>,
-    authentication: diesel_models::authentication::Authentication,
+    authentication: hyperswitch_domain_models::authentication::Authentication,
     acquirer_details: Option<
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-    billing_address: Option<common_utils::encryption::Encryption>,
-    shipping_address: Option<common_utils::encryption::Encryption>,
-    email: Option<common_utils::encryption::Encryption>,
-    browser_info: Option<serde_json::Value>,
-) -> RouterResult<diesel_models::authentication::Authentication> {
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    email: Option<common_utils::pii::Email>,
+    browser_info: Option<BrowserInformation>,
+    device_details: Option<api_models::payments::DeviceDetails>,
+    merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
+    let key_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             UasAuthenticationResponseData::PreAuthentication {
                 authentication_details,
-            } => Ok(
-                diesel_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
-                    threeds_server_transaction_id: authentication_details
-                        .threeds_server_transaction_id
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "missing threeds_server_transaction_id in PreAuthentication Details",
-                        )?,
-                    maximum_supported_3ds_version: authentication_details
-                        .maximum_supported_3ds_version
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "missing maximum_supported_3ds_version in PreAuthentication Details",
-                        )?,
-                    connector_authentication_id: authentication_details
-                        .connector_authentication_id
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "missing connector_authentication_id in PreAuthentication Details",
-                        )?,
-                    three_ds_method_data: authentication_details.three_ds_method_data,
-                    three_ds_method_url: authentication_details.three_ds_method_url,
-                    message_version: authentication_details
-                        .message_version
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable("missing message_version in PreAuthentication Details")?,
-                    connector_metadata: authentication_details.connector_metadata,
-                    authentication_status: common_enums::AuthenticationStatus::Pending,
-                    acquirer_bin: acquirer_details
-                        .as_ref()
-                        .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
-                    acquirer_merchant_id: acquirer_details
-                        .as_ref()
-                        .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
-                    acquirer_country_code: acquirer_details
-                        .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
-                    directory_server_id: authentication_details.directory_server_id,
-                    browser_info: Box::new(browser_info),
-                    email,
-                    billing_address,
-                    shipping_address,
+            } => {
+                let billing_details_encoded = billing_address
+                    .clone()
+                    .map(|billing| {
+                        common_utils::ext_traits::Encode::encode_to_value(&billing)
+                            .map(masking::Secret::<serde_json::Value>::new)
+                    })
+                    .transpose()
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+                let shipping_details_encoded = shipping_address
+                    .clone()
+                    .map(|shipping| {
+                        common_utils::ext_traits::Encode::encode_to_value(&shipping)
+                            .map(masking::Secret::<serde_json::Value>::new)
+                    })
+                    .transpose()
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+                let encrypted_data = domain::types::crypto_operation(
+        &key_state,
+        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+        domain::types::CryptoOperation::BatchEncrypt(
+            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
+                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
+                    billing_address: billing_details_encoded,
+                    shipping_address: shipping_details_encoded,
                 },
             ),
+        ),
+        common_utils::types::keymanager::Identifier::Merchant(
+            merchant_key_store
+                .merchant_id
+                .clone(),
+        ),
+        merchant_key_store.key.peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_batchoperation())
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+                let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
+
+                let email_encrypted = email
+                    .clone()
+                    .async_lift(|inner| async {
+                        domain::types::crypto_operation(
+                            &key_state,
+                            common_utils::type_name!(
+                                hyperswitch_domain_models::authentication::Authentication
+                            ),
+                            domain::types::CryptoOperation::EncryptOptional(
+                                inner.map(|inner| inner.expose()),
+                            ),
+                            common_utils::types::keymanager::Identifier::Merchant(
+                                merchant_key_store.merchant_id.clone(),
+                            ),
+                            merchant_key_store.key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt email")?;
+
+                let browser_info = browser_info
+                    .as_ref()
+                    .map(common_utils::ext_traits::Encode::encode_to_value)
+                    .transpose()
+                    .change_context(ApiErrorResponse::InvalidDataValue {
+                        field_name: "browser_information",
+                    })?;
+                Ok(
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+                        earliest_supported_version:authentication_details.maximum_supported_3ds_version.clone(),
+                        latest_supported_version: authentication_details.maximum_supported_3ds_version.clone(),
+                        threeds_server_transaction_id: authentication_details
+                            .threeds_server_transaction_id
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "missing threeds_server_transaction_id in PreAuthentication Details",
+                            )?,
+                        maximum_supported_3ds_version: authentication_details
+                            .maximum_supported_3ds_version
+                            .clone()
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "missing maximum_supported_3ds_version in PreAuthentication Details",
+                            )?,
+                        connector_authentication_id: authentication_details
+                            .connector_authentication_id
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "missing connector_authentication_id in PreAuthentication Details",
+                            )?,
+                        three_ds_method_data: authentication_details.three_ds_method_data,
+                        three_ds_method_url: authentication_details.three_ds_method_url,
+                        message_version: authentication_details
+                            .message_version
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable("missing message_version in PreAuthentication Details")?,
+                        connector_metadata: authentication_details.connector_metadata.clone(),
+                        authentication_status: common_enums::AuthenticationStatus::Pending,
+                        acquirer_bin: acquirer_details
+                            .as_ref()
+                            .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                        acquirer_merchant_id: acquirer_details
+                            .as_ref()
+                            .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                        acquirer_country_code: acquirer_details
+                            .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
+                        directory_server_id: authentication_details.directory_server_id.clone(),
+                        browser_info: Box::new(browser_info),
+                        email:email_encrypted,
+                        billing_address: Box::new(encrypted_data.billing_address),
+                        shipping_address: Box::new(encrypted_data.shipping_address),
+                        scheme_id: authentication_details.scheme_id.clone(),
+                        merchant_category_code,
+                        merchant_country_code: merchant_country_code.map(|merchant_country_code| merchant_country_code.get_country_code()),
+                        billing_country: billing_address
+                            .clone()
+                            .and_then(|billing| billing.address.clone().and_then(|address| address.country.map(|country| country.to_string()))),
+                        shipping_country: shipping_address
+                            .clone()
+                            .and_then(|shipping| shipping.address.clone().and_then(|address| address.country.map(|country| country.to_string()))),
+                    },
+                )
+            }
             UasAuthenticationResponseData::Authentication {
                 authentication_details,
             } => {
@@ -212,7 +316,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
-                        payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -226,7 +330,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .await
                     .transpose()?;
                 Ok(
-                    diesel_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
                         trans_status: authentication_details.trans_status,
                         acs_url: authentication_details.authn_flow_type.get_acs_url(),
                         challenge_request: authentication_details
@@ -253,6 +357,18 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_cancel: authentication_details.challenge_cancel,
                         challenge_code_reason: authentication_details.challenge_code_reason,
                         message_extension: authentication_details.message_extension,
+                        device_type: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_type.clone()),
+                        device_brand: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_brand.clone()),
+                        device_os: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_os.clone()),
+                        device_display: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_display.clone()),
                     },
                 )
             }
@@ -269,7 +385,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .and_then(|details| details.dynamic_data_value)
                     .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
-                        payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val,
                             None,
@@ -283,7 +399,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .await
                     .transpose()?;
                 Ok(
-                    diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
                         authentication_status: common_enums::AuthenticationStatus::foreign_from(
                             trans_status.clone(),
                         ),
@@ -299,9 +415,13 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 ApiErrorResponse::InternalServerError,
             )
             .attach_printable("unexpected api confirmation in external authentication flow."),
+            UasAuthenticationResponseData::Webhook { .. } => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("unexpected api webhook in external authentication flow.")
+            }
         },
         Err(error) => Ok(
-            diesel_models::authentication::AuthenticationUpdate::ErrorUpdate {
+            hyperswitch_domain_models::authentication::AuthenticationUpdate::ErrorUpdate {
                 connector_authentication_id: error.connector_transaction_id,
                 authentication_status: common_enums::AuthenticationStatus::Failed,
                 error_message: error
@@ -318,6 +438,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         .update_authentication_by_merchant_id_authentication_id(
             authentication,
             authentication_update,
+            merchant_key_store,
+            &key_state,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
@@ -341,7 +463,7 @@ pub fn get_checkout_event_status_and_reason(
 
 pub fn authenticate_authentication_client_secret_and_check_expiry(
     req_client_secret: &String,
-    authentication: &diesel_models::authentication::Authentication,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
 ) -> RouterResult<()> {
     let stored_client_secret = authentication
         .authentication_client_secret
@@ -450,6 +572,7 @@ fn get_vault_details(
                     card_network: None,
                     card_type: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     card_holder_name: None,
                     nick_name: None,
                 },
@@ -463,7 +586,7 @@ fn get_vault_details(
             Ok(
                 hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
                     hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
-                        network_token: token_data.payment_token.clone().to_network_token(),
+                        network_token: token_data.payment_token.clone(),
                         network_token_exp_month: token_data.token_expiration_month.clone(),
                         network_token_exp_year: token_data.token_expiration_year.clone(),
                         cryptogram,
@@ -496,4 +619,111 @@ pub fn get_authentication_payment_method_data<F, Req>(
     } else {
         None
     }
+}
+
+pub fn get_webhook_request_data_for_uas(
+    request: &IncomingWebhookRequestDetails<'_>,
+    routing_region: Option<RoutingRegion>,
+) -> UasWebhookRequestData {
+    UasWebhookRequestData {
+        body: request.body.to_vec(),
+        routing_region,
+    }
+}
+
+pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
+    state: &SessionState,
+    authentication_connector_name: String,
+    request_data: Req,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+) -> RouterResult<RouterData<F, Req, Res>> {
+    let merchant_id = common_utils::id_type::MerchantId::get_irrelevant_merchant_id();
+    Ok(RouterData {
+        flow: PhantomData,
+        merchant_id,
+        customer_id: None,
+        connector_customer: None,
+        connector: authentication_connector_name,
+        payment_id: payment_id
+            .map(|payment_id| payment_id.get_string_repr().to_owned())
+            .unwrap_or_default(),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        status: common_enums::AttemptStatus::default(),
+        payment_method: PaymentMethod::default(),
+        connector_auth_type: ConnectorAuthType::NoKey,
+        description: None,
+        address: PaymentAddress::default(),
+        auth_type: common_enums::AuthenticationType::default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request: request_data,
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id:
+            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        payment_method_status: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        tenant_id: state.tenant.tenant_id.clone(),
+        payment_method_type: None,
+        payout_id: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
+        l2_l3_data: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+    })
+}
+
+pub async fn fetch_routing_region_for_uas(
+    state: &SessionState,
+    merchant_id: common_utils::id_type::MerchantId,
+    organization_id: common_utils::id_type::OrganizationId,
+) -> RouterResult<RoutingRegion> {
+    let merchant_path =
+        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
+
+    Ok(merchant_path
+        .async_unwrap_or_else(|| async {
+            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
+                .await
+                .unwrap_or(RoutingRegion::Region1)
+        })
+        .await)
+}
+
+async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
+    let db = &*state.store;
+    db.find_config_by_key(key)
+        .await
+        .inspect_err(|err| {
+            router_env::logger::error!("Failed to fetch region for key as {err}");
+        })
+        .ok()
+        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }

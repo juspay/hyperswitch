@@ -122,7 +122,7 @@ where
                     .change_context(ConnectorError::RequestEncodingFailed)
                     .attach_printable("Failed to construct Payment Repeat Request")?;
 
-            Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
                 payment_repeat_request,
@@ -144,11 +144,19 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                    let router_data_response =
-                        ucs_data.router_data_response.map(|(response, status)| {
+                    let router_data_response = match ucs_data.router_data_response {
+                        Ok((response, status)) => {
                             router_data.status = status;
-                            response
-                        });
+                            Ok(response)
+                        }
+                        Err(err) => {
+                            logger::debug!("Error in UCS router data response");
+                            if let Some(attempt_status) = err.attempt_status {
+                                router_data.status = attempt_status;
+                            }
+                            Err(err)
+                        }
+                    };
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_repeat_response.captured_amount;
@@ -169,10 +177,11 @@ where
                         router_data.connector_response = Some(connector_response);
                     });
 
-                    Ok((router_data, payment_repeat_response))
+                    Ok((router_data, (), payment_repeat_response))
                 },
             ))
             .await
+            .map(|(router_data, _)| router_data)
             .change_context(ConnectorError::ResponseHandlingFailed)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
@@ -184,7 +193,7 @@ where
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Get Request")?;
 
-            Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
                 granular_authorize_request,
@@ -205,16 +214,27 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                    let router_data_response =
-                        ucs_data.router_data_response.map(|(response, status)| {
+                    let router_data_response = match ucs_data.router_data_response {
+                        Ok((response, status)) => {
                             router_data.status = status;
-                            response
-                        });
+                            Ok(response)
+                        }
+                        Err(err) => {
+                            logger::debug!("Error in UCS router data response");
+                            if let Some(attempt_status) = err.attempt_status {
+                                router_data.status = attempt_status;
+                            }
+                            Err(err)
+                        }
+                    };
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;
                     router_data.minor_amount_captured = payment_authorize_response
                         .minor_captured_amount
+                        .map(MinorUnit::new);
+                    router_data.minor_amount_capturable = payment_authorize_response
+                        .minor_capturable_amount
                         .map(MinorUnit::new);
                     router_data.raw_connector_response = payment_authorize_response
                         .raw_connector_response
@@ -222,14 +242,15 @@ where
                         .map(|raw_connector_response| raw_connector_response.expose().into());
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
-                    ucs_data.connector_response.map(|customer_response| {
-                        router_data.connector_response = Some(customer_response);
+                    ucs_data.connector_response.map(|connector_response| {
+                        router_data.connector_response = Some(connector_response);
                     });
 
-                    Ok((router_data, payment_authorize_response))
+                    Ok((router_data, (), payment_authorize_response))
                 },
             ))
             .await
+            .map(|(router_data, _)| router_data)
             .change_context(ConnectorError::ResponseHandlingFailed)?
         };
 

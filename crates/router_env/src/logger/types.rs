@@ -56,6 +56,14 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// OIDC Discovery endpoint
+    OidcDiscovery,
+    /// OIDC JWKS endpoint
+    OidcJwks,
+    /// OIDC Authorize endpoint
+    OidcAuthorize,
+    /// OIDC Token endpoint
+    OidcToken,
     /// Organization create flow
     OrganizationCreate,
     /// Organization retrieve flow
@@ -120,10 +128,14 @@ pub enum Flow {
     PaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
+    /// Payment methods batch retrieve flow.
+    PaymentMethodsBatchRetrieve,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow
     PaymentMethodSave,
+    /// Get token details using temporary token
+    PaymentMethodGetTokenDetails,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// Payment methods token data get flow.
@@ -144,6 +156,8 @@ pub enum Flow {
     PaymentMethodsDelete,
     /// Network token status check flow.
     NetworkTokenStatusCheck,
+    /// Network token eligibility check flow.
+    NetworkTokenEligibilityCheck,
     /// Default Payment method flow.
     DefaultPaymentMethodsSet,
     /// Payments create flow.
@@ -575,6 +589,8 @@ pub enum Flow {
     ListAllThemesInLineage,
     /// Get user theme using lineage
     GetUserThemeUsingLineage,
+    /// Get user theme version
+    GetUserThemeConfigVersion,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -593,6 +609,9 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    #[cfg(feature = "payouts")]
+    /// Manually update the payout details like status, error code, error message etc.
+    PayoutsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
     ProxyConfirmIntent,
@@ -700,6 +719,10 @@ pub enum Flow {
     ApplyPaymentMethodData,
     /// Payouts aggregates flow
     PayoutsAggregate,
+    // Get embedded token flow
+    GetEmbeddedToken,
+    // Get embedded token info flow
+    EmbeddedTokenInfo,
 }
 
 /// Trait for providing generic behaviour to flow metric
