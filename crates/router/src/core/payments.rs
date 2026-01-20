@@ -9194,7 +9194,7 @@ where
     };
 
     utils::when(
-        !(is_card_limited_details_flow && is_mit_with_limited_card_data_enabled),
+        is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,
         || {
             Err(errors::ApiErrorResponse::NotSupported {
                 message: "MIT with Limited Card Data".to_string(),
