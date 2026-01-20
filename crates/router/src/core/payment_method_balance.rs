@@ -89,7 +89,7 @@ pub async fn payments_check_gift_card_balance_core(
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Connector name not present for gift card balance check")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_connector_by_name(

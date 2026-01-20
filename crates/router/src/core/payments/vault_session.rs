@@ -232,7 +232,7 @@ pub async fn generate_vault_session_details(
     let connector_name = merchant_connector_account_type
         .get_connector_name()
         .map(|name| name.to_string())
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?; // should not panic since we should always have a connector name
+        .change_context(errors::ApiErrorResponse::InternalServerError)?; // should not panic since we should always have a connector name
     let connector = api_enums::VaultConnectors::from_str(&connector_name)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
