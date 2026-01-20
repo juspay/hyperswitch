@@ -4406,6 +4406,7 @@ dependencies = [
  "api_models",
  "async-trait",
  "bytes 1.10.1",
+ "cards",
  "common_enums",
  "common_types",
  "common_utils",
