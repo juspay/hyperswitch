@@ -157,6 +157,7 @@ impl ConnectorCommon for Payme {
                     )),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -434,7 +435,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
         let req_currency = req.request.get_currency()?;
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
         let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
@@ -474,7 +475,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             .parse_struct("Payme GenerateSaleResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let req_amount = data.request.get_minor_amount()?;
+        let req_amount = data.request.get_minor_amount();
         let req_currency = data.request.get_currency()?;
 
         let apple_pay_amount = utils::convert_amount(
@@ -1455,6 +1456,19 @@ static PAYME_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Payme {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => matches!(
+                &request_data.payment_method_data,
+                PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)
+            ),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYME_CONNECTOR_INFO)
     }

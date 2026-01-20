@@ -23,7 +23,6 @@
 //
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-
 // commands.js or your custom support file
 import {
   defaultErrorHandler,
@@ -3715,6 +3714,24 @@ Cypress.Commands.add(
 
     handleRedirection(
       "reward",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handleCryptoRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "crypto",
       { redirectionUrl, expectedUrl },
       connectorId,
       paymentMethodType

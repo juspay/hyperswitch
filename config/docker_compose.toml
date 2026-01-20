@@ -106,6 +106,7 @@ max_feed_count = 200
 
 [key_manager]
 url = "http://localhost:5000"
+use_legacy_key_store_decryption = false
 
 [cors]
 max_age = 30
@@ -271,6 +272,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+worldpaymodular.base_url = "https://try.access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
@@ -398,6 +400,9 @@ cards = [
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
 
+[save_payment_method_on_session.unsupported_payment_methods]
+pay_later = "klarna,affirm"
+
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 
@@ -433,6 +438,7 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
+paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds"}
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -1293,6 +1299,9 @@ encryption_key = ""
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
+
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60 # threshold for monitoring the retry system

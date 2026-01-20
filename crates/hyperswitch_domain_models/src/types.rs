@@ -17,7 +17,8 @@ use crate::{
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
         GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
+        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
@@ -33,7 +34,7 @@ use crate::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
@@ -44,8 +45,8 @@ use crate::{
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -103,6 +104,8 @@ pub type AccessTokenAuthenticationRouterData = RouterData<
     AccessTokenAuthenticationRequestData,
     AccessTokenAuthenticationResponse,
 >;
+pub type PaymentsSettlementSplitCreateRouterData =
+    RouterData<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>;
 pub type PaymentsGiftCardBalanceCheckRouterData = RouterData<
     GiftCardBalanceCheck,
     GiftCardBalanceCheckRequestData,
@@ -127,6 +130,9 @@ pub type UasAuthenticationConfirmationRouterData = RouterData<
     UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >;
+
+pub type UasProcessWebhookRouterData =
+    RouterData<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>;
 
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;

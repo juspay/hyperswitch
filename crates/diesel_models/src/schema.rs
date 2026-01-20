@@ -1136,6 +1136,7 @@ diesel::table! {
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
         encrypted_payment_method_data -> Nullable<Bytea>,
+        error_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1246,6 +1247,7 @@ diesel::table! {
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
+        state_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1705,6 +1707,8 @@ diesel::table! {
         #[max_length = 64]
         email_entity_name -> Varchar,
         email_entity_logo_url -> Text,
+        #[max_length = 32]
+        theme_config_version -> Varchar,
     }
 }
 

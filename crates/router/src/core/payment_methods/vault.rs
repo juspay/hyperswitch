@@ -40,7 +40,7 @@ use crate::{
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{transformers as pm_transforms, utils},
+        payment_methods::{cards as pm_cards, transformers as pm_transforms, utils},
         payments::{self as payments_core, helpers as payment_helpers},
     },
     headers, settings,
@@ -1166,7 +1166,7 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(
+        let lookup_key = create_tokenize_without_configurable_expiry(
             state,
             value1,
             Some(value2),
@@ -1210,6 +1210,7 @@ impl Vault {
         payout_method: &api::PayoutMethodData,
         customer_id: Option<id_type::CustomerId>,
         merchant_key_store: &domain::MerchantKeyStore,
+        intent_fulfillment_time: Option<i64>,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
@@ -1224,12 +1225,13 @@ impl Vault {
         let lookup_key =
             token_id.unwrap_or_else(|| generate_id_with_default_len("temporary_token"));
 
-        let lookup_key = create_tokenize(
+        let lookup_key = create_tokenize_with_configurable_expiry(
             state,
             value1,
             Some(value2),
             lookup_key,
             merchant_key_store.key.get_inner(),
+            intent_fulfillment_time,
         )
         .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
@@ -1260,12 +1262,44 @@ fn get_redis_locker_key(lookup_key: &str) -> String {
 }
 
 #[instrument(skip(state, value1, value2))]
-pub async fn create_tokenize(
+pub async fn create_tokenize_without_configurable_expiry(
     state: &routes::SessionState,
     value1: String,
     value2: Option<String>,
     lookup_key: String,
     encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<String> {
+    create_tokenize(state, value1, value2, lookup_key, encryption_key, None).await
+}
+
+#[instrument(skip(state, value1, value2))]
+pub async fn create_tokenize_with_configurable_expiry(
+    state: &routes::SessionState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+    expiry_time: Option<i64>,
+) -> RouterResult<String> {
+    create_tokenize(
+        state,
+        value1,
+        value2,
+        lookup_key,
+        encryption_key,
+        expiry_time,
+    )
+    .await
+}
+
+#[instrument(skip(state, value1, value2))]
+async fn create_tokenize(
+    state: &routes::SessionState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+    expiry_time: Option<i64>,
 ) -> RouterResult<String> {
     let redis_key = get_redis_locker_key(lookup_key.as_str());
     let func = || async {
@@ -1297,7 +1331,7 @@ pub async fn create_tokenize(
             .set_key_if_not_exists_with_expiry(
                 &redis_key.as_str().into(),
                 bytes::Bytes::from(encrypted_payload),
-                Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
+                expiry_time.or(Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS))),
             )
             .await
             .map(|_| lookup_key.clone())
@@ -1720,12 +1754,8 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     payment_token: &String,
     payment_method_type: &common_enums::PaymentMethod,
 ) -> RouterResult<(domain::PaymentMethod, domain::PaymentMethodVaultingData)> {
-    let pm_token_data = utils::retrieve_payment_token_data(
-        state,
-        payment_token.to_string(),
-        Some(payment_method_type),
-    )
-    .await?;
+    let pm_token_data =
+        utils::retrieve_payment_token_data(state, payment_token.to_string()).await?;
 
     let payment_method_id = match pm_token_data {
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
@@ -1777,50 +1807,55 @@ pub struct TemporaryVaultCvc {
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
-    payment_token: &String,
-    payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
-    payment_method: common_enums::PaymentMethod,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+    card_cvc: masking::Secret<String>,
     fulfillment_time: i64,
-    encryption_key: &masking::Secret<Vec<u8>>,
-) -> RouterResult<()> {
-    let card_cvc = domain::PaymentMethodVaultingData::try_from(payment_method_data)?
-        .get_card()
-        .and_then(|card| card.card_cvc.clone());
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
 
-    if let Some(card_cvc) = card_cvc {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let key = format!(
+        "pm_token_{}_hyperswitch_cvc",
+        payment_method_id.get_string_repr()
+    );
 
-        let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
+    let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
-        let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
+    let payload = payload_to_be_encrypted
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let payload = payload_to_be_encrypted
-            .encode_to_string_of_json()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        // Encrypt the CVC and store it in Redis
-        let encrypted_payload = GcmAes256
-            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
-
-        redis_conn
-            .set_key_if_not_exists_with_expiry(
-                &key.as_str().into(),
-                bytes::Bytes::from(encrypted_payload),
-                Some(fulfillment_time),
-            )
+    // Encrypt the CVC and store it in Redis
+    let encrypted_payload =
+        pm_cards::create_encrypted_data(&(state.into()), key_store, payload.as_bytes())
             .await
-            .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add token in redis")?;
-    };
+            .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
+            .encode_to_vec()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode TemporaryVaultCvc to bytes for vault")?;
 
-    Ok(())
+    redis_conn
+        .set_key_with_expiry(
+            &key.as_str().into(),
+            bytes::Bytes::from(encrypted_payload),
+            fulfillment_time,
+        )
+        .await
+        .change_context(errors::StorageError::KVError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add encrypted cvc in redis")?;
+
+    let card_token_cvc_storage =
+        api_models::payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
+            fulfillment_time,
+        );
+
+    Ok(card_token_cvc_storage)
 }
 
 #[cfg(feature = "v2")]
@@ -1837,7 +1872,7 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc",);
+    let key = format!("pm_token_{payment_token}_hyperswitch_cvc");
 
     let data = redis_conn
         .get_key::<bytes::Bytes>(&key.clone().into())
@@ -1865,6 +1900,39 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     });
 
     Ok(cvc_data.card_cvc)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+    state: &routes::SessionState,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResult<i64> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_hyperswitch_cvc",
+        payment_method_id.get_string_repr()
+    );
+
+    // check if key exists and get ttl
+    redis_conn
+        .get_key::<bytes::Bytes>(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the payment_method_token from redis")?;
+
+    let ttl = redis_conn
+        .get_ttl(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the payment_method_token ttl from redis")?;
+
+    Ok(ttl)
 }
 
 #[cfg(feature = "v2")]

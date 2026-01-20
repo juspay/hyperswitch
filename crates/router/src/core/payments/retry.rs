@@ -616,6 +616,9 @@ where
                 unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                 unified_message: option_gsm.map(|gsm| gsm.unified_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
+                connector_response_reference_id: error_response
+                    .connector_response_reference_id
+                    .clone(),
                 payment_method_data: additional_payment_method_data,
                 encrypted_payment_method_data,
                 authentication_type: auth_update,
@@ -778,6 +781,7 @@ pub fn make_new_payment_attempt(
         issuer_error_message: Default::default(),
         debit_routing_savings: Default::default(),
         is_overcapture_enabled: Default::default(),
+        error_details: Default::default(),
     }
 }
 
