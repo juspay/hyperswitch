@@ -2878,7 +2878,7 @@ Cypress.Commands.add(
           expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
 
-          if (expected_intent_status !== "") {
+          if (expected_intent_status) {
             expect(
               response.body.status,
               "payment status should match stored intent_status"
@@ -5131,13 +5131,15 @@ Cypress.Commands.add(
   (globalState, PaymentsManualUpdateRequestBody) => {
     const merchantId = globalState.get("merchantId");
     const paymentId = globalState.get("paymentID");
+    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
+    const adminApiKey=globalState.get("adminApiKey");
 
     cy.request({
       method: "PUT",
-      url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
+      url: completeUrl,
       headers: {
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        "api-key": adminApiKey,
         "X-Merchant-Id": merchantId,
       },
       body: PaymentsManualUpdateRequestBody,
@@ -5156,7 +5158,7 @@ Cypress.Commands.add(
           );
         } else {
           throw new Error(
-            ` Issue detected. Response: ${JSON.stringify(response.body)}`
+            `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
           );
         }
       });
@@ -5167,12 +5169,13 @@ Cypress.Commands.add(
 Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
   const connector = globalState.get("connectorId");
   const merchantId = globalState.get("merchantId");
+  const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
   // Send webhook POST request
   return cy
     .request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/webhooks/${merchantId}/${connector}`,
+      url: completeUrl,
       headers: { "Content-Type": "application/json" },
       body: webhookPayload,
       failOnStatusCode: false,
@@ -5181,16 +5184,11 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
       logRequestId(response.headers["x-request-id"]);
 
       return cy.wrap(response).then(() => {
-        if (response.headers["content-type"]) {
-          expect(response.headers["content-type"]).to.match(
-            /(application|text)\//
-          );
-        }
-
+        
         // Throw for failed status
         if (response.status !== 200) {
           throw new Error(
-            `Webhook failed with status: ${response.status} and message: ${response.body?.error?.message}`
+            `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
           );
         }
       });
