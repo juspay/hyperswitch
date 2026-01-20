@@ -107,7 +107,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           globalState
         );
 
-      // Intentional failure for testing
+        // Intentional failure for testing
         expect(true).to.be.false;
 
         if (shouldContinue)
