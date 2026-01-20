@@ -50,14 +50,18 @@ describe("[Payment] [No 3DS] [Payment Method: Card]", () => {
     });
 
     it("Confirm payment intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["No3DSAutoCapture"];
-      const req_data = data["Request"];
+  const data = getConnectorDetails(globalState.get("connectorId"))[
+    "card_pm"
+  ]["No3DSAutoCapture"];
+  const req_data = data["Request"];
 
-      cy.paymentConfirmCall(globalState, req_data, data);
+  cy.paymentConfirmCall(globalState, req_data, data);
 
-      if (should_continue) should_continue = should_continue_further(data);
-    });
+  // Intentional failure for testing
+  expect(true).to.be.false;
+
+  if (should_continue) should_continue = should_continue_further(data);
+});
+
   });
 });

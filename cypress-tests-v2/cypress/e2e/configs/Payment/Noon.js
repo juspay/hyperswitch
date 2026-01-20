@@ -175,7 +175,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
           setup_future_usage: "on_session",
           payment_method_data: payment_method_data_3ds,
         },
