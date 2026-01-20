@@ -5097,6 +5097,7 @@ default_imp_for_new_connector_integration_webhook_register!(
     connectors::Wise,
     connectors::Worldline,
     connectors::Worldpay,
+    Connectors::Worldpaymodular,
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,

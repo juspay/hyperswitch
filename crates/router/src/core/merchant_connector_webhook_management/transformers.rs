@@ -9,7 +9,7 @@ use router_env::tracing::{self, instrument};
 
 use crate::{
     consts,
-    core::errors::RouterResult,
+    core::{errors::RouterResult, helpers},
     errors, types,
     types::{
         api::ConnectorData, domain,
@@ -109,6 +109,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        payout_id: None,
     })
 }
 

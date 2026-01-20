@@ -9892,6 +9892,7 @@ default_imp_for_connector_webhook_register!(
     connectors::Wise,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Worldpaymodular,
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Wellsfargo,
