@@ -377,5 +377,5 @@ pub struct WalletAdditionalDataForCard {
     pub card_exp_year: Option<Secret<String>>,
     /// Unique Auth code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
-    pub auth_code:Option<String>
+    pub auth_code: Option<String>,
 }
