@@ -365,7 +365,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>

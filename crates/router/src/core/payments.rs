@@ -606,7 +606,7 @@ where
         .get_or_create_customer_details(
             state,
             &mut payment_data,
-            customer_details,
+            customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
         )
         .await
@@ -1697,7 +1697,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data,
-            customer.clone(),
             None,
             header_payload,
         )
@@ -1773,7 +1772,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data,
-            customer.clone(),
             None,
             header_payload,
         )
@@ -2481,7 +2479,6 @@ pub async fn record_attempt_core(
             req_state,
             platform.get_processor(),
             record_payment_data,
-            None,
             None,
             header_payload.clone(),
         )
@@ -4738,7 +4735,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data.clone(),
-            customer.clone(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -5108,7 +5104,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data.clone(),
-            None, // customer is not used in internal flows
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
         )
@@ -5278,7 +5273,6 @@ where
                 req_state,
                 platform.get_processor(),
                 payment_data.clone(),
-                customer.clone(),
                 frm_suggestion,
                 header_payload.clone(),
             )
@@ -5624,7 +5618,6 @@ where
             platform.get_processor(),
             payment_data.clone(),
             None,
-            None,
             header_payload.clone(),
         )
         .await?;
@@ -5741,7 +5734,6 @@ where
             req_state,
             platform.get_processor(),
             payment_data.clone(),
-            None,
             None,
             header_payload.clone(),
         )

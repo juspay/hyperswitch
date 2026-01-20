@@ -125,7 +125,6 @@ impl<F: Clone + Sync>
         _req_state: ReqState,
         _processor: &domain::Processor,
         payment_data: payments::PaymentAttemptListData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(

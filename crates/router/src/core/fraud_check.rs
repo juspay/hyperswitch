@@ -54,7 +54,6 @@ pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     payment_data: &OperationData,
     frm_data: &mut FrmData,
     platform: &domain::Platform,
-    customer: &Option<domain::Customer>,
 ) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
 where
     F: Send + Clone,
@@ -390,7 +389,6 @@ pub async fn make_frm_data_and_fraud_check_operation<F, D>(
     frm_routing_algorithm: FrmRoutingAlgorithm,
     profile_id: common_utils::id_type::ProfileId,
     frm_configs: FrmConfigsObject,
-    _customer: &Option<domain::Customer>,
 ) -> RouterResult<FrmInfo<F, D>>
 where
     F: Send + Clone,

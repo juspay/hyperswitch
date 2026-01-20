@@ -168,7 +168,6 @@ where
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }

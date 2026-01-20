@@ -189,7 +189,6 @@ where
                     req_state,
                     platform.get_processor(),
                     payment_data.clone(),
-                    customer.clone(),
                     None,
                     header_payload.clone(),
                 )

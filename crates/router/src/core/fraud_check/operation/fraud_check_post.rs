@@ -219,7 +219,6 @@ where
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _payment_data: &mut D,
-        _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         todo!()

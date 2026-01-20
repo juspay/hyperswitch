@@ -4667,17 +4667,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let customer_name = additional_data
             .customer_data
             .as_ref()
-            .and_then(|customer_data| {
-                customer_data
-                    .name
-                    .as_ref()
-                    .map(|customer| customer.clone().into_inner())
-            });
+            .and_then(|customer_data| customer_data.name.clone());
 
-        let customer_id = additional_data
-            .customer_data
-            .as_ref()
-            .and_then(|data| data.get_id().clone().try_into().ok());
+        let customer_id = additional_data.customer_id.clone();
 
         let merchant_order_reference_id = payment_data
             .payment_intent
