@@ -186,7 +186,12 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
-    pub fn get_connector_name(&self) -> error_stack::Result<common_enums::connector_enums::Connector, common_utils::errors::ParsingError> {
+    pub fn get_connector_name(
+        &self,
+    ) -> error_stack::Result<
+        common_enums::connector_enums::Connector,
+        common_utils::errors::ParsingError,
+    > {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
                 Ok(merchant_connector_account.connector_name)
