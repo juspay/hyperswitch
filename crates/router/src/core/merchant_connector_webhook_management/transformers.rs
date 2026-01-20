@@ -41,7 +41,11 @@ pub async fn construct_webhook_register_router_data<'a>(
         .get_string_repr();
     let router_base_url = state.base_url.clone();
     let request = ConnectorWebhookRegisterData {
-        webhook_url: format!("{router_base_url}/webhooks/{merchant_id}/{merchant_connector_id}"),
+        webhook_url: helpers::create_webhook_url(
+            &state.base_url,
+            merchant_id,
+            merchant_connector_id,
+        ),
         event_type: webhook_register_request.event_type,
     };
 
