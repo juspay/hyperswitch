@@ -163,11 +163,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment retrieve call", () => {
-                cy.retrievePaymentCallTest(
-                  globalState,
-                  null,
-                  true,
-                  maxAutoRetries + 1
+                cy.retrievePaymentCallTest( { globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
                 );
               });
             });
@@ -216,11 +212,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment retrieve call", () => {
-                cy.retrievePaymentCallTest(
-                  globalState,
-                  null,
-                  true,
-                  maxAutoRetries + 1
+                cy.retrievePaymentCallTest( { globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
                 );
               });
             });
@@ -268,11 +260,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment retrieve call", () => {
-                cy.retrievePaymentCallTest(
-                  globalState,
-                  null,
-                  true,
-                  maxAutoRetries + 1
+                cy.retrievePaymentCallTest( { globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
                 );
               });
             });
@@ -368,11 +356,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment retrieve call", () => {
-                cy.retrievePaymentCallTest(
-                  globalState,
-                  null,
-                  true,
-                  maxAutoRetries + 1
+                cy.retrievePaymentCallTest( { globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
                 );
               });
             });
@@ -421,11 +405,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment retrieve call", () => {
-                cy.retrievePaymentCallTest(
-                  globalState,
-                  null,
-                  true,
-                  maxAutoRetries + 1
+                cy.retrievePaymentCallTest( {  globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
                 );
               });
             });
@@ -472,13 +452,10 @@ describe("Auto Retries & Step Up 3DS", () => {
                   globalState
                 );
               });
+             
 
               it("Payment retrieve call", () => {
-                cy.retrievePaymentCallTest(
-                  globalState,
-                  null,
-                  true,
-                  maxAutoRetries + 1
+                cy.retrievePaymentCallTest( { globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
                 );
               });
             });
@@ -540,11 +517,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(
-              globalState,
-              null,
-              true,
-              maxAutoRetries + 1
+            cy.retrievePaymentCallTest( {  globalState, data: null, autoretries: true, attempt: maxAutoRetries+ 1}
             );
           });
         });
@@ -593,7 +566,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, null, true);
+            cy.retrievePaymentCallTest({ globalState, autoretries: true });
           });
         });
 
@@ -623,7 +596,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, null, true);
+            cy.retrievePaymentCallTest({ globalState, autoretries: true });
           });
         });
       });

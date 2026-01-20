@@ -4,7 +4,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
-let expected_intent_status;
+let expectedIntentStatus;
 
 describe("Payment Webhook Tests", () => {
   before("seed global state", function () {
@@ -61,7 +61,7 @@ describe("Payment Webhook Tests", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
         () => {
-          expected_intent_status = globalState.get("paymentIntentStatus");
+          expectedIntentStatus = globalState.get("paymentIntentStatus");
         }
       );
     });
@@ -113,14 +113,7 @@ describe("Payment Webhook Tests", () => {
     });
 
     it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest(
-        globalState,
-        null,
-        // auto retries enabled
-        false,
-        // attempts count
-        1,
-        expected_intent_status
+      cy.retrievePaymentCallTest( { globalState, expectedIntentStatus}
       );
     });
   });
