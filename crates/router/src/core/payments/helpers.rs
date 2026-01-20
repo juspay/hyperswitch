@@ -78,7 +78,7 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
-        authentication,
+        authentication, configs,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1882,12 +1882,29 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
+                    let implicit_customer_update = configs::get_config_bool(
+                        state,
+                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE, // superposition key
+                        &provider
+                            .get_account()
+                            .get_id()
+                            .get_implicit_customer_update_key(), // database key
+                        Some(external_services::superposition::ConfigContext::new().with(
+                            "merchant_id",
+                            provider.get_account().get_id().get_string_repr(),
+                        )), // context
+                        false, // Implicit Customer update is disabled by default
+                    )
+                    .await
+                    .attach_printable("Failed to fetch implicit_customer_update config")?;
+
                     // Update the customer data if new data is passed in the request
-                    if request_customer_details.email.is_some()
-                        | request_customer_details.name.is_some()
-                        | request_customer_details.phone.is_some()
-                        | request_customer_details.phone_country_code.is_some()
-                        | request_customer_details.tax_registration_id.is_some()
+                    if implicit_customer_update
+                        && (request_customer_details.email.is_some()
+                            | request_customer_details.name.is_some()
+                            | request_customer_details.phone.is_some()
+                            | request_customer_details.phone_country_code.is_some()
+                            | request_customer_details.tax_registration_id.is_some())
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
