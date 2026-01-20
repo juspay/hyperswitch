@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::{
     types::{
@@ -34,7 +35,7 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
+        self, get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
         AddressDetailsData as _, CardData as _, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData as _, RouterData as _,
     },
@@ -509,6 +510,10 @@ pub struct NmiValidateRequest {
     payment_data: NmiValidatePaymentData,
     orderid: String,
     customer_vault: CustomerAction,
+    #[serde(flatten)]
+    billing_details: NmiBillingDetails,
+    #[serde(flatten)]
+    shipping_details: NmiShippingDetails,
 }
 
 #[derive(Debug, Serialize)]
@@ -533,6 +538,37 @@ pub struct NmiPaymentsRequest {
     orderid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_vault: Option<CustomerAction>,
+    #[serde(flatten)]
+    billing_details: NmiBillingDetails,
+    #[serde(flatten)]
+    shipping_details: NmiShippingDetails,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct NmiBillingDetails {
+    address1: Option<Secret<String>>,
+    address2: Option<Secret<String>>,
+    city: Option<String>,
+    state: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country: Option<CountryAlpha2>,
+    phone: Option<Secret<String>>,
+    email: Option<Email>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct NmiShippingDetails {
+    shipping_firstname: Option<Secret<String>>,
+    shipping_lastname: Option<Secret<String>>,
+    shipping_address1: Option<Secret<String>>,
+    shipping_address2: Option<Secret<String>>,
+    shipping_city: Option<String>,
+    shipping_state: Option<Secret<String>>,
+    shipping_zip: Option<Secret<String>>,
+    shipping_country: Option<CountryAlpha2>,
+    shipping_email: Option<Email>,
 }
 
 #[derive(Debug, Serialize)]
@@ -659,6 +695,8 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                     .map(NmiMerchantDefinedField::new),
                 orderid: item.router_data.connector_request_reference_id.clone(),
                 customer_vault: None,
+                billing_details: item.get_billing_details(),
+                shipping_details: item.get_shipping_details(),
             }),
             Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
             | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
@@ -690,6 +728,8 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                         .request
                         .is_mandate_payment()
                         .then_some(CustomerAction::AddCustomer),
+                    billing_details: item.get_billing_details(),
+                    shipping_details: item.get_shipping_details(),
                 })
             }
         }
@@ -902,17 +942,19 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for PaymentMetho
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
+impl TryFrom<&NmiRouterData<&SetupMandateRouterData>> for NmiValidateRequest {
     type Error = Error;
-    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        if item.request.amount > 0 {
+    fn try_from(item: &NmiRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
+        if item.router_data.request.amount > 0 {
             Err(ConnectorError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "NMI".to_string(),
             }
             .into())
-        } else if let PaymentMethodData::Card(card_details) = &item.request.payment_method_data {
-            let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+        } else if let PaymentMethodData::Card(card_details) =
+            &item.router_data.request.payment_method_data
+        {
+            let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
 
             let card_data = CardData {
                 ccnumber: card_details.card_number.clone(),
@@ -924,15 +966,17 @@ impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
                 transaction_type: TransactionType::Validate,
                 security_key: auth_type.api_key,
                 payment_data: NmiValidatePaymentData::Card(Box::new(card_data)),
-                orderid: item.connector_request_reference_id.clone(),
+                orderid: item.router_data.connector_request_reference_id.clone(),
                 customer_vault: CustomerAction::AddCustomer,
+                billing_details: item.get_billing_details(),
+                shipping_details: item.get_shipping_details(),
             })
         } else if let PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_wallet_data)) =
-            &item.request.payment_method_data
+            &item.router_data.request.payment_method_data
         {
-            let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+            let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
 
-            let payment_data = match item.payment_method_token.clone() {
+            let payment_data = match item.router_data.payment_method_token.clone() {
                 Some(payment_method_token) => match payment_method_token {
                     PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data) => {
                         Ok(NmiValidatePaymentData::ApplePayDecrypt(Box::new(
@@ -991,8 +1035,10 @@ impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
                 transaction_type: TransactionType::Validate,
                 security_key: auth_type.api_key,
                 payment_data,
-                orderid: item.connector_request_reference_id.clone(),
+                orderid: item.router_data.connector_request_reference_id.clone(),
                 customer_vault: CustomerAction::AddCustomer,
+                billing_details: item.get_billing_details(),
+                shipping_details: item.get_shipping_details(),
             })
         } else {
             Err(
@@ -1353,6 +1399,11 @@ impl TryFrom<Vec<u8>> for SyncResponse {
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let query_response = String::from_utf8(bytes)
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Ok(json_response) = serde_json::from_str::<Self>(&query_response) {
+            return Ok(json_response);
+        }
+
         query_response
             .parse_xml::<Self>()
             .change_context(ConnectorError::ResponseDeserializationFailed)
@@ -1364,6 +1415,11 @@ impl TryFrom<Vec<u8>> for NmiRefundSyncResponse {
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let query_response = String::from_utf8(bytes)
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        if let Ok(json_response) = serde_json::from_str::<Self>(&query_response) {
+            return Ok(json_response);
+        }
+
         query_response
             .parse_xml::<Self>()
             .change_context(ConnectorError::ResponseDeserializationFailed)
@@ -1641,5 +1697,34 @@ impl TryFrom<&NmiWebhookBody> for SyncResponse {
         });
 
         Ok(Self { transaction })
+    }
+}
+
+impl<T: utils::RouterData> NmiRouterData<&T> {
+    pub fn get_billing_details(&self) -> NmiBillingDetails {
+        NmiBillingDetails {
+            address1: self.router_data.get_optional_billing_line1(),
+            address2: self.router_data.get_optional_billing_line2(),
+            city: self.router_data.get_optional_billing_city(),
+            state: self.router_data.get_optional_billing_state(),
+            zip: self.router_data.get_optional_billing_zip(),
+            country: self.router_data.get_optional_billing_country(),
+            phone: self.router_data.get_optional_billing_phone_number(),
+            email: self.router_data.get_optional_billing_email(),
+        }
+    }
+
+    pub fn get_shipping_details(&self) -> NmiShippingDetails {
+        NmiShippingDetails {
+            shipping_firstname: self.router_data.get_optional_shipping_first_name(),
+            shipping_lastname: self.router_data.get_optional_shipping_last_name(),
+            shipping_address1: self.router_data.get_optional_shipping_line1(),
+            shipping_address2: self.router_data.get_optional_shipping_line2(),
+            shipping_city: self.router_data.get_optional_shipping_city(),
+            shipping_state: self.router_data.get_optional_shipping_state(),
+            shipping_zip: self.router_data.get_optional_shipping_zip(),
+            shipping_country: self.router_data.get_optional_shipping_country(),
+            shipping_email: self.router_data.get_optional_shipping_email(),
+        }
     }
 }
