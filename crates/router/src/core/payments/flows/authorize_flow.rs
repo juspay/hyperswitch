@@ -279,17 +279,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check balance check flow is bloated up for the current connector
-                config
-                    .balance_check_bloated_connectors
-                    .contains(&connector.connector_name)
-            })
-        {
+        ) {
             logger::info!(
                 "Balance check flow is required for connector: {}",
                 connector.connector_name
@@ -666,17 +656,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check order create flow is bloated up for the current connector
-                config
-                    .settlement_split_bloated_connectors
-                    .contains(&connector.connector_name)
-            })
-        {
+        ) {
             logger::info!(
                 "Settlement Split call is required for connector: {}",
                 connector.connector_name
@@ -747,16 +727,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check order create flow is bloated up for the current connector
-                config
-                    .order_create_bloated_connectors
-                    .contains(&connector.connector_name)
-            });
+        );
         if (connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
