@@ -135,7 +135,7 @@ impl Refund {
         matches!(
             self.refund_status,
             common_enums::RefundStatus::ManualReview
-            | common_enums::RefundStatus::Pending
+                | common_enums::RefundStatus::Pending
                 | common_enums::RefundStatus::Success
         )
     }

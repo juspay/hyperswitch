@@ -218,9 +218,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
         // Validates that no refunds have been issued against the payment before allowing post-capture void
-        let is_refund_issued = payment_data.refunds.iter().any(|refund| {
-            refund.is_refund_applied()
-        });
+        let is_refund_issued = payment_data
+            .refunds
+            .iter()
+            .any(|refund| refund.is_refund_applied());
         crate::utils::when(is_refund_issued, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {

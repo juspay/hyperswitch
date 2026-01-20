@@ -13803,7 +13803,7 @@ impl PaymentIntentStateMetadataExt {
         }
         Ok(())
     }
-     pub async fn update_intent_state_metadata_for_post_capture_void(
+    pub async fn update_intent_state_metadata_for_post_capture_void(
         self,
         state: &SessionState,
         platform: &domain::Platform,

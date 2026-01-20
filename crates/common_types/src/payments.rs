@@ -22,7 +22,7 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData, PostCaptureVoidData};
+use crate::domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData};
 #[derive(
     Serialize,
     Deserialize,
@@ -992,22 +992,13 @@ pub struct PaymentIntentStateMetadata {
     pub total_refunded_amount: Option<MinorUnit>,
     /// Shows up the total disputed amount across all disputes for a particular payment
     pub total_disputed_amount: Option<MinorUnit>,
-     /// Post capture void response details
+    /// Post capture void response details
     pub post_capture_void: Option<PostCaptureVoidResponse>,
 }
 
-
 /// Additional metadata for payment intent state containing refunded and disputed amounts
 #[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    AsExpression,
-    FromSqlRow,
-    utoipa::ToSchema,
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, utoipa::ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
 pub struct PostCaptureVoidResponse {
@@ -1060,7 +1051,11 @@ impl PaymentIntentStateMetadata {
         mut self,
         post_capture_void_data: PostCaptureVoidData,
     ) -> Self {
-        self.post_capture_void = Some(PostCaptureVoidResponse { status: post_capture_void_data.status,  connector_reference_id: post_capture_void_data.connector_reference_id, updated_at: date_time::now() });
+        self.post_capture_void = Some(PostCaptureVoidResponse {
+            status: post_capture_void_data.status,
+            connector_reference_id: post_capture_void_data.connector_reference_id,
+            updated_at: date_time::now(),
+        });
         self
     }
 }
