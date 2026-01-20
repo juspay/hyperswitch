@@ -343,6 +343,13 @@ jobs:
             cypress-tests/cypress/reports/
           retention-days: 1
 
+      - name: Remove S-test-ready label on failure of mandatory Cypress tests 
+        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
+
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
     if: ${{ github.event_name == 'merge_group' }}
@@ -581,13 +588,6 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
-
-      - name: Remove S-test-ready label on failure
-        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
@@ -1022,10 +1022,3 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
           disable_search: true
-
-      - name: Remove S-test-ready label on failure
-        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}

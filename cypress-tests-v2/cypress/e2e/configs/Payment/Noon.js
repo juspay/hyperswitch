@@ -173,7 +173,7 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
