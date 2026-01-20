@@ -5662,7 +5662,7 @@ pub struct ApplepayPaymentMethod {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
-    ///  Unique authorisation code generated for the payment
+    /// Unique authorisation code generated for the payment
     pub auth_code: Option<String>,
 }
 
