@@ -310,7 +310,7 @@ where
                 req.should_return_raw_response(),
                 &connector_data.connector_data,
                 call_connector_action.clone(),
-                &mca_type_details,
+                mca_type_details,
                 req_state.clone(),
                 header_payload.clone(),
                 #[cfg(feature = "frm")]
@@ -409,7 +409,7 @@ where
                 req.should_return_raw_response(),
                 &connector_data.connector_data,
                 call_connector_action.clone(),
-                &mca_type_details,
+                mca_type_details,
                 req_state.clone(),
                 header_payload.clone(),
                 #[cfg(feature = "frm")]
@@ -4948,7 +4948,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     return_raw_connector_response: Option<bool>,
     connector: &api::ConnectorData,
     call_connector_action: CallConnectorAction,
-    merchant_connector_account_type_details: &domain::MerchantConnectorAccountTypeDetails,
+    merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     req_state: ReqState,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
