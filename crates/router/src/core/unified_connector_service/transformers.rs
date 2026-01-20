@@ -151,8 +151,9 @@ impl
             })
             .transpose()?;
 
-        // TODO: Fix the type of address field in UCS request and pass address
-        // let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let address = Some(payments_grpc::PaymentAddress::foreign_try_from(
+            router_data.address.clone(),
+        )?);
 
         let amount = router_data.request.amount.ok_or(report!(
             UnifiedConnectorServiceError::MissingRequiredField {
@@ -170,7 +171,7 @@ impl
             customer_name: None,
             email: None,
             customer_id: None,
-            address: None,
+            address,
             metadata: None,
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
