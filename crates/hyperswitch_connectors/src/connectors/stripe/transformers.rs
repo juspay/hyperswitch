@@ -2061,6 +2061,12 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         setup_future_usage,
                     )
                 }
+                Some(payments::MandateReferenceId::CardWithLimitedData) => {
+                    Err(ConnectorError::NotSupported {
+                        message: "Card Only MIT for payment method".to_string(),
+                        connector: "Stripe",
+                    })?
+                }
             }
         };
 

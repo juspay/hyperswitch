@@ -2416,18 +2416,57 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
 pub struct RoutableConnectors(Vec<routing_types::RoutableConnectorChoice>);
 
 impl RoutableConnectors {
-    pub fn filter_network_transaction_id_flow_supported_connectors(
+    pub fn filter_recurring_flow_supported_connectors(
         self,
-        nit_connectors: HashSet<String>,
+        state: &SessionState,
+        recurring_details: &api_models::mandates::RecurringDetails,
     ) -> Self {
-        let connectors = self
-            .0
-            .into_iter()
-            .filter(|routable_connector_choice| {
-                nit_connectors.contains(&routable_connector_choice.connector.to_string())
-            })
-            .collect();
-        Self(connectors)
+        match recurring_details {
+            api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+            | api_models::mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
+                _,
+            ) => {
+                let network_transaction_id_supported_connectors = &state
+                    .conf
+                    .network_transaction_id_supported_connectors
+                    .connector_list
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<HashSet<_>>();
+
+                let connectors = self
+                    .0
+                    .into_iter()
+                    .filter(|routable_connector_choice| {
+                        network_transaction_id_supported_connectors
+                            .contains(&routable_connector_choice.connector.to_string())
+                    })
+                    .collect();
+                Self(connectors)
+            }
+            api_models::mandates::RecurringDetails::CardWithLimitedData(_) => {
+                let card_only_mit_supported_connectors = &state
+                    .conf
+                    .card_only_mit_supported_connectors
+                    .connector_list
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<HashSet<_>>();
+
+                let connectors = self
+                    .0
+                    .into_iter()
+                    .filter(|routable_connector_choice| {
+                        card_only_mit_supported_connectors
+                            .contains(&routable_connector_choice.connector.to_string())
+                    })
+                    .collect();
+                Self(connectors)
+            }
+            api_models::mandates::RecurringDetails::MandateId(_)
+            | api_models::mandates::RecurringDetails::PaymentMethodId(_)
+            | api_models::mandates::RecurringDetails::ProcessorPaymentToken(_) => self,
+        }
     }
 
     pub async fn construct_dsl_and_perform_eligibility_analysis<F, D>(

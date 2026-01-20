@@ -866,6 +866,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1045,6 +1046,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1058,6 +1060,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     Some(network_transaction_id.clone())
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
@@ -1170,6 +1173,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1309,6 +1313,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })

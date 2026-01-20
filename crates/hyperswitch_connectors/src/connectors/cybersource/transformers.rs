@@ -1063,7 +1063,9 @@ impl
                         }),
                     )
                 }
-                None => (None, None, None),
+                Some(payments::MandateReferenceId::CardWithLimitedData) | None => {
+                    (None, None, None)
+                }
             }
         } else {
             (

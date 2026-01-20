@@ -3232,7 +3232,13 @@ impl
                         })?
                     }
                 }
-            } //
+            }
+            payments::MandateReferenceId::CardWithLimitedData => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Card Only MIT for payment method".to_string(),
+                    connector: "Adyen",
+                })?
+            }
         }?;
 
         let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());

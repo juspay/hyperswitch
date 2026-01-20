@@ -178,6 +178,8 @@ pub enum RecurringDetails {
     NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
 
     /// Card with Limited Data to do MIT payment
+    /// Can only be used if enabled for Merchant
+    /// Allows doing MIT with only Card data (no reference id)
     #[smithy(value_type = "CardWithLimitedData")]
     CardWithLimitedData(Box<CardWithLimitedData>),
 }

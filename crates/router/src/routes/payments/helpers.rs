@@ -1,10 +1,8 @@
-use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, RouterResult},
     logger,
-    routes::SessionState,
     types::{self, api},
     utils::{Encode, ValueExt},
 };
@@ -100,45 +98,17 @@ pub fn populate_browser_info(
 }
 
 #[cfg(feature = "v1")]
-pub async fn should_call_proxy_for_payments_core(
-    state: &SessionState,
-    payment_request: api::PaymentsRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
+pub fn should_call_proxy_for_payments_core(payment_request: api::PaymentsRequest) -> bool {
     payment_request
         .recurring_details
         .clone()
-        .async_map(|recurring_details| async move {
+        .map(|recurring_details| {
             recurring_details
                 .clone()
                 .is_network_transaction_id_and_card_details_flow()
                 || recurring_details
                     .clone()
                     .is_network_transaction_id_and_network_token_details_flow()
-                || (recurring_details.clone().is_card_limited_details_flow()
-                    && is_mit_with_limited_card_data_enabled(state, merchant_id).await)
         })
-        .await
         .unwrap_or(false)
-}
-
-#[cfg(feature = "v1")]
-pub async fn is_mit_with_limited_card_data_enabled(
-    state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let db = &*state.store;
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_enable_mit_with_limited_card_data(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    }
 }

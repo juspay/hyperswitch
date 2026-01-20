@@ -358,15 +358,10 @@ pub struct CardWithLimitedDetails {
 impl CardWithLimitedDetails {
     pub fn get_card_details_for_mit_flow(
         card_with_limited_data: CardWithLimitedData,
-    ) -> (
-        Option<api_models::payments::MandateReferenceId>,
-        Option<PaymentMethodData>,
-    ) {
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         (
-            None,
-            Some(PaymentMethodData::CardWithLimitedDetails(
-                card_with_limited_data.into(),
-            )),
+            api_models::payments::MandateReferenceId::CardWithLimitedData,
+            PaymentMethodData::CardWithLimitedDetails(card_with_limited_data.into()),
         )
     }
 }
@@ -374,10 +369,7 @@ impl CardWithLimitedDetails {
 impl CardDetailsForNetworkTransactionId {
     pub fn get_nti_and_card_details_for_mit_flow(
         network_transaction_id_and_card_details: NetworkTransactionIdAndCardDetails,
-    ) -> (
-        Option<api_models::payments::MandateReferenceId>,
-        Option<PaymentMethodData>,
-    ) {
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
             network_transaction_id_and_card_details
                 .network_transaction_id
@@ -386,10 +378,10 @@ impl CardDetailsForNetworkTransactionId {
         );
 
         (
-            Some(mandate_reference_id),
-            Some(PaymentMethodData::CardDetailsForNetworkTransactionId(
+            mandate_reference_id,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(
                 network_transaction_id_and_card_details.into(),
-            )),
+            ),
         )
     }
 }
@@ -397,10 +389,7 @@ impl CardDetailsForNetworkTransactionId {
 impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
-    ) -> (
-        Option<api_models::payments::MandateReferenceId>,
-        Option<PaymentMethodData>,
-    ) {
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
             network_transaction_id_and_network_token_details
                 .network_transaction_id
@@ -409,11 +398,9 @@ impl NetworkTokenDetailsForNetworkTransactionId {
         );
 
         (
-            Some(mandate_reference_id),
-            Some(
-                PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
-                    network_transaction_id_and_network_token_details.into(),
-                ),
+            mandate_reference_id,
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                network_transaction_id_and_network_token_details.into(),
             ),
         )
     }
@@ -3396,23 +3383,21 @@ impl From<mandates::CardWithLimitedData> for CardWithLimitedData {
 }
 
 impl RecurringDetails {
-    pub fn get_nti_and_payment_method_data_for_mit_flow(
+    pub fn get_mandate_reference_id_and_payment_method_data_for_mit_flow(
         &self,
-    ) -> (
-        Option<api_models::payments::MandateReferenceId>,
-        Option<PaymentMethodData>,
-    ) {
+    ) -> CustomResult<(api_models::payments::MandateReferenceId, PaymentMethodData), ApiErrorResponse>
+    {
         match self.clone() {
             Self::NetworkTransactionIdAndCardDetails(network_transaction_id_and_card_details) => {
-                CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(*network_transaction_id_and_card_details)
+                Ok(CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(*network_transaction_id_and_card_details))
             }
             Self::NetworkTransactionIdAndNetworkTokenDetails(network_transaction_id_and_network_token_details) => {
-                NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(*network_transaction_id_and_network_token_details)
+                Ok(NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(*network_transaction_id_and_network_token_details))
             }
             Self::CardWithLimitedData(card_with_limited_data) => {
-                CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data)
+                Ok(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
             }
-            _ => (None, None),
+            _ => Err(ApiErrorResponse::NotSupported { message: "Recurring Flow via Proxy not Supported".to_string() }.into()),
         }
     }
 }

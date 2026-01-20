@@ -661,7 +661,8 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                 customer_vault: None,
             }),
             Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))?

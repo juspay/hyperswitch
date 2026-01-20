@@ -2398,6 +2398,9 @@ pub fn determine_standard_vault_action(
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
                     VaultFetchAction::NoFetchAction
                 }
+                Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+                    VaultFetchAction::NoFetchAction
+                }
             },
             None => {
                 //saved card flow
@@ -5665,20 +5668,9 @@ pub async fn get_additional_payment_data(
                 _ => None,
             };
 
-            let card_network = match card_with_limited_details
-                .card_number
-                .is_cobadged_card()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Card cobadge check failed due to an invalid card network regex",
-                )? {
-                true => card_with_limited_details.card_network.clone(),
-                false => None,
-            };
-
             let last4 = Some(card_with_limited_details.card_number.get_last4());
             if card_with_limited_details.card_issuer.is_some()
-                && card_network.is_some()
+                && card_with_limited_details.card_network.is_some()
                 && card_with_limited_details.card_type.is_some()
                 && card_with_limited_details.card_issuing_country.is_some()
                 && card_with_limited_details.bank_code.is_some()
@@ -5686,7 +5678,7 @@ pub async fn get_additional_payment_data(
                 Ok(Some(api_models::payments::AdditionalPaymentData::Card(
                     Box::new(api_models::payments::AdditionalCardInfo {
                         card_issuer: card_with_limited_details.card_issuer.to_owned(),
-                        card_network,
+                        card_network: card_with_limited_details.card_network.clone(),
                         card_type: card_with_limited_details.card_type.to_owned(),
                         card_issuing_country: card_with_limited_details
                             .card_issuing_country
@@ -5723,7 +5715,10 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.clone().or(card_info.card_network),
+                                card_network: card_with_limited_details
+                                    .card_network
+                                    .clone()
+                                    .or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -5748,7 +5743,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network,
+                            card_network: card_with_limited_details.card_network.clone(),
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,

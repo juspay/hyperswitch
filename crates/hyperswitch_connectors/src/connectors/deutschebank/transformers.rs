@@ -310,7 +310,8 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                 }))
             }
             Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
+            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("deutschebank"),
                 )
