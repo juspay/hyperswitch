@@ -408,6 +408,7 @@ where
                             authentication_data: None,
                             payment_checks: Some(payment_checks),
                             card_network: None,
+                            auth_code: None,
                             domestic_network: None,
                         }
                     })

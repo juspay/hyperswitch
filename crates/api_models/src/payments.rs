@@ -2389,6 +2389,7 @@ impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
@@ -4041,6 +4042,8 @@ pub struct AdditionalCardInfo {
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
     pub signature_network: Option<api_enums::CardNetwork>,
+    /// Unique authorization code generated for the payment.
+    pub auth_code: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5657,8 +5660,10 @@ pub struct ApplepayPaymentMethod {
     #[schema(value_type = Option<String>, example = "12")]
     pub card_exp_month: Option<Secret<String>>,
     /// The card's expiry year
-    #[schema(value_type = Option<String>, example = "25")]
+    #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
+    ///  Unique authentication code generated for the payment
+    pub auth_code: Option<String>,
 }
 
 #[derive(
@@ -5694,6 +5699,8 @@ pub struct CardResponse {
     pub payment_checks: Option<serde_json::Value>,
     #[smithy(value_type = "Option<Object>")]
     pub authentication_data: Option<serde_json::Value>,
+    #[smithy(value_type = "Option<String>")]
+    pub auth_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9112,6 +9119,7 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_holder_name: card.card_holder_name,
             payment_checks: card.payment_checks,
             authentication_data: card.authentication_data,
+            auth_code: card.auth_code,
         }
     }
 }
@@ -9172,6 +9180,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
+                            auth_code: apple_pay_pm.auth_code,
                         },
                     ))),
                 })),

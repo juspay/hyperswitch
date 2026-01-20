@@ -8,7 +8,10 @@ pub use ::payment_methods::helpers::{
 use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
     mandates::RecurringDetails,
-    payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
+    payments::{
+        additional_info::{self as payment_additional_types},
+        RequestSurchargeDetails,
+    },
 };
 use base64::Engine;
 use common_enums::{enums::ExecutionMode, ConnectorType};
@@ -5237,6 +5240,7 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        auth_code: None,
                         is_regulated,
                         signature_network: signature_network.clone(),
                     }),
@@ -5270,6 +5274,7 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                auth_code: None,
                                 is_regulated,
                                 signature_network: signature_network.clone(),
                             },
@@ -5293,6 +5298,7 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            auth_code: None,
                             is_regulated,
                             signature_network: signature_network.clone(),
                         },
@@ -5412,6 +5418,8 @@ pub async fn get_additional_payment_data(
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                         card_exp_month,
                         card_exp_year,
+                        // These are filled after calling the processor / connector
+                        auth_code: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -5435,6 +5443,8 @@ pub async fn get_additional_payment_data(
                             card_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
+                            // These are filled after calling the processor / connector
+                            auth_code: None,
                         },
                     )),
                     samsung_pay: None,
@@ -5457,6 +5467,8 @@ pub async fn get_additional_payment_data(
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
+                            // These are filled after calling the processor / connector
+                            auth_code: None,
                         },
                     )),
                 }))
@@ -5578,6 +5590,7 @@ pub async fn get_additional_payment_data(
                         authentication_data: None,
                         is_regulated: None,
                         signature_network: None,
+                        auth_code: None,
                     }),
                 )))
             } else {
@@ -5611,6 +5624,7 @@ pub async fn get_additional_payment_data(
                                 authentication_data: None,
                                 is_regulated: None,
                                 signature_network: None,
+                                auth_code: None,
                             },
                         ))
                     });
@@ -5634,6 +5648,7 @@ pub async fn get_additional_payment_data(
                             authentication_data: None,
                             is_regulated: None,
                             signature_network: None,
+                            auth_code: None,
                         },
                     ))
                 })))
@@ -7183,12 +7198,14 @@ pub fn add_connector_response_to_additional_payment_data(
             AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
+                auth_code,
                 ..
             },
         ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
             api_models::payments::AdditionalCardInfo {
                 payment_checks,
                 authentication_data,
+                auth_code,
                 ..*additional_card_data.clone()
             },
         )),
@@ -7209,6 +7226,28 @@ pub fn add_connector_response_to_additional_payment_data(
             bank_name: None,
             details: None,
             interac: Some(api_models::payments::InteracPaymentMethod { customer_info }),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+            },
+            AdditionalPaymentMethodConnectorResponse::Card { auth_code, .. },
+        ) => api_models::payments::AdditionalPaymentData::Wallet {
+            apple_pay: apple_pay.clone().map(|apple_pay| {
+                Box::new(api_models::payments::ApplepayPaymentMethod {
+                    auth_code: auth_code.clone(),
+                    ..*apple_pay.clone()
+                })
+            }),
+            google_pay: google_pay.clone().map(|google_pay| {
+                Box::new(payment_additional_types::WalletAdditionalDataForCard {
+                    auth_code: auth_code.clone(),
+                    ..*google_pay.clone()
+                })
+            }),
+            samsung_pay: samsung_pay.clone(),
         },
 
         _ => additional_payment_data,

@@ -685,6 +685,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         card_network: Option<String>,
         /// Domestic(Co-Branded) Card network returned by the processor
         domestic_network: Option<String>,
+        /// auth code returned by the processor
+        auth_code: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
@@ -693,7 +695,6 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         interac: Option<InteracCustomerInfo>,
     },
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:

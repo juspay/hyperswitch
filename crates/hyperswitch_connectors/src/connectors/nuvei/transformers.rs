@@ -3236,6 +3236,7 @@ fn convert_to_additional_payment_method_connector_response(
             payment_checks: Some(payment_checks),
             card_network,
             domestic_network: None,
+            auth_code: None,
         }),
         Err(_) => None,
     }

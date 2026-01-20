@@ -24,8 +24,9 @@ use hyperswitch_domain_models::{
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
-        PaymentMethodBalance, PaymentMethodToken, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, ExtendedAuthorizationResponseData, PaymentMethodBalance, PaymentMethodToken,
+        RouterData,
     },
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
@@ -159,6 +160,7 @@ pub struct AdditionalData {
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
     capture_delay_hours: Option<u64>,
+    pub auth_code: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -575,6 +577,7 @@ pub enum AdyenPaymentResponse {
 pub struct AdyenResponse {
     psp_reference: String,
     result_code: AdyenStatus,
+
     amount: Option<Amount>,
     merchant_reference: String,
     refusal_reason: Option<String>,
@@ -4471,11 +4474,14 @@ pub fn get_adyen_response(
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
         });
-    let network_txn_id = response.additional_data.and_then(|additional_data| {
-        additional_data
-            .network_tx_reference
-            .map(|network_tx_id| network_tx_id.expose())
-    });
+    let network_txn_id = response
+        .additional_data
+        .clone()
+        .and_then(|additional_data| {
+            additional_data
+                .network_tx_reference
+                .map(|network_tx_id| network_tx_id.expose())
+        });
 
     let charges = match &response.splits {
         Some(split_items) => Some(construct_charge_response(response.store, split_items)),
@@ -4494,13 +4500,26 @@ pub fn get_adyen_response(
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
-
+    let connector_response = response
+        .additional_data
+        .and_then(|additional_data| additional_data.auth_code.clone())
+        .map(|auth_code| {
+            ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::Card {
+                    auth_code: Some(auth_code.clone()),
+                    authentication_data: None,
+                    payment_checks: None,
+                    card_network: None,
+                    domestic_network: None,
+                },
+            )
+        });
     Ok(AdyenPaymentsResponseData {
         status,
         error,
         payments_response_data,
         txn_amount,
-        connector_response: None,
+        connector_response,
     })
 }
 
