@@ -714,6 +714,11 @@ pub(crate) fn get_payment_method_create_request(
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
+            payments_core::helpers::validate_card_expiry(
+                &card.card_exp_month,
+                &card.card_exp_year,
+            )?;
+
             let card_detail = payment_methods::CardDetail {
                 card_number: card.card_number.clone(),
                 card_exp_month: card.card_exp_month.clone(),
@@ -880,6 +885,32 @@ fn get_card_network_with_us_local_debit_network_override(
     } else {
         card_network
     }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn get_card_nt_eligibility(
+    state: &SessionState,
+    req: api::NetworkTokenEligibilityRequest,
+    _platform: &domain::Platform,
+    profile: &domain::Profile,
+) -> RouterResponse<api::GetNetworkTokenEiligibilityResponse> {
+    when(!profile.is_network_tokenization_enabled, || {
+        Err(report!(errors::ApiErrorResponse::NotSupported {
+            message: "Network tokenization is not enabled for this profile".to_string()
+        }))
+    })?;
+
+    let response = network_tokenization::make_nt_eligibility_call(state, req)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to fetch network token eligibility from tokenization service")?;
+
+    Ok(services::ApplicationResponse::Json(
+        api::GetNetworkTokenEiligibilityResponse {
+            eligible_for_network_tokenization: response.tokenize_support,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -1098,6 +1129,18 @@ pub async fn create_payment_method_card_core(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    match &req.payment_method_data {
+        api::PaymentMethodCreateData::Card(card_data) => {
+            payments_core::helpers::validate_card_expiry(
+                &card_data.card_exp_month,
+                &card_data.card_exp_year,
+            )?;
+        }
+        _ => {
+            logger::debug!("Payment method data is not CardDetail");
+        }
+    }
+
     let db = &*state.store;
 
     let payment_method = create_payment_method_for_intent(

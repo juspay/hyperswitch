@@ -3652,6 +3652,26 @@ pub enum NetworkTokenStatusCheckResponse {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct NetworkTokenEligibilityRequest {
+    /// The card bin to retrieve information for
+    pub card_bin: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct GetNetworkTokenEiligibilityResponse {
+    /// Indicates if the card bin is eligible for network tokenization for the particular merchant
+    pub eligible_for_network_tokenization: bool,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for NetworkTokenEligibilityRequest {}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for GetNetworkTokenEiligibilityResponse {}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodGetTokenDetailsResponse {
     /// The payment method ID associated with the token

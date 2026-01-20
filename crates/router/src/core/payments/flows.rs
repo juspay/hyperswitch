@@ -99,6 +99,26 @@ pub trait Feature<F, T> {
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
+    /// In case of payment methods like gifcard, some connectors might support balance check API
+    /// This function can be overridden in those specific connectors to implement balance check flow
+    /// Authorize must be called only if balance is sufficient
+    async fn balance_check_flow<'a>(
+        &self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<types::BalanceCheckResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::BalanceCheckResult {
+            balance_check_result: Ok(None),
+            should_continue_payment: true,
+        })
+    }
+
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,
@@ -233,6 +253,21 @@ pub trait Feature<F, T> {
         _call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
+    }
+
+    async fn settlement_split_call<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        // By default, settlement split call is not required
+        Ok((self, true))
     }
 
     async fn create_order_at_connector(

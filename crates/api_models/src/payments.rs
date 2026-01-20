@@ -3828,6 +3828,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris,
         }
     }
 }
@@ -4628,25 +4629,57 @@ pub enum UpiData {
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.
+pub enum UpiSource {
+    /// UPI payment using a credit card
+    UpiCc,
+    /// UPI payment using a credit line
+    UpiCl,
+    /// UPI payment using a bank account (savings)
+    UpiAccount,
+    /// UPI payment using a combination of credit card and credit line
+    UpiCcCl,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
+    /// The Virtual Payment Address (VPA) for UPI collect payment
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiQrData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiIntentData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -4832,6 +4865,8 @@ pub enum RealTimePaymentData {
     PromptPay {},
     #[smithy(nested_value_type)]
     VietQr {},
+    #[smithy(nested_value_type)]
+    Qris {},
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -9623,9 +9658,20 @@ pub struct GpayMetaData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GpayMetaData>,
+    support_predecrypted_token: Option<bool>,
+}
+impl GooglePayDetailsWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "google_pay")]
-    pub data: GpayMetaData,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9791,14 +9837,35 @@ pub struct ApplepaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayCombinedWrapper {
+    #[serde(flatten)]
+    pub data: Option<ApplePayCombinedMetadata>,
+    support_predecrypted_token: Option<bool>,
+}
+impl ApplePayCombinedWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+    pub fn get_combined_metadata_required(
+        &self,
+    ) -> Result<ApplePayCombinedMetadata, ValidationError> {
+        self.data
+            .clone()
+            .ok_or(ValidationError::IncorrectValueProvided {
+                field_name: "metadata.apple_pay_combined",
+            })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayCombinedSessionTokenData {
-    pub apple_pay_combined: ApplePayCombinedMetadata,
+    pub apple_pay_combined: ApplePayCombinedWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepaySessionTokenMetadata {
-    ApplePayCombined(ApplePayCombinedMetadata),
+    ApplePayCombined(ApplePayCombinedWrapper),
     ApplePay(ApplePayMetadata),
 }
 
