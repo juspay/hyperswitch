@@ -961,6 +961,7 @@ impl<F>
             integrity_object: None,
             split_payments: None,
             webhook_url: None,
+            merchant_order_reference_id: item.request.merchant_order_reference_id,
         })
     }
 }
