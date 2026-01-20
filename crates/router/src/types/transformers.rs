@@ -385,7 +385,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Fps
             | api_enums::PaymentMethodType::DuitNow
             | api_enums::PaymentMethodType::PromptPay
-            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
+            | api_enums::PaymentMethodType::VietQr
+            | api_enums::PaymentMethodType::Qris => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
         }
@@ -714,6 +715,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             created_at: dispute.created_at,
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
+            is_already_refunded: false,
         }
     }
 }
@@ -760,6 +762,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
             dispute_id: dispute.dispute_id,
+            amount: dispute.amount,
             dispute_stage: dispute.dispute_stage,
             dispute_status: dispute.dispute_status,
             connector_status: dispute.connector_status,

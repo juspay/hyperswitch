@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v1")]
 use api_models::payments::BrowserInformation;
-use common_enums::enums::PaymentMethod;
+use common_enums::enums::{PaymentMethod, RoutingRegion};
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     types::keymanager::ToEncryptable,
@@ -16,10 +16,11 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::{
-        PostAuthenticationDetails, UasAuthenticationResponseData,
+        PostAuthenticationDetails, UasAuthenticationResponseData, UasWebhookRequestData,
     },
     type_encryption::AsyncLift,
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
@@ -315,7 +316,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
-                        payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -384,7 +385,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .and_then(|details| details.dynamic_data_value)
                     .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
-                        payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val,
                             None,
@@ -414,6 +415,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 ApiErrorResponse::InternalServerError,
             )
             .attach_printable("unexpected api confirmation in external authentication flow."),
+            UasAuthenticationResponseData::Webhook { .. } => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("unexpected api webhook in external authentication flow.")
+            }
         },
         Err(error) => Ok(
             hyperswitch_domain_models::authentication::AuthenticationUpdate::ErrorUpdate {
@@ -614,4 +619,111 @@ pub fn get_authentication_payment_method_data<F, Req>(
     } else {
         None
     }
+}
+
+pub fn get_webhook_request_data_for_uas(
+    request: &IncomingWebhookRequestDetails<'_>,
+    routing_region: Option<RoutingRegion>,
+) -> UasWebhookRequestData {
+    UasWebhookRequestData {
+        body: request.body.to_vec(),
+        routing_region,
+    }
+}
+
+pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
+    state: &SessionState,
+    authentication_connector_name: String,
+    request_data: Req,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+) -> RouterResult<RouterData<F, Req, Res>> {
+    let merchant_id = common_utils::id_type::MerchantId::get_irrelevant_merchant_id();
+    Ok(RouterData {
+        flow: PhantomData,
+        merchant_id,
+        customer_id: None,
+        connector_customer: None,
+        connector: authentication_connector_name,
+        payment_id: payment_id
+            .map(|payment_id| payment_id.get_string_repr().to_owned())
+            .unwrap_or_default(),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        status: common_enums::AttemptStatus::default(),
+        payment_method: PaymentMethod::default(),
+        connector_auth_type: ConnectorAuthType::NoKey,
+        description: None,
+        address: PaymentAddress::default(),
+        auth_type: common_enums::AuthenticationType::default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request: request_data,
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id:
+            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        payment_method_status: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        tenant_id: state.tenant.tenant_id.clone(),
+        payment_method_type: None,
+        payout_id: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
+        l2_l3_data: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+    })
+}
+
+pub async fn fetch_routing_region_for_uas(
+    state: &SessionState,
+    merchant_id: common_utils::id_type::MerchantId,
+    organization_id: common_utils::id_type::OrganizationId,
+) -> RouterResult<RoutingRegion> {
+    let merchant_path =
+        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
+
+    Ok(merchant_path
+        .async_unwrap_or_else(|| async {
+            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
+                .await
+                .unwrap_or(RoutingRegion::Region1)
+        })
+        .await)
+}
+
+async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
+    let db = &*state.store;
+    db.find_config_by_key(key)
+        .await
+        .inspect_err(|err| {
+            router_env::logger::error!("Failed to fetch region for key as {err}");
+        })
+        .ok()
+        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }

@@ -6,10 +6,19 @@ use hyperswitch_domain_models::{
     router_data::{
         AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodBalance, RouterData,
     },
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, PreprocessingResponseId, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        GiftCardBalanceCheck,
+    },
+    router_request_types::{GiftCardBalanceCheckRequestData, ResponseId},
+    router_response_types::{
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, PreprocessingResponseId,
+        RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
 use masking::Secret;
@@ -97,6 +106,42 @@ pub struct BlackhawknetworkVerifyAccountRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_date: Option<Secret<String>>,
 }
+impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for BlackhawknetworkVerifyAccountRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsGiftCardBalanceCheckRouterData) -> Result<Self, Self::Error> {
+        let auth = BlackhawknetworkAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let gift_card_data = match &item.request.payment_method_data {
+            PaymentMethodData::GiftCard(gc) => match gc.as_ref() {
+                GiftCardData::BhnCardNetwork(data) => data,
+                _ => {
+                    return Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "BlackHawkNetwork".to_string(),
+                    }
+                    .into())
+                }
+            },
+            _ => {
+                return Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "Balance".to_string(),
+                    connector: "BlackHawkNetwork".to_string(),
+                }
+                .into())
+            }
+        };
+
+        Ok(Self {
+            account_number: gift_card_data.account_number.clone(),
+            product_line_id: auth.product_line_id,
+            account_type: AccountType::GiftCard,
+            pin: gift_card_data.pin.clone(),
+            cvv2: gift_card_data.cvv2.clone(),
+            expiration_date: gift_card_data.expiration_date.clone().map(Secret::new),
+        })
+    }
+}
 impl TryFrom<&PaymentsPreProcessingRouterData> for BlackhawknetworkVerifyAccountRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
@@ -130,6 +175,40 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for BlackhawknetworkVerifyAccount
             pin: gift_card_data.pin.clone(),
             cvv2: gift_card_data.cvv2.clone(),
             expiration_date: gift_card_data.expiration_date.clone().map(Secret::new),
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            GiftCardBalanceCheck,
+            BlackhawknetworkVerifyAccountResponse,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
+    >
+    for RouterData<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            GiftCardBalanceCheck,
+            BlackhawknetworkVerifyAccountResponse,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(GiftCardBalanceCheckResponseData {
+                currency: item.response.account.currency,
+                balance: item.response.account.balance,
+            }),
+            ..item.data
         })
     }
 }
