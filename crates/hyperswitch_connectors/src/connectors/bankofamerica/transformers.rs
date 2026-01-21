@@ -345,6 +345,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
@@ -438,6 +439,7 @@ impl<F, T>
                                     .unwrap_or(info_response.id),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                     },
@@ -1147,6 +1149,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
@@ -1659,6 +1662,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         }
@@ -1918,6 +1922,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         connector_response,
@@ -1935,6 +1940,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data

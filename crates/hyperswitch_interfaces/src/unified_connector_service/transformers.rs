@@ -247,6 +247,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,

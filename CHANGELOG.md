@@ -4,6 +4,42 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.21.1
+
+### Features
+
+- **core:** MIT using Limited Card Data ([#10965](https://github.com/juspay/hyperswitch/pull/10965)) ([`662f63f`](https://github.com/juspay/hyperswitch/commit/662f63f3e07f9b2999ea89246a149765f49a133d))
+
+### Bug Fixes
+
+- **router:** Change role info not found in redis error from 5xx to 4xx ([#10949](https://github.com/juspay/hyperswitch/pull/10949)) ([`6e3e968`](https://github.com/juspay/hyperswitch/commit/6e3e9684f57aaa48ebee00bb2249df2205c09468))
+
+### Miscellaneous Tasks
+
+- Added authentication data field in transaction response ([#10995](https://github.com/juspay/hyperswitch/pull/10995)) ([`5f49c17`](https://github.com/juspay/hyperswitch/commit/5f49c1745165600b14e82d6aefebd349e18f3a27))
+
+**Full Changelog:** [`2026.01.21.0...2026.01.21.1`](https://github.com/juspay/hyperswitch/compare/2026.01.21.0...2026.01.21.1)
+
+- - -
+
+## 2026.01.21.0
+
+### Features
+
+- **auth:** Distinguish platform self-operations from connected-scope operations ([#10913](https://github.com/juspay/hyperswitch/pull/10913)) ([`95d07db`](https://github.com/juspay/hyperswitch/commit/95d07db7be717b1dd1a5a87cc8e2829331137431))
+- **connector:**
+  - Enable order create for nordea ([#10945](https://github.com/juspay/hyperswitch/pull/10945)) ([`fe5753f`](https://github.com/juspay/hyperswitch/commit/fe5753f522dd4247ec25fe497b644c1d66c9dee6))
+  - [CYBERSOURCE] pass merchant order reference id in payment request ([#10723](https://github.com/juspay/hyperswitch/pull/10723)) ([`15d0d53`](https://github.com/juspay/hyperswitch/commit/15d0d5350a4edffbb820d3026cb888fc7510a6bb))
+- **core:** Extend Support for whole_connector_response in Cancel Flow ([#10981](https://github.com/juspay/hyperswitch/pull/10981)) ([`7509f40`](https://github.com/juspay/hyperswitch/commit/7509f40c32f53865c5e8bef3e0e127952aa99353))
+
+### Miscellaneous Tasks
+
+- **wasm:** [Peachpayments] Add WASM Changes for Peachpayments Network Token Flow ([#10958](https://github.com/juspay/hyperswitch/pull/10958)) ([`0bdff23`](https://github.com/juspay/hyperswitch/commit/0bdff23bea758d438027cdde7344103adaf3726b))
+
+**Full Changelog:** [`2026.01.20.0...2026.01.21.0`](https://github.com/juspay/hyperswitch/compare/2026.01.20.0...2026.01.21.0)
+
+- - -
+
 ## 2026.01.20.0
 
 ### Features

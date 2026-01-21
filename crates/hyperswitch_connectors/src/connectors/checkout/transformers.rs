@@ -170,6 +170,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -1191,6 +1192,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
 
@@ -1306,6 +1308,7 @@ impl
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
@@ -1383,6 +1386,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
@@ -1457,6 +1461,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status: response.into(),
@@ -1559,6 +1564,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status,
