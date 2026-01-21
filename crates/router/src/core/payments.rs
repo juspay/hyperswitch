@@ -3704,13 +3704,13 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         connector: String,
         payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id().clone();
+        let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
 
         let payment_intent = state
             .store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                &merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
             )
@@ -3718,9 +3718,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let payment_attempt = state
             .store
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 &payment_intent.active_attempt.get_id(),
-                &merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
             )
@@ -3734,7 +3734,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         let authentication = state
             .store
             .find_authentication_by_merchant_id_authentication_id(
-                &merchant_id,
+                &processor_merchant_id,
                 &authentication_id,
                 platform.get_processor().get_key_store(),
                 key_manager_state,
@@ -3746,7 +3746,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
-            &merchant_id,
+            &processor_merchant_id,
             None,
             platform.get_processor().get_key_store(),
             &payment_intent
@@ -3850,7 +3850,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         // When intent status is RequiresCustomerAction, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
         if payments_response.status == common_enums::IntentStatus::RequiresCustomerAction {
             let req_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_id);
-            let poll_id = core_utils::get_poll_id(&merchant_id, req_poll_id.clone());
+            let poll_id = core_utils::get_poll_id(&processor_merchant_id, req_poll_id.clone());
             let redis_conn = state
                 .store
                 .get_redis_conn()
@@ -8062,7 +8062,7 @@ impl PaymentEligibilityData {
             .map(pii::SecretSerdeValue::new);
         let payment_intent = state
             .store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payments_eligibility_request.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -8289,12 +8289,12 @@ pub async fn list_payments(
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     helpers::validate_payment_list_request(&constraints)?;
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
         &state,
         &(constraints, profile_id_list).try_into()?,
-        merchant_id,
+        processor_merchant_id,
         platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
     )
@@ -8304,9 +8304,9 @@ pub async fn list_payments(
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
             match db
-                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &pi.payment_id,
-                    merchant_id,
+                    processor_merchant_id,
                     &pi.active_attempt.get_id(),
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
@@ -10700,13 +10700,13 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
 
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_key_store(),
             storage_scheme,
         )
@@ -10714,9 +10714,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            merchant_id,
+            processor_merchant_id,
             &attempt_id.clone(),
             storage_scheme,
             platform.get_processor().get_key_store(),
@@ -10766,7 +10766,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         &state,
         None,
         payment_intent.shipping_address_id.as_deref(),
-        merchant_id,
+        processor_merchant_id,
         payment_intent.customer_id.as_ref(),
         platform.get_processor().get_key_store(),
         &payment_intent.payment_id,
@@ -10780,7 +10780,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .payment_method_billing_address_id
             .as_deref()
             .or(payment_intent.billing_address_id.as_deref()),
-        merchant_id,
+        processor_merchant_id,
         payment_intent.customer_id.as_ref(),
         platform.get_processor().get_key_store(),
         &payment_intent.payment_id,
@@ -10794,7 +10794,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .attach_printable("authentication_connector not found in payment_attempt")?;
     let merchant_connector_account = helpers::get_merchant_connector_account(
         &state,
-        merchant_id,
+        processor_merchant_id,
         None,
         platform.get_processor().get_key_store(),
         profile_id,
@@ -10805,7 +10805,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
-            merchant_id,
+            processor_merchant_id,
             &payment_attempt
                 .authentication_id
                 .clone()
@@ -10862,7 +10862,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let webhook_url = helpers::create_webhook_url(
         &state.base_url,
-        merchant_id,
+        processor_merchant_id,
         merchant_connector_account_id_or_connector_name,
     );
 
@@ -10880,7 +10880,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     {
         let routing_region = uas_utils::fetch_routing_region_for_uas(
             &state,
-            merchant_id.clone(),
+            processor_merchant_id.clone(),
             platform
                 .get_processor()
                 .get_account()
@@ -11106,7 +11106,7 @@ pub async fn payments_manual_update(
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
     let payment_attempt = state
         .store
-        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_id,
             &merchant_id,
             &attempt_id.clone(),
@@ -11132,7 +11132,7 @@ pub async fn payments_manual_update(
 
     let payment_intent = state
         .store
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
             merchant_account.get_id(),
             &key_store,

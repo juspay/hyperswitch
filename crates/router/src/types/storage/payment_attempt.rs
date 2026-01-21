@@ -382,7 +382,7 @@ mod tests {
             .unwrap();
 
         let response = store
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
                 &attempt_id,
@@ -514,7 +514,7 @@ mod tests {
             .unwrap();
 
         let response = store
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
                 &uuid,

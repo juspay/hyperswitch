@@ -2350,18 +2350,9 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let initiator = Some(domain::Initiator::Api {
-            merchant_id: merchant.get_id().clone(),
-            merchant_account_type: merchant.merchant_account_type,
-        });
 
-        let platform = domain::Platform::new(
-            merchant.clone(),
-            key_store.clone(),
-            merchant,
-            key_store,
-            initiator,
-        );
+        let platform =
+            resolve_platform(state, request_headers, merchant.clone(), key_store).await?;
 
         let auth = AuthenticationData {
             platform,
