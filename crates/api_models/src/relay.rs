@@ -25,6 +25,7 @@ pub struct RelayRequest {
 pub enum RelayData {
     /// The data that is associated with a refund relay request
     Refund(RelayRefundRequestData),
+    Capture(RelayCaptureRequestData),
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -38,6 +39,19 @@ pub struct RelayRefundRequestData {
     /// The reason for the refund
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayCaptureRequestData {
+    /// The amount that is authorized for capture
+    #[schema(value_type = i64 , example = 6540)]
+    pub authorized_amount: MinorUnit,
+    /// The amount that is being captured
+    #[schema(value_type = i64 , example = 6540)]
+    pub amount_to_capture: MinorUnit,
+    /// The currency in which the amount is being refunded
+    #[schema(value_type = Currency)]
+    pub currency: api_enums::Currency,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

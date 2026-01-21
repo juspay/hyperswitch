@@ -12,7 +12,10 @@ use masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{router_data::ErrorResponse, router_response_types};
+use crate::{
+    errors::api_error_response::ApiErrorResponse, router_data::ErrorResponse,
+    router_request_types::ResponseId, router_response_types,
+};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Relay {
@@ -70,6 +73,13 @@ impl From<api_models::relay::RelayData> for RelayData {
                     reason: relay_refund_request.reason,
                 })
             }
+            api_models::relay::RelayData::Capture(relay_capture_request) => {
+                Self::Capture(RelayCaptureData {
+                    authorized_amount: relay_capture_request.authorized_amount,
+                    amount_to_capture: relay_capture_request.amount_to_capture,
+                    currency: relay_capture_request.currency,
+                })
+            }
         }
     }
 }
@@ -80,6 +90,16 @@ impl From<api_models::relay::RelayRefundRequestData> for RelayRefundData {
             amount: relay.amount,
             currency: relay.currency,
             reason: relay.reason,
+        }
+    }
+}
+
+impl From<api_models::relay::RelayCaptureRequestData> for RelayCaptureData {
+    fn from(relay: api_models::relay::RelayCaptureRequestData) -> Self {
+        Self {
+            authorized_amount: relay.authorized_amount,
+            amount_to_capture: relay.amount_to_capture,
+            currency: relay.currency,
         }
     }
 }
@@ -102,6 +122,74 @@ impl RelayUpdate {
     }
 }
 
+impl RelayUpdate {
+    pub fn try_from(
+        (status, connector_resource_id, response): (
+            common_enums::AttemptStatus,
+            String,
+            Result<router_response_types::PaymentsResponseData, ErrorResponse>,
+        ),
+    ) -> CustomResult<Self, ApiErrorResponse> {
+        match response {
+            Err(error) => Ok(Self::ErrorUpdate {
+                error_code: error.code,
+                error_message: error.reason.unwrap_or(error.message),
+                status: common_enums::RelayStatus::Failure,
+            }),
+            Ok(response) => match response {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    ..
+                } => Ok(Self::StatusUpdate {
+                    connector_reference_id: Self::get_connector_reference_id(resource_id),
+                    status: common_enums::RelayStatus::from(status),
+                }),
+                router_response_types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                } => {
+                    let data = capture_sync_response_list
+                        .get(&connector_resource_id)
+                        .ok_or(ApiErrorResponse::MissingRequiredField {
+                            field_name: "connector_transaction_id",
+                        })?;
+
+                    match data.to_owned() {
+                        router_response_types::CaptureSyncResponse::Success {
+                            resource_id,
+                            status,
+                            ..
+                        } => Ok(Self::StatusUpdate {
+                            connector_reference_id: Self::get_connector_reference_id(resource_id),
+                            status: common_enums::RelayStatus::from(status),
+                        }),
+                        router_response_types::CaptureSyncResponse::Error {
+                            code,
+                            reason,
+                            message,
+                            ..
+                        } => Ok(Self::ErrorUpdate {
+                            error_code: code,
+                            error_message: reason.unwrap_or(message),
+                            status: common_enums::RelayStatus::Failure,
+                        }),
+                    }
+                }
+                _ => Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment Response Not Supported"),
+            },
+        }
+    }
+
+    pub fn get_connector_reference_id(resource_id: ResponseId) -> Option<String> {
+        match resource_id {
+            ResponseId::ConnectorTransactionId(connector_transaction_id) => {
+                Some(connector_transaction_id)
+            }
+            ResponseId::EncodedData(_) | ResponseId::NoResponseId => None,
+        }
+    }
+}
+
 impl From<RelayData> for api_models::relay::RelayData {
     fn from(relay: RelayData) -> Self {
         match relay {
@@ -110,6 +198,13 @@ impl From<RelayData> for api_models::relay::RelayData {
                     amount: relay_refund_request.amount,
                     currency: relay_refund_request.currency,
                     reason: relay_refund_request.reason,
+                })
+            }
+            RelayData::Capture(relay_capture_request) => {
+                Self::Capture(api_models::relay::RelayCaptureRequestData {
+                    authorized_amount: relay_capture_request.authorized_amount,
+                    amount_to_capture: relay_capture_request.amount_to_capture,
+                    currency: relay_capture_request.currency,
                 })
             }
         }
@@ -136,6 +231,13 @@ impl From<Relay> for api_models::relay::RelayResponse {
                     reason: relay_refund_request.reason,
                 })
             }
+            RelayData::Capture(relay_capture_request) => {
+                api_models::relay::RelayData::Capture(api_models::relay::RelayCaptureRequestData {
+                    authorized_amount: relay_capture_request.authorized_amount,
+                    amount_to_capture: relay_capture_request.amount_to_capture,
+                    currency: relay_capture_request.currency,
+                })
+            }
         });
         Self {
             id: value.id,
@@ -155,6 +257,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
 #[serde(rename_all = "snake_case", untagged)]
 pub enum RelayData {
     Refund(RelayRefundData),
+    Capture(RelayCaptureData),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -162,6 +265,13 @@ pub struct RelayRefundData {
     pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RelayCaptureData {
+    pub authorized_amount: MinorUnit,
+    pub amount_to_capture: MinorUnit,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug)]
