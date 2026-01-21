@@ -78,18 +78,26 @@ pub struct RetrievePaymentMethodV2Response {
 pub struct ConnectorTokenDetails {
     /// The unique identifier of the connector account through which the token was generated
     pub connector_id: id_type::MerchantConnectorAccountId,
+
     /// The type of tokenization used
     pub token_type: common_enums::TokenizationType,
+
     /// The status of connector token if it is active or inactive
     pub status: common_enums::ConnectorTokenStatus,
+
     /// The reference id of the connector token
     /// This is the reference that was passed to connector when creating the token
     pub connector_token_request_reference_id: Option<String>,
+
+    /// The original payment authorized amount
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
+
     /// The currency of the original payment authorized amount
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+
     /// Metadata associated with the connector token
     pub metadata: Option<pii::SecretSerdeValue>,
+
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: masking::Secret<String>,
 }
@@ -97,13 +105,17 @@ pub struct ConnectorTokenDetails {
 /// V2 NetworkTokenResponse (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct NetworkTokenResponse {
+    /// The payment method details related to the network token
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct CardCVCTokenStorageDetails {
+     /// Indicates whether the card cvc is stored or not
     pub is_stored: bool,
+
+    /// A timestamp (ISO 8601 code) that determines expiry for stored card cvc token
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<time::PrimitiveDateTime>,
 }
@@ -114,25 +126,51 @@ pub struct CardCVCTokenStorageDetails {
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
+    /// Card payment method data
     Card(CardDetailFromLockerV2),
 }
 
 /// V2 CardDetailFromLocker for deserialization
 #[derive(Clone, Debug, Deserialize)]
 pub struct CardDetailFromLockerV2 {
+    ///Country code of the card issuer
     pub issuer_country: Option<common_enums::CountryAlpha2>,
+
+    ///Last 4 digits of the card number
     pub last4_digits: Option<String>,
+
     #[serde(skip)]
+    /// Full card number (masked)
     pub card_number: Option<CardNumber>,
+
+    /// Expiry month of the card
     pub expiry_month: Option<masking::Secret<String>>,
+
+    /// Expiry year of the card
     pub expiry_year: Option<masking::Secret<String>>,
+
+    /// Card holder name
     pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card fingerprint
     pub card_fingerprint: Option<masking::Secret<String>>,
+
+    /// Nickname for the card
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card network
     pub card_network: Option<common_enums::CardNetwork>,
+
+    /// Card ISIN
     pub card_isin: Option<String>,
+
+    /// Card issuer
     pub card_issuer: Option<String>,
+
+    /// Card type
     pub card_type: Option<String>,
+
+    /// Indicates if the card is saved to locker
     pub saved_to_locker: bool,
 }
 
@@ -141,20 +179,28 @@ pub struct CardDetailFromLockerV2 {
 pub struct RetrievePaymentMethodResponse {
     /// V1 payment method identifier.
     pub payment_method_id: String,
+
     /// Merchant ID.
     pub merchant_id: id_type::MerchantId,
+
     /// Customer ID.
     pub customer_id: Option<id_type::CustomerId>,
+
     /// Payment method type.
     pub payment_method: Option<PaymentMethod>,
+
     /// Payment method subtype.
     pub payment_method_type: Option<PaymentMethodType>,
+
     /// Card details.
     pub card: Option<CardDetailFromLocker>,
+
     /// Recurring enabled.
     pub recurring_enabled: Option<bool>,
+
     /// Created timestamp.
     pub created: Option<time::PrimitiveDateTime>,
+    
     /// Last used timestamp.
     pub last_used_at: Option<time::PrimitiveDateTime>,
 }
@@ -192,14 +238,14 @@ impl TryFrom<RetrievePaymentMethodV2Response> for RetrievePaymentMethodResponse 
         // Convert card details from V2 to V1 format
         let card = v2_resp.payment_method_data.map(|pmd| match pmd {
             PaymentMethodResponseData::Card(v2_card) => CardDetailFromLocker {
-                scheme: None, // V2 doesn't have this field
+                scheme: None,
                 issuer_country: v2_card.issuer_country.map(|c| c.to_string()),
-                issuer_country_code: None, // V2 doesn't have this field
+                issuer_country_code: None,
                 last4_digits: v2_card.last4_digits,
                 card_number: v2_card.card_number,
                 expiry_month: v2_card.expiry_month,
                 expiry_year: v2_card.expiry_year,
-                card_token: None, // V2 doesn't have this field
+                card_token: None,
                 card_holder_name: v2_card.card_holder_name,
                 card_fingerprint: v2_card.card_fingerprint,
                 nick_name: v2_card.nick_name,
