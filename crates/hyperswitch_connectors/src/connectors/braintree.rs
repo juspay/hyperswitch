@@ -1559,7 +1559,7 @@ impl ConnectorSpecifications for Braintree {
         match current_flow {
             api::CurrentFlowInfo::Authorize { auth_type, .. } => auth_type.is_three_ds(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type: _ } => todo!(),
+            api::CurrentFlowInfo::SetupMandate { auth_type: _, .. } => todo!(),
         }
     }
 }
