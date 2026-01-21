@@ -50,7 +50,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -71,7 +71,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -87,7 +87,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -291,7 +291,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -588,6 +588,7 @@ fn transform_response_for_authenticate_flow(
                 network_txn_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
+                authentication_data,
                 charges,
             },
         ) => {
@@ -611,6 +612,7 @@ fn transform_response_for_authenticate_flow(
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
+                    authentication_data,
                     charges,
                 },
             )
@@ -631,7 +633,7 @@ pub async fn call_unified_connector_service_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -660,7 +662,7 @@ pub async fn call_unified_connector_service_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
@@ -754,7 +756,7 @@ pub async fn call_unified_connector_service_post_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
@@ -782,7 +784,7 @@ pub async fn call_unified_connector_service_post_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

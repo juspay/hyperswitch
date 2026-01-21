@@ -7,7 +7,7 @@
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Platform};
+use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
@@ -19,8 +19,8 @@ use crate::core::payments::helpers;
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
-    /// Merchant context (merchant_id, profile_id, etc.)
-    pub platform: Platform,
+    /// Processor context for payment execution
+    pub processor: Processor,
 
     /// Header payload (x-reference-id, etc.)
     pub header_payload: HeaderPayload,
@@ -46,7 +46,7 @@ pub struct RouterGatewayContext {
 
 impl RouterGatewayContext {
     pub fn new(
-        platform: Platform,
+        processor: Processor,
         header_payload: HeaderPayload,
         business_profile: &business_profile::Profile,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
@@ -66,7 +66,7 @@ impl RouterGatewayContext {
             ExecutionPath::Direct => ExecutionMode::NotApplicable,
         };
         Self {
-            platform,
+            processor,
             header_payload,
             lineage_ids,
             merchant_connector_account,
@@ -76,7 +76,7 @@ impl RouterGatewayContext {
         }
     }
     pub fn direct(
-        platform: Platform,
+        processor: Processor,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
@@ -86,7 +86,7 @@ impl RouterGatewayContext {
     ) -> Self {
         let lineage_ids = LineageIds::new(merchant_id, profile_id);
         Self {
-            platform,
+            processor,
             header_payload: HeaderPayload::default(),
             lineage_ids,
             merchant_connector_account,
