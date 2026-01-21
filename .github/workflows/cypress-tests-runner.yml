@@ -236,10 +236,6 @@ jobs:
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
-      - name : exit the runner
-        shell: bash
-        run: exit 1
-
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v5
