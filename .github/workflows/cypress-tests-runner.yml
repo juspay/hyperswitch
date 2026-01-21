@@ -392,7 +392,7 @@ jobs:
 
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
-    needs: [mandatory-cypress-tests-runner]
+    needs: [mandatory-cypress-tests-runners]
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'merge_group' ||
@@ -407,10 +407,10 @@ jobs:
       - name: Evaluate Matrix Results
         shell: bash
         run: |
-          RESULT="${{ needs.mandatory-cypress-tests-runner.result }}"
+          RESULT="${{ needs.mandatory-cypress-tests-runners.result }}"
           RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
-          echo "mandatory-cypress-tests-runner result: $RESULT"
+          echo "mandatory-cypress-tests-runners result: $RESULT"
           echo "Run tests env: $RUN_TESTS_VAL"
 
           if [ "$RUN_TESTS_VAL" == "false" ]; then
