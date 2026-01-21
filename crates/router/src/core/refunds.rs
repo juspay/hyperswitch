@@ -87,29 +87,14 @@ pub async fn refund_create_core(
         },
     )?;
 
-    utils::when(
-        payment_intent
-            .state_metadata
-            .as_ref()
-            .map(|state_metadata| state_metadata.is_post_capture_void_applied())
-            .unwrap_or(false),
-        || {
-            Err(error_stack::report!(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "Refund void cannot be performed after a post-capture void has been issued"
-                            .into()
-                }
-            ))
-        },
-    )?;
-
     payment_intent
         .validate_amount_against_intent_state_metadata(req.amount)
         .map_err(|err| {
             err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
                 .attach_printable("refund amount validation against payment intent failed")
         })?;
+
+    payment_intent.prevent_refund_after_post_capture_void();
 
     // Amount is not passed in request refer from payment intent.
     amount = req

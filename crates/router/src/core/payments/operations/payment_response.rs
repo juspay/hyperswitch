@@ -2108,24 +2108,46 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     connector_reference_id,
                                 };
 
+                            tokio::spawn({
+                                let m_state = state.clone();
+                                let state_metadata = payment_data
+                                    .payment_intent
+                                    .state_metadata
+                                    .clone()
+                                    .unwrap_or_default();
+                                let m_processor = processor.clone();
+
+                                async move {
+                                    if let Err(err) =
+                                        PaymentIntentStateMetadataExt::from(state_metadata)
+                                            .update_intent_state_metadata_for_post_capture_void(
+                                                &m_state,
+                                                &m_processor,
+                                                &payment_data.payment_intent,
+                                                post_capture_void_response,
+                                            )
+                                            .await
+                                    {
+                                        logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata after dispute lost"
+                        );
+                                    }
+                                }
+                            });
+
                             let m_db = state.clone().store;
+                            let m_key_store = processor.get_key_store().clone();
 
                             let merchant_account = m_db
                                 .find_merchant_account_by_merchant_id(
-                                    &key_store.merchant_id,
-                                    &key_store,
+                                    &m_key_store.merchant_id,
+                                    &m_key_store,
                                 )
                                 .await
                                 .to_not_found_response(
                                     errors::ApiErrorResponse::MerchantAccountNotFound,
                                 )?;
-
-                            let platform = domain::Platform::new(
-                                merchant_account.clone(),
-                                key_store.clone(),
-                                merchant_account.clone(),
-                                key_store.clone(),
-                            );
 
                             PaymentIntentStateMetadataExt::from(
                                 payment_data
@@ -2136,7 +2158,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             )
                             .update_intent_state_metadata_for_post_capture_void(
                                 &state,
-                                &platform,
+                                &processor,
                                 &payment_data.payment_intent,
                                 post_capture_void_response,
                             )

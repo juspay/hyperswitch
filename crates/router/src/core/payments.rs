@@ -13806,13 +13806,16 @@ impl PaymentIntentStateMetadataExt {
     pub async fn update_intent_state_metadata_for_post_capture_void(
         self,
         state: &SessionState,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         payment_intent: &payments::PaymentIntent,
         post_capture_void_status: common_types::domain::PostCaptureVoidData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.clone();
-        let key_store = platform.get_processor().get_key_store().clone();
-        let merchant_account = platform.get_processor().get_account().clone();
+        let key_store = processor.get_key_store().clone();
+        let merchant_account = db
+            .find_merchant_account_by_merchant_id(&key_store.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
         let current_state = payment_intent
             .state_metadata
