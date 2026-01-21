@@ -112,7 +112,7 @@ pub struct NetworkTokenResponse {
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct CardCVCTokenStorageDetails {
-     /// Indicates whether the card cvc is stored or not
+    /// Indicates whether the card cvc is stored or not
     pub is_stored: bool,
 
     /// A timestamp (ISO 8601 code) that determines expiry for stored card cvc token
@@ -200,7 +200,7 @@ pub struct RetrievePaymentMethodResponse {
 
     /// Created timestamp.
     pub created: Option<time::PrimitiveDateTime>,
-    
+
     /// Last used timestamp.
     pub last_used_at: Option<time::PrimitiveDateTime>,
 }
