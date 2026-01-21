@@ -94,6 +94,9 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -150,6 +153,11 @@ jobs:
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    permissions:
+      pull-requests: write
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -334,6 +342,13 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
+
+      - name: Remove S-test-ready label on failure of mandatory Cypress tests 
+        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
 
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
@@ -577,6 +592,8 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
+    if: |
+      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -782,8 +799,12 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     permissions:
+      pull-requests: write
       contents: read
     env:
       CODECOV_FILE: "lcov.info"

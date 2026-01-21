@@ -314,6 +314,7 @@ convert_connector_response_to_domain_response!(
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

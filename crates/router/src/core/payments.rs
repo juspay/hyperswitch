@@ -1418,6 +1418,13 @@ where
         )
         .await?;
 
+    validate_for_proxy_payment(
+        state,
+        &payment_data,
+        platform.get_processor().get_account().get_id(),
+    )
+    .await?;
+
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
@@ -1439,7 +1446,7 @@ where
         )
         .await?;
 
-    let connector = set_eligible_connector_for_nti_in_payment_data(
+    let connector = set_eligible_connector_for_proxy_in_payment_data(
         state,
         &business_profile,
         platform.get_processor().get_key_store(),
@@ -8034,6 +8041,7 @@ where
         .map(|mandate_reference| match mandate_reference {
             api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
             api_models::payments::MandateReferenceId::NetworkMandateId(_)
+            | api_models::payments::MandateReferenceId::CardWithLimitedData
             | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);
@@ -9273,7 +9281,7 @@ where
     Ok(connector)
 }
 
-async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
+async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
@@ -9294,20 +9302,12 @@ where
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
         .attach_printable("Failed to fetch recurring details for mit")?;
 
-    let network_transaction_id_supported_connectors = &state
-        .conf
-        .network_transaction_id_supported_connectors
-        .connector_list
-        .iter()
-        .map(|value| value.to_string())
-        .collect::<HashSet<_>>();
+    let proxy_connector_filters = get_proxy_connector_filters(state, recurring_payment_details)?;
 
     let eligible_connector_data_list = connector_choice
         .get_routable_connectors(&*state.store, business_profile)
         .await?
-        .filter_network_transaction_id_flow_supported_connectors(
-            network_transaction_id_supported_connectors.to_owned(),
-        )
+        .filter_proxy_flow_supported_connectors(proxy_connector_filters)
         .construct_dsl_and_perform_eligibility_analysis(
             state,
             key_store,
@@ -9326,12 +9326,7 @@ where
 
     let recurring_details = domain_recurring_details::try_from(recurring_payment_details.clone())?;
     let (mandate_reference_id, payment_method_details_for_network_transaction_id) =
-        recurring_details
-            .get_nti_and_payment_method_data_for_mit_flow()
-            .get_required_value("network transaction id and payment method details")
-            .attach_printable(
-                "Failed to fetch network transaction id and payment method details for mit",
-            )?;
+        recurring_details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()?;
     Ok((
         mandate_reference_id,
         payment_method_details_for_network_transaction_id,
@@ -9339,7 +9334,38 @@ where
     ))
 }
 
-pub async fn set_eligible_connector_for_nti_in_payment_data<F, D>(
+pub fn get_proxy_connector_filters(
+    state: &SessionState,
+    recurring_details: &RecurringDetails,
+) -> RouterResult<HashSet<String>> {
+    match recurring_details {
+        RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
+            .conf
+            .network_transaction_id_supported_connectors
+            .connector_list
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>()),
+        RecurringDetails::CardWithLimitedData(_) => Ok(state
+            .conf
+            .card_only_mit_supported_connectors
+            .connector_list
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>()),
+        RecurringDetails::MandateId(_)
+        | RecurringDetails::PaymentMethodId(_)
+        | RecurringDetails::ProcessorPaymentToken(_) => {
+            Err(errors::ApiErrorResponse::NotSupported {
+                message: "Recurring Flow via Proxy not Supported".to_string(),
+            }
+            .into())
+        }
+    }
+}
+
+pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
@@ -9350,37 +9376,34 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let (
-        mandate_reference_id,
-        payment_method_details_for_network_transaction_id,
-        eligible_connector_data,
-    ) = match connector_choice {
-        api::ConnectorChoice::StraightThrough(straight_through) => {
-            get_eligible_connector_for_nti(
-                state,
-                key_store,
-                payment_data,
-                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                business_profile,
-            )
-            .await?
-        }
-        api::ConnectorChoice::Decide => {
-            get_eligible_connector_for_nti(
-                state,
-                key_store,
-                payment_data,
-                core_routing::DecideConnector,
-                business_profile,
-            )
-            .await?
-        }
-        api::ConnectorChoice::SessionMultiple(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Invalid routing rule configured for nti and card details based mit flow",
-            )?
-        }
-    };
+    let (mandate_reference_id, payment_method_details, eligible_connector_data) =
+        match connector_choice {
+            api::ConnectorChoice::StraightThrough(straight_through) => {
+                get_eligible_connector_for_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    business_profile,
+                )
+                .await?
+            }
+            api::ConnectorChoice::Decide => {
+                get_eligible_connector_for_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    business_profile,
+                )
+                .await?
+            }
+            api::ConnectorChoice::SessionMultiple(_) => {
+                Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid routing rule configured for nti and card details based mit flow",
+                )?
+            }
+        };
 
     // Set the eligible connector in the attempt
     payment_data
@@ -9393,9 +9416,51 @@ where
     });
 
     // Set the card details received in the recurring details within the payment method data.
-    payment_data.set_payment_method_data(Some(payment_method_details_for_network_transaction_id));
+    payment_data.set_payment_method_data(Some(payment_method_details));
 
     Ok(eligible_connector_data)
+}
+
+pub async fn validate_for_proxy_payment<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+    merchant_id: &id_type::MerchantId,
+) -> RouterResult<()>
+where
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let is_card_limited_details_flow = payment_data
+        .get_recurring_details()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("Failed to fetch recurring details for mit")?
+        .clone()
+        .is_card_limited_details_flow();
+
+    let db = &*state.store;
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &merchant_id.get_should_enable_mit_with_limited_card_data(),
+            Some("false".to_string()),
+        )
+        .await;
+    let is_mit_with_limited_card_data_enabled = match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            router_env::logger::error!(?error);
+            false
+        }
+    };
+
+    utils::when(
+        is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,
+        || {
+            Err(errors::ApiErrorResponse::NotSupported {
+                message: "MIT with Limited Card Data".to_string(),
+            })
+        },
+    )?;
+
+    Ok(())
 }
 
 #[cfg(feature = "v1")]
