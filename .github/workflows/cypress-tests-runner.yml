@@ -386,13 +386,6 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
-  
-      - name: Remove S-test-ready label on failure of mandatory Cypress tests 
-        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
 
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
@@ -403,6 +396,7 @@ jobs:
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && always()
     steps:
+    
       - name: Evaluate Matrix Results
         shell: bash
         run: |
@@ -413,6 +407,7 @@ jobs:
           echo "Run tests env: $RUN_TESTS_VAL"
 
           if [ "$RUN_TESTS_VAL" == "false" ]; then
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
             echo "Tests were skipped (Fork PR). Marking as success."
             exit 0
           fi
@@ -422,6 +417,10 @@ jobs:
             exit 0
           else
             echo "Mandatory tests failed or were cancelled."
+            if [ "${{ github.event_name }}" != "merge_group" ]; then
+              echo "Removing 'S-test-ready' label from the PR."
+              gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
+            fi
             exit 1
           fi
 
