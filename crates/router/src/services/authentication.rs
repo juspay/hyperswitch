@@ -3441,13 +3441,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3568,13 +3569,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
 
@@ -3741,13 +3743,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3818,13 +3821,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -3960,13 +3964,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4048,13 +4053,14 @@ where
         });
 
         // If both of them are same then proceed with the profile id present in the request
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4122,13 +4128,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -4379,13 +4386,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
@@ -4532,13 +4540,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4632,13 +4641,14 @@ where
             })
         };
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
