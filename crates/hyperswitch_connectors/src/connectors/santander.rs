@@ -459,8 +459,8 @@ impl ConnectorCommon for Santander {
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
-                        code: detail.unwrap_or(NO_ERROR_CODE.to_string()),
-                        message: detail.clone().unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                        code: detail.clone().unwrap_or(NO_ERROR_CODE.to_string()),
+                        message: detail.unwrap_or(NO_ERROR_MESSAGE.to_string()),
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,

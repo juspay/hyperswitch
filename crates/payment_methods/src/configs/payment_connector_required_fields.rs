@@ -687,11 +687,11 @@ impl RequiredField {
                 },
             ),
             Self::PixDocumentNumber => (
-                "payment_method_data.bank_transfer.pix.document_details.document_number"
+                "customer.document_details.document_number"
                     .to_string(),
                 RequiredFieldInfo {
                     required_field:
-                        "payment_method_data.bank_transfer.pix.document_details.document_number"
+                        "customer.document_details.document_number"
                             .to_string(),
                     display_name: "document_number".to_string(),
                     field_type: FieldType::UserSocialSecurityNumber,
@@ -710,10 +710,10 @@ impl RequiredField {
                 },
             ),
             Self::PixDocumentType(document_type) => (
-                "payment_method_data.bank_transfer.pix.document_details.document_type".to_string(),
+                "customer.document_details.document_type".to_string(),
                 RequiredFieldInfo {
                     required_field:
-                        "payment_method_data.bank_transfer.pix.document_details.document_type"
+                        "customer.document_details.document_type"
                             .to_string(),
                     display_name: "document_type".to_string(),
                     field_type: FieldType::UserDocumentType {

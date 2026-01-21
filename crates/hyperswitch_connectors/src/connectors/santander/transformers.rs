@@ -502,27 +502,19 @@ impl
         let pix_mca_metadata = santander_mca_metadata
             .pix
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-
-        let pix_data = match value.1 {
-            BankTransferData::Pix {
-                pix_key,
-                cpf,
-                cnpj,
-                source_bank_account_id,
-                destination_bank_account_id,
-                expiry_date,
-            } => (
-                pix_key,
-                cpf,
-                cnpj,
-                source_bank_account_id,
-                destination_bank_account_id,
-                expiry_date,
-            ),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-            ))?,
-        };
+        
+        let customer_document_details = value.0.router_data.customer_document_details.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "customer.document_details" })?;
+let (cpf, cnpj) =
+    match customer_document_details.document_type {
+        enums::DocumentKind::Cpf => (
+            Some(customer_document_details.document_number),
+            None,
+        ),
+        enums::DocumentKind::Cnpj => (
+            None,
+            Some(customer_document_details.document_number),
+        ),
+    };
 
         let (calendar, debtor) = match &value
             .0
