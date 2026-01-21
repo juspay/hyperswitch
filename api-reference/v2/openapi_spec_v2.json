@@ -20465,6 +20465,11 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         }
       },
