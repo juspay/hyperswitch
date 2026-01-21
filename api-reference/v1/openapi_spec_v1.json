@@ -27017,6 +27017,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },

@@ -733,9 +733,14 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_16",
+          },
         },
       },
     },
