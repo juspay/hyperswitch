@@ -19,7 +19,7 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
 #[cfg(feature = "v2")]
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
@@ -2809,6 +2809,37 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let db = &*state.store;
 
         let response_router_data = response;
+
+        // Override payment_method_data with connector response data (including UPI upi_mode)
+        // This must be done before generating payment_attempt_update
+        let mut payment_data = if let Some(connector_response) =
+            &response_router_data.connector_response
+        {
+            let connector_response_pm_data =
+                connector_response.additional_payment_method_data.clone();
+
+            if let Some(existing_payment_method_data) =
+                payment_data.payment_attempt.payment_method_data.clone()
+            {
+                let additional_payment_data_value: Option<serde_json::Value> =
+                    Some(existing_payment_method_data.expose());
+
+                if let Ok(Some(updated_value)) = crate::core::payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
+                    additional_payment_data_value,
+                    connector_response_pm_data,
+                ) {
+                    let mut attempt = payment_data.payment_attempt.clone();
+                    attempt.payment_method_data =
+                        Some(common_utils::pii::SecretSerdeValue::new(updated_value));
+                    payment_data.payment_attempt = attempt;
+                }
+                payment_data
+            } else {
+                payment_data
+            }
+        } else {
+            payment_data
+        };
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);

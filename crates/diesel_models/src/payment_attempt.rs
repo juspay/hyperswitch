@@ -973,7 +973,7 @@ pub struct PaymentAttemptUpdateInternal {
     // payment_token: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    // payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     // payment_experience: Option<storage_enums::PaymentExperience>,
     // preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
@@ -1022,6 +1022,7 @@ impl PaymentAttemptUpdateInternal {
             error_code,
             cancellation_reason,
             connector_metadata,
+            payment_method_data,
             error_reason,
             amount_capturable,
             amount_to_capture,
@@ -1065,7 +1066,7 @@ impl PaymentAttemptUpdateInternal {
             payment_token: source.payment_token,
             connector_metadata: connector_metadata.or(source.connector_metadata),
             payment_experience: source.payment_experience,
-            payment_method_data: source.payment_method_data,
+            payment_method_data: payment_method_data.or(source.payment_method_data),
             preprocessing_step_id: source.preprocessing_step_id,
             error_reason: error_reason.or(source.error_reason),
             multiple_capture_count: source.multiple_capture_count,
@@ -1547,6 +1548,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     cancellation_reason: None,
                     amount_captured,
+                    payment_method_data: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1598,6 +1600,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_response_reference_id,
                     cancellation_reason: None,
                     amount_captured,
+                    payment_method_data: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1645,6 +1648,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    payment_method_data: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1690,6 +1694,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    payment_method_data: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1731,6 +1736,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_response_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    payment_method_data: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1778,6 +1784,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_response_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    payment_method_data: None,
                 }
             }
         }

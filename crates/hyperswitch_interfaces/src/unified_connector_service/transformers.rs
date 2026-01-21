@@ -345,32 +345,49 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     fn foreign_try_from(
         value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
     ) -> Result<Self, Self::Error> {
-        let card_data = value.card.unwrap_or_default();
-
-        Ok(Self::Card {
-            authentication_data: card_data.authentication_data.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize authentication_data from UCS connector response"
-                        );
-                    })
-                    .ok()
-            }),
-            payment_checks: card_data.payment_checks.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize payment_checks from UCS connector response"
-                        );
-                    })
-                    .ok()
-            }),
-            card_network: card_data.card_network,
-            domestic_network: card_data.domestic_network,
-        })
+        // Handle the oneof payment_method_data field
+        match value.payment_method_data {
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(card_data)) => {
+                Ok(Self::Card {
+                    authentication_data: card_data.authentication_data.and_then(|data| {
+                        serde_json::from_slice(&data)
+                            .inspect_err(|e| {
+                                router_env::logger::warn!(
+                                    deserialization_error=?e,
+                                    "Failed to deserialize authentication_data from UCS connector response"
+                                );
+                            })
+                            .ok()
+                    }),
+                    payment_checks: card_data.payment_checks.and_then(|data| {
+                        serde_json::from_slice(&data)
+                            .inspect_err(|e| {
+                                router_env::logger::warn!(
+                                    deserialization_error=?e,
+                                    "Failed to deserialize payment_checks from UCS connector response"
+                                );
+                            })
+                            .ok()
+                    }),
+                    card_network: card_data.card_network,
+                    domestic_network: card_data.domestic_network,
+                })
+            }
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
+                Ok(Self::Upi {
+                    upi_mode: upi_data.upi_mode,
+                })
+            }
+            None => {
+                // Default to empty Card variant for backward compatibility
+                Ok(Self::Card {
+                    authentication_data: None,
+                    payment_checks: None,
+                    card_network: None,
+                    domestic_network: None,
+                })
+            }
+        }
     }
 }
 
