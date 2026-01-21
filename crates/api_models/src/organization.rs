@@ -1,5 +1,6 @@
 use common_enums::OrganizationType;
 use common_utils::{id_type, pii};
+use masking::Secret;
 use utoipa::ToSchema;
 pub struct OrganizationNew {
     pub org_id: id_type::OrganizationId,
@@ -108,7 +109,8 @@ pub struct OrganizationResponse {
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ConvertOrganizationToPlatformRequest {
     /// Name for the platform merchant to be created
-    pub platform_merchant_name: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub platform_merchant_name: Option<Secret<String>>,
 }
 
 #[derive(serde::Serialize, Debug, Clone, ToSchema)]

@@ -263,12 +263,15 @@ pub async fn convert_organization_to_platform_organization(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update organization type to Platform")?;
 
-    let platform_merchant_name = req.platform_merchant_name.unwrap_or_else(|| {
-        format!(
-            "{} Platform",
-            organization.get_organization_name().unwrap_or_default()
-        )
-    });
+    let platform_merchant_name = req
+        .platform_merchant_name
+        .map(|merchant_name| merchant_name.peek().to_string())
+        .unwrap_or_else(|| {
+            format!(
+                "{} Platform",
+                organization.get_organization_name().unwrap_or_default()
+            )
+        });
 
     let platform_merchant_id =
         utils::user::generate_env_specific_merchant_id(platform_merchant_name.clone())

@@ -126,7 +126,10 @@ impl OrganizationInterface for super::MockDb {
                     metadata.clone_into(&mut org.metadata);
                     org
                 }
-                storage::OrganizationUpdate::ConvertToPlatform => org,
+                storage::OrganizationUpdate::ConvertToPlatform => {
+                    org.organization_type = Some(common_enums::OrganizationType::Platform);
+                    org
+                }
                 storage::OrganizationUpdate::UpdatePlatformMerchant {
                     platform_merchant_id,
                 } => {
