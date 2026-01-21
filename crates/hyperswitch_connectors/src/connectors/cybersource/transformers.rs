@@ -359,6 +359,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -1062,7 +1063,9 @@ impl
                         }),
                     )
                 }
-                None => (None, None, None),
+                Some(payments::MandateReferenceId::CardWithLimitedData) | None => {
+                    (None, None, None)
+                }
             }
         } else {
             (
@@ -2624,6 +2627,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2754,6 +2758,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2819,6 +2824,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3264,6 +3270,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed,
+                authentication_data: None,
                 charges: None,
             })
         }
@@ -3347,6 +3354,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -3497,6 +3505,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3639,6 +3648,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3761,6 +3771,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3837,6 +3848,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3985,6 +3997,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -4222,6 +4235,7 @@ impl
                     incremental_authorization_allowed: Some(
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
+                    authentication_data: None,
                     charges: None,
                 }),
             },
@@ -4331,6 +4345,7 @@ impl<F>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -4461,6 +4476,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -4593,6 +4609,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -4689,6 +4706,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -4705,6 +4723,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
