@@ -69,7 +69,7 @@ reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-unified-connector-service-client = { path = "../../../../cs-3/connector-service/backend/grpc-api-types", package = "grpc-api-types" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "38448d94435e44ed91a37d2eca36e0b777752ac9", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.88.1", optional = true }
 
