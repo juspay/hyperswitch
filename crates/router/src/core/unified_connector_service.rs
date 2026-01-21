@@ -1191,10 +1191,9 @@ pub fn build_unified_connector_service_payment_method(
                 })
             }
             hyperswitch_domain_models::payment_method_data::GiftCardData::PaySafeCard {} => {
-                Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                    "PaySafeCard gift card not yet supported in UCS: {payment_method_type:?}"
-                ))
-                .into())
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PaySafeCard(payments_grpc::PaySafeCard {})),
+                })
             }
             hyperswitch_domain_models::payment_method_data::GiftCardData::BhnCardNetwork(_) => {
                 Err(UnifiedConnectorServiceError::NotImplemented(format!(

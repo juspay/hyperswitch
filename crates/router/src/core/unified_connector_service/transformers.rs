@@ -362,6 +362,9 @@ impl
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
             tokenization_strategy: None,
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
         })
     }
 }
@@ -525,6 +528,9 @@ impl
             billing_descriptor: None,
             locale: None,
             tokenization_strategy: None,
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
         })
     }
 }
@@ -828,6 +834,7 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None,
             address: Some(address),
+            capture_method: None,
             authentication_data: None,
             metadata: None,
             return_url: None,
@@ -987,6 +994,11 @@ impl
             .map(|s| s.into());
         let amount = router_data.request.amount;
         let minor_amount = router_data.request.minor_amount;
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -998,6 +1010,7 @@ impl
             currency: currency.into(),
             minor_amount: minor_amount.get_amount_as_i64(),
             payment_method,
+            capture_method: capture_method.map(|c| c.into()),
             email: router_data
                 .request
                 .email
@@ -3603,6 +3616,13 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_))
+            | Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Form type not implemented".to_string(),
                 )
                 .into(),
             ),
