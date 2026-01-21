@@ -231,6 +231,9 @@ jobs:
           - 5432:5432
 
     steps:
+      - name : exit cypress early for forked PRs
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: exit 1
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
