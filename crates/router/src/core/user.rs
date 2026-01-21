@@ -39,10 +39,7 @@ use crate::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
     },
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
     utils::{
@@ -68,7 +65,7 @@ pub async fn signup_with_merchant_id(
     // Validate platform feature is enabled if Platform org requested
     fp_utils::when(
         request.organization_type == Some(common_enums::OrganizationType::Platform)
-            && !state.conf().platform.enabled,
+            && !state.conf.platform.enabled,
         || {
             Err(report!(UserErrors::InvalidPlatformOperation)
                 .attach_printable("Platform feature is not enabled"))
