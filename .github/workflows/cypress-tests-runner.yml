@@ -937,7 +937,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install mold linker
-        if: ${{ mandatory-cypress-tests-runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
+        if: ${{ runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
         uses: rui314/setup-mold@v1
         with:
           make-default: true
