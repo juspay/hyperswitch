@@ -8008,33 +8008,24 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
+/// Returns `true` if either the org or merchant config is set to "true"
 pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let merchants_eligible_for_authentication_service = state
-        .store
-        .as_ref()
-        .find_config_by_key_unwrap_or(
-            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
-            Some("[]".to_string()),
-        )
-        .await;
+    let db = &*state.store;
 
-    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
-        Ok(config) => serde_json::from_str(&config.config)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?,
-        Err(err) => {
-            logger::error!(
-                "Error fetching authentication service enabled merchant config {:?}",
-                err
-            );
-            Vec::new()
-        }
-    };
+    let is_eligible = db
+        .find_config_by_key(&org_id.get_authentication_service_eligible_key())
+        .await
+        .is_ok_and(|c| c.config.to_lowercase() == "true")
+        || db
+            .find_config_by_key(&merchant_id.get_authentication_service_eligible_key())
+            .await
+            .is_ok_and(|c| c.config.to_lowercase() == "true");
 
-    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+    Ok(is_eligible)
 }
 
 #[cfg(feature = "v1")]

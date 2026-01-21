@@ -26,4 +26,8 @@ impl OrganizationId {
     pub fn get_threeds_routing_region_uas_key(&self) -> String {
         format!("threeds_routing_region_uas_{}", self.get_string_repr())
     }
+    /// get_authentication_service_eligible_key
+    pub fn get_authentication_service_eligible_key(&self) -> String {
+        format!("authentication_service_eligible_{}", self.get_string_repr())
+    }
 }
