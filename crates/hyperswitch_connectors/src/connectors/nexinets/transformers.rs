@@ -644,6 +644,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
