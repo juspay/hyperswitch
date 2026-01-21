@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
-pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
+pub use hyperswitch_interfaces::{
+    types::Proxy, unified_connector_service::transformers::UnifiedConnectorServiceError,
+};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 use tokio::time::{timeout, Duration};
@@ -97,6 +99,59 @@ pub struct VgsMetadata {
     pub proxy_url: Url,
     /// CA certificates to verify the vault server
     pub certificate: Secret<String>,
+}
+
+/// Proxy configuration override for UCS
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ProxyConfigOverride {
+    /// HTTP proxy URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_url: Option<String>,
+    /// HTTPS proxy URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub https_url: Option<String>,
+    /// Whether MITM proxy is enabled
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mitm_proxy_enabled: Option<bool>,
+    /// Idle pool connection timeout in seconds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub idle_pool_connection_timeout: Option<u64>,
+}
+
+impl ProxyConfigOverride {
+    /// Creates a new ProxyConfigOverride instance
+    pub fn new(
+        http_url: Option<String>,
+        https_url: Option<String>,
+        mitm_proxy_enabled: Option<bool>,
+        idle_pool_connection_timeout: Option<u64>,
+    ) -> Self {
+        Self {
+            http_url,
+            https_url,
+            mitm_proxy_enabled,
+            idle_pool_connection_timeout,
+        }
+    }
+}
+
+impl From<Proxy> for ProxyConfigOverride {
+    fn from(item: Proxy) -> Self {
+        Self::new(
+            item.http_url,
+            item.https_url,
+            item.mitm_enabled,
+            item.idle_pool_connection_timeout,
+        )
+    }
+}
+
+/// Config override wrapper for x-config-override header
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ConfigOverride {
+    /// Proxy configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<ProxyConfigOverride>,
 }
 
 impl UnifiedConnectorServiceClient {
@@ -893,6 +948,18 @@ pub fn build_unified_connector_service_grpc_headers(
                 common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
                 &shadow_mode.to_string(),
             )?,
+        );
+    }
+
+    // Add proxy configuration override header if present
+    if let Some(ref proxy_config) = grpc_headers.proxy_config {
+        metadata.append(
+            consts::CONFIG_OVERRIDE,
+            parse(consts::CONFIG_OVERRIDE, proxy_config)?,
+        );
+        logger::debug!(
+            proxy_config_header = ?proxy_config,
+            "Added x-config-override header with proxy configuration to UCS request"
         );
     }
 
