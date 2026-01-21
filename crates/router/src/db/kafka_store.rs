@@ -1932,7 +1932,12 @@ impl PaymentIntentInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
         self.diesel_store
-            .filter_payment_intent_by_constraints(processor_merchant_id, filters, key_store, storage_scheme)
+            .filter_payment_intent_by_constraints(
+                processor_merchant_id,
+                filters,
+                key_store,
+                storage_scheme,
+            )
             .await
     }
 

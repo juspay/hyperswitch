@@ -65,8 +65,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let db = &*state.store;
-        helpers::allow_payment_update_enabled_for_client_auth(processor_merchant_id, state, auth_flow)
-            .await?;
+        helpers::allow_payment_update_enabled_for_client_auth(
+            processor_merchant_id,
+            state,
+            auth_flow,
+        )
+        .await?;
         payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,

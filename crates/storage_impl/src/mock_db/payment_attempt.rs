@@ -344,7 +344,9 @@ impl PaymentAttemptInterface for MockDb {
             .iter()
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
-                    && payment_attempt.processor_merchant_id.eq(processor_merchant_id)
+                    && payment_attempt
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
             })
             .cloned()
             .unwrap())
@@ -365,7 +367,9 @@ impl PaymentAttemptInterface for MockDb {
             .iter()
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
-                    && payment_attempt.processor_merchant_id.eq(processor_merchant_id)
+                    && payment_attempt
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
                     && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
                         || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })

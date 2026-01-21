@@ -87,11 +87,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_payment_intent(
-                        payment_intent,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .insert_payment_intent(payment_intent, merchant_key_store, storage_scheme)
                     .await
             }
 

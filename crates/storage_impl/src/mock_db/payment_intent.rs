@@ -135,7 +135,10 @@ impl PaymentIntentInterface for MockDb {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter_mut()
-            .find(|item| item.get_id() == this.get_id() && item.processor_merchant_id == this.processor_merchant_id)
+            .find(|item| {
+                item.get_id() == this.get_id()
+                    && item.processor_merchant_id == this.processor_merchant_id
+            })
             .unwrap();
 
         let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::from(update);
@@ -186,7 +189,10 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intents
             .iter()
             .find(|payment_intent| {
-                payment_intent.get_id() == payment_id && payment_intent.processor_merchant_id.eq(processor_merchant_id)
+                payment_intent.get_id() == payment_id
+                    && payment_intent
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
             })
             .cloned()
             .unwrap())
