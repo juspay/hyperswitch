@@ -1,10 +1,9 @@
 //! Create payment method flow types and dummy models.
 
 use common_utils::request::{Method, RequestContent};
+use hyperswitch_interfaces::micro_service::MicroserviceClientError;
 use serde::Deserialize;
 use serde_json::Value;
-
-use crate::micro_service::MicroserviceClientError;
 
 /// V1-facing create flow input.
 #[derive(Debug)]
@@ -67,13 +66,13 @@ impl CreatePaymentMethod {
     }
 }
 
-crate::impl_microservice_flow!(
+hyperswitch_interfaces::impl_microservice_flow!(
     CreatePaymentMethod,
     method = Method::Post,
     path = "/v2/payment-methods",
     v2_request = CreatePaymentMethodV2Request,
     v2_response = CreatePaymentMethodV2Response,
     v1_response = CreatePaymentMethodResponse,
-    client = crate::micro_service::payment_method::PaymentMethodClient<'_>,
+    client = crate::client::PaymentMethodClient<'_>,
     body = CreatePaymentMethod::build_body
 );

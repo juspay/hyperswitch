@@ -2,9 +2,8 @@
 
 use api_models::payment_methods::PaymentMethodId;
 use common_utils::request::Method;
+use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use serde::Deserialize;
-
-use crate::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 
@@ -90,14 +89,14 @@ impl DeletePaymentMethod {
     }
 }
 
-crate::impl_microservice_flow!(
+hyperswitch_interfaces::impl_microservice_flow!(
     DeletePaymentMethod,
     method = Method::Delete,
     path = "/v2/payment-methods/{id}",
     v2_request = DeletePaymentMethodV2Request,
     v2_response = DeletePaymentMethodV2Response,
     v1_response = DeletePaymentMethodResponse,
-    client = crate::micro_service::payment_method::PaymentMethodClient<'_>,
+    client = crate::client::PaymentMethodClient<'_>,
     path_params = DeletePaymentMethod::build_path_params,
     validate = DeletePaymentMethod::validate_request
 );

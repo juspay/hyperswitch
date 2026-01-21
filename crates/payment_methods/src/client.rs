@@ -1,3 +1,5 @@
+//! Payment method microservice flows and lightweight client context.
+
 /// Create payment method flow.
 pub mod create;
 /// Delete payment method flow.
@@ -10,11 +12,12 @@ pub mod update;
 use common_utils::request::Headers;
 pub use create::CreatePaymentMethod;
 pub use delete::DeletePaymentMethod;
+use hyperswitch_interfaces::{
+    configs::ModularPaymentMethodServiceUrl, micro_service::MicroserviceClientContext,
+};
 pub use retrieve::RetrievePaymentMethod;
 use router_env::RequestIdentifier;
 pub use update::UpdatePaymentMethod;
-
-use crate::configs::ModularPaymentMethodServiceUrl;
 
 #[derive(Debug)]
 /// Lightweight client context for payment method microservice calls.
@@ -39,5 +42,19 @@ impl<'a> PaymentMethodClient<'a> {
             parent_headers,
             trace,
         }
+    }
+}
+
+impl<'a> MicroserviceClientContext for PaymentMethodClient<'a> {
+    fn base_url(&self) -> &url::Url {
+        self.base_url.as_ref()
+    }
+
+    fn parent_headers(&self) -> &Headers {
+        self.parent_headers
+    }
+
+    fn trace(&self) -> &RequestIdentifier {
+        self.trace
     }
 }

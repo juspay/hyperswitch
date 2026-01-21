@@ -3,13 +3,27 @@
 /// # Examples
 ///
 /// ```rust
-/// use common_utils::request::{Method, RequestContent};
-/// use hyperswitch_interfaces::micro_service::payment_method::PaymentMethodClient;
+/// use common_utils::request::{Headers, Method, RequestContent};
+/// use hyperswitch_interfaces::micro_service::MicroserviceClientContext;
+/// use router_env::RequestIdentifier;
+/// use url::Url;
 ///
 /// struct ExampleFlow;
 /// struct ExampleV2Request;
 /// struct ExampleV2Response;
 /// struct ExampleResponse;
+///
+/// struct ExampleClient<'a> {
+///     base_url: &'a Url,
+///     headers: &'a Headers,
+///     trace: &'a RequestIdentifier,
+/// }
+///
+/// impl<'a> MicroserviceClientContext for ExampleClient<'a> {
+///     fn base_url(&self) -> &Url { self.base_url }
+///     fn parent_headers(&self) -> &Headers { self.headers }
+///     fn trace(&self) -> &RequestIdentifier { self.trace }
+/// }
 ///
 /// impl TryFrom<&ExampleFlow> for ExampleV2Request {
 ///     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
@@ -34,7 +48,7 @@
 ///     v2_request = ExampleV2Request,
 ///     v2_response = ExampleV2Response,
 ///     v1_response = ExampleResponse,
-///     client = PaymentMethodClient<'_>,
+///     client = ExampleClient<'_>,
 ///     body = |_, _| Some(RequestContent::Json(Box::new(serde_json::json!({}))))
 /// );
 /// ```
