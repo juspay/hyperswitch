@@ -922,6 +922,7 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -973,6 +974,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1037,6 +1039,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1159,6 +1162,7 @@ impl<F>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1216,6 +1220,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),

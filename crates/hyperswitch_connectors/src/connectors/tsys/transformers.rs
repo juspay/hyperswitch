@@ -256,6 +256,7 @@ fn get_payments_response(connector_response: TsysResponse) -> PaymentsResponseDa
         network_txn_id: None,
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     }
 }
@@ -281,6 +282,7 @@ fn get_payments_sync_response(
                 .clone(),
         ),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     }
 }

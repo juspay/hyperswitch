@@ -517,6 +517,7 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                     .map(|reference_id| reference_id.expose())
                     .or(item.response.external_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges,
             })
         };
@@ -582,6 +583,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
                     item.response.reference_id.peek().to_string(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -731,6 +733,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: Some(
                 common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
                     common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
@@ -787,6 +790,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };

@@ -887,6 +887,7 @@ pub fn get_peachpayments_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.transaction_id),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     };
@@ -936,6 +937,7 @@ pub fn get_webhook_response(
             network_txn_id: None,
             connector_response_reference_id: Some(transaction.transaction_id.clone()),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     };
@@ -1006,6 +1008,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };

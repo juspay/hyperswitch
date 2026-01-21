@@ -513,6 +513,7 @@ fn convert_nordea_payment_response(
         network_txn_id: None,
         connector_response_reference_id: payment_response.external_id.clone(),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
 
@@ -645,6 +646,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: payment.external_id.clone(),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 });
 
@@ -663,6 +665,7 @@ impl
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     });
                     (response, common_enums::AttemptStatus::AuthenticationPending)
