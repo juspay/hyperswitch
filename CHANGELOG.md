@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.16.0-hotfix1
+
+### Features
+
+- Generating request id for every retry in consumer workflow ([#10979](https://github.com/juspay/hyperswitch/pull/10979)) ([`c5f020e`](https://github.com/juspay/hyperswitch/commit/c5f020e68f2f764c708fadf4c22b0aaba07a5cd0))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Updated connector_request_reference_id generation to its default logic ([#10992](https://github.com/juspay/hyperswitch/pull/10992)) ([`9b9e1e0`](https://github.com/juspay/hyperswitch/commit/9b9e1e0a4c6b12ae5df79052bbcb6860723501ac))
+
+**Full Changelog:** [`2026.01.16.0...2026.01.16.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.01.16.0...2026.01.16.0-hotfix1)
+
+- - -
+
 ## 2026.01.16.0
 
 ### Bug Fixes
