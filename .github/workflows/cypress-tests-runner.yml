@@ -190,7 +190,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  runner:
+  mandatory-cypress-tests-runner:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
@@ -389,30 +389,29 @@ jobs:
 
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
-    needs: [runner]
+    needs: [mandatory-cypress-tests-runner]
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && always()
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
     
       - name: Evaluate Matrix Results
         shell: bash
         run: |
-          RESULT="${{ needs.runner.result }}"
+          RESULT="${{ needs.mandatory-cypress-tests-runner.result }}"
           RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
-          echo "Runner result: $RESULT"
+          echo "mandatory-cypress-tests-runner result: $RESULT"
           echo "Run tests env: $RUN_TESTS_VAL"
 
           if [ "$RUN_TESTS_VAL" == "false" ]; then
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
             echo "Tests were skipped (Fork PR). Marking as success."
             exit 0
           fi
+
+          GH_TOKEN: ${{ github.token }}
 
           if [ "$RESULT" == "success" ]; then
             echo "All mandatory tests passed."
@@ -476,7 +475,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  runner-optional-connectors:
+  mandatory-cypress-tests-runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
     if: false
     needs: [ build-hyperswitch, prepare-optional-matrix ]
@@ -935,7 +934,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install mold linker
-        if: ${{ runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
+        if: ${{ mandatory-cypress-tests-runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
         uses: rui314/setup-mold@v1
         with:
           make-default: true
