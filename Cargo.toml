@@ -50,3 +50,15 @@ option_map_unit_fn = "allow"
 strip = true
 lto = true
 codegen-units = 1
+build = "build.rs"
+
+
+# Add build script line if not exists
+if ! grep -q "build = " Cargo.toml; then
+    echo '' >> Cargo.toml
+    echo '[package]' >> Cargo.toml
+    echo 'build = "build.rs"' >> Cargo.toml
+fi
+
+[package]
+build = "build.rs"
