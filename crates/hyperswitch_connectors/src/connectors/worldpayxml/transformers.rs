@@ -2643,7 +2643,7 @@ pub fn map_purpose_code(value: Option<String>) -> Option<String> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayFormWebhookBody {
     #[serde(rename = "PaymentAmount")]
-    pub payment_amount: Option<String>,
+    pub payment_amount: Option<StringMinorUnit>,
 
     #[serde(rename = "PaymentId")]
     pub payment_id: Option<String>,
