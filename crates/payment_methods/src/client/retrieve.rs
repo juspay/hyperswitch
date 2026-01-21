@@ -9,18 +9,15 @@ use hyperswitch_interfaces::micro_service::{MicroserviceClientError, Microservic
 use serde::Deserialize;
 use time;
 
-/// V1-facing retrieve flow input.
+/// V1-facing retrieve flow type.
 #[derive(Debug)]
-pub struct RetrievePaymentMethod {
+pub struct RetrievePaymentMethod;
+
+/// V1-facing retrieve request payload.
+#[derive(Debug)]
+pub struct RetrievePaymentMethodV1Request {
     /// Identifier for the payment method to fetch.
     pub payment_method_id: PaymentMethodId,
-}
-
-impl RetrievePaymentMethod {
-    /// Construct a new retrieve flow.
-    pub fn new(payment_method_id: PaymentMethodId) -> Self {
-        Self { payment_method_id }
-    }
 }
 
 /// V2 modular service request payload.
@@ -162,10 +159,10 @@ pub struct RetrievePaymentMethodResponse {
     pub last_used_at: Option<time::PrimitiveDateTime>,
 }
 
-impl TryFrom<&RetrievePaymentMethod> for RetrievePaymentMethodV2Request {
+impl TryFrom<&RetrievePaymentMethodV1Request> for RetrievePaymentMethodV2Request {
     type Error = MicroserviceClientError;
 
-    fn try_from(value: &RetrievePaymentMethod) -> Result<Self, Self::Error> {
+    fn try_from(value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: value.payment_method_id.clone(),
         })
@@ -229,8 +226,16 @@ impl TryFrom<RetrievePaymentMethodV2Response> for RetrievePaymentMethodResponse 
 }
 
 impl RetrievePaymentMethod {
-    fn validate_request(&self) -> Result<(), MicroserviceClientError> {
-        if self.payment_method_id.payment_method_id.trim().is_empty() {
+    fn validate_request(
+        &self,
+        request: &RetrievePaymentMethodV1Request,
+    ) -> Result<(), MicroserviceClientError> {
+        if request
+            .payment_method_id
+            .payment_method_id
+            .trim()
+            .is_empty()
+        {
             return Err(MicroserviceClientError {
                 operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
@@ -253,6 +258,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     RetrievePaymentMethod,
     method = Method::Get,
     path = "/v2/payment-methods/{id}",
+    v1_request = RetrievePaymentMethodV1Request,
     v2_request = RetrievePaymentMethodV2Request,
     v2_response = RetrievePaymentMethodV2Response,
     v1_response = RetrievePaymentMethodResponse,

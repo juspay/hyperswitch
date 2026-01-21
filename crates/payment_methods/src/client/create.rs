@@ -5,9 +5,13 @@ use hyperswitch_interfaces::micro_service::MicroserviceClientError;
 use serde::Deserialize;
 use serde_json::Value;
 
-/// V1-facing create flow input.
+/// V1-facing create flow type.
 #[derive(Debug)]
-pub struct CreatePaymentMethod {
+pub struct CreatePaymentMethod;
+
+/// V1-facing create request payload.
+#[derive(Debug)]
+pub struct CreatePaymentMethodV1Request {
     /// Raw payload forwarded to the modular service.
     pub payload: Value,
 }
@@ -39,10 +43,10 @@ pub struct CreatePaymentMethodResponse {
     pub deleted: Option<bool>,
 }
 
-impl TryFrom<&CreatePaymentMethod> for CreatePaymentMethodV2Request {
+impl TryFrom<&CreatePaymentMethodV1Request> for CreatePaymentMethodV2Request {
     type Error = MicroserviceClientError;
 
-    fn try_from(value: &CreatePaymentMethod) -> Result<Self, Self::Error> {
+    fn try_from(value: &CreatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
             payload: value.payload.clone(),
         })
@@ -70,6 +74,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     CreatePaymentMethod,
     method = Method::Post,
     path = "/v2/payment-methods",
+    v1_request = CreatePaymentMethodV1Request,
     v2_request = CreatePaymentMethodV2Request,
     v2_response = CreatePaymentMethodV2Response,
     v1_response = CreatePaymentMethodResponse,

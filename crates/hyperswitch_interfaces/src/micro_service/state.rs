@@ -23,6 +23,10 @@ pub trait ClientOperation {
     /// The executor performs string substitution for each token.
     const PATH_TEMPLATE: &'static str;
 
+    /// V1-facing request type for the flow.
+    ///
+    /// Use `()` for flows that do not require an input payload.
+    type V1Request;
     /// V1-facing response type returned by the flow.
     ///
     /// This is the final output returned by `FlowType::call`, after all transforms.
@@ -40,11 +44,18 @@ pub trait ClientOperation {
     ///
     /// Use this to reject invalid IDs or missing required fields. Failures are classified as
     /// client-side errors in the pipeline.
-    fn validate(&self) -> Result<(), MicroserviceClientError>;
+    fn validate(&self, request: &Self::V1Request) -> Result<(), MicroserviceClientError>;
+    /// Build the flow instance from a V1 request.
+    ///
+    /// This keeps the `call` entrypoint decoupled from the flow struct layout.
+    fn from_request(request: &Self::V1Request) -> Self;
     /// Transform flow inputs into a modular service request payload.
     ///
     /// Should be a pure conversion without side effects. Do not perform I/O here.
-    fn transform_request(&self) -> Result<Self::V2Request, MicroserviceClientError>;
+    fn transform_request(
+        &self,
+        request: &Self::V1Request,
+    ) -> Result<Self::V2Request, MicroserviceClientError>;
     /// Transform modular service response payload into V1 response.
     ///
     /// Treat failures here as server-side transform errors. Keep it deterministic.
@@ -71,7 +82,12 @@ pub trait ClientOperation {
 
 /// State after validation succeeds.
 #[derive(Debug)]
-pub struct Validated<O>(pub(crate) O);
+pub struct Validated<O: ClientOperation> {
+    /// Flow instance.
+    pub(crate) op: O,
+    /// V1 request payload.
+    pub(crate) request: O::V1Request,
+}
 
 /// State after request transformation.
 #[derive(Debug)]

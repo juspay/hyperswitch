@@ -10,14 +10,14 @@ pub mod retrieve;
 pub mod update;
 
 use common_utils::request::Headers;
-pub use create::CreatePaymentMethod;
-pub use delete::DeletePaymentMethod;
-use hyperswitch_interfaces::{
-    configs::ModularPaymentMethodServiceUrl, micro_service::MicroserviceClientContext,
-};
-pub use retrieve::RetrievePaymentMethod;
+pub use create::{CreatePaymentMethod, CreatePaymentMethodV1Request};
+pub use delete::{DeletePaymentMethod, DeletePaymentMethodV1Request};
+use hyperswitch_interfaces::micro_service::MicroserviceClient;
+pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
-pub use update::UpdatePaymentMethod;
+pub use update::{UpdatePaymentMethod, UpdatePaymentMethodV1Request};
+
+use crate::configs::ModularPaymentMethodServiceUrl;
 
 #[derive(Debug)]
 /// Lightweight client context for payment method microservice calls.
@@ -45,7 +45,7 @@ impl<'a> PaymentMethodClient<'a> {
     }
 }
 
-impl<'a> MicroserviceClientContext for PaymentMethodClient<'a> {
+impl<'a> MicroserviceClient for PaymentMethodClient<'a> {
     fn base_url(&self) -> &url::Url {
         self.base_url.as_ref()
     }

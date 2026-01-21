@@ -1356,3 +1356,8 @@ org_id = "your_org_id"                          # Organization ID in Superpositi
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[micro_services]
+# Base URLs for modular microservices
+# (e.g., payment-methods, customers, routing, etc.)
+payment_methods_base_url = "http://localhost:8082"

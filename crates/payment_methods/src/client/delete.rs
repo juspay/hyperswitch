@@ -7,18 +7,15 @@ use serde::Deserialize;
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 
-/// V1-facing delete flow input.
+/// V1-facing delete flow type.
 #[derive(Debug)]
-pub struct DeletePaymentMethod {
+pub struct DeletePaymentMethod;
+
+/// V1-facing delete request payload.
+#[derive(Debug)]
+pub struct DeletePaymentMethodV1Request {
     /// Identifier for the payment method to delete.
     pub payment_method_id: PaymentMethodId,
-}
-
-impl DeletePaymentMethod {
-    /// Construct a new delete flow.
-    pub fn new(payment_method_id: PaymentMethodId) -> Self {
-        Self { payment_method_id }
-    }
 }
 
 /// Dummy modular service request payload.
@@ -47,10 +44,10 @@ pub struct DeletePaymentMethodResponse {
     pub deleted: Option<bool>,
 }
 
-impl TryFrom<&DeletePaymentMethod> for DeletePaymentMethodV2Request {
+impl TryFrom<&DeletePaymentMethodV1Request> for DeletePaymentMethodV2Request {
     type Error = MicroserviceClientError;
 
-    fn try_from(value: &DeletePaymentMethod) -> Result<Self, Self::Error> {
+    fn try_from(value: &DeletePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: value.payment_method_id.clone(),
         })
@@ -69,8 +66,16 @@ impl TryFrom<DeletePaymentMethodV2Response> for DeletePaymentMethodResponse {
 }
 
 impl DeletePaymentMethod {
-    fn validate_request(&self) -> Result<(), MicroserviceClientError> {
-        if self.payment_method_id.payment_method_id.trim().is_empty() {
+    fn validate_request(
+        &self,
+        request: &DeletePaymentMethodV1Request,
+    ) -> Result<(), MicroserviceClientError> {
+        if request
+            .payment_method_id
+            .payment_method_id
+            .trim()
+            .is_empty()
+        {
             return Err(MicroserviceClientError {
                 operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
@@ -93,6 +98,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     DeletePaymentMethod,
     method = Method::Delete,
     path = "/v2/payment-methods/{id}",
+    v1_request = DeletePaymentMethodV1Request,
     v2_request = DeletePaymentMethodV2Request,
     v2_response = DeletePaymentMethodV2Response,
     v1_response = DeletePaymentMethodResponse,

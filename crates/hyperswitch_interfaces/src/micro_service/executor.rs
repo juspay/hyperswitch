@@ -1,29 +1,27 @@
-use std::str::FromStr;
-
 use common_utils::{
     consts::TENANT_HEADER,
     request::{Headers, Request},
 };
 use masking::Maskable;
-use router_env::{logger, IdReuse, RequestId, RequestIdentifier};
+use router_env::{logger, RequestIdentifier};
 use url::Url;
 
 use super::{
     error::{MicroserviceClientError, MicroserviceClientErrorKind},
     state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated},
-    MicroserviceClientContext,
+    MicroserviceClient,
 };
 use crate::api_client::{call_connector_api, ApiClientWrapper};
 
 impl<O: ClientOperation> Validated<O> {
     /// Validate the flow and move into the `Validated` state.
-    pub fn new(op: O) -> Result<Self, MicroserviceClientError> {
+    pub fn new(op: O, request: O::V1Request) -> Result<Self, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
-        op.validate().map_err(|err| {
+        op.validate(&request).map_err(|err| {
             logger::warn!(operation, error = ?err, "microservice validation failed");
             err
         })?;
-        Ok(Self(op))
+        Ok(Self { op, request })
     }
 
     /// Transform the validated flow into a request payload.
@@ -31,7 +29,7 @@ impl<O: ClientOperation> Validated<O> {
         self,
     ) -> Result<TransformedRequest<O>, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
-        let request = self.0.transform_request().map_err(|err| {
+        let request = self.op.transform_request(&self.request).map_err(|err| {
             logger::warn!(
                 operation,
                 error = ?err,
@@ -40,7 +38,7 @@ impl<O: ClientOperation> Validated<O> {
             err
         })?;
         Ok(TransformedRequest {
-            op: self.0,
+            op: self.op,
             request,
         })
     }
@@ -80,55 +78,17 @@ impl<O: ClientOperation> TransformedRequest<O> {
         http_request.headers = parent_headers;
         {
             let header_name = trace_header.header_name();
-            let trace_id = match trace_header.id_reuse_strategy() {
-                IdReuse::UseIncoming => match state.get_request_id() {
-                    Some(existing) => existing,
-                    None => {
-                        let generated = common_utils::generate_time_ordered_id_without_prefix();
-                        let parsed = RequestId::from_str(generated.as_str()).map_err(|err| {
-                            logger::error!(
-                                operation,
-                                error = ?err,
-                                "generated request id was invalid"
-                            );
-                            MicroserviceClientError {
-                                operation: operation.to_string(),
-                                kind: MicroserviceClientErrorKind::Transport(
-                                    "Generated request id was invalid".to_string(),
-                                ),
-                            }
-                        })?;
-                        logger::debug!(
-                            operation,
-                            generated_id = %parsed,
-                            "request id missing; generating new id"
-                        );
-                        parsed
-                    }
-                },
-                IdReuse::IgnoreIncoming => {
-                    let generated = common_utils::generate_time_ordered_id_without_prefix();
-                    let parsed = RequestId::from_str(generated.as_str()).map_err(|err| {
-                        logger::error!(
-                            operation,
-                            error = ?err,
-                            "generated request id was invalid"
-                        );
-                        MicroserviceClientError {
-                            operation: operation.to_string(),
-                            kind: MicroserviceClientErrorKind::Transport(
-                                "Generated request id was invalid".to_string(),
-                            ),
-                        }
-                    })?;
-                    logger::debug!(
-                        operation,
-                        generated_id = %parsed,
-                        "trace header reuse disabled; generating new id"
-                    );
-                    parsed
-                }
-            };
+            let existing_id = state.get_request_id();
+            let (trace_id, generated) = trace_header
+                .id_reuse_strategy()
+                .get_or_create_request_id(existing_id.as_ref());
+            if generated {
+                logger::debug!(
+                    operation,
+                    generated_id = %trace_id,
+                    "trace header generated new request id"
+                );
+            }
 
             http_request.headers.insert((
                 header_name.to_string(),
@@ -222,10 +182,11 @@ impl<O: ClientOperation> Executed<O> {
 /// Execute the full pipeline: validate → transform → execute → transform.
 pub async fn execute_microservice_operation<O: ClientOperation>(
     state: &dyn ApiClientWrapper,
-    client: &impl MicroserviceClientContext,
-    op: O,
+    client: &impl MicroserviceClient,
+    request: O::V1Request,
 ) -> Result<O::V1Response, MicroserviceClientError> {
-    let validated = Validated::new(op)?;
+    let op = O::from_request(&request);
+    let validated = Validated::new(op, request)?;
     let transformed = validated.into_transformed_request()?;
     let executed = transformed
         .execute(
