@@ -6,7 +6,7 @@ pub mod payout_required_fields;
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
-            port: 8085,
+            port: 8080,
             workers: num_cpus::get_physical(),
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
