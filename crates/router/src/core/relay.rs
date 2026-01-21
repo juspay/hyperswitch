@@ -312,7 +312,7 @@ impl RelayInterface for RelayCapture {
             None,
         )
         .await
-        .to_refund_failed_response()?;
+        .to_payment_failed_response()?;
 
         let relay_update = relay::RelayUpdate::try_from((
             router_data_res.status,
@@ -536,7 +536,28 @@ pub async fn relay_retrieve(
                 relay_record
             }
         }
-        common_enums::RelayType::Capture => relay_record,
+        common_enums::RelayType::Capture => {
+            if should_call_connector_for_relay_capture_status(&relay_record, req.force_sync) {
+                let relay_response = sync_relay_capture_with_gateway(
+                    &state,
+                    &platform,
+                    &relay_record,
+                    connector_account,
+                )
+                .await?;
+
+                db.update_relay(
+                    platform.get_processor().get_key_store(),
+                    relay_record,
+                    relay_response,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update the relay record")?
+            } else {
+                relay_record
+            }
+        }
     };
 
     let response = relay_api_models::RelayResponse::from(relay_response);
@@ -547,6 +568,12 @@ pub async fn relay_retrieve(
 }
 
 fn should_call_connector_for_relay_refund_status(relay: &relay::Relay, force_sync: bool) -> bool {
+    // This allows refund sync at connector level if force_sync is enabled, or
+    // check if the refund is in terminal state
+    !matches!(relay.status, RelayStatus::Failure | RelayStatus::Success) && force_sync
+}
+
+fn should_call_connector_for_relay_capture_status(relay: &relay::Relay, force_sync: bool) -> bool {
     // This allows refund sync at connector level if force_sync is enabled, or
     // check if the refund is in terminal state
     !matches!(relay.status, RelayStatus::Failure | RelayStatus::Success) && force_sync
@@ -602,6 +629,64 @@ pub async fn sync_relay_refund_with_gateway(
     .to_refund_failed_response()?;
 
     let relay_response = relay::RelayUpdate::from(router_data_res.response);
+
+    Ok(relay_response)
+}
+
+pub async fn sync_relay_capture_with_gateway(
+    state: &SessionState,
+    platform: &domain::Platform,
+    relay_record: &relay::Relay,
+    connector_account: domain::MerchantConnectorAccount,
+) -> RouterResult<relay::RelayUpdate> {
+    let connector_id = &relay_record.connector_id;
+    let merchant_id = platform.get_processor().get_account().get_id();
+
+    #[cfg(feature = "v1")]
+    let connector_name = &connector_account.connector_name;
+
+    #[cfg(feature = "v2")]
+    let connector_name = &connector_account.connector_name.to_string();
+
+    let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        Some(connector_id.clone()),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector")?;
+
+    let router_data = utils::construct_relay_payments_retrieve_router_data(
+        state,
+        merchant_id,
+        &connector_account,
+        relay_record,
+    )
+    .await?;
+
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::PSync,
+        hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data_res = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_payment_failed_response()?;
+
+    let relay_response = relay::RelayUpdate::try_from((
+        router_data_res.status,
+        relay_record.connector_resource_id.to_owned(),
+        router_data_res.response,
+    ))?;
 
     Ok(relay_response)
 }
