@@ -4,7 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, organization as org_types, routing as routing_types,
 };
-use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
+use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -192,7 +192,7 @@ fn create_platform_merchant_account_request(
         merchant_id,
         merchant_name: Some(Secret::new(merchant_name)),
         organization_id: Some(organization_id),
-        merchant_account_type: None,
+        merchant_account_type: Some(MerchantAccountType::Platform),
         merchant_details: None,
         return_url: None,
         webhook_details: None,
@@ -288,7 +288,6 @@ pub async fn convert_organization_to_platform_organization(
         Some(authentication::AuthenticationDataWithOrg {
             organization_id: org_id.organization_id.clone(),
         }),
-        true,
     ))
     .await?;
 
@@ -318,7 +317,6 @@ pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
-    is_platform_creation: bool,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
     use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
@@ -375,7 +373,6 @@ pub async fn create_merchant_account(
             key_store.clone(),
             &merchant_id,
             org_data_from_auth,
-            is_platform_creation,
         )
         .await?;
 
@@ -415,7 +412,6 @@ trait MerchantAccountCreateBridge {
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
         org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
-        is_platform_creation: bool,
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
@@ -428,7 +424,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
         org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
-        is_platform_creation: bool,
     ) -> RouterResult<domain::MerchantAccount> {
         let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
@@ -499,11 +494,19 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let merchant_account_type = match organization.get_organization_type() {
             OrganizationType::Standard => match self.merchant_account_type.unwrap_or_default() {
-                MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
-                MerchantAccountRequestType::Connected => {
+                MerchantAccountType::Standard => MerchantAccountType::Standard,
+                MerchantAccountType::Connected => {
                     return Err(errors::ApiErrorResponse::InvalidRequestData {
                         message:
                             "Merchant account type must be Standard for a Standard Organization"
+                                .to_string(),
+                    }
+                    .into());
+                }
+                MerchantAccountType::Platform => {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message:
+                            "Merchant account type cannot be Platform for a Standard Organization"
                                 .to_string(),
                     }
                     .into());
@@ -521,21 +524,13 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
 
-                if is_platform_creation && platform_account_exists {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "A platform merchant account already exists for this organization"
-                            .to_string(),
-                    }
-                    .into());
-                }
-
                 if accounts.is_empty() || !platform_account_exists {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
                 } else {
                     match self.merchant_account_type.unwrap_or_default() {
-                        MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
-                        MerchantAccountRequestType::Connected => {
+                        MerchantAccountType::Standard => MerchantAccountType::Standard,
+                        MerchantAccountType::Connected => {
                             if state.conf.platform.allow_connected_merchants {
                                 MerchantAccountType::Connected
                             } else {
@@ -545,6 +540,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                                 }
                                 .into());
                             }
+                        }
+                        MerchantAccountType::Platform => {
+                            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message:
+                                    "Only one Platform merchant account is allowed per Organization"
+                                        .to_string(),
+                            }
+                            .into());
                         }
                     }
                 }
@@ -829,7 +832,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
         _org_data: Option<authentication::AuthenticationDataWithOrg>,
-        _is_platform_creation: bool,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.accounts_store;

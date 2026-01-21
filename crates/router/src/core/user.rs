@@ -1783,7 +1783,6 @@ pub async fn create_org_merchant_for_user(
         Some(auth::AuthenticationDataWithOrg {
             organization_id: org.get_organization_id(),
         }),
-        false,
     )
     .await
     .change_context(UserErrors::InternalServerError)
