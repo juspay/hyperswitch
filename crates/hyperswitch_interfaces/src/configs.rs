@@ -92,35 +92,6 @@ pub struct InternalMerchantIdProfileIdAuthSettings {
 }
 
 #[allow(missing_docs)]
-#[derive(Debug, Deserialize, Clone)]
-#[serde(transparent)]
-pub struct ModularPaymentMethodServiceUrl(pub Url);
-
-impl Default for ModularPaymentMethodServiceUrl {
-    fn default() -> Self {
-        Self(
-            #[allow(clippy::expect_used)]
-            Url::parse("http://localhost:8080")
-                .expect("Failed to parse default payment_methods_base_url"),
-        )
-    }
-}
-
-impl std::ops::Deref for ModularPaymentMethodServiceUrl {
-    type Target = Url;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl AsRef<Url> for ModularPaymentMethodServiceUrl {
-    fn as_ref(&self) -> &Url {
-        &self.0
-    }
-}
-
-#[allow(missing_docs)]
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct InternalServicesConfig {

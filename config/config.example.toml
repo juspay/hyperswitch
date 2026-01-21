@@ -1360,4 +1360,4 @@ request_timeout =  60                           # Request timeout in seconds for
 [micro_services]
 # Base URLs for modular microservices
 # (e.g., payment-methods, customers, routing, etc.)
-payment_methods_base_url = "http://localhost:8080"
+payment_methods_base_url = "http://localhost:8082"
