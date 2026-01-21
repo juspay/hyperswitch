@@ -12,7 +12,7 @@ pub mod update;
 use common_utils::request::Headers;
 pub use create::{CreatePaymentMethod, CreatePaymentMethodV1Request};
 pub use delete::{DeletePaymentMethod, DeletePaymentMethodV1Request};
-use hyperswitch_interfaces::micro_service::MicroserviceClientContext;
+use hyperswitch_interfaces::micro_service::MicroserviceClient;
 pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
 pub use update::{UpdatePaymentMethod, UpdatePaymentMethodV1Request};

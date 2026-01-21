@@ -4,7 +4,6 @@ pub use hyperswitch_domain_models::{
 };
 use masking::{PeekInterface, Secret};
 use serde::Deserialize;
-use url::Url;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
