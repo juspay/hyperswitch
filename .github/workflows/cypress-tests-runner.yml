@@ -402,10 +402,10 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [runner]
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'merge_group' ||
+    if: |
+      (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && always()
     steps:
       - name: Evaluate Matrix Results
         shell: bash
