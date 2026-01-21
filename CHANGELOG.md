@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.21.1
+
+### Features
+
+- **core:** MIT using Limited Card Data ([#10965](https://github.com/juspay/hyperswitch/pull/10965)) ([`662f63f`](https://github.com/juspay/hyperswitch/commit/662f63f3e07f9b2999ea89246a149765f49a133d))
+
+### Bug Fixes
+
+- **router:** Change role info not found in redis error from 5xx to 4xx ([#10949](https://github.com/juspay/hyperswitch/pull/10949)) ([`6e3e968`](https://github.com/juspay/hyperswitch/commit/6e3e9684f57aaa48ebee00bb2249df2205c09468))
+
+### Miscellaneous Tasks
+
+- Added authentication data field in transaction response ([#10995](https://github.com/juspay/hyperswitch/pull/10995)) ([`5f49c17`](https://github.com/juspay/hyperswitch/commit/5f49c1745165600b14e82d6aefebd349e18f3a27))
+
+**Full Changelog:** [`2026.01.21.0...2026.01.21.1`](https://github.com/juspay/hyperswitch/compare/2026.01.21.0...2026.01.21.1)
+
+- - -
+
 ## 2026.01.21.0
 
 ### Features
