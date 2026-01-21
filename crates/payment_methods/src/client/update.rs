@@ -2,10 +2,9 @@
 
 use api_models::payment_methods::PaymentMethodId;
 use common_utils::request::{Method, RequestContent};
+use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use serde::Deserialize;
 use serde_json::Value;
-
-use crate::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 
@@ -103,14 +102,14 @@ impl UpdatePaymentMethod {
     }
 }
 
-crate::impl_microservice_flow!(
+hyperswitch_interfaces::impl_microservice_flow!(
     UpdatePaymentMethod,
     method = Method::Patch,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
     v2_request = UpdatePaymentMethodV2Request,
     v2_response = UpdatePaymentMethodV2Response,
     v1_response = UpdatePaymentMethodResponse,
-    client = crate::micro_service::payment_method::PaymentMethodClient<'_>,
+    client = crate::client::PaymentMethodClient<'_>,
     body = UpdatePaymentMethod::build_body,
     path_params = UpdatePaymentMethod::build_path_params,
     validate = UpdatePaymentMethod::validate_request

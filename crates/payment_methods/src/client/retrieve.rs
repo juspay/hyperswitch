@@ -5,10 +5,9 @@ use cards::CardNumber;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii, request::Method};
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
+use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use serde::Deserialize;
 use time;
-
-use crate::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 
 /// V1-facing retrieve flow input.
 #[derive(Debug)]
@@ -250,14 +249,14 @@ impl RetrievePaymentMethod {
     }
 }
 
-crate::impl_microservice_flow!(
+hyperswitch_interfaces::impl_microservice_flow!(
     RetrievePaymentMethod,
     method = Method::Get,
     path = "/v2/payment-methods/{id}",
     v2_request = RetrievePaymentMethodV2Request,
     v2_response = RetrievePaymentMethodV2Response,
     v1_response = RetrievePaymentMethodResponse,
-    client = crate::micro_service::payment_method::PaymentMethodClient<'_>,
+    client = crate::client::PaymentMethodClient<'_>,
     path_params = RetrievePaymentMethod::build_path_params,
     validate = RetrievePaymentMethod::validate_request
 );

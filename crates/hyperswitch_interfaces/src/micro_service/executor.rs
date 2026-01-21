@@ -1,14 +1,17 @@
+use std::str::FromStr;
+
 use common_utils::{
-    consts::{TENANT_HEADER, X_REQUEST_ID},
+    consts::TENANT_HEADER,
     request::{Headers, Request},
 };
 use masking::Maskable;
-use router_env::{logger, IdReuse, RequestIdentifier};
+use router_env::{logger, IdReuse, RequestId, RequestIdentifier};
 use url::Url;
 
 use super::{
     error::{MicroserviceClientError, MicroserviceClientErrorKind},
     state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated},
+    MicroserviceClientContext,
 };
 use crate::api_client::{call_connector_api, ApiClientWrapper};
 
@@ -78,26 +81,59 @@ impl<O: ClientOperation> TransformedRequest<O> {
         {
             let header_name = trace_header.header_name();
             let trace_id = match trace_header.id_reuse_strategy() {
-                IdReuse::UseIncoming => http_request
-                    .headers
-                    .iter()
-                    .find(|(key, _)| key.eq_ignore_ascii_case(header_name))
-                    .map(|(_, value)| value.clone().into_inner())
-                    .unwrap_or_else(common_utils::generate_time_ordered_id_without_prefix),
-                IdReuse::IgnoreIncoming => common_utils::generate_time_ordered_id_without_prefix(),
+                IdReuse::UseIncoming => match state.get_request_id() {
+                    Some(existing) => existing,
+                    None => {
+                        let generated = common_utils::generate_time_ordered_id_without_prefix();
+                        let parsed = RequestId::from_str(generated.as_str()).map_err(|err| {
+                            logger::error!(
+                                operation,
+                                error = ?err,
+                                "generated request id was invalid"
+                            );
+                            MicroserviceClientError {
+                                operation: operation.to_string(),
+                                kind: MicroserviceClientErrorKind::Transport(
+                                    "Generated request id was invalid".to_string(),
+                                ),
+                            }
+                        })?;
+                        logger::debug!(
+                            operation,
+                            generated_id = %parsed,
+                            "request id missing; generating new id"
+                        );
+                        parsed
+                    }
+                },
+                IdReuse::IgnoreIncoming => {
+                    let generated = common_utils::generate_time_ordered_id_without_prefix();
+                    let parsed = RequestId::from_str(generated.as_str()).map_err(|err| {
+                        logger::error!(
+                            operation,
+                            error = ?err,
+                            "generated request id was invalid"
+                        );
+                        MicroserviceClientError {
+                            operation: operation.to_string(),
+                            kind: MicroserviceClientErrorKind::Transport(
+                                "Generated request id was invalid".to_string(),
+                            ),
+                        }
+                    })?;
+                    logger::debug!(
+                        operation,
+                        generated_id = %parsed,
+                        "trace header reuse disabled; generating new id"
+                    );
+                    parsed
+                }
             };
 
-            http_request
-                .headers
-                .insert((header_name.to_string(), Maskable::Normal(trace_id)));
-
-            if header_name != X_REQUEST_ID {
-                if let Some(request_id) = state.get_request_id_str() {
-                    http_request
-                        .headers
-                        .insert((X_REQUEST_ID.to_string(), Maskable::Normal(request_id)));
-                }
-            }
+            http_request.headers.insert((
+                header_name.to_string(),
+                Maskable::Normal(trace_id.to_string()),
+            ));
 
             let tenant_id = state.get_tenant().tenant_id.get_string_repr().to_string();
             if !tenant_id.is_empty() {
@@ -186,7 +222,7 @@ impl<O: ClientOperation> Executed<O> {
 /// Execute the full pipeline: validate → transform → execute → transform.
 pub async fn execute_microservice_operation<O: ClientOperation>(
     state: &dyn ApiClientWrapper,
-    client: &super::payment_method::PaymentMethodClient<'_>,
+    client: &impl MicroserviceClientContext,
     op: O,
 ) -> Result<O::V1Response, MicroserviceClientError> {
     let validated = Validated::new(op)?;
@@ -194,9 +230,9 @@ pub async fn execute_microservice_operation<O: ClientOperation>(
     let executed = transformed
         .execute(
             state,
-            client.base_url.as_ref(),
-            client.parent_headers.clone(),
-            client.trace,
+            client.base_url(),
+            client.parent_headers().clone(),
+            client.trace(),
         )
         .await?;
     Ok(executed.into_transformed_response()?.output)
