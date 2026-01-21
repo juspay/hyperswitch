@@ -190,7 +190,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  mandatory-cypress-tests-runners:
+  mandatory-cypress-tests:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
@@ -231,6 +231,11 @@ jobs:
           - 5432:5432
 
     steps:
+
+      - name: Early exit for forked PRs
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: exit 1
+      
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -389,28 +394,24 @@ jobs:
 
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
-    needs: [mandatory-cypress-tests-runners]
+    needs: [mandatory-cypress-tests]
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && always()
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     permissions:
       pull-requests: write
     steps:
-      - name: Set GitHub token for gh
-        if: ${{ env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: |
-          echo "GH_TOKEN=${{ github.token }}" >> "$GITHUB_ENV"
-    
       - name: Evaluate Matrix Results
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          RESULT="${{ needs.mandatory-cypress-tests-runners.result }}"
+          RESULT="${{ needs.mandatory-cypress-tests.result }}"
           RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
-          echo "mandatory-cypress-tests-runners result: $RESULT"
+          echo "mandatory-cypress-tests result: $RESULT"
           echo "Run tests env: $RUN_TESTS_VAL"
 
           if [ "$RUN_TESTS_VAL" == "false" ]; then
