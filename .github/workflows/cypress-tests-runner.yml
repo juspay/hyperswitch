@@ -231,9 +231,6 @@ jobs:
           - 5432:5432
 
     steps:
-      - name : exit cypress early for forked PRs
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: exit 1
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
@@ -402,6 +399,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Set GitHub token for gh
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           echo "GH_TOKEN=${{ github.token }}" >> "$GITHUB_ENV"
