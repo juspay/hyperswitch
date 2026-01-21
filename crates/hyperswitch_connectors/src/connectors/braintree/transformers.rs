@@ -32,8 +32,9 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{
-        PaymentsCaptureResponseRouterData, PaymentsPreAuthenticateResponseRouterData, PaymentsResponseRouterData,
-        PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsPreAuthenticateResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSessionResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
     unimplemented_payment_method,
     utils::{
@@ -2902,15 +2903,15 @@ impl
             BraintreeSessionResponse::SessionTokenResponse(res) => {
                 let session_token = match data.payment_method_type {
                     Some(common_enums::PaymentMethodType::ApplePay) => {
-                        let payment_request_data: payment_types::PaymentRequestMetadata =
-                            data.connector_meta_data
-                                .clone()
-                                .ok_or(errors::ConnectorError::NoConnectorMetaData)
-                                .attach_printable("connector_meta_data is None")?
-                                .expose()
-                                .parse_value("PaymentRequestMetadata")
-                                .change_context(errors::ConnectorError::ParsingFailed)
-                                .attach_printable("Failed to parse apple pay metadata")?;
+                        let payment_request_data: payment_types::PaymentRequestMetadata = data
+                            .connector_meta_data
+                            .clone()
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                            .attach_printable("connector_meta_data is None")?
+                            .expose()
+                            .parse_value("PaymentRequestMetadata")
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                            .attach_printable("Failed to parse apple pay metadata")?;
 
                         SessionToken::ApplePay(Box::new(
                             api_models::payments::ApplepaySessionTokenResponse {
@@ -2963,15 +2964,15 @@ impl
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
-                        let gpay_data: payment_types::GpaySessionTokenData =
-                            data.connector_meta_data
-                                .clone()
-                                .ok_or(errors::ConnectorError::NoConnectorMetaData)
-                                .attach_printable("connector_meta_data is None")?
-                                .expose()
-                                .parse_value("GpaySessionTokenData")
-                                .change_context(errors::ConnectorError::ParsingFailed)
-                                .attach_printable("Failed to parse gpay metadata")?;
+                        let gpay_data: payment_types::GpaySessionTokenData = data
+                            .connector_meta_data
+                            .clone()
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                            .attach_printable("connector_meta_data is None")?
+                            .expose()
+                            .parse_value("GpaySessionTokenData")
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                            .attach_printable("Failed to parse gpay metadata")?;
 
                         let gpay_metadata = gpay_data.google_pay.data.ok_or(
                             errors::ConnectorError::MissingRequiredField {
@@ -3089,14 +3090,14 @@ impl
 
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending,
-                    response: Ok(PaymentsResponseData::SessionResponse {
-                        session_token,
-                    }),
+                    response: Ok(PaymentsResponseData::SessionResponse { session_token }),
                     ..data
                 })
             }
             BraintreeSessionResponse::ErrorResponse(error_data) => Ok(Self {
-                response: Err(*build_error_response::<()>(&error_data.errors, item.http_code).unwrap_err()),
+                response: Err(
+                    *build_error_response::<()>(&error_data.errors, item.http_code).unwrap_err(),
+                ),
                 ..data
             }),
         }
