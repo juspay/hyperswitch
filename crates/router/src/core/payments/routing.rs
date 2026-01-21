@@ -32,7 +32,10 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting, DynamicRoutingError,
 };
-use hyperswitch_domain_models::address::Address;
+use hyperswitch_domain_models::{
+    address::Address,
+    routing::{PreRoutingConnectorChoice, RoutingData},
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
 use kgraph_utils::{
@@ -61,6 +64,7 @@ use crate::{
     core::{
         errors, errors as oss_errors,
         payments::{
+            helpers::get_apple_pay_retryable_connectors, retry::config_should_call_gsm,
             routing::utils::DecisionEngineApiHandler, OperationSessionGetters,
             OperationSessionSetters,
         },
@@ -502,7 +506,9 @@ pub trait RoutingStage: Send + Sync {
     where
         Self: 'a;
 
-    type Fut<'a>: Future<Output = RoutingResult<ConnectorOutcome>> + Send
+    type Output;
+
+    type Fut<'a>: Future<Output = RoutingResult<Self::Output>> + Send
     where
         Self: 'a;
 
@@ -519,6 +525,244 @@ pub struct ConnectorOutcome {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
 }
 
+impl ConnectorOutcome {
+    pub fn new(connectors: Vec<routing_types::RoutableConnectorChoice>) -> Self {
+        Self { connectors }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+        }
+    }
+}
+
+impl From<Vec<routing_types::RoutableConnectorChoice>> for ConnectorOutcome {
+    fn from(connectors: Vec<routing_types::RoutableConnectorChoice>) -> Self {
+        Self { connectors }
+    }
+}
+
+pub struct StraightThroughRoutingStage {
+    pub algorithm: Arc<api_models::routing::StraightThroughAlgorithm>,
+}
+
+pub struct StraightThroughRoutingInput<'a> {
+    pub creds_identifier: Option<&'a str>,
+}
+
+pub struct ConnectorOutcomeWithEligibilityRequirement {
+    pub connectors: ConnectorOutcome,
+    pub check_eligibility: bool,
+}
+
+impl RoutingStage for StraightThroughRoutingStage {
+    type Input<'a> = StraightThroughRoutingInput<'a>;
+    type Output = ConnectorOutcomeWithEligibilityRequirement;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let (connectors, check_eligibility) =
+                perform_straight_through_routing(&self.algorithm.clone(), input.creds_identifier)
+                    .change_context(errors::RoutingError::DslExecutionError)
+                    .attach_printable("euclid: unable to perform straight through routing")?;
+
+            Ok(ConnectorOutcomeWithEligibilityRequirement {
+                connectors: connectors.into(),
+                check_eligibility,
+            })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::StraightThroughRouting
+    }
+}
+
+pub struct PreRoutingInput<'a> {
+    pub pre_routing_results:
+        &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    pub payment_method_type: &'a storage_enums::PaymentMethodType,
+
+    pub state: &'a SessionState,
+    pub platform: &'a domain::Platform,
+    pub business_profile: &'a domain::Profile,
+    pub creds_identifier: Option<&'a str>,
+}
+
+pub enum PreRoutingOutcome {
+    Retryable(Vec<api::ConnectorRoutingData>),
+    PreDetermined(api::ConnectorRoutingData),
+}
+
+pub async fn resolve_pre_routed_connectors(
+    input: PreRoutingInput<'_>,
+) -> RoutingResult<PreRoutingOutcome> {
+    let pre_routing_results = input
+        .pre_routing_results
+        .as_ref()
+        .ok_or(errors::RoutingError::DslExecutionError)?;
+
+    let routable_connector_choice = pre_routing_results
+        .get(input.payment_method_type)
+        .ok_or(errors::RoutingError::DslExecutionError)?;
+
+    let routable_connectors = match routable_connector_choice {
+        PreRoutingConnectorChoice::Single(c) => vec![c.clone()],
+        PreRoutingConnectorChoice::Multiple(cs) => cs.clone(),
+    };
+
+    let first_routable_connector = routable_connectors
+        .first()
+        .cloned()
+        .ok_or(errors::RoutingError::DslExecutionError)?;
+
+    let mut pre_routing_connector_data_list = Vec::with_capacity(routable_connectors.len());
+
+    for connector_choice in routable_connectors {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &input.state.conf.connectors,
+            &connector_choice.connector.to_string(),
+            api::GetToken::Connector,
+            connector_choice.merchant_connector_id.clone(),
+        )
+        .change_context(errors::RoutingError::DslExecutionError)
+        .attach_printable("Invalid connector name received")?
+        .into();
+
+        pre_routing_connector_data_list.push(connector_data);
+    }
+
+    #[cfg(feature = "retry")]
+    {
+        let should_do_retry = config_should_call_gsm(
+            &*input.state.store,
+            input.platform.get_processor().get_account().get_id(),
+            input.business_profile,
+        )
+        .await;
+
+        if *input.payment_method_type == storage_enums::PaymentMethodType::ApplePay
+            && should_do_retry
+        {
+            let retryable = get_apple_pay_retryable_connectors(
+                input.state,
+                input.platform,
+                input.creds_identifier,
+                &pre_routing_connector_data_list,
+                first_routable_connector
+                    .merchant_connector_id
+                    .clone()
+                    .as_ref(),
+                input.business_profile.clone(),
+            )
+            .await
+            .change_context(errors::RoutingError::DslExecutionError)?;
+
+            if let Some(list) = retryable {
+                if list.len() > 1 {
+                    logger::info!("Constructed apple pay retryable connector list");
+                    return Ok(PreRoutingOutcome::Retryable(list));
+                }
+            }
+        }
+    }
+
+    logger::debug!("euclid_routing: pre-routing connector present");
+
+    let first_connector = pre_routing_connector_data_list
+        .first()
+        .ok_or(errors::RoutingError::DslExecutionError)?;
+
+    Ok(PreRoutingOutcome::PreDetermined(first_connector.clone()))
+}
+
+pub fn try_get_attempt_connector<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    let Some(ref connector_name) = payment_data.get_payment_attempt().connector else {
+        return Ok(None);
+    };
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        payment_data
+            .get_payment_attempt()
+            .merchant_connector_id
+            .clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid connector name received in 'routed_through'")?;
+
+    routing_data.routed_through = Some(connector_name.clone());
+
+    logger::debug!("euclid_routing: predetermined connector present in attempt");
+
+    Ok(Some(api::ConnectorCallType::PreDetermined(
+        connector_data.into(),
+    )))
+}
+
+pub fn try_get_mandate_connector<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    let Some(mandate_connector_details) = payment_data.get_mandate_connector() else {
+        return Ok(None);
+    };
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &mandate_connector_details.connector,
+        api::GetToken::Connector,
+        mandate_connector_details.merchant_connector_id.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid connector name received in 'routed_through'")?;
+
+    routing_data.routed_through = Some(mandate_connector_details.connector.clone());
+
+    routing_data
+        .merchant_connector_id
+        .clone_from(&mandate_connector_details.merchant_connector_id);
+
+    logger::debug!("euclid_routing: predetermined mandate connector");
+
+    Ok(Some(api::ConnectorCallType::PreDetermined(
+        connector_data.into(),
+    )))
+}
+
+pub fn try_get_pre_determined_connector<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    if let Some(result) = try_get_attempt_connector::<F, D>(state, payment_data, routing_data)? {
+        return Ok(Some(result));
+    }
+
+    try_get_mandate_connector::<F, D>(state, payment_data, routing_data)
+}
+
 pub struct StaticRoutingInput<'a> {
     pub platform: &'a domain::Platform,
     pub business_profile: &'a domain::Profile,
@@ -532,7 +776,8 @@ pub struct StaticRoutingStage {
 
 impl RoutingStage for StaticRoutingStage {
     type Input<'a> = StaticRoutingInput<'a>;
-    type Fut<'a> = BoxFuture<'a, RoutingResult<ConnectorOutcome>>;
+    type Output = ConnectorOutcome;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
@@ -600,7 +845,8 @@ pub struct DynamicRoutingInput<'a> {
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl RoutingStage for DynamicRoutingStage {
     type Input<'a> = DynamicRoutingInput<'a>;
-    type Fut<'a> = BoxFuture<'a, RoutingResult<ConnectorOutcome>>;
+    type Output = ConnectorOutcome;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
