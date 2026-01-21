@@ -86,7 +86,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
@@ -106,7 +106,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             &self,
             call_connector_action,
             connector_request,
-            None,
+            return_raw_connector_response,
         )
         .await
         .to_payment_failed_response()?;

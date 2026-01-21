@@ -1123,6 +1123,7 @@ impl<F>
             integrity_object: None,
             split_payments: item.request.split_payments,
             webhook_url: item.request.webhook_url,
+            merchant_order_reference_id: item.request.merchant_order_reference_id,
         })
     }
 }
@@ -1225,6 +1226,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
+                authentication_data,
                 charges,
             },
         ) => {
@@ -1248,6 +1250,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
+                    authentication_data,
                     charges,
                 },
             )
