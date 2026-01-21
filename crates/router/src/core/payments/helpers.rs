@@ -5713,6 +5713,7 @@ pub async fn get_additional_payment_data(
                         authentication_data: None,
                         is_regulated: None,
                         signature_network: None,
+                        auth_code: None,
                     }),
                 )))
             } else {
@@ -5751,6 +5752,7 @@ pub async fn get_additional_payment_data(
                                 authentication_data: None,
                                 is_regulated: None,
                                 signature_network: None,
+                                auth_code: None,
                             },
                         ))
                     });
@@ -5774,6 +5776,7 @@ pub async fn get_additional_payment_data(
                             authentication_data: None,
                             is_regulated: None,
                             signature_network: None,
+                            auth_code: None,
                         },
                     ))
                 })))
