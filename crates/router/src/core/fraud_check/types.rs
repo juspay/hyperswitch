@@ -5,7 +5,7 @@ use api_models::{
     refunds::RefundResponse,
 };
 use common_enums::FrmSuggestion;
-use common_utils::pii::SecretSerdeValue;
+use common_utils::{id_type::CustomerId, pii::SecretSerdeValue};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 pub use hyperswitch_domain_models::{
     router_request_types::fraud_check::{
@@ -43,6 +43,7 @@ pub struct PaymentDetails {
     pub payment_method: Option<PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub refund_transaction_id: Option<String>,
+    pub customer_id: Option<CustomerId>,
 }
 #[derive(Clone, Default, Debug)]
 pub struct FrmMerchantAccount {
@@ -84,6 +85,7 @@ pub struct PaymentToFrmData {
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub frm_metadata: Option<SecretSerdeValue>,
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
