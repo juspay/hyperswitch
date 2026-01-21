@@ -2332,6 +2332,7 @@ pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+    CardWithLimitedData, // indicates the recurring transaction is done by card data only
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
@@ -3828,6 +3829,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris,
         }
     }
 }
@@ -4628,25 +4630,57 @@ pub enum UpiData {
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.
+pub enum UpiSource {
+    /// UPI payment using a credit card
+    UpiCc,
+    /// UPI payment using a credit line
+    UpiCl,
+    /// UPI payment using a bank account (savings)
+    UpiAccount,
+    /// UPI payment using a combination of credit card and credit line
+    UpiCcCl,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
+    /// The Virtual Payment Address (VPA) for UPI collect payment
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiQrData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiIntentData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -4832,6 +4866,8 @@ pub enum RealTimePaymentData {
     PromptPay {},
     #[smithy(nested_value_type)]
     VietQr {},
+    #[smithy(nested_value_type)]
+    Qris {},
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -6427,6 +6463,8 @@ pub struct PaymentsCaptureResponse {
 pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -7292,6 +7330,11 @@ pub struct PaymentsResponse {
     #[remove_in(PaymentsCreateResponseOpenApi)]
     #[smithy(value_type = "Option<String>")]
     pub unified_message: Option<String>,
+
+    /// Complete error details containing unified, issuer, and connector-level error information.
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 
     /// Describes the type of payment flow experienced by the customer (e.g., 'redirect_to_url', 'invoke_sdk', 'display_qr_code').
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
@@ -8205,6 +8248,76 @@ pub struct PaymentsStatusRequest {
     pub param: Option<String>,
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+}
+
+/// Complete error details for V1 PaymentsResponse containing unified, issuer, and connector-level error information.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PaymentErrorDetails {
+    /// Unified error details (standardized across connectors)
+    pub unified_details: Option<ApiUnifiedErrorDetails>,
+    /// Error details from the card issuer
+    pub issuer_details: Option<ApiIssuerErrorDetails>,
+    /// Error details from the payment connector
+    pub connector_details: Option<ApiConnectorErrorDetails>,
+}
+
+/// Unified error details standardized across all payment connectors
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiUnifiedErrorDetails {
+    /// Error category
+    #[schema(value_type = Option<UnifiedCode>)]
+    pub category: Option<String>,
+    /// Human-readable error message
+    pub message: Option<String>,
+    /// Standardised error code
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_code: Option<api_enums::StandardisedCode>,
+    /// Detailed description of the error
+    pub description: Option<String>,
+    /// User-friendly guidance message
+    pub user_guidance_message: Option<String>,
+    /// Recommended action (e.g., "do_not_retry", "retry_later")
+    #[schema(value_type = Option<RecommendedAction>)]
+    pub recommended_action: Option<api_enums::RecommendedAction>,
+}
+
+/// Error details from the card issuer
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiIssuerErrorDetails {
+    /// Error code from the issuer
+    pub code: Option<String>,
+    /// Error message from the issuer
+    pub message: Option<String>,
+    /// Network-specific error details
+    pub network_details: Option<ApiNetworkErrorDetails>,
+}
+
+/// Network-specific error details (e.g., Visa, Mastercard)
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiNetworkErrorDetails {
+    /// Card network (e.g., Visa, Mastercard)
+    #[schema(value_type = Option<CardNetwork>)]
+    pub name: Option<api_enums::CardNetwork>,
+    /// Network advice code
+    pub advice_code: Option<String>,
+    /// Network advice message
+    pub advice_message: Option<String>,
+}
+
+/// Error details from the payment connector
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiConnectorErrorDetails {
+    /// Connector-specific error code
+    pub code: Option<String>,
+    /// Connector-specific error message
+    pub message: Option<String>,
+    /// Additional error reason/details
+    pub reason: Option<String>,
 }
 
 /// Error details for the payment
@@ -9548,9 +9661,20 @@ pub struct GpayMetaData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GpayMetaData>,
+    support_predecrypted_token: Option<bool>,
+}
+impl GooglePayDetailsWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "google_pay")]
-    pub data: GpayMetaData,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9716,14 +9840,35 @@ pub struct ApplepaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayCombinedWrapper {
+    #[serde(flatten)]
+    pub data: Option<ApplePayCombinedMetadata>,
+    support_predecrypted_token: Option<bool>,
+}
+impl ApplePayCombinedWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+    pub fn get_combined_metadata_required(
+        &self,
+    ) -> Result<ApplePayCombinedMetadata, ValidationError> {
+        self.data
+            .clone()
+            .ok_or(ValidationError::IncorrectValueProvided {
+                field_name: "metadata.apple_pay_combined",
+            })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayCombinedSessionTokenData {
-    pub apple_pay_combined: ApplePayCombinedMetadata,
+    pub apple_pay_combined: ApplePayCombinedWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepaySessionTokenMetadata {
-    ApplePayCombined(ApplePayCombinedMetadata),
+    ApplePayCombined(ApplePayCombinedWrapper),
     ApplePay(ApplePayMetadata),
 }
 
@@ -10758,6 +10903,9 @@ pub struct PaymentsCancelRequest {
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// If enabled, provides whole connector response
+    #[smithy(value_type = "Option<bool>")]
+    pub all_keys_required: Option<bool>,
 }
 
 /// Request to cancel a payment when the payment is already captured

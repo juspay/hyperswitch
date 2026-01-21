@@ -534,6 +534,20 @@ pub enum PaymentMethodCreateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    BankDebit(BankDebitDetail),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        #[schema(value_type = String)]
+        account_number: masking::Secret<String>,
+        #[schema(value_type = String)]
+        routing_number: masking::Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -3621,6 +3635,26 @@ pub enum NetworkTokenStatusCheckResponse {
     /// Error response for network token status check
     FailureResponse(NetworkTokenStatusCheckFailureResponse),
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct NetworkTokenEligibilityRequest {
+    /// The card bin to retrieve information for
+    pub card_bin: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct GetNetworkTokenEiligibilityResponse {
+    /// Indicates if the card bin is eligible for network tokenization for the particular merchant
+    pub eligible_for_network_tokenization: bool,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for NetworkTokenEligibilityRequest {}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for GetNetworkTokenEiligibilityResponse {}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]

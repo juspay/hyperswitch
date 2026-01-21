@@ -153,7 +153,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 phone_number: address
                                     .phone
                                     .as_ref()
-                                    .and_then(|phone| phone.number.clone()),
+                                    .and_then(|phone_details| phone_details.number.clone())
+                                    .and_then(utils::trim_secret_string),
                                 email: address
                                     .email
                                     .as_ref()
@@ -193,7 +194,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                     country_code: address
                         .phone
                         .as_ref()
-                        .and_then(|value| value.country_code.clone()),
+                        .and_then(|phone_details| phone_details.country_code.clone())
+                        .and_then(utils::trim_string),
                     updated_by: storage_scheme.to_string(),
                     email: encryptable_address.email.map(|email| {
                         let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
@@ -361,7 +363,8 @@ pub async fn get_domain_address(
                         phone_number: address
                             .phone
                             .as_ref()
-                            .and_then(|phone| phone.number.clone()),
+                            .and_then(|phone_details| phone_details.number.clone())
+                            .and_then(utils::trim_secret_string),
                         email: address
                             .email
                             .as_ref()
@@ -380,7 +383,11 @@ pub async fn get_domain_address(
                 .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
             phone_number: encryptable_address.phone_number,
-            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+            country_code: address
+                .phone
+                .as_ref()
+                .and_then(|phone_details| phone_details.country_code.clone())
+                .and_then(utils::trim_string),
             merchant_id: merchant_id.to_owned(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
@@ -565,6 +572,15 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                         RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
+                        RecurringDetails::CardWithLimitedData(_) => (
                             None,
                             request.payment_method,
                             request.payment_method_type,
@@ -1623,13 +1639,15 @@ pub fn get_customer_details_from_request(
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone.clone())
-        .or(request.phone.clone());
+        .or(request.phone.clone())
+        .and_then(utils::trim_secret_string);
 
     let customer_phone_code = request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone_country_code.clone())
-        .or(request.phone_country_code.clone());
+        .or(request.phone_country_code.clone())
+        .and_then(utils::trim_string);
 
     let tax_registration_id = request
         .customer
@@ -2378,6 +2396,9 @@ pub fn determine_standard_vault_action(
                     VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker
                 }
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+                    VaultFetchAction::NoFetchAction
+                }
+                Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
@@ -4242,6 +4263,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4331,6 +4353,7 @@ mod tests {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4418,6 +4441,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4941,6 +4965,7 @@ impl AttemptType {
             issuer_error_message: None,
             debit_routing_savings: None,
             is_overcapture_enabled: None,
+            error_details: None,
         }
     }
 
@@ -5626,6 +5651,119 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+            let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => Some(
+                    card_with_limited_details
+                        .card_number
+                        .get_extended_card_bin(),
+                ),
+                _ => None,
+            };
+
+            let last4 = Some(card_with_limited_details.card_number.get_last4());
+            if card_with_limited_details.card_issuer.is_some()
+                && card_with_limited_details.card_network.is_some()
+                && card_with_limited_details.card_type.is_some()
+                && card_with_limited_details.card_issuing_country.is_some()
+                && card_with_limited_details.bank_code.is_some()
+            {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Card(
+                    Box::new(api_models::payments::AdditionalCardInfo {
+                        card_issuer: card_with_limited_details.card_issuer.to_owned(),
+                        card_network: card_with_limited_details.card_network.clone(),
+                        card_type: card_with_limited_details.card_type.to_owned(),
+                        card_issuing_country: card_with_limited_details
+                            .card_issuing_country
+                            .to_owned(),
+                        card_issuing_country_code: card_with_limited_details
+                            .card_issuing_country_code
+                            .to_owned(),
+                        bank_code: card_with_limited_details.bank_code.to_owned(),
+                        card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                        card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                        card_holder_name: card_with_limited_details.card_holder_name.clone(),
+                        last4: last4.clone(),
+                        card_isin: card_isin.clone(),
+                        card_extended_bin: card_extended_bin.clone(),
+                        // These are filled after calling the processor / connector
+                        payment_checks: None,
+                        authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
+                    }),
+                )))
+            } else {
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
+                    .await
+                    .flatten()
+                    .map(|card_info| {
+                        api_models::payments::AdditionalPaymentData::Card(Box::new(
+                            api_models::payments::AdditionalCardInfo {
+                                card_issuer: card_info.card_issuer,
+                                card_network: card_with_limited_details
+                                    .card_network
+                                    .clone()
+                                    .or(card_info.card_network),
+                                bank_code: card_info.bank_code,
+                                card_type: card_info.card_type,
+                                card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
+                                last4: last4.clone(),
+                                card_isin: card_isin.clone(),
+                                card_extended_bin: card_extended_bin.clone(),
+                                card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                                card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                                card_holder_name: card_with_limited_details
+                                    .card_holder_name
+                                    .clone(),
+                                // These are filled after calling the processor / connector
+                                payment_checks: None,
+                                authentication_data: None,
+                                is_regulated: None,
+                                signature_network: None,
+                            },
+                        ))
+                    });
+                Ok(Some(card_info.unwrap_or_else(|| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: None,
+                            card_network: card_with_limited_details.card_network.clone(),
+                            bank_code: None,
+                            card_type: None,
+                            card_issuing_country: None,
+                            card_issuing_country_code: None,
+                            last4,
+                            card_isin,
+                            card_extended_bin,
+                            card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                            card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                            card_holder_name: card_with_limited_details.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
+                        },
+                    ))
+                })))
+            }
+        }
         domain::PaymentMethodData::MobilePayment(mobile_payment) => Ok(Some(
             api_models::payments::AdditionalPaymentData::MobilePayment {
                 details: Some(mobile_payment.to_owned().into()),
@@ -5678,14 +5816,15 @@ pub fn is_apple_pay_simplified_flow(
         .ok();
 
     // return true only if the apple flow type is simplified
-    Ok(matches!(
-        option_apple_pay_metadata,
-        Some(
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
-            )
-        )
-    ))
+    Ok(match option_apple_pay_metadata {
+        Some(api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+            combined_data,
+        )) => matches!(
+            combined_data.data,
+            Some(api_models::payments::ApplePayCombinedMetadata::Simplified { .. })
+        ),
+        _ => false,
+    })
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
@@ -5810,6 +5949,30 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
+pub fn is_googlepay_predecrypted_flow_supported(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .map(|metadata| metadata.google_pay.is_predecrypted_token_supported())
+        .unwrap_or(false)
+}
+pub fn is_applepay_predecrypted_flow_supported(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .ok()
+        .map(|apple_pay_metadata| {
+            apple_pay_metadata
+                .apple_pay_combined
+                .is_predecrypted_token_supported()
+        })
+        .unwrap_or(false)
+}
 pub fn get_applepay_metadata(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
@@ -5818,6 +5981,7 @@ pub fn get_applepay_metadata(
         .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
             "ApplepayCombinedSessionTokenData",
         )
+        .change_context(errors::ConnectorError::ParsingFailed)
         .map(|combined_metadata| {
             api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                 combined_metadata.apple_pay_combined,
@@ -5828,6 +5992,7 @@ pub fn get_applepay_metadata(
                 .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                     "ApplepaySessionTokenData",
                 )
+                .change_context(errors::ConnectorError::ParsingFailed)
                 .map(|old_metadata| {
                     api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
                         old_metadata.apple_pay,
@@ -6866,6 +7031,7 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::CardWithLimitedDetails(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
