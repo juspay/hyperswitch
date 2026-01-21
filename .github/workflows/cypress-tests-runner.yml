@@ -399,7 +399,7 @@ jobs:
     needs: [runner]
     runs-on: ubuntu-latest
     if: >
-      xgithub.event_name == 'merge_group' ||
+      github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     steps:
