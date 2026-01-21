@@ -9,7 +9,7 @@ use url::Url;
 use super::{
     error::{MicroserviceClientError, MicroserviceClientErrorKind},
     state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated},
-    MicroserviceClientContext,
+    MicroserviceClient,
 };
 use crate::api_client::{call_connector_api, ApiClientWrapper};
 
@@ -182,7 +182,7 @@ impl<O: ClientOperation> Executed<O> {
 /// Execute the full pipeline: validate → transform → execute → transform.
 pub async fn execute_microservice_operation<O: ClientOperation>(
     state: &dyn ApiClientWrapper,
-    client: &impl MicroserviceClientContext,
+    client: &impl MicroserviceClient,
     request: O::V1Request,
 ) -> Result<O::V1Response, MicroserviceClientError> {
     let op = O::from_request(&request);

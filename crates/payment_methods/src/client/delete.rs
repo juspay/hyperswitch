@@ -70,7 +70,12 @@ impl DeletePaymentMethod {
         &self,
         request: &DeletePaymentMethodV1Request,
     ) -> Result<(), MicroserviceClientError> {
-        if request.payment_method_id.payment_method_id.trim().is_empty() {
+        if request
+            .payment_method_id
+            .payment_method_id
+            .trim()
+            .is_empty()
+        {
             return Err(MicroserviceClientError {
                 operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(

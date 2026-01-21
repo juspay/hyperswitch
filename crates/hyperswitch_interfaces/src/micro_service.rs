@@ -1,7 +1,7 @@
 //! Generic microservice client framework (typestate pipeline + macro helpers).
 //!
 //! This module is microservice-agnostic. Domain-specific flows and lightweight clients should
-//! live in their own crates and implement [`MicroserviceClientContext`].
+//! live in their own crates and implement [`MicroserviceClient`].
 //!
 //! # Examples
 //!
@@ -9,7 +9,7 @@
 //! use common_utils::request::Headers;
 //! use hyperswitch_interfaces::{
 //!     api_client::ApiClientWrapper,
-//!     micro_service::{MicroserviceClientContext, MicroserviceClientError},
+//!     micro_service::{MicroserviceClient, MicroserviceClientError},
 //! };
 //! use router_env::RequestIdentifier;
 //! use url::Url;
@@ -20,7 +20,7 @@
 //!     trace: &'a RequestIdentifier,
 //! }
 //!
-//! impl<'a> MicroserviceClientContext for ExampleClient<'a> {
+//! impl<'a> MicroserviceClient for ExampleClient<'a> {
 //!     fn base_url(&self) -> &Url { self.base_url }
 //!     fn parent_headers(&self) -> &Headers { self.parent_headers }
 //!     fn trace(&self) -> &RequestIdentifier { self.trace }

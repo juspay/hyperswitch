@@ -4,7 +4,7 @@
 ///
 /// ```rust
 /// use common_utils::request::{Headers, Method, RequestContent};
-/// use hyperswitch_interfaces::micro_service::MicroserviceClientContext;
+/// use hyperswitch_interfaces::micro_service::MicroserviceClient;
 /// use router_env::RequestIdentifier;
 /// use url::Url;
 ///
@@ -20,7 +20,7 @@
 ///     trace: &'a RequestIdentifier,
 /// }
 ///
-/// impl<'a> MicroserviceClientContext for ExampleClient<'a> {
+/// impl<'a> MicroserviceClient for ExampleClient<'a> {
 ///     fn base_url(&self) -> &Url { self.base_url }
 ///     fn parent_headers(&self) -> &Headers { self.headers }
 ///     fn trace(&self) -> &RequestIdentifier { self.trace }
