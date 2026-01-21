@@ -361,6 +361,7 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: None,
         })
     }
 }
@@ -523,6 +524,7 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1243,6 +1245,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1420,6 +1423,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: None,
         })
     }
 }
@@ -1580,6 +1584,7 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -3597,6 +3602,18 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Braintree form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Mifinity form type is not implemented".to_string(),
                 )
                 .into(),
             ),
