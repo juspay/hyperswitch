@@ -588,6 +588,7 @@ fn transform_response_for_authenticate_flow(
                 network_txn_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
+                authentication_data,
                 charges,
             },
         ) => {
@@ -611,6 +612,7 @@ fn transform_response_for_authenticate_flow(
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
+                    authentication_data,
                     charges,
                 },
             )
@@ -961,6 +963,7 @@ impl<F>
             integrity_object: None,
             split_payments: None,
             webhook_url: None,
+            merchant_order_reference_id: item.request.merchant_order_reference_id,
         })
     }
 }

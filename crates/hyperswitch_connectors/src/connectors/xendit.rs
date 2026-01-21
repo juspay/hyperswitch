@@ -216,6 +216,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 common_types::payments::XenditSplitRequest::MultipleSplits(_),
             )) => {
                 if let Ok(PaymentsResponseData::TransactionResponse {
+                    authentication_data: None,
                     charges:
                         Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
                             common_types::payments::XenditChargeResponseData::MultipleSplits(
