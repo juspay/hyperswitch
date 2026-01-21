@@ -742,6 +742,7 @@ fn process_nexixpay_preprocessing_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.operation.order_id),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
     };
@@ -923,6 +924,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -947,7 +949,8 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                 )))
             }
             Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
+            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nexixpay"),
                 )
@@ -1187,6 +1190,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                                 response_body.operation.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1237,6 +1241,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                                 mandate_response.operation.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1385,6 +1390,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.operation.order_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1468,6 +1474,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("nexixpay"),
@@ -1571,6 +1578,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1623,6 +1631,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NexixpayOperationResponse>>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1679,6 +1688,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NexixpayOperationResponse>>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1766,6 +1776,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.operation.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
