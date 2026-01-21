@@ -190,7 +190,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  mandatory-cypress-tests-runner:
+  mandatory-cypress-tests-runners:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
@@ -399,6 +399,10 @@ jobs:
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && always()
     steps:
+      - name: Set GitHub token for gh
+        shell: bash
+        run: |
+          echo "GH_TOKEN=${{ github.token }}" >> "$GITHUB_ENV"
     
       - name: Evaluate Matrix Results
         shell: bash
@@ -413,8 +417,6 @@ jobs:
             echo "Tests were skipped (Fork PR). Marking as success."
             exit 0
           fi
-
-          GH_TOKEN: ${{ github.token }}
 
           if [ "$RESULT" == "success" ]; then
             echo "All mandatory tests passed."
@@ -478,7 +480,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  mandatory-cypress-tests-runner-optional-connectors:
+  runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
     if: false
     needs: [ build-hyperswitch, prepare-optional-matrix ]
