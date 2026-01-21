@@ -50,7 +50,7 @@ use url::Url;
 /// Minimal context required to execute a microservice flow.
 ///
 /// Implement this for lightweight client wrappers that carry base URL, headers, and trace config.
-pub trait MicroserviceClientContext {
+pub trait MicroserviceClient {
     /// Base URL for the microservice.
     fn base_url(&self) -> &Url;
     /// Parent headers to forward to the microservice.

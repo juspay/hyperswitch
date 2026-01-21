@@ -125,7 +125,6 @@ impl AsRef<Url> for ModularPaymentMethodServiceUrl {
 #[serde(default)]
 pub struct InternalServicesConfig {
     pub payments_base_url: String,
-    pub payment_methods_base_url: ModularPaymentMethodServiceUrl,
 }
 
 #[allow(missing_docs)]

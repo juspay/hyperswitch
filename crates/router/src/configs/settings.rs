@@ -40,6 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -182,6 +183,8 @@ pub struct Settings<S: SecretState> {
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
+    #[serde(default)]
+    pub micro_services: MicroServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub save_payment_method_on_session: OnSessionConfig,
 }

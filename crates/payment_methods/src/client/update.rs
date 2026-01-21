@@ -8,23 +8,17 @@ use serde_json::Value;
 
 const DUMMY_PM_ID: &str = "pm_dummy";
 
-/// V1-facing update flow input.
+/// V1-facing update flow type.
 #[derive(Debug)]
-pub struct UpdatePaymentMethod {
+pub struct UpdatePaymentMethod;
+
+/// V1-facing update request payload.
+#[derive(Debug)]
+pub struct UpdatePaymentMethodV1Request {
     /// Identifier for the payment method to update.
     pub payment_method_id: PaymentMethodId,
     /// Raw payload forwarded to the modular service.
     pub payload: Value,
-}
-
-impl UpdatePaymentMethod {
-    /// Construct a new update flow.
-    pub fn new(payment_method_id: PaymentMethodId, payload: Value) -> Self {
-        Self {
-            payment_method_id,
-            payload,
-        }
-    }
 }
 
 /// Dummy modular service request payload.
@@ -55,10 +49,10 @@ pub struct UpdatePaymentMethodResponse {
     pub deleted: Option<bool>,
 }
 
-impl TryFrom<&UpdatePaymentMethod> for UpdatePaymentMethodV2Request {
+impl TryFrom<&UpdatePaymentMethodV1Request> for UpdatePaymentMethodV2Request {
     type Error = MicroserviceClientError;
 
-    fn try_from(value: &UpdatePaymentMethod) -> Result<Self, Self::Error> {
+    fn try_from(value: &UpdatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: value.payment_method_id.clone(),
             payload: value.payload.clone(),
@@ -78,8 +72,11 @@ impl TryFrom<UpdatePaymentMethodV2Response> for UpdatePaymentMethodResponse {
 }
 
 impl UpdatePaymentMethod {
-    fn validate_request(&self) -> Result<(), MicroserviceClientError> {
-        if self.payment_method_id.payment_method_id.trim().is_empty() {
+    fn validate_request(
+        &self,
+        request: &UpdatePaymentMethodV1Request,
+    ) -> Result<(), MicroserviceClientError> {
+        if request.payment_method_id.payment_method_id.trim().is_empty() {
             return Err(MicroserviceClientError {
                 operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
@@ -106,6 +103,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     UpdatePaymentMethod,
     method = Method::Patch,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
+    v1_request = UpdatePaymentMethodV1Request,
     v2_request = UpdatePaymentMethodV2Request,
     v2_response = UpdatePaymentMethodV2Response,
     v1_response = UpdatePaymentMethodResponse,
