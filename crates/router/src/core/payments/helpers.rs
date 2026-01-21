@@ -7233,7 +7233,8 @@ pub fn add_connector_response_to_additional_payment_data(
                 google_pay,
                 samsung_pay,
             },
-            AdditionalPaymentMethodConnectorResponse::Card { auth_code, .. },
+            AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
+            | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
         ) => api_models::payments::AdditionalPaymentData::Wallet {
             apple_pay: apple_pay.clone().map(|apple_pay| {
                 Box::new(api_models::payments::ApplepayPaymentMethod {

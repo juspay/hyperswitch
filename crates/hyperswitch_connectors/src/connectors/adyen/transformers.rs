@@ -24,9 +24,8 @@ use hyperswitch_domain_models::{
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
-        ErrorResponse, ExtendedAuthorizationResponseData, PaymentMethodBalance, PaymentMethodToken,
-        RouterData,
+        ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
+        PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
@@ -4500,20 +4499,12 @@ pub fn get_adyen_response(
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
-    let connector_response = response
-        .additional_data
-        .and_then(|additional_data| additional_data.auth_code.clone())
-        .map(|auth_code| {
-            ConnectorResponseData::with_additional_payment_method_data(
-                AdditionalPaymentMethodConnectorResponse::Card {
-                    auth_code: Some(auth_code.clone()),
-                    authentication_data: None,
-                    payment_checks: None,
-                    card_network: None,
-                    domestic_network: None,
-                },
-            )
-        });
+    let connector_response = pmt.and_then(|pmt| {
+        response
+            .additional_data
+            .and_then(|additional_data| additional_data.auth_code.clone())
+            .map(|auth_code| ConnectorResponseData::with_auth_code(auth_code, pmt))
+    });
     Ok(AdyenPaymentsResponseData {
         status,
         error,

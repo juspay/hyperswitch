@@ -639,6 +639,33 @@ pub struct ConnectorResponseData {
 }
 
 impl ConnectorResponseData {
+    pub fn with_auth_code(auth_code: String, pmt: common_enums::PaymentMethodType) -> Self {
+        let additional_payment_method_data = match pmt {
+            common_enums::PaymentMethodType::GooglePay => {
+                AdditionalPaymentMethodConnectorResponse::GooglePay {
+                    auth_code: Some(auth_code),
+                }
+            }
+            common_enums::PaymentMethodType::ApplePay => {
+                AdditionalPaymentMethodConnectorResponse::ApplePay {
+                    auth_code: Some(auth_code),
+                }
+            }
+            _ => AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: None,
+                domestic_network: None,
+                auth_code: Some(auth_code),
+            },
+        };
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
+            is_overcapture_enabled: None,
+            mandate_reference: None,
+        }
+    }
     pub fn with_additional_payment_method_data(
         additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
     ) -> Self {
@@ -693,6 +720,12 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
+    },
+    GooglePay {
+        auth_code: Option<String>,
+    },
+    ApplePay {
+        auth_code: Option<String>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
