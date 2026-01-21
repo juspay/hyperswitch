@@ -893,7 +893,7 @@ impl NewUser {
                         )
                     },
                 )?;
-                
+
                 let org_update =
                     diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
                         platform_merchant_id: merchant_id.clone(),
