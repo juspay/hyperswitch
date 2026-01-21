@@ -145,6 +145,9 @@ impl TryFrom<&PlaidRouterData<&PaymentsAuthorizeRouterData>> for PlaidPaymentsRe
                         options: None,
                     })
                 }
+                OpenBankingData::OpenBankingCapitec { .. } => {
+                    Err(ConnectorError::NotImplemented("Capitec VRP not supported by Plaid".to_string()).into())
+                }
             },
             _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -222,6 +225,9 @@ impl TryFrom<&PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest {
                             None
                         },
                     })
+                }
+                OpenBankingData::OpenBankingCapitec { .. } => {
+                    Err(ConnectorError::NotImplemented("Capitec VRP not supported by Plaid".to_string()).into())
                 }
             },
             _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),

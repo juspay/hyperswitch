@@ -27,6 +27,7 @@ use crate::{
     routes::SessionState,
     services,
     types::{self, api, domain},
+    utils::OptionExt,
 };
 
 #[cfg(feature = "v1")]
@@ -64,6 +65,32 @@ impl
             None,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let is_open_banking = &self
+            .payment_attempt
+            .get_payment_method()
+            .get_required_value("PaymentMethod")?
+            .eq(&common_enums::PaymentMethod::OpenBanking);
+
+        if *is_open_banking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                platform,
+                connector,
+                state,
+            )
+            .await
+        } else {
+            Ok(None)
+        }
     }
 }
 

@@ -30,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub bitpay: Option<HeaderKey>,
     pub blackhawknetwork: Option<HeaderKey>,
     pub calida: Option<HeaderKey>,
+    pub capitecvrp: Option<BodyKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
     pub breadpay: Option<BodyKey>,
