@@ -379,7 +379,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
-        if: env.RUN_TESTS == 'true'  && failure()
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.batch.report_artifact_name }}
@@ -418,14 +418,15 @@ jobs:
             echo "All mandatory tests passed."
             exit 0
           else
-            echo "Mandatory tests failed or were cancelled."
+            echo "Mandatory tests failed."
             if [ "${{ github.event_name }}" != "merge_group" ]; then
               echo "Removing 'S-test-ready' label from the PR."
               gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
             fi
             exit 1
           fi
-
+# The optional connectors tests are currently disabled beacuse of the resource constraints on hyperswitch runners. 
+# Few optional connectors are takng around 50 min beacuse of this there is a growing queue time for the jobs.
   prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
     if: false
