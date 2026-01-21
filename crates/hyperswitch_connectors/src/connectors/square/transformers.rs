@@ -412,6 +412,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: item.response.payment.reference_id,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             amount_captured,

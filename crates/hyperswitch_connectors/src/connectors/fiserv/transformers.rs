@@ -1021,6 +1021,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1077,6 +1078,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

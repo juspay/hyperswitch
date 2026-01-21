@@ -161,6 +161,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, OpayoPaymentsResponse, T, PaymentsRespo
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

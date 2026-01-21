@@ -356,6 +356,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             Err,

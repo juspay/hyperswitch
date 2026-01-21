@@ -769,6 +769,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -793,6 +794,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -824,6 +826,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: txn.legacy_id.clone(),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -984,6 +987,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1008,6 +1012,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1049,6 +1054,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1121,6 +1127,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1192,6 +1199,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -2078,6 +2086,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -2283,6 +2292,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -2411,6 +2421,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };

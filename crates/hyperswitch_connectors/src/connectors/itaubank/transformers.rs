@@ -294,6 +294,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.txid),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -373,6 +374,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, Paymen
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.txid),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

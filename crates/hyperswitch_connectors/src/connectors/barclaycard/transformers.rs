@@ -1210,6 +1210,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1330,6 +1331,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1450,6 +1452,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1570,6 +1573,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -2283,6 +2287,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupRespo
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -2366,6 +2371,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -2773,6 +2779,7 @@ fn get_payment_response(
                     .unwrap_or(info_response.id.clone()),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
     }
@@ -3046,6 +3053,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         connector_response,
@@ -3063,6 +3071,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
