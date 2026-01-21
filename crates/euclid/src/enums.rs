@@ -242,6 +242,7 @@ pub enum RoutableConnectors {
     Bluesnap,
     #[serde(alias = "bluecode")]
     Calida,
+    Capitecvrp,
     Boku,
     Braintree,
     Breadpay,
@@ -397,6 +398,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
             Connector::Calida => Ok(Self::Calida),
+            Connector::Capitecvrp => Ok(Self::Capitecvrp),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
@@ -550,6 +552,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bluesnap => Self::Bluesnap,
             RoutableConnectors::Blackhawknetwork => Self::Blackhawknetwork,
             RoutableConnectors::Calida => Self::Calida,
+            RoutableConnectors::Capitecvrp => Self::Capitecvrp,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Breadpay => Self::Breadpay,

@@ -162,6 +162,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::OpenBankingUk => {
             Ok(dirval!(BankRedirectType = OpenBankingUk))
         }
+        api_enums::PaymentMethodType::OpenBankingCapitec => {
+            Ok(dirval!(OpenBankingType = OpenBankingCapitec))
+        }
         api_enums::PaymentMethodType::MomoAtm => Ok(dirval!(CardRedirectType = MomoAtm)),
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),

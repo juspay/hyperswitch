@@ -3733,6 +3733,7 @@ impl GetPaymentMethodType for OpenBankingData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
+            Self::OpenBankingCapitec { .. } => api_enums::PaymentMethodType::OpenBankingCapitec,
         }
     }
 }
@@ -5330,6 +5331,48 @@ pub enum OpenBankingData {
     #[serde(rename = "open_banking_pis")]
     #[smithy(nested_value_type)]
     OpenBankingPIS {},
+    #[serde(rename = "open_banking_capitec")]
+    #[smithy(nested_value_type)]
+    OpenBankingCapitec {
+        client_identifier: CapitecClientIdentifier,
+        #[schema(value_type = Option<i64>, example = 5000)]
+        minimum_amount: Option<MinorUnit>,
+        #[schema(value_type = Option<i64>, example = 15000)]
+        maximum_amount: Option<MinorUnit>,
+        #[schema(value_type = Option<String>, max_length = 50, example = "Monthly Subscription")]
+        product_description: Option<String>,
+        #[schema(value_type = Option<String>, max_length = 20, example = "Test Merchant")]
+        beneficiary_statement_description: Option<String>,
+        #[schema(value_type = Option<String>, max_length = 20, example = "Test Purchase")]
+        client_statement_description: Option<String>,
+        recurrence: Option<CapitecRecurrence>,
+    },
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CapitecClientIdentifier {
+    #[schema(value_type = String, example = "CELLPHONE")]
+    pub identifier_key: String,
+    #[schema(value_type = String, example = "0829805506")]
+    pub identifier_value: String,
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CapitecRecurrence {
+    #[schema(value_type = Option<String>, example = "2025-02-01")]
+    pub first_payment_date: Option<String>,
+    #[schema(value_type = Option<String>, example = "MONTHLY")]
+    pub interval: Option<String>,
+    #[schema(value_type = Option<i32>, example = 12)]
+    pub occurrences: Option<i32>,
 }
 
 #[derive(
@@ -5340,11 +5383,9 @@ pub enum OpenBankingData {
 pub enum MobilePaymentData {
     #[smithy(nested_value_type)]
     DirectCarrierBilling {
-        /// The phone number of the user
         #[schema(value_type = String, example = "1234567890")]
         #[smithy(value_type = "String")]
         msisdn: String,
-        /// Unique user id
         #[schema(value_type = Option<String>, example = "02iacdYXGI9CnyJdoN8c7")]
         #[smithy(value_type = "Option<String>")]
         client_uid: Option<String>,
@@ -5357,17 +5398,13 @@ pub enum MobilePaymentData {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayWalletData {
-    /// The type of payment method
     #[serde(rename = "type")]
     #[smithy(value_type = "String")]
     pub pm_type: String,
-    /// User-facing message to describe the payment method that funds this transaction.
     #[smithy(value_type = "String")]
     pub description: String,
-    /// The information of the payment method
     #[smithy(value_type = "GooglePayPaymentMethodInfo")]
     pub info: GooglePayPaymentMethodInfo,
-    /// The tokenization data of Google pay
     #[schema(value_type = GpayTokenizationData)]
     #[smithy(value_type = "Object")]
     pub tokenization_data: common_types::payments::GpayTokenizationData,

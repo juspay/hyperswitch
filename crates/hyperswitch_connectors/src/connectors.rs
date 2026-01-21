@@ -19,6 +19,7 @@ pub mod boku;
 pub mod braintree;
 pub mod breadpay;
 pub mod calida;
+pub mod capitecvrp;
 pub mod cashtocode;
 pub mod celero;
 pub mod chargebee;
@@ -145,7 +146,7 @@ pub use self::{
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
     barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
+    breadpay::Breadpay, calida::Calida, capitecvrp::Capitecvrp, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,

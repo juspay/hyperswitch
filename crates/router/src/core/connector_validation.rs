@@ -150,6 +150,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 calida::transformers::CalidaMetadataObject::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            api_enums::Connector::Capitecvrp => {
+                capitecvrp::transformers::CapitecvrpAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Braintree => {
                 braintree::transformers::BraintreeAuthType::try_from(self.auth_type)?;
                 braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
