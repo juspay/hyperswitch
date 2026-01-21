@@ -194,8 +194,8 @@ jobs:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -398,7 +398,11 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [runner]
     runs-on: ubuntu-latest
-    if: always()
+    if: >
+      (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
+      && always()
     steps:
       - name: Evaluate Matrix Results
         shell: bash
