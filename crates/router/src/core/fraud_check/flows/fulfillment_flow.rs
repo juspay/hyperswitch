@@ -50,9 +50,8 @@ pub async fn construct_fulfillment_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        processor.get_account().get_id(),
+        processor,
         None,
-        processor.get_key_store(),
         &profile_id,
         &connector,
         None,
