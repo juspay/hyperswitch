@@ -79,6 +79,8 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
             client_secret: payment_method.client_secret.clone(),
             card: None,
             bank_transfer: None,
+            // Since card and bank_transfer both are None, payment_method_data will be None
+            payment_method_data: None,
             payment_experience: None,
         };
         NetworkTokenizationBuilder {
@@ -236,6 +238,8 @@ impl<'a> NetworkTokenizationBuilder<'a, PmTokenStored> {
             client_secret: payment_method.client_secret.clone(),
             card: None,
             bank_transfer: None,
+            // Since card and bank_transfer both are None, payment_method_data will be None
+            payment_method_data: None,
             payment_experience: None,
         };
         NetworkTokenizationBuilder {
