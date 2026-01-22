@@ -25,7 +25,7 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+pool_size = 10
 connection_timeout = 10
 min_idle = 2
 
