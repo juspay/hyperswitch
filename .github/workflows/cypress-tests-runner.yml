@@ -349,7 +349,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
         run: |
           # Start the server in the background
-          taskset -c 0-2 target/debug/router &
+          target/debug/router &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
@@ -374,7 +374,7 @@ jobs:
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
-          taskset -c 3-7 scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
 
