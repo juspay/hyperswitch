@@ -5455,7 +5455,6 @@ pub struct AdyenErrorResponse {
     pub psp_reference: Option<String>,
 }
 
-
 // #[cfg(test)]
 // mod test_adyen_transformers {
 //     use super::*;
