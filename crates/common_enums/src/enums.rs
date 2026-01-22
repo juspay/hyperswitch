@@ -9642,10 +9642,10 @@ impl From<AttemptStatus> for RelayStatus {
             | AttemptStatus::Unresolved
             | AttemptStatus::CodInitiated
             | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::Started => Self::Pending,
             AttemptStatus::Charged
-            | AttemptStatus::CaptureInitiated
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
         }
