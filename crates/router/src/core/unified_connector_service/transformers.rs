@@ -361,6 +361,10 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -523,6 +527,10 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -847,6 +855,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1020,6 +1029,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1243,6 +1253,7 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1420,6 +1431,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: None,
         })
     }
 }
@@ -1580,6 +1592,7 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1723,11 +1736,6 @@ impl
                 .connector_testing_data
                 .as_ref()
                 .map(|data| unified_connector_service_masking::Secret::new(data.peek().to_string())),
-            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
-            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
-            payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
-                .transpose()?
-                .map(|payment_channel| payment_channel.into()),
         })
     }
 }
@@ -3602,6 +3610,18 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Braintree form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Mifinity form type is not implemented".to_string(),
                 )
                 .into(),
             ),
