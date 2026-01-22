@@ -138,7 +138,7 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
-    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD, ]
+    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
         .iter()
         .find_map(|d| d.decode(&data).ok())
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
