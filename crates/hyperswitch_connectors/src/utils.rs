@@ -38,7 +38,7 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
+    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE_NO_PAD, BASE64_ENGINE_URL_SAFE},
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -138,10 +138,25 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
-    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
-        .iter()
-        .find_map(|d| d.decode(&data).ok())
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
+    let mut error_stack = Vec::new();
+   [
+        &BASE64_ENGINE,
+        &BASE64_ENGINE_STD_NO_PAD,
+        &BASE64_ENGINE_URL_SAFE,
+        &BASE64_ENGINE_URL_SAFE_NO_PAD,
+    ]
+    .iter()
+    .find_map(|engine| {
+        engine.decode(&data)
+            .map_err(|e| error_stack.push(e)) 
+            .ok()
+    })
+    .ok_or_else(|| {
+        logger::error!("Base64 decoding failed for all engines. Errors: {:?}", error_stack);
+        report!(
+            errors::ConnectorError::ResponseDeserializationFailed
+        )
+    })
 }
 
 pub(crate) fn to_currency_base_unit(
