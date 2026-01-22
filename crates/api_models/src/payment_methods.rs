@@ -522,6 +522,15 @@ pub enum PaymentMethodUpdateData {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
+pub enum PaymentMethodDataSessionResponse {
+    Card(CardDetailResponse),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
@@ -875,6 +884,59 @@ pub struct CardDetailUpdate {
     /// The CVC number for the card
     #[schema(value_type = Option<String>,  example = "242")]
     pub card_cvc: Option<masking::Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CardDetailResponse {
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// The country where that particular card was issued
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub issuer_country: Option<api_enums::CountryAlpha2>,
+
+    /// last 4 digits of the card number
+    #[schema(value_type = Option<String>, example = "4242")]
+    pub last4_digits: Option<String>,
+
+    /// Card Expiry Month
+    #[schema(value_type=Option<String>, example = "10")]
+    pub expiry_month: Option<masking::Secret<String>>,
+
+    /// Card Expiry Year
+    #[schema(value_type=Option<String>, example = "25")]
+    pub expiry_year: Option<masking::Secret<String>>,
+
+    /// Card Fingerprint
+    #[schema(value_type=Option<String>, example = "fingerprint_12345")]
+    pub card_fingerprint: Option<masking::Secret<String>>,
+
+    /// The card network
+    #[schema(value_type = Option<CardNetwork>, example = "VISA")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Card ISIN
+    #[schema(value_type=Option<String>, example = "4567890")]
+    pub card_isin: Option<String>,
+
+    /// Issuer Bank for Card
+    #[schema(value_type=Option<String>, example = "Issuer Bank")]
+    pub card_issuer: Option<String>,
+
+    /// Card Type (Credit/Debit)
+    #[schema(value_type=Option<String>, example = "Credit")]
+    pub card_type: Option<String>,
+
+    /// Indicates whether the card is saved to vault
+    #[schema(value_type=bool, example = true)]
+    pub saved_to_locker: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -3550,6 +3612,10 @@ pub struct PaymentMethodSessionResponse {
     /// Card CVC token storage details
     #[schema(value_type = Option<CardCVCTokenStorageDetails>)]
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+
+    /// payment method data to be sent in session response
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_data: Option<PaymentMethodDataSessionResponse>,
 }
 
 #[cfg(feature = "v2")]

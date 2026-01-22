@@ -320,6 +320,11 @@ pub enum PaymentMethodUpdate {
         connector_mandate_details: Option<CommonMandateReference>,
         last_modified_by: Option<String>,
     },
+    StatusAndFingerprintUpdate {
+        status: Option<storage_enums::PaymentMethodStatus>,
+        locker_fingerprint_id: Option<String>,
+        last_modified_by: Option<String>,
+    },
 }
 
 impl PaymentMethodUpdate {
@@ -929,6 +934,28 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
+                last_modified_by,
+            },
+            PaymentMethodUpdate::StatusAndFingerprintUpdate {
+                status,
+                locker_fingerprint_id,
+                last_modified_by,
+            } => Self {
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id: None,
+                status,
+                locker_id: None,
+                payment_method_type_v2: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_subtype: None,
+                last_modified: common_utils::date_time::now(),
+                network_token_locker_id: None,
+                network_token_requestor_reference_id: None,
+                network_token_payment_method_data: None,
+                locker_fingerprint_id,
                 external_vault_source: None,
                 last_modified_by,
             },

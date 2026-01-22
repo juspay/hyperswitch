@@ -288,6 +288,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::NetworkTokenStatusCheckSuccessResponse,
         api_models::payment_methods::NetworkTokenStatusCheckFailureResponse,
         api_models::payment_methods::PaymentMethodGetTokenDetailsResponse,
+        api_models::payment_methods::PaymentMethodDataSessionResponse,
+        api_models::payment_methods::CardDetailResponse,
         api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,

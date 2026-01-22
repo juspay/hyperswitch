@@ -97,6 +97,7 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_core(
@@ -3538,9 +3539,10 @@ pub async fn delete_payment_method_core(
         .attach_printable("Customer not found for the payment method")?;
 
     // Soft delete
-    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+    let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
         last_modified_by: None,
+        locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
     };
 
     db.update_payment_method(
@@ -3765,6 +3767,7 @@ pub async fn payment_methods_session_create(
         None,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3831,6 +3834,7 @@ pub async fn payment_methods_session_update(
         None,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3888,6 +3892,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3971,19 +3976,23 @@ pub async fn payment_methods_session_update_payment_method(
         )?;
 
     // Stage 2: Update saved payment method if there is any metadata update
-    if request.is_payment_method_metadata_update() {
+    let update_response = if request.is_payment_method_metadata_update() {
         let payment_method_update_request = request.payment_method_update_request.clone();
 
-        Box::pin(update_payment_method_core(
-            &state,
-            &platform,
-            &profile,
-            payment_method_update_request,
-            &payment_method_id,
-        ))
-        .await
-        .attach_printable("Failed to update saved payment method")?;
-    }
+        Some(
+            Box::pin(update_payment_method_core(
+                &state,
+                &platform,
+                &profile,
+                payment_method_update_request,
+                &payment_method_id,
+            ))
+            .await
+            .attach_printable("Failed to update saved payment method")?,
+        )
+    } else {
+        None
+    };
 
     let response = transformers::generate_payment_method_session_response(
         updated_payment_method_session,
@@ -3992,6 +4001,9 @@ pub async fn payment_methods_session_update_payment_method(
         None,
         None,
         card_cvc_token_details,
+        update_response
+            .and_then(|resp| resp.payment_method_data)
+            .map(|data| payment_methods::PaymentMethodDataSessionResponse::foreign_from(data)),
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4302,6 +4314,7 @@ pub async fn payment_methods_session_confirm(
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
         cvc_expiry_details,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(
