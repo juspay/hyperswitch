@@ -213,9 +213,9 @@ pub async fn construct_relay_capture_router_data(
     let relay_capture_data = match relay_record
         .request_data
         .clone()
-        .get_required_value("refund relay data")
+        .get_required_value("capture relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to obtain relay data to construct relay refund data")?
+        .attach_printable("Failed to obtain relay data to construct relay capture data")?
     {
         hyperswitch_domain_models::relay::RelayData::Capture(relay_capture_data) => {
             Ok(relay_capture_data)
@@ -349,9 +349,9 @@ pub async fn construct_relay_payments_retrieve_router_data(
     let relay_capture_data = match relay_record
         .request_data
         .clone()
-        .get_required_value("refund relay data")
+        .get_required_value("capture relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to obtain relay data to construct relay refund data")?
+        .attach_printable("Failed to obtain relay data to construct relay capture data")?
     {
         hyperswitch_domain_models::relay::RelayData::Capture(relay_capture_data) => {
             Ok(relay_capture_data)

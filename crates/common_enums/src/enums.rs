@@ -9634,6 +9634,9 @@ impl From<AttemptStatus> for RelayStatus {
             | AttemptStatus::Expired => Self::Failure,
             AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::Unresolved
@@ -9641,12 +9644,9 @@ impl From<AttemptStatus> for RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::Started => Self::Pending,
-            AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorized
-            | AttemptStatus::Charged
+            AttemptStatus::Charged
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::PartialCharged
-            | AttemptStatus::PartiallyAuthorized
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
         }
     }

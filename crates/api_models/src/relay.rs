@@ -49,7 +49,7 @@ pub struct RelayCaptureRequestData {
     /// The amount that is being captured
     #[schema(value_type = i64 , example = 6540)]
     pub amount_to_capture: MinorUnit,
-    /// The currency in which the amount is being refunded
+    /// The currency in which the amount is being captured
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
 }
