@@ -1,15 +1,13 @@
 use api_models::payment_methods;
+#[cfg(feature = "v2")]
+use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::errors;
 use crate::payment_method_data;
-
-#[cfg(feature = "v2")]
-use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
-
-#[cfg(feature = "v2")]
-use error_stack::ResultExt;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
