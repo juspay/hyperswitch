@@ -240,10 +240,7 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector_customer: connector_customer_id,
-        connector: merchant_connector_account
-            .get_connector_name()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while parsing value for Connector Name")?,
+        connector: merchant_connector_account.get_connector_name(),
         payment_id: payment_data
             .payment_attempt
             .payment_id

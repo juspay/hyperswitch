@@ -1237,9 +1237,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
     let connector_name = external_vault_merchant_connector_account
         .get_connector_name()
-        .map(|connector| connector.to_string())
-        .change_context(UnifiedConnectorServiceError::MissingConnectorName)
-        .attach_printable("Missing connector name")?; // always get the connector name from this call
+        .to_string();
 
     let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
         .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
