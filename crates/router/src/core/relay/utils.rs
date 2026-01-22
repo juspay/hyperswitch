@@ -263,6 +263,7 @@ pub async fn construct_relay_capture_router_data(
             minor_amount_to_capture: relay_capture_data.amount_to_capture,
             integrity_object: None,
             webhook_url,
+            merchant_order_reference_id: None,
         },
 
         response: Err(ErrorResponse::default()),
