@@ -125,8 +125,7 @@ impl
         guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
     ) -> RouterResult<()> {
         if let Some(guest_customer_data) = guest_customer {
-            router_data.customer_id = Some(guest_customer_data.customer_id.clone());
-            router_data.request.customer_id = Some(guest_customer_data.customer_id.clone());
+            router_data.request.guest_customer = Some(guest_customer_data.clone());
         }
         Ok(())
     }

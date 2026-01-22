@@ -1415,9 +1415,8 @@ impl VaultData {
     }
 }
 
-#[cfg(feature = "v2")]
 /// Guest customer details for connectors
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct GuestCustomer {
-    pub customer_id: id_type::CustomerId,
+    pub customer_id: String,
 }

@@ -338,9 +338,16 @@ impl
             }),
             customer_id: router_data
                 .request
-                .customer_id
+                .guest_customer
                 .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
+                .map(|guest| guest.customer_id.clone())
+                .or_else(|| {
+                    router_data
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string())
+                }),
             metadata,
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
@@ -1386,9 +1393,16 @@ impl
             }),
             customer_id: router_data
                 .request
-                .customer_id
+                .guest_customer
                 .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
+                .map(|guest| guest.customer_id.clone())
+                .or_else(|| {
+                    router_data
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string())
+                }),
             metadata,
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),

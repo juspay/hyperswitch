@@ -496,9 +496,10 @@ where
         .get_payment_intent()
         .metadata
         .as_ref()
-        .and_then(|metadata| {
-            metadata
-                .peek()
+        .and_then(|metadata| metadata.peek().as_object())
+        .and_then(|metadata_map| metadata_map.get("guest_customer"))
+        .and_then(|guest_value| {
+            guest_value
                 .clone()
                 .parse_value::<hyperswitch_domain_models::payments::GuestCustomer>("guest_customer")
                 .ok()
