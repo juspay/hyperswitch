@@ -816,8 +816,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif_item = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let notif_item = get_webhook_object_from_body(request.body)?;
 
         hex::decode(notif_item.event.checksum)
             .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
@@ -829,8 +828,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let notif = get_webhook_object_from_body(request.body)?;
         let (amount, currency) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
                 (data.amount, data.currency)
@@ -880,8 +878,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let notif = get_webhook_object_from_body(request.body)?;
         let transaction_order_no = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.order_no,
@@ -914,8 +911,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let notif = get_webhook_object_from_body(request.body)?;
 
         let optional_transaction_status = match &notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.status,
@@ -967,9 +963,8 @@ impl webhooks::IncomingWebhook for Novalnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
-        let notif: transformers::NovalnetWebhookNotificationResponse =
-            get_webhook_object_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notif = get_webhook_object_from_body(request.body)?;
+
         let (amount, currency, reason, reason_code) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
                 (data.amount, data.currency, None, None)
