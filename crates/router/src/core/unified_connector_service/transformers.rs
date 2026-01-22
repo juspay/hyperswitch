@@ -363,7 +363,7 @@ impl
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
-            threeds_method_comp_ind: None,
+            threeds_completion_indicator: None,
             tokenization_strategy: None,
         })
     }
@@ -559,7 +559,7 @@ impl
                     payments_grpc::RedirectionResponse::foreign_try_from(redirection_response)
                 })
                 .transpose()?,
-            threeds_method_comp_ind: router_data
+            threeds_completion_indicator: router_data
                 .request
                 .threeds_method_comp_ind
                 .clone()
@@ -3666,6 +3666,8 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
                 )
                 .into(),
             ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_))
+            | Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => todo!(),
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),

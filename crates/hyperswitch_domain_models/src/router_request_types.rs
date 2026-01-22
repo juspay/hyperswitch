@@ -795,6 +795,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             browser_info: data.browser_info,
             redirect_response: None,
             capture_method: data.capture_method,
+            // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
+            // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
         })
     }
