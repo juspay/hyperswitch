@@ -665,8 +665,10 @@ pub async fn sync_relay_capture_with_gateway(
 
     let capture_method_type = connector_integration
         .get_multiple_capture_sync_method()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get the capture method type")?;
+        .map_err(|err| {
+            router_env::logger::error!(error=?err);
+        })
+        .ok();
 
     let router_data = utils::construct_relay_payments_retrieve_router_data(
         state,
