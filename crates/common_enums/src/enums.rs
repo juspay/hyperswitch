@@ -2876,6 +2876,12 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
+impl RefundStatus {
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Success)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -10478,4 +10484,12 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
 }

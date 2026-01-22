@@ -580,6 +580,15 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                         ),
+                        RecurringDetails::CardWithLimitedData(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
                     }
                 }
                 None => {
@@ -2387,6 +2396,9 @@ pub fn determine_standard_vault_action(
                     VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker
                 }
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+                    VaultFetchAction::NoFetchAction
+                }
+                Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
@@ -4251,6 +4263,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4340,6 +4353,7 @@ mod tests {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4427,6 +4441,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -5626,6 +5641,119 @@ pub async fn get_additional_payment_data(
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
                             card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
+                        },
+                    ))
+                })))
+            }
+        }
+        domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+            let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => Some(
+                    card_with_limited_details
+                        .card_number
+                        .get_extended_card_bin(),
+                ),
+                _ => None,
+            };
+
+            let last4 = Some(card_with_limited_details.card_number.get_last4());
+            if card_with_limited_details.card_issuer.is_some()
+                && card_with_limited_details.card_network.is_some()
+                && card_with_limited_details.card_type.is_some()
+                && card_with_limited_details.card_issuing_country.is_some()
+                && card_with_limited_details.bank_code.is_some()
+            {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Card(
+                    Box::new(api_models::payments::AdditionalCardInfo {
+                        card_issuer: card_with_limited_details.card_issuer.to_owned(),
+                        card_network: card_with_limited_details.card_network.clone(),
+                        card_type: card_with_limited_details.card_type.to_owned(),
+                        card_issuing_country: card_with_limited_details
+                            .card_issuing_country
+                            .to_owned(),
+                        card_issuing_country_code: card_with_limited_details
+                            .card_issuing_country_code
+                            .to_owned(),
+                        bank_code: card_with_limited_details.bank_code.to_owned(),
+                        card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                        card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                        card_holder_name: card_with_limited_details.card_holder_name.clone(),
+                        last4: last4.clone(),
+                        card_isin: card_isin.clone(),
+                        card_extended_bin: card_extended_bin.clone(),
+                        // These are filled after calling the processor / connector
+                        payment_checks: None,
+                        authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
+                    }),
+                )))
+            } else {
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
+                    .await
+                    .flatten()
+                    .map(|card_info| {
+                        api_models::payments::AdditionalPaymentData::Card(Box::new(
+                            api_models::payments::AdditionalCardInfo {
+                                card_issuer: card_info.card_issuer,
+                                card_network: card_with_limited_details
+                                    .card_network
+                                    .clone()
+                                    .or(card_info.card_network),
+                                bank_code: card_info.bank_code,
+                                card_type: card_info.card_type,
+                                card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
+                                last4: last4.clone(),
+                                card_isin: card_isin.clone(),
+                                card_extended_bin: card_extended_bin.clone(),
+                                card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                                card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                                card_holder_name: card_with_limited_details
+                                    .card_holder_name
+                                    .clone(),
+                                // These are filled after calling the processor / connector
+                                payment_checks: None,
+                                authentication_data: None,
+                                is_regulated: None,
+                                signature_network: None,
+                            },
+                        ))
+                    });
+                Ok(Some(card_info.unwrap_or_else(|| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: None,
+                            card_network: card_with_limited_details.card_network.clone(),
+                            bank_code: None,
+                            card_type: None,
+                            card_issuing_country: None,
+                            card_issuing_country_code: None,
+                            last4,
+                            card_isin,
+                            card_extended_bin,
+                            card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                            card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                            card_holder_name: card_with_limited_details.card_holder_name.clone(),
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
@@ -6903,6 +7031,7 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::CardWithLimitedDetails(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }

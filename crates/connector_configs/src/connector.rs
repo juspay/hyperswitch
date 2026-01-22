@@ -15,7 +15,7 @@ use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PayloadCurrencyAuthKeyType {
     pub api_key: String,
-    pub processing_account_id: String,
+    pub processing_account_id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -227,6 +227,7 @@ pub struct ConnectorTomlConfig {
     pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
+    pub network_token: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -204,7 +204,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Integ"
 base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
-force_cookies = true
+force_cookies = false
 
 [frm]
 enabled = true
@@ -276,6 +276,9 @@ card.debit = { connector_list = "cybersource" }             # Update Mandate sup
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
+
+[card_only_mit_supported_connectors]
+connector_list = "peachpayments" # Supported connectors for card only mit
 
 
 [payouts]
@@ -955,6 +958,9 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
+
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
