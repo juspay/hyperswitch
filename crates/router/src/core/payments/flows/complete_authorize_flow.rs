@@ -402,7 +402,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 );
 
             // Call UCS for Authenticate flow and store authentication result for next step
-            let (authenticate_router_data, authentication_data) =
+            let (authenticate_router_data, ucs_authentication_data) =
                 Box::pin(payments_gateway::handle_gateway_call::<
                     _,
                     _,
@@ -423,12 +423,17 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let authenticate_response = authenticate_router_data.response.clone();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
+                connector_metadata,
+                authentication_data,
+                ..
             }) = &authenticate_router_data.response
             {
                 connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+                complete_authorize_request_data.authentication_data =
+                    authentication_data.clone().map(|data| *data);
             };
-            complete_authorize_request_data.authentication_data = authentication_data;
+            complete_authorize_request_data.authentication_data =
+                ucs_authentication_data.or(complete_authorize_request_data.authentication_data);
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     authenticate_router_data,
@@ -506,10 +511,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
+                connector_metadata,
+                authentication_data,
+                ..
             }) = &post_authenticate_router_data.response
             {
                 connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+                complete_authorize_request_data.authentication_data =
+                    authentication_data.clone().map(|data| *data);
             };
             complete_authorize_request_data.authentication_data = authentication_data;
             let complete_authorize_router_data =
@@ -908,10 +917,13 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         let mut router_data_request = router_data.request.to_owned();
 
         if let Ok(types::PaymentsResponseData::TransactionResponse {
-            connector_metadata, ..
+            connector_metadata,
+            authentication_data,
+            ..
         }) = &resp.response
         {
             connector_metadata.clone_into(&mut router_data_request.connector_meta);
+            router_data_request.authentication_data = authentication_data.clone().map(|data| *data);
         };
 
         let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(

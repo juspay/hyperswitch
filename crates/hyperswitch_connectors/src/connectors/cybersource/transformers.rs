@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        ResponseId, SetupMandateRequestData,
+        ResponseId, SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -3873,6 +3873,64 @@ pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
 }
 
+impl
+    From<(
+        CybersourceConsumerAuthValidateResponse,
+        Option<CybersourceParesStatus>,
+    )> for CybersourceConsumerAuthInformation
+{
+    fn from(
+        (validate_response, pares_status): (
+            CybersourceConsumerAuthValidateResponse,
+            Option<CybersourceParesStatus>,
+        ),
+    ) -> Self {
+        Self {
+            pares_status,
+            ucaf_collection_indicator: validate_response.ucaf_collection_indicator,
+            cavv: validate_response.cavv,
+            ucaf_authentication_data: validate_response.ucaf_authentication_data,
+            xid: validate_response.xid,
+            directory_server_transaction_id: validate_response.directory_server_transaction_id,
+            specification_version: validate_response.specification_version.clone(),
+            pa_specification_version: validate_response.specification_version,
+            veres_enrolled: None,
+            eci_raw: None,
+            authentication_date: None,
+            effective_authentication_type: None,
+            challenge_code: None,
+            signed_pares_status_reason: None,
+            challenge_cancel_code: None,
+            network_score: None,
+            acs_transaction_id: None,
+            cavv_algorithm: None,
+        }
+    }
+}
+
+impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(
+        value: &CybersourceConsumerAuthValidateResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: value.indicator.clone(),
+            cavv: value.cavv.clone(),
+            threeds_server_transaction_id: None,
+            message_version: value.specification_version.clone(),
+            ds_trans_id: value
+                .directory_server_transaction_id
+                .as_ref()
+                .map(|id| id.clone().expose()),
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: value.xid.clone(),
+            ucaf_collection_indicator: value.ucaf_collection_indicator.clone(),
+        })
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
@@ -3969,12 +4027,15 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -3987,7 +4048,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            authentication_data: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4448,12 +4509,15 @@ impl<F>
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4466,7 +4530,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            authentication_data: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4581,12 +4645,15 @@ impl<F>
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4599,7 +4666,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            authentication_data: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
