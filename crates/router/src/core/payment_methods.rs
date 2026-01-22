@@ -3441,8 +3441,7 @@ pub async fn retrieve_payment_method(
         .get_raw_payment_method_data(&state, &platform, &profile, &payment_method)
         .await
         .attach_printable("Failed to get raw payment method data")?
-        .map(|data| data.convert_to_raw_payment_method_data())
-        .flatten();
+        .and_then(|data| data.convert_to_raw_payment_method_data());
 
     transformers::generate_payment_method_response(
         &payment_method,
@@ -3493,7 +3492,9 @@ impl RawPaymentMethodFetchAccess {
                     .populated_payment_methods_data_and_get_payment_method_vaulting_data(
                         payment_method.payment_method_data.as_ref(),
                     )
-                    .attach_printable("Failed to get card details for payment method vaulting data")?;
+                    .attach_printable(
+                        "Failed to get card details for payment method vaulting data",
+                    )?;
                 Ok(Some(payment_method_vault_data))
             }
         }
