@@ -21,7 +21,6 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
-use strum::IntoEnumIterator;
 
 use crate::{
     behaviour::Conversion,
@@ -1561,31 +1560,34 @@ impl Profile {
             )
     }
 
-    pub fn get_payment_webhook_statuses(&self) -> Cow<'_, [common_enums::IntentStatus]> {
+    pub fn get_configured_payment_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::IntentStatus]>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payment_statuses_enabled.as_ref())
             .filter(|statuses_vec| !statuses_vec.is_empty())
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
-            .unwrap_or_else(|| Cow::Owned(common_enums::IntentStatus::iter().collect()))
     }
 
-    pub fn get_refund_webhook_statuses(&self) -> Cow<'_, [common_enums::RefundStatus]> {
+    pub fn get_configured_refund_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::RefundStatus]>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.refund_statuses_enabled.as_ref())
             .filter(|statuses_vec| !statuses_vec.is_empty())
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
-            .unwrap_or_else(|| Cow::Owned(common_enums::RefundStatus::iter().collect()))
     }
 
-    pub fn get_payout_webhook_statuses(&self) -> Cow<'_, [common_enums::PayoutStatus]> {
+    pub fn get_configured_payout_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::PayoutStatus]>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payout_statuses_enabled.as_ref())
             .filter(|statuses_vec| !statuses_vec.is_empty())
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
-            .unwrap_or_else(|| Cow::Owned(common_enums::PayoutStatus::iter().collect()))
     }
 
     pub fn get_billing_processor_id(
