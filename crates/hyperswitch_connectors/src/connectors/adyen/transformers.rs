@@ -153,6 +153,7 @@ pub struct AdditionalData {
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
     //FPAN Gpay
+    #[serde(flatten)]
     paymentdatasource: Option<AdyenPaymentDataSource>,
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
@@ -163,8 +164,9 @@ pub struct AdditionalData {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 struct AdyenPaymentDataSource {
-    #[serde(rename = "type")]
+    #[serde(rename = "paymentdatasource.type")]
     data_type: String,
+    #[serde(rename = "paymentdatasource.tokenized")]
     tokenized: String,
 }
 
