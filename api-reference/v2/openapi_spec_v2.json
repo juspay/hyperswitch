@@ -19635,21 +19635,6 @@
           }
         }
       },
-      "RawPaymentMethodData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "card"
-            ],
-            "properties": {
-              "card": {
-                "$ref": "#/components/schemas/CardDetail"
-              }
-            }
-          }
-        ]
-      },
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -24528,6 +24513,21 @@
             "example": "mca_28a7367sad8239s67"
           }
         }
+      },
+      "RawPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
       },
       "RealTimePaymentData": {
         "oneOf": [
