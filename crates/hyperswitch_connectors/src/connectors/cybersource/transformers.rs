@@ -3883,41 +3883,6 @@ pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
 }
 
-impl
-    From<(
-        CybersourceConsumerAuthValidateResponse,
-        Option<CybersourceParesStatus>,
-    )> for CybersourceConsumerAuthInformation
-{
-    fn from(
-        (validate_response, pares_status): (
-            CybersourceConsumerAuthValidateResponse,
-            Option<CybersourceParesStatus>,
-        ),
-    ) -> Self {
-        Self {
-            pares_status,
-            ucaf_collection_indicator: validate_response.ucaf_collection_indicator,
-            cavv: validate_response.cavv,
-            ucaf_authentication_data: validate_response.ucaf_authentication_data,
-            xid: validate_response.xid,
-            directory_server_transaction_id: validate_response.directory_server_transaction_id,
-            specification_version: validate_response.specification_version.clone(),
-            pa_specification_version: validate_response.specification_version,
-            veres_enrolled: None,
-            eci_raw: None,
-            authentication_date: None,
-            effective_authentication_type: None,
-            challenge_code: None,
-            signed_pares_status_reason: None,
-            challenge_cancel_code: None,
-            network_score: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
-        }
-    }
-}
-
 impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticationData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
