@@ -249,6 +249,7 @@ where
                 payment_id: frm_data.payment_intent.get_id().to_owned(),
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
+                all_keys_required: None,
             };
             let cancel_res = Box::pin(payments::payments_core::<
                 Void,

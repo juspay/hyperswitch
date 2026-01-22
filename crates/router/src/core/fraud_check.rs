@@ -109,7 +109,7 @@ where
         .construct_router_data(
             state,
             &frm_data.connector_details.connector_name,
-            platform,
+            platform.get_processor(),
             &merchant_connector_account,
             None,
             None,
@@ -836,7 +836,7 @@ pub async fn make_fulfillment_api_call(
         &state,
         &payment_intent,
         &payment_attempt,
-        &platform,
+        platform.get_processor(),
         fraud_check.frm_name.clone(),
         req,
     )

@@ -19,7 +19,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -33,7 +33,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -52,7 +52,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -62,7 +62,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -84,7 +84,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
@@ -104,7 +104,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             &self,
             call_connector_action,
             connector_request,
-            None,
+            return_raw_connector_response,
         )
         .await
         .to_payment_failed_response()?;
@@ -116,7 +116,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {

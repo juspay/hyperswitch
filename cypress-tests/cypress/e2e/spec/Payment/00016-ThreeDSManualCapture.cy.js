@@ -67,7 +67,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["3DSManualCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("capture-call-test", () => {
@@ -86,7 +86,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
 
@@ -127,7 +127,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["3DSManualCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("capture-call-test", () => {
@@ -146,7 +146,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
@@ -205,7 +205,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["3DSManualCapture"];
 
-          cy.retrievePaymentCallTest(globalState, data);
+          cy.retrievePaymentCallTest({ globalState, data });
         });
 
         it("capture-call-test", () => {
@@ -224,7 +224,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          cy.retrievePaymentCallTest(globalState, data);
+          cy.retrievePaymentCallTest({ globalState, data });
         });
       });
 
@@ -265,7 +265,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["3DSManualCapture"];
 
-          cy.retrievePaymentCallTest(globalState, data);
+          cy.retrievePaymentCallTest({ globalState, data });
         });
 
         it("capture-call-test", () => {
@@ -284,7 +284,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          cy.retrievePaymentCallTest(globalState, data);
+          cy.retrievePaymentCallTest({ globalState, data });
         });
       });
     }
