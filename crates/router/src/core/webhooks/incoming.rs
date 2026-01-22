@@ -2910,7 +2910,7 @@ async fn bank_transfer_webhook_flow(
 async fn get_payment_id(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: enums::MerchantStorageScheme,
     key_store: &MerchantKeyStore,
 ) -> errors::RouterResult<common_utils::id_type::PaymentId> {
@@ -2919,7 +2919,7 @@ async fn get_payment_id(
             api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_owned()),
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
                 .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
-                    merchant_id,
+                    processor_merchant_id,
                     id,
                     storage_scheme,
                     key_store,
@@ -2929,7 +2929,7 @@ async fn get_payment_id(
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => db
                 .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     id,
-                    merchant_id,
+                    processor_merchant_id,
                     storage_scheme,
                     key_store,
                 )
@@ -2938,7 +2938,7 @@ async fn get_payment_id(
             api_models::payments::PaymentIdType::PreprocessingId(ref id) => db
                 .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
                     id,
-                    merchant_id,
+                    processor_merchant_id,
                     storage_scheme,
                     key_store,
                 )

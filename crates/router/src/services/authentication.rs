@@ -2350,8 +2350,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let platform =
-            resolve_platform(state, request_headers, merchant.clone(), key_store).await?;
+        let platform = resolve_platform(state, request_headers, merchant, key_store).await?;
 
         let auth = AuthenticationData {
             platform,
