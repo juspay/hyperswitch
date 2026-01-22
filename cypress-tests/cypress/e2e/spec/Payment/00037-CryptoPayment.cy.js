@@ -69,7 +69,7 @@ describe("Crypto Payment", () => {
     });
 
     it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest({ globalState });
     });
   });
 
@@ -123,7 +123,7 @@ describe("Crypto Payment", () => {
     });
 
     it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest({ globalState });
     });
   });
 });
