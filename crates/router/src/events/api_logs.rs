@@ -198,8 +198,6 @@ pub struct NewApiEvent{
     pub http_method: Option<String>,
     #[serde(flatten)]
     pub infra_components: Option<serde_json::Value>,
-    // pub error_code: Option<String>,
-    // pub error_message: Option<String>,
 }
 
 impl From<ApiEvent> for NewApiEvent {
@@ -208,7 +206,7 @@ impl From<ApiEvent> for NewApiEvent {
             tenant_id: Some(api_event.tenant_id),
             merchant_id: api_event.merchant_id,
             api_flow: Some(api_event.api_flow),
-            created_at_timestamp: api_event.created_at_timestamp,
+            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: Some(api_event.request_id),
             latency: api_event.latency,
             status_code: api_event.status_code,
@@ -224,5 +222,15 @@ impl From<ApiEvent> for NewApiEvent {
             http_method: Some(api_event.http_method),
             infra_components: api_event.infra_components,
         }
+    }
+}
+
+impl KafkaMessage for NewApiEvent {
+    fn event_type(&self) -> EventType {
+        EventType::NewApiLogs
+    }
+
+    fn key(&self) -> String {
+        self.request_id.clone().unwrap_or_default()
     }
 }

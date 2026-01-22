@@ -124,6 +124,7 @@ pub fn mk_app(
     >,
 > {
     let mut server_app = get_application_builder(
+        state.clone(),
         request_body_limit,
         state.conf.cors.clone(),
         state.conf.trace_header.clone(),
@@ -380,6 +381,7 @@ impl Stop for mpsc::Sender<()> {
 }
 
 pub fn get_application_builder(
+    state: AppState,
     request_body_limit: usize,
     cors: settings::CorsSettings,
     trace_header: settings::TraceHeaderConfig,
@@ -399,6 +401,7 @@ pub fn get_application_builder(
 
     actix_web::App::new()
         .app_data(json_cfg)
+        .app_data(actix_web::web::Data::new(state.event_handler.clone()))
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,
             errors::error_handlers::custom_error_handlers,

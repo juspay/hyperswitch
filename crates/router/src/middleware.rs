@@ -9,7 +9,9 @@ use router_env::{
 };
 use std::time::Instant;
 
-use crate::{events::api_logs::{ApiEvent, NewApiEvent}, headers, routes::metrics};
+use actix_web::web::Data;
+
+use crate::{events::{EventsHandler, api_logs::{ApiEvent, NewApiEvent}}, headers, routes::metrics};
 
 /// Test middleware to check if we can access response extensions
 pub struct TestExtensionMiddleware;
@@ -64,7 +66,11 @@ where
                 .get(headers::USER_AGENT)
                 .and_then(|h| h.to_str().ok())
                 .map(|s| s.to_string());
-            let ip_addr = req.peer_addr().map(|addr| addr.to_string());
+        let ip_addr = req.peer_addr().map(|addr| addr.to_string());
+
+        let event_handler_opt = req
+            .app_data::<Data<EventsHandler>>()
+            .map(|data| data.get_ref().clone());
         
         let response_fut = self.service.call(req);
         
@@ -80,6 +86,14 @@ where
             if let Some(api_event) = res_body.extensions().get::<ApiEvent>() {
                 logger::info!("Successfully accessed ApiEvent from RESPONSE middleware: {:?}", api_event);
                 let new_api_event = NewApiEvent::from(api_event.clone());
+                //log new event to kafka 
+                if let Some(ref event_handler) = event_handler_opt {
+                    event_handler.log_event(&new_api_event);
+                    logger::info!("Successfully logged NewApiEvent to Kafka");
+                } else {
+                    logger::warn!("EventsHandler not available in app data, skipping Kafka logging");
+                }
+
                 if let Ok(api_event_json) = serde_json::to_string_pretty(&new_api_event) {
                 logger::debug!("NewApiEvent details:\n{}", api_event_json);}
             } else {
@@ -105,10 +119,17 @@ where
                     http_method: Some(http_req.method().to_string()),
                     infra_components: None,
                 };
+                //log event to kafka
+                if let Some(ref event_handler) = event_handler_opt {
+                    event_handler.log_event(&new_api_event);
+                    logger::info!("Successfully logged NewApiEvent to Kafka");
+                } else {
+                    logger::warn!("EventsHandler not available in app data, skipping Kafka logging");
+                }
+                
                 if let Ok(api_event_json) = serde_json::to_string_pretty(&new_api_event) {
                 logger::debug!("NewApiEvent details:\n{}", api_event_json);}
             };
-
             let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
             Ok(response)
         })

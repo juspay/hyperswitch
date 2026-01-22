@@ -29,6 +29,7 @@ pub enum EventType {
     PaymentAttempt,
     Refund,
     ApiLogs,
+    NewApiLogs,
     ConnectorApiLogs,
     OutgoingWebhookLogs,
     Dispute,
