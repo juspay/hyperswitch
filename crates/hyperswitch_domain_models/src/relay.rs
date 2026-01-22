@@ -50,7 +50,7 @@ impl Relay {
             connector_id: relay_request.connector_id.clone(),
             profile_id: profile_id.clone(),
             merchant_id: merchant_id.clone(),
-            relay_type: common_enums::RelayType::Refund,
+            relay_type: relay_request.relay_type,
             request_data: relay_request.data.clone().map(From::from),
             status: common_enums::RelayStatus::Created,
             connector_reference_id: None,
@@ -359,7 +359,7 @@ impl super::behaviour::Conversion for Relay {
             connector_id: item.connector_id,
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
-            relay_type: enums::RelayType::Refund,
+            relay_type: item.relay_type,
             request_data: item
                 .request_data
                 .map(|data| {
