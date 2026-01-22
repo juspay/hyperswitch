@@ -2432,7 +2432,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
     _payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&domain::CardToken>,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: domain::PaymentMethod,
@@ -2489,12 +2489,11 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                     Box::pin(fetch_card_details_from_locker(
                         state,
                         customer_id,
-                        &payment_intent.merchant_id,
+                        platform,
                         locker_id,
                         card_token_data,
                         co_badged_card_data,
                         payment_method_info,
-                        merchant_key_store,
                     ))
                     .await
                 })
@@ -2542,12 +2541,11 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                 Box::pin(fetch_card_details_from_locker(
                                     state,
                                     customer_id,
-                                    &payment_intent.merchant_id,
+                                    platform,
                                     locker_id,
                                     card_token_data,
                                     co_badged_card_data,
                                     payment_method_info,
-                                    merchant_key_store,
                                 ))
                                 .await
                             })
@@ -2622,12 +2620,11 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
 pub async fn fetch_card_details_from_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
+    platform: &domain::Platform,
     locker_id: &str,
     card_token_data: Option<&domain::CardToken>,
     co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
     payment_method_info: domain::PaymentMethod,
-    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Card> {
     match &payment_method_info.vault_source_details.clone() {
         domain::PaymentMethodVaultSourceDetails::ExternalVault {
@@ -2635,11 +2632,11 @@ pub async fn fetch_card_details_from_locker(
         } => {
             fetch_card_details_from_external_vault(
                 state,
-                merchant_id,
+                platform.get_processor().get_account().get_id(),
                 card_token_data,
                 co_badged_card_data,
                 payment_method_info,
-                merchant_key_store,
+                platform.get_processor().get_key_store(),
                 external_vault_source,
             )
             .await
@@ -2648,7 +2645,7 @@ pub async fn fetch_card_details_from_locker(
             fetch_card_details_from_internal_locker(
                 state,
                 customer_id,
-                merchant_id,
+                platform.get_provider().get_account().get_id(),
                 locker_id,
                 card_token_data,
                 co_badged_card_data,
@@ -2983,7 +2980,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     _operation: BoxedOperation<'a, F, R, D>,
     _state: &'a SessionState,
     _payment_data: &mut PaymentData<F>,
-    _merchant_key_store: &domain::MerchantKeyStore,
+    _platform: &domain::Platform,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
     _business_profile: Option<&domain::Profile>,
@@ -3001,7 +2998,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     operation: BoxedOperation<'a, F, R, D>,
     state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     business_profile: &domain::Profile,
@@ -3071,7 +3068,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
             let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
                 state,
-                merchant_key_store,
+                platform,
                 hyperswitch_token,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
@@ -3106,7 +3103,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                         state,
                         &payment_data.payment_intent,
                         &payment_data.payment_attempt,
-                        merchant_key_store,
+                        platform.get_provider(),
                         Some(business_profile),
                     )
                     .await?;
@@ -3136,7 +3133,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                     state,
                     &payment_data.payment_intent,
                     &payment_data.payment_attempt,
-                    merchant_key_store,
+                    platform.get_provider(),
                     Some(business_profile),
                 )
                 .await?;
@@ -7433,7 +7430,7 @@ pub async fn get_payment_method_details_from_payment_token(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-    key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
@@ -7491,7 +7488,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 &generic_token.token,
                 payment_intent,
                 payment_attempt,
-                key_store,
+                platform.get_provider().get_key_store(),
                 None,
             )
             .await
@@ -7503,7 +7500,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 &generic_token.token,
                 payment_intent,
                 payment_attempt,
-                key_store,
+                platform.get_provider().get_key_store(),
                 None,
             )
             .await
@@ -7515,7 +7512,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 &card_token.token,
                 payment_intent,
                 None,
-                key_store,
+                platform.get_provider().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -7528,7 +7525,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 &card_token.token,
                 payment_intent,
                 None,
-                key_store,
+                platform.get_provider().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -7538,7 +7535,7 @@ pub async fn get_payment_method_details_from_payment_token(
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
             retrieve_payment_method_from_auth_service(
                 state,
-                key_store,
+                platform.get_processor(),
                 &auth_token,
                 payment_intent,
                 &None,
