@@ -149,7 +149,7 @@ pub async fn customers_create() {}
     ),
     tag = "Customers",
     operation_id = "Retrieve a Customer",
-    security(("api_key" = []), ("ephemeral_key" = []))
+    security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
 pub async fn customers_retrieve() {}
