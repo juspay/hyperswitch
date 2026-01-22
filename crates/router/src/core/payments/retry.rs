@@ -401,6 +401,10 @@ where
         )
         .await?;
 
+    let connector_customer_map = customer
+        .as_ref()
+        .and_then(|customer| customer.connector_customer.as_ref());
+
     let (updated_customer, call_connector_service_response, updated_state) =
         payments::decide_unified_connector_service_call(
             state,
@@ -408,7 +412,7 @@ where
             connector.clone(),
             operation,
             payment_data,
-            customer,
+            connector_customer_map,
             payments::CallConnectorAction::Trigger,
             None,
             validate_result,

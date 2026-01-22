@@ -273,7 +273,6 @@ where
                     connector_data.connector_data.clone(),
                     &operation,
                     &mut payment_data,
-                    &customer,
                     call_connector_action.clone(),
                     None, // schedule_time is not used in PreDetermined ConnectorCallType
                     header_payload.clone(),
@@ -371,7 +370,6 @@ where
                     connector_data.connector_data.clone(),
                     &operation,
                     &mut payment_data,
-                    &customer,
                     call_connector_action.clone(),
                     None, // schedule_time is not used in Retryable ConnectorCallType
                     header_payload.clone(),
@@ -671,6 +669,10 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    let connector_customer_map = customer
+        .as_ref()
+        .and_then(|customer| customer.connector_customer.as_ref());
+
     let authentication_type =
         call_decision_manager(state, platform, &business_profile, &payment_data).await?;
 
@@ -896,7 +898,7 @@ where
                             connector.connector_data.clone(),
                             &operation,
                             &mut payment_data,
-                            &customer,
+                            connector_customer_map,
                             call_connector_action.clone(),
                             shadow_ucs_call_connector_action.clone(),
                             &validate_result,
@@ -1053,7 +1055,7 @@ where
                             connector_data.clone(),
                             &operation,
                             &mut payment_data,
-                            &customer,
+                            connector_customer_map,
                             call_connector_action.clone(),
                             shadow_ucs_call_connector_action,
                             &validate_result,
@@ -4137,7 +4139,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
-    customer: &Option<domain::Customer>,
+    connector_customer_map: Option<&pii::SecretSerdeValue>,
     call_connector_action: CallConnectorAction,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -4225,7 +4227,7 @@ where
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
-        customer,
+        connector_customer_map,
         processor,
         &merchant_connector_account,
         payment_data,
@@ -4670,7 +4672,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
-    customer: &Option<domain::Customer>,
+    connector_customer_map: Option<&pii::SecretSerdeValue>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a operations::ValidateResult,
@@ -4741,7 +4743,7 @@ where
         connector,
         operation,
         payment_data,
-        customer,
+        connector_customer_map,
         call_connector_action,
         validate_result,
         schedule_time,
@@ -4785,7 +4787,6 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
-    customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
@@ -5337,7 +5338,6 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
-    customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
@@ -5406,7 +5406,6 @@ where
             connector,
             operation,
             payment_data,
-            customer,
             call_connector_action,
             schedule_time,
             header_payload,
@@ -6947,7 +6946,7 @@ pub fn validate_customer_details_for_click_to_pay(
 #[cfg(feature = "v1")]
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
-    customer: &Option<domain::Customer>,
+    connector_customer_map: Option<&pii::SecretSerdeValue>,
     processor: &domain::Processor,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
@@ -7010,7 +7009,7 @@ where
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
                     &connector,
-                    customer,
+                    connector_customer_map,
                     payment_data.get_payment_attempt(),
                     &label,
                 );
@@ -7038,7 +7037,7 @@ where
 
                 let customer_update = customers::update_connector_customer_in_customers(
                     &label,
-                    customer.as_ref(),
+                    connector_customer_map,
                     connector_customer_id.clone(),
                 )
                 .await;

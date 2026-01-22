@@ -704,7 +704,7 @@ pub async fn retrieve_payment_method_with_token(
             let bank_debit_detail = cards::get_bank_debit_from_hs_locker(
                 state,
                 merchant_key_store,
-                &customer_id,
+                customer_id,
                 &merchant_key_store.merchant_id,
                 locker_id,
             )
