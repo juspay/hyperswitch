@@ -179,6 +179,33 @@ pub async fn organization_retrieve(
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::ConvertOrganizationToPlatform))]
+pub async fn convert_organization_to_platform(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<common_utils::id_type::OrganizationId>,
+    json_payload: web::Json<admin::ConvertOrganizationToPlatformRequest>,
+) -> HttpResponse {
+    let flow = Flow::ConvertOrganizationToPlatform;
+    let organization_id = org_id.into_inner();
+    let org_id = admin::OrganizationId {
+        organization_id: organization_id.clone(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| {
+            convert_organization_to_platform_organization(state, org_id.clone(), req)
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -1047,29 +1074,6 @@ pub async fn merchant_account_transfer_keys(
         &req,
         payload.into_inner(),
         |state, _, req, _| transfer_key_store_to_key_manager(state, req),
-        &auth::AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-/// Merchant Account - Platform Account
-///
-/// Enable platform account
-#[instrument(skip_all)]
-pub async fn merchant_account_enable_platform_account(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::EnablePlatformAccount;
-    let merchant_id = path.into_inner();
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        merchant_id,
-        |state, _, req, _| enable_platform_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
