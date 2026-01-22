@@ -586,6 +586,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 network_txn_id: None,
                 connector_response_reference_id: Some(payment_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             amount_captured: Some(data.request.amount),

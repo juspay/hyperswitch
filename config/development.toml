@@ -38,12 +38,6 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 
-[preprocessing_flow_config]
-authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard,shift4"
-order_create_bloated_connectors = "trustpay,payme,nordea"
-balance_check_bloated_connectors = "adyen"
-settlement_split_bloated_connectors = "xendit"
-
 [redis]
 host = "127.0.0.1"
 port = 6379
@@ -1186,6 +1180,9 @@ card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
+
+[card_only_mit_supported_connectors]
+connector_list = "peachpayments" # Supported connectors for card only mit
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []

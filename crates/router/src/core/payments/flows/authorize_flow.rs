@@ -67,7 +67,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -83,7 +83,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -132,7 +132,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -153,7 +153,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -279,17 +279,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check balance check flow is bloated up for the current connector
-                config
-                    .balance_check_bloated_connectors
-                    .contains(&connector.connector_name)
-            })
-        {
+        ) {
             logger::info!(
                 "Balance check flow is required for connector: {}",
                 connector.connector_name
@@ -392,7 +382,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -490,7 +480,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 None,
             ))
             .await?;
-            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            // Convert back to CompleteAuthorize router data while preserving pre authentication response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
             let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
@@ -535,14 +525,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         } else {
             Ok((self, true))
         }
-    }
-
-    async fn preprocessing_steps<'a>(
-        self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        authorize_preprocessing_steps(state, &self, true, connector).await
     }
 
     async fn postprocessing_steps<'a>(
@@ -674,17 +656,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check order create flow is bloated up for the current connector
-                config
-                    .settlement_split_bloated_connectors
-                    .contains(&connector.connector_name)
-            })
-        {
+        ) {
             logger::info!(
                 "Settlement Split call is required for connector: {}",
                 connector.connector_name
@@ -755,16 +727,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check order create flow is bloated up for the current connector
-                config
-                    .order_create_bloated_connectors
-                    .contains(&connector.connector_name)
-            });
+        );
         if (connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
@@ -951,87 +914,6 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     }
     fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
         self.customer_acceptance.clone()
-    }
-}
-
-pub async fn authorize_preprocessing_steps<F: Clone>(
-    state: &SessionState,
-    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    confirm: bool,
-    connector: &api::ConnectorData,
-) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
-    if confirm {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let preprocessing_request_data =
-            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
-
-        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
-
-        let preprocessing_router_data =
-            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
-                router_data.clone(),
-                preprocessing_request_data,
-                preprocessing_response_data,
-            );
-
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &preprocessing_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
-
-        metrics::PREPROCESSING_STEPS_COUNT.add(
-            1,
-            router_env::metric_attributes!(
-                ("connector", connector.connector_name.to_string()),
-                ("payment_method", router_data.payment_method.to_string()),
-                (
-                    "payment_method_type",
-                    router_data
-                        .request
-                        .payment_method_type
-                        .map(|inner| inner.to_string())
-                        .unwrap_or("null".to_string()),
-                ),
-            ),
-        );
-        let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-            resp.clone(),
-            router_data.request.to_owned(),
-            resp.response.clone(),
-        );
-        if connector.connector_name == api_models::enums::Connector::Nuvei {
-            let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
-                Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
-                    enrolled_v2,
-                    related_transaction_id,
-                }) => (*enrolled_v2, related_transaction_id.clone()),
-                _ => (false, None),
-            };
-            authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
-            authorize_router_data.request.related_transaction_id = related_transaction_id;
-        } else if connector.connector_name == api_models::enums::Connector::Shift4 {
-            if resp.request.enrolled_for_3ds {
-                authorize_router_data.response = resp.response;
-                authorize_router_data.status = resp.status;
-            } else {
-                authorize_router_data.request.enrolled_for_3ds = false;
-            }
-        }
-        Ok(authorize_router_data)
-    } else {
-        Ok(router_data.clone())
     }
 }
 
@@ -1226,6 +1108,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
+                authentication_data,
                 charges,
             },
         ) => {
@@ -1249,6 +1132,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
+                    authentication_data,
                     charges,
                 },
             )
@@ -1269,7 +1153,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -1298,7 +1182,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
