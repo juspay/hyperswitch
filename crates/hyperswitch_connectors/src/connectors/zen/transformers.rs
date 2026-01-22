@@ -716,6 +716,7 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -971,6 +972,7 @@ fn get_zen_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
     Ok((status, error, payment_response_data))
@@ -1015,6 +1017,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..value.data

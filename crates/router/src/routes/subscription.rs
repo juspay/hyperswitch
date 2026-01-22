@@ -76,8 +76,8 @@ pub async fn create_subscription(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
@@ -117,8 +117,8 @@ pub async fn pause_subscription(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -153,8 +153,8 @@ pub async fn resume_subscription(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -189,8 +189,8 @@ pub async fn cancel_subscription(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -320,8 +320,8 @@ pub async fn get_subscription(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
@@ -359,8 +359,8 @@ pub async fn create_and_confirm_subscription(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
@@ -385,8 +385,8 @@ pub async fn get_estimate(
         Err(response) => return response,
     };
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
     let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
         Ok(auth) => auth,
@@ -434,8 +434,8 @@ pub async fn update_subscription(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -470,8 +470,8 @@ pub async fn list_subscriptions(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
