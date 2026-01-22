@@ -140,7 +140,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 3
+        run: cargo build --package router --bin router
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -657,7 +657,7 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
-    needs: build-hyperswitch
+    needs: ubuntu-latest
     if: |
       github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
