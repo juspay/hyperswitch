@@ -259,6 +259,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodIntentConfirm,
         api_models::payment_methods::AuthenticationDetails,
         api_models::payment_methods::PaymentMethodResponse,
+        api_models::payment_methods::PaymentMethodRawData,
+        api_models::payment_methods::PaymentMethodRetrieveRequest,
         api_models::payment_methods::PaymentMethodResponseData,
         api_models::payment_methods::CustomerPaymentMethodResponseItem,
         api_models::payment_methods::PaymentMethodResponseItem,

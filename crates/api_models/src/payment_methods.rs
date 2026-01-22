@@ -936,7 +936,6 @@ pub enum PaymentMethodResponseData {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
-#[serde(rename = "payment_method_data")]
 pub enum PaymentMethodRawData {
     Card(CardDetail),
 }
@@ -1157,6 +1156,7 @@ pub struct PaymentMethodResponse {
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
 
     /// The raw data associated with the payment method
+    #[schema(value_type = PaymentMethodRawData)]
     pub payment_method_raw_data: Option<PaymentMethodRawData>,
 }
 

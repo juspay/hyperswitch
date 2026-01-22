@@ -486,11 +486,11 @@ impl GetMerchantAccessFlags for ApiKeyAuth {
 
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for V2ApiKeyAuth {
-    fn get_is_connected_allowed(&self) -> bool {
-        self.is_connected_allowed
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
     }
-    fn get_is_platform_allowed(&self) -> bool {
-        self.is_platform_allowed
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
     }
 }
 

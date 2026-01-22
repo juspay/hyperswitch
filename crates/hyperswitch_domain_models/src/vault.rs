@@ -27,6 +27,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
+    #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_and_get_card_details(
         &self,
         payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,

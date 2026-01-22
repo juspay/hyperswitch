@@ -19635,13 +19635,29 @@
           }
         }
       },
+      "PaymentMethodRawData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
+      },
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
           "id",
           "merchant_id",
           "customer_id",
-          "payment_method_type"
+          "payment_method_type",
+          "payment_method_raw_data"
         ],
         "properties": {
           "id": {
@@ -19731,6 +19747,9 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_raw_data": {
+            "$ref": "#/components/schemas/PaymentMethodRawData"
           }
         }
       },
@@ -19845,6 +19864,15 @@
             "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
+      },
+      "PaymentMethodRetrieveRequest": {
+        "type": "object",
+        "properties": {
+          "fetch_raw_detail": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
