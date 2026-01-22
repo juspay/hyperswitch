@@ -264,6 +264,7 @@ pub fn get_worldpay_combined_psync_response(
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
         ..data.clone()
@@ -285,6 +286,7 @@ pub fn get_worldpay_combined_capture_response(
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
         ..data.clone()
@@ -304,6 +306,7 @@ pub fn get_worldpay_void_response(
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
         ..data.clone()
@@ -380,6 +383,7 @@ impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

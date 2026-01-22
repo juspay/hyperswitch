@@ -243,6 +243,7 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankTransfer(_)
@@ -752,6 +753,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

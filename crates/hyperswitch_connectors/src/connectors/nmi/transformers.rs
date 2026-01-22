@@ -252,6 +252,7 @@ fn build_nmi_vault_response(
                 network_txn_id: None,
                 connector_response_reference_id: Some(vault_response.transactionid.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             AttemptStatus::AuthenticationPending,
@@ -463,6 +464,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 if item.data.request.is_auto_capture()? {
@@ -661,7 +663,8 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                 customer_vault: None,
             }),
             Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))?
@@ -769,6 +772,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "nmi",
@@ -1070,6 +1074,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 AttemptStatus::Charged,
@@ -1185,6 +1190,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 AttemptStatus::Charged,
@@ -1251,6 +1257,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 if item.data.request.is_auto_capture()? {
@@ -1291,6 +1298,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 AttemptStatus::VoidInitiated,
@@ -1339,6 +1347,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SyncResponse, T, PaymentsResponseData>>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
