@@ -8420,90 +8420,6 @@
           }
         }
       },
-      "CardDetailResponse": {
-        "type": "object",
-        "required": [
-          "card_holder_name",
-          "saved_to_locker"
-        ],
-        "properties": {
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card Holder Name",
-            "example": "John Doe"
-          },
-          "nick_name": {
-            "type": "string",
-            "description": "Card Holder's Nick Name",
-            "example": "John Doe",
-            "nullable": true
-          },
-          "issuer_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
-          },
-          "last4_digits": {
-            "type": "string",
-            "description": "last 4 digits of the card number",
-            "example": "4242",
-            "nullable": true
-          },
-          "expiry_month": {
-            "type": "string",
-            "description": "Card Expiry Month",
-            "example": "10",
-            "nullable": true
-          },
-          "expiry_year": {
-            "type": "string",
-            "description": "Card Expiry Year",
-            "example": "25",
-            "nullable": true
-          },
-          "card_fingerprint": {
-            "type": "string",
-            "description": "Card Fingerprint",
-            "example": "fingerprint_12345",
-            "nullable": true
-          },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
-          "card_isin": {
-            "type": "string",
-            "description": "Card ISIN",
-            "example": "4567890",
-            "nullable": true
-          },
-          "card_issuer": {
-            "type": "string",
-            "description": "Issuer Bank for Card",
-            "example": "Issuer Bank",
-            "nullable": true
-          },
-          "card_type": {
-            "type": "string",
-            "description": "Card Type (Credit/Debit)",
-            "example": "Credit",
-            "nullable": true
-          },
-          "saved_to_locker": {
-            "type": "boolean",
-            "description": "Indicates whether the card is saved to vault",
-            "example": true
-          }
-        },
-        "additionalProperties": false
-      },
       "CardDetailUpdate": {
         "type": "object",
         "required": [
@@ -19530,21 +19446,6 @@
           }
         ]
       },
-      "PaymentMethodDataSessionResponse": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "card"
-            ],
-            "properties": {
-              "card": {
-                "$ref": "#/components/schemas/CardDetailResponse"
-              }
-            }
-          }
-        ]
-      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -20155,7 +20056,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodDataSessionResponse"
+                "$ref": "#/components/schemas/PaymentMethodResponseData"
               }
             ],
             "nullable": true

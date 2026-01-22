@@ -985,7 +985,7 @@ pub fn generate_payment_method_session_response(
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
-    payment_method_data: Option<api_models::payment_methods::PaymentMethodDataSessionResponse>,
+    payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1105,41 +1105,6 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             original_payment_authorized_currency: None,
             metadata: None,
             token: token.clone().token,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl transformers::ForeignFrom<api_models::payment_methods::CardDetailFromLocker>
-    for api_models::payment_methods::CardDetailResponse
-{
-    fn foreign_from(value: api_models::payment_methods::CardDetailFromLocker) -> Self {
-        Self {
-            card_holder_name: value.card_holder_name,
-            nick_name: value.nick_name,
-            last4_digits: value.last4_digits,
-            issuer_country: value.issuer_country,
-            card_fingerprint: value.card_fingerprint,
-            card_isin: value.card_isin,
-            card_issuer: value.card_issuer,
-            card_network: value.card_network,
-            card_type: value.card_type,
-            saved_to_locker: value.saved_to_locker,
-            expiry_month: value.expiry_month,
-            expiry_year: value.expiry_year,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl transformers::ForeignFrom<api_models::payment_methods::PaymentMethodResponseData>
-    for api_models::payment_methods::PaymentMethodDataSessionResponse
-{
-    fn foreign_from(value: api_models::payment_methods::PaymentMethodResponseData) -> Self {
-        match value {
-            api_models::payment_methods::PaymentMethodResponseData::Card(card) => {
-                Self::Card(api_models::payment_methods::CardDetailResponse::foreign_from(card))
-            }
         }
     }
 }

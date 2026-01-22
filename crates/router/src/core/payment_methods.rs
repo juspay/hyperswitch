@@ -4122,9 +4122,7 @@ pub async fn payment_methods_session_update_payment_method(
         None,
         None,
         card_cvc_token_details,
-        update_response
-            .and_then(|resp| resp.payment_method_data)
-            .map(payment_methods::PaymentMethodDataSessionResponse::foreign_from),
+        update_response.and_then(|resp| resp.payment_method_data),
     );
 
     Ok(services::ApplicationResponse::Json(response))
