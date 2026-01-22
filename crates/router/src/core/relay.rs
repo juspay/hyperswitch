@@ -569,13 +569,13 @@ pub async fn relay_retrieve(
 
 fn should_call_connector_for_relay_refund_status(relay: &relay::Relay, force_sync: bool) -> bool {
     // This allows refund sync at connector level if force_sync is enabled, or
-    // check if the refund is in terminal state
+    // check if the refund is in non terminal state
     !matches!(relay.status, RelayStatus::Failure | RelayStatus::Success) && force_sync
 }
 
 fn should_call_connector_for_relay_capture_status(relay: &relay::Relay, force_sync: bool) -> bool {
-    // This allows refund sync at connector level if force_sync is enabled, or
-    // check if the refund is in terminal state
+    // This allows capture sync at connector level if force_sync is enabled, or
+    // check if the capture is in non terminal state
     !matches!(relay.status, RelayStatus::Failure | RelayStatus::Success) && force_sync
 }
 
@@ -657,19 +657,25 @@ pub async fn sync_relay_capture_with_gateway(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
 
-    let router_data = utils::construct_relay_payments_retrieve_router_data(
-        state,
-        merchant_id,
-        &connector_account,
-        relay_record,
-    )
-    .await?;
-
     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         api::PSync,
         hyperswitch_domain_models::router_request_types::PaymentsSyncData,
         hyperswitch_domain_models::router_response_types::PaymentsResponseData,
     > = connector_data.connector.get_connector_integration();
+
+    let capture_method_type = connector_integration
+        .get_multiple_capture_sync_method()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get the capture method type")?;
+
+    let router_data = utils::construct_relay_payments_retrieve_router_data(
+        state,
+        merchant_id,
+        &connector_account,
+        relay_record,
+        capture_method_type,
+    )
+    .await?;
 
     let router_data_res = services::execute_connector_processing_step(
         state,

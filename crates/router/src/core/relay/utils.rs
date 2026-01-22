@@ -311,6 +311,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
     merchant_id: &id_type::MerchantId,
     connector_account: &domain::MerchantConnectorAccount,
     relay_record: &hyperswitch_domain_models::relay::Relay,
+    capture_method_type: hyperswitch_interfaces::api::CaptureSyncMethod,
 ) -> RouterResult<types::PaymentsSyncRouterData> {
     let connector_auth_type = connector_account
         .get_connector_account_details()
@@ -362,6 +363,23 @@ pub async fn construct_relay_payments_retrieve_router_data(
         }
     }?;
 
+    let connector_transaction_id = match capture_method_type {
+        hyperswitch_interfaces::api::CaptureSyncMethod::Individual => {
+            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
+                relay_record
+                    .connector_reference_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Missing connector_reference_id")?,
+            )
+        }
+        hyperswitch_interfaces::api::CaptureSyncMethod::Bulk => {
+            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
+                relay_record.connector_resource_id.clone(),
+            )
+        }
+    };
+
     let relay_id_string = relay_record.id.get_string_repr().to_string();
 
     let router_data = hyperswitch_domain_models::router_data::RouterData {
@@ -386,10 +404,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
         minor_amount_captured: None,
         request: hyperswitch_domain_models::router_request_types::PaymentsSyncData {
             currency: relay_capture_data.currency,
-            connector_transaction_id:
-                hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
-                    relay_record.connector_resource_id.clone(),
-                ),
+            connector_transaction_id,
             connector_meta: None,
             capture_method: None,
             split_payments: None,
