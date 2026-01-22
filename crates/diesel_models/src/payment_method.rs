@@ -9,7 +9,8 @@ use common_utils::{
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use masking::{ExposeInterface, Secret};
+use masking::ExposeInterface;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -80,7 +81,7 @@ pub struct PaymentMethod {
     pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
-    pub network_transaction_id: Option<String>,
+    pub network_transaction_id: Option<Secret<String>>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
@@ -294,7 +295,7 @@ pub enum PaymentMethodUpdate {
         last_used_at: PrimitiveDateTime,
     },
     NetworkTransactionIdAndStatusUpdate {
-        network_transaction_id: Option<String>,
+        network_transaction_id: Option<Secret<String>>,
         status: Option<storage_enums::PaymentMethodStatus>,
         last_modified_by: Option<String>,
     },
@@ -314,6 +315,7 @@ pub enum PaymentMethodUpdate {
         locker_fingerprint_id: Option<String>,
         connector_mandate_details: Option<CommonMandateReference>,
         external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
+        network_transaction_id: Option<Secret<String>>,
         last_modified_by: Option<String>,
     },
     ConnectorMandateDetailsUpdate {
@@ -339,7 +341,7 @@ impl PaymentMethodUpdate {
 pub struct PaymentMethodUpdateInternal {
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
-    network_transaction_id: Option<String>,
+    network_transaction_id: Option<Secret<String>>,
     status: Option<storage_enums::PaymentMethodStatus>,
     locker_id: Option<String>,
     payment_method_type_v2: Option<storage_enums::PaymentMethod>,
@@ -892,11 +894,11 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_fingerprint_id,
                 connector_mandate_details,
                 external_vault_source,
+                network_transaction_id,
                 last_modified_by,
             } => Self {
                 payment_method_data,
                 last_used_at: None,
-                network_transaction_id: None,
                 status,
                 locker_id,
                 payment_method_type_v2,
@@ -909,6 +911,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data,
                 locker_fingerprint_id,
                 external_vault_source,
+                network_transaction_id,
                 last_modified_by,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
@@ -1002,7 +1005,10 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
             status: payment_method_new.status,
-            network_transaction_id: payment_method_new.network_transaction_id.clone(),
+            network_transaction_id: payment_method_new
+                .network_transaction_id
+                .clone()
+                .map(Secret::new),
             client_secret: payment_method_new.client_secret.clone(),
             updated_by: payment_method_new.updated_by.clone(),
             payment_method_billing_address: payment_method_new

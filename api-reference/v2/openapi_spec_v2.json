@@ -19641,7 +19641,8 @@
           "id",
           "merchant_id",
           "customer_id",
-          "payment_method_type"
+          "payment_method_type",
+          "network_transaction_id"
         ],
         "properties": {
           "id": {
@@ -19731,6 +19732,10 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },
@@ -20246,6 +20251,9 @@
       },
       "PaymentMethodUpdate": {
         "type": "object",
+        "required": [
+          "network_transaction_id"
+        ],
         "properties": {
           "payment_method_data": {
             "allOf": [
@@ -20262,6 +20270,10 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         },
         "additionalProperties": false
