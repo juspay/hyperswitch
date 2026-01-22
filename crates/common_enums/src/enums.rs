@@ -2328,6 +2328,7 @@ pub enum PaymentMethodType {
     Przelewy24,
     PromptPay,
     Pse,
+    Qris,
     RedCompra,
     RedPagos,
     SamsungPay,
@@ -2430,6 +2431,7 @@ impl PaymentMethodType {
             Self::InstantBankTransfer => "Instant Bank Transfer",
             Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
             Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
+            Self::Qris => "QRIS",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -2872,6 +2874,12 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+impl RefundStatus {
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Success)
+    }
 }
 
 #[derive(
@@ -10476,4 +10484,12 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
 }

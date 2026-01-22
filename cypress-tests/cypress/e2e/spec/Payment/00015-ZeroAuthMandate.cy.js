@@ -54,7 +54,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -77,7 +77,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -116,7 +116,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -139,7 +139,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -162,7 +162,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -207,7 +207,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         "card_pm"
       ]["ZeroAuthConfirmPayment"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Retrieve CustomerPM Call Test", () => {
@@ -249,7 +249,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         "card_pm"
       ]["SaveCardConfirmAutoCaptureOffSession"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
@@ -301,7 +301,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -324,7 +324,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -347,7 +347,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -388,7 +388,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         "card_pm"
       ]["ZeroAuthMandate"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Confirm No 3DS MIT", () => {
@@ -411,7 +411,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         "card_pm"
       ]["MITAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });

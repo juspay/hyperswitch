@@ -12,6 +12,7 @@ use rdkafka::message::ToBytes;
 use uuid::Uuid;
 
 use crate::{
+    consts::user::REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS as redis_theme_config_ttl,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::SessionState,
     services::authentication::UserFromToken,
@@ -333,6 +334,10 @@ pub async fn delete_user_theme(
         .delete_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    // Delete from Redis cache
+    theme_utils::delete_theme_version_from_redis(&state, &theme_id).await?;
+
     // TODO (#6717): Delete theme folder from the theme storage.
     // Currently there is no simple or easy way to delete a whole folder from S3.
     // So, we are not deleting the theme folder from the theme storage.
@@ -382,6 +387,14 @@ pub async fn update_user_theme(
                 .attach_printable("Failed to parse ThemeData")?,
         )
         .await?;
+        state
+            .store
+            .update_theme_by_theme_id(theme_id.clone(), ThemeUpdate::ThemeConfig)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        // Invalidate Redis cache after updating theme config
+        theme_utils::delete_theme_version_from_redis(&state, &theme_id).await?;
     }
 
     let file = theme_utils::retrieve_file_from_theme_bucket(
@@ -570,5 +583,38 @@ pub async fn get_user_theme_using_lineage(
         merchant_id: theme.merchant_id,
         profile_id: theme.profile_id,
         theme_data: parsed_data,
+    }))
+}
+
+pub async fn get_user_theme_config_version(
+    state: SessionState,
+    theme_id: String,
+) -> UserResponse<theme_api::ThemeVersionResponse> {
+    let version_from_redis = theme_utils::get_theme_version_from_redis(&state, &theme_id).await;
+
+    if let Ok(Some(cached_version)) = version_from_redis {
+        return Ok(ApplicationResponse::Json(theme_api::ThemeVersionResponse {
+            theme_id: theme_id.clone(),
+            theme_config_version: cached_version,
+        }));
+    }
+
+    let theme = state
+        .store
+        .find_theme_by_theme_id(theme_id.clone())
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    theme_utils::set_theme_version_in_redis(
+        &state,
+        &theme_id,
+        theme.theme_config_version.clone(),
+        redis_theme_config_ttl,
+    )
+    .await?;
+
+    Ok(ApplicationResponse::Json(theme_api::ThemeVersionResponse {
+        theme_id: theme.theme_id,
+        theme_config_version: theme.theme_config_version,
     }))
 }
