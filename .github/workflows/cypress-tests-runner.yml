@@ -657,7 +657,7 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
-    needs: ubuntu-latest
+    needs: build-hyperswitch
     if: |
       github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
@@ -868,7 +868,7 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read
