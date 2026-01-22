@@ -3409,6 +3409,14 @@ pub async fn retrieve_payment_method(
     fetch_raw_detail_query_param: bool,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
+    let raw_payment_method_fetch_access = get_raw_payment_method_fetch_access(
+        db,
+        platform.get_provider().get_account().get_id(),
+        api_key_type,
+        fetch_raw_detail_query_param,
+    )
+    .await
+    .attach_printable("Failed to get raw payment method fetch access")?;
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
@@ -3429,17 +3437,12 @@ pub async fn retrieve_payment_method(
     .await
     .unwrap_or_default();
 
-    let raw_payment_method_data = get_raw_payment_method_fetch_access(
-        db,
-        platform.get_provider().get_account().get_org_id(),
-        api_key_type,
-        fetch_raw_detail_query_param,
-    )
-    .await
-    .attach_printable("Failed to get raw payment method fetch access")?
-    .get_raw_payment_method_data(&state, &platform, &profile, &payment_method)
-    .await
-    .attach_printable("Failed to get raw payment method data")?;
+    let raw_payment_method_data = raw_payment_method_fetch_access
+        .get_raw_payment_method_data(&state, &platform, &profile, &payment_method)
+        .await
+        .attach_printable("Failed to get raw payment method data")?
+        .map(|data| data.convert_to_raw_payment_method_data())
+        .flatten();
 
     transformers::generate_payment_method_response(
         &payment_method,
@@ -3467,9 +3470,12 @@ impl RawPaymentMethodFetchAccess {
         platform: &domain::Platform,
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
-    ) -> RouterResult<Option<payment_methods::PaymentMethodRawData>> {
+    ) -> RouterResult<Option<domain::PaymentMethodVaultingData>> {
         match self {
-            Self::Denied => Ok(None),
+            Self::Denied => {
+                logger::debug!("Raw payment method fetch access denied");
+                Ok(None)
+            }
 
             Self::Allowed => {
                 let vault_data = vault::retrieve_payment_method_from_vault(
@@ -3483,12 +3489,12 @@ impl RawPaymentMethodFetchAccess {
                 .attach_printable("Failed to retrieve payment method from vault")?
                 .data;
 
-                vault_data
-                    .populated_payment_methods_data_and_get_card_details(
+                let payment_method_vault_data = vault_data
+                    .populated_payment_methods_data_and_get_payment_method_vaulting_data(
                         payment_method.payment_method_data.as_ref(),
                     )
-                    .attach_printable("Failed to get card details for payment method vaulting data")
-                    .map(|opt| opt.map(payment_methods::PaymentMethodRawData::Card))
+                    .attach_printable("Failed to get card details for payment method vaulting data")?;
+                Ok(Some(payment_method_vault_data))
             }
         }
     }
@@ -3496,25 +3502,26 @@ impl RawPaymentMethodFetchAccess {
 
 pub async fn get_raw_payment_method_fetch_access(
     db: &dyn StorageInterface,
-    organization_id: &id_type::OrganizationId,
+    merchant_id: &id_type::MerchantId,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
 ) -> RouterResult<RawPaymentMethodFetchAccess> {
-    // Query param not set → never allowed
-    if !fetch_raw_detail_query_param {
-        return Ok(RawPaymentMethodFetchAccess::Denied);
-    }
+    // If query param not set, never allowed to fetch raw payment method details
+    let fetch_access = match fetch_raw_detail_query_param {
+        true => RawPaymentMethodFetchAccess::Allowed,
+        false => RawPaymentMethodFetchAccess::Denied,
+    };
 
     match api_key_type {
         // Internal API keys always allowed
-        enums::ApiKeyType::Internal => Ok(RawPaymentMethodFetchAccess::Allowed),
+        enums::ApiKeyType::Internal => Ok(fetch_access),
 
         // External API keys allowed only via org-level config
         // This supports cases where a PCI-compliant entity needs to retrieve raw payment method details.
         enums::ApiKeyType::External => {
             let config = db
                 .find_config_by_key_unwrap_or(
-                    &organization_id.should_return_raw_payment_method_details_key(),
+                    &merchant_id.should_return_raw_payment_method_details_key(),
                     Some("false".to_string()),
                 )
                 .await;
@@ -3523,7 +3530,7 @@ pub async fn get_raw_payment_method_fetch_access(
                 Ok(conf) if conf.config.eq_ignore_ascii_case("true") => {
                     Ok(RawPaymentMethodFetchAccess::Allowed)
                 }
-                Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
+                Ok(_) => Ok(fetch_access),
                 Err(error) => {
                     router_env::logger::error!(
                         ?error,

@@ -19635,7 +19635,7 @@
           }
         }
       },
-      "PaymentMethodRawData": {
+      "RawPaymentMethodData": {
         "oneOf": [
           {
             "type": "object",
@@ -19657,7 +19657,7 @@
           "merchant_id",
           "customer_id",
           "payment_method_type",
-          "payment_method_raw_data"
+          "raw_payment_method_data"
         ],
         "properties": {
           "id": {
@@ -19748,8 +19748,8 @@
             ],
             "nullable": true
           },
-          "payment_method_raw_data": {
-            "$ref": "#/components/schemas/PaymentMethodRawData"
+          "raw_payment_method_data": {
+            "$ref": "#/components/schemas/RawPaymentMethodData"
           }
         }
       },

@@ -566,7 +566,7 @@ pub fn generate_payment_method_response(
     storage_type: Option<common_enums::StorageType>,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     customer_id: Option<id_type::GlobalCustomerId>,
-    payment_method_raw_data: Option<api_models::payment_methods::PaymentMethodRawData>,
+    raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -630,7 +630,7 @@ pub fn generate_payment_method_response(
         network_token,
         storage_type,
         card_cvc_token_storage,
-        payment_method_raw_data,
+        raw_payment_method_data,
     };
 
     Ok(resp)
