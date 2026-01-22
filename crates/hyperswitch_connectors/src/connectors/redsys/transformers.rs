@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
     crypto::{EncodeMessage, SignMessage},
     ext_traits::{Encode, ValueExt},
-    types::StringMinorUnit,
+    types::{SemanticVersion, StringMinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -13,8 +15,8 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        BrowserInformation, CompleteAuthorizeData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsSyncData, ResponseId,
+        self, BrowserInformation, CompleteAuthorizeData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsSyncData, ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
@@ -36,7 +38,7 @@ use crate::{
     },
     utils::{
         self as connector_utils, missing_field_err, AddressDetailsData, BrowserInformationData,
-        CardData, PaymentsAuthenticateRequestData, PaymentsAuthorizeRequestData,
+        CardData, ForeignTryFrom, PaymentsAuthenticateRequestData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
         PaymentsPreProcessingRequestData, RouterData as _,
     },
@@ -820,6 +822,48 @@ fn handle_success_response(
     }
 }
 
+impl ForeignTryFrom<&RedsysThreeDsInvokeData> for router_request_types::UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: &RedsysThreeDsInvokeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: None,
+            cavv: None,
+            threeds_server_transaction_id: Some(value.directory_server_id.clone()),
+            message_version: Some(
+                SemanticVersion::from_str(&value.message_version)
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+            ),
+            ds_trans_id: None,
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: None,
+            ucaf_collection_indicator: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<&ThreeDsInvokeExempt> for router_request_types::UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: &ThreeDsInvokeExempt) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: None,
+            cavv: None,
+            threeds_server_transaction_id: Some(value.three_d_s_server_trans_i_d.clone()),
+            message_version: Some(
+                SemanticVersion::from_str(&value.message_version)
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+            ),
+            ds_trans_id: None,
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: None,
+            ucaf_collection_indicator: None,
+        })
+    }
+}
+
 // Build 3DS invoke response
 fn build_threeds_invoke_response(
     response_data: &RedsysPaymentsResponse,
@@ -859,6 +903,11 @@ fn build_threeds_invoke_response(
             .attach_printable("Failed to serialize ThreeDsData")?,
     );
 
+    let authentication_data =
+        router_request_types::UcsAuthenticationData::foreign_try_from(&three_ds_data)
+            .ok()
+            .map(Box::new);
+
     let response = Ok(PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
         redirection_data: Box::new(None),
@@ -867,7 +916,7 @@ fn build_threeds_invoke_response(
         network_txn_id: None,
         connector_response_reference_id: Some(response_data.ds_order.clone()),
         incremental_authorization_allowed: None,
-        authentication_data: None,
+        authentication_data,
         charges: None,
     });
 
@@ -897,6 +946,11 @@ fn build_threeds_invoke_exempt_response(
             .attach_printable("Failed to serialize ThreeDsData")?,
     );
 
+    let authentication_data =
+        router_request_types::UcsAuthenticationData::foreign_try_from(&three_ds_data)
+            .ok()
+            .map(Box::new);
+
     let response = Ok(PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
         redirection_data: Box::new(None),
@@ -905,7 +959,7 @@ fn build_threeds_invoke_exempt_response(
         network_txn_id: None,
         connector_response_reference_id: Some(response_data.ds_order.clone()),
         incremental_authorization_allowed: None,
-        authentication_data: None,
+        authentication_data,
         charges: None,
     });
 
@@ -1201,6 +1255,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
                     response_data,
                     item.data.request.capture_method,
                     connector_metadata,
+                    None,
                     item.http_code,
                 )?
             }
@@ -1254,6 +1309,7 @@ impl<F>
                     response_data,
                     item.data.request.capture_method,
                     connector_metadata,
+                    item.data.request.authentication_data.clone().map(Box::new),
                     item.http_code,
                 )?
             }
@@ -1428,10 +1484,23 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
                 )?;
                 router_env::logger::info!(connector_complete_authorize_response=?response_data);
 
+                let authentication_data = item
+                    .data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .map(|data| {
+                        router_request_types::UcsAuthenticationData::try_from(data)
+                            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    })
+                    .transpose()?
+                    .map(Box::new);
+
                 get_payments_response(
                     response_data,
                     item.data.request.capture_method,
                     None,
+                    authentication_data,
                     item.http_code,
                 )?
             }
@@ -1764,6 +1833,7 @@ fn get_payments_response(
     redsys_payments_response: RedsysPaymentsResponse,
     capture_method: Option<enums::CaptureMethod>,
     connector_metadata: Option<josekit::Value>,
+    authentication_data: Option<Box<router_request_types::UcsAuthenticationData>>,
     http_code: u16,
 ) -> Result<
     (
@@ -1799,7 +1869,7 @@ fn get_payments_response(
                 network_txn_id: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
+                authentication_data,
                 charges: None,
             })
         };
@@ -1820,7 +1890,7 @@ fn get_payments_response(
             network_txn_id: None,
             connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
             incremental_authorization_allowed: None,
-            authentication_data: None,
+            authentication_data,
             charges: None,
         });
 
