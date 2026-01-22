@@ -14,6 +14,7 @@ const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 const timeoutMultiplier = getTimeoutMultiplier();
 
 export default defineConfig({
+  CYPRESS_NUM_TESTS_KEPT_IN_MEMORY: 0,
   e2e: {
     setupNodeEvents(on, config) {
       mochawesome(on);
