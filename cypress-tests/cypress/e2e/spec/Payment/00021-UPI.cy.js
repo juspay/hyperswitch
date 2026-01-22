@@ -70,7 +70,7 @@ describe("UPI Payments - Hyperswitch", () => {
         "upi_pm"
       ]["UpiCollect"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Refund payment", () => {
@@ -150,7 +150,7 @@ describe("UPI Payments - Hyperswitch", () => {
         "upi_pm"
       ]["UpiIntent"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });
