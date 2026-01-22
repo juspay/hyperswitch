@@ -3667,7 +3667,12 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
                 .into(),
             ),
             Some(payments_grpc::redirect_form::FormType::Braintree(_))
-            | Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => todo!(),
+            | Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),

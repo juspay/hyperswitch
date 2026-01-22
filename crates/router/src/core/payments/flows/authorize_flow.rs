@@ -486,7 +486,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             authorize_request_data.authentication_data = authentication_data
                 .clone()
-                .map(|data| router_request_types::AuthenticationData::try_from(data))
+                .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?;
 
             let mut authorize_router_data =
@@ -612,7 +612,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             authorize_request_data.authentication_data = authentication_data
                 .clone()
-                .map(|data| router_request_types::AuthenticationData::try_from(data))
+                .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?;
 
             let authorize_router_data =
@@ -631,7 +631,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             authorize_request_data.authentication_data = authentication_data
                 .clone()
-                .map(|data| router_request_types::AuthenticationData::try_from(data))
+                .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?;
 
             let should_continue_after_authenticate = match &authorize_router_data.response {

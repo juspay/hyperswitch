@@ -1484,17 +1484,8 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
                 )?;
                 router_env::logger::info!(connector_complete_authorize_response=?response_data);
 
-                let authentication_data = item
-                    .data
-                    .request
-                    .authentication_data
-                    .clone()
-                    .map(|data| {
-                        router_request_types::UcsAuthenticationData::try_from(data)
-                            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                    })
-                    .transpose()?
-                    .map(Box::new);
+                let authentication_data =
+                    item.data.request.authentication_data.clone().map(Box::new);
 
                 get_payments_response(
                     response_data,
