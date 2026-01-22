@@ -116,6 +116,8 @@ pub enum UserErrors {
     ErrorCloningConnector(String),
     #[error("Invalid Embedded Operation : {0}")]
     InvalidEmbeddedOperation(String),
+    #[error("Invalid Platform Operation")]
+    InvalidPlatformOperation,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -303,6 +305,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidEmbeddedOperation(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 60, self.get_error_message(), None))
             }
+            Self::InvalidPlatformOperation => {
+                AER::BadRequest(ApiError::new(sub_code, 61, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -382,6 +387,7 @@ impl UserErrors {
             Self::InvalidEmbeddedOperation(error_message) => {
                 format!("Invalid Embedded Operation: {error_message}")
             }
+            Self::InvalidPlatformOperation => "Invalid Platform Operation".to_string(),
         }
     }
 }
