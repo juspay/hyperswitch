@@ -1175,6 +1175,7 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
+
     // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
         .get_configured_payment_webhook_statuses()
