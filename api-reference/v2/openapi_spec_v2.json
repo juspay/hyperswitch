@@ -19657,6 +19657,7 @@
           "merchant_id",
           "customer_id",
           "payment_method_type",
+          "network_transaction_id",
           "raw_payment_method_data"
         ],
         "properties": {
@@ -19747,6 +19748,10 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           },
           "raw_payment_method_data": {
             "$ref": "#/components/schemas/RawPaymentMethodData"
@@ -20274,6 +20279,9 @@
       },
       "PaymentMethodUpdate": {
         "type": "object",
+        "required": [
+          "network_transaction_id"
+        ],
         "properties": {
           "payment_method_data": {
             "allOf": [
@@ -20290,6 +20298,10 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         },
         "additionalProperties": false
