@@ -152,23 +152,11 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let message = response.invalid_fields.map(|fields| {
-            fields
-                .iter()
-                .map(|f| format!("{}: {}", f.name, f.message))
-                .collect::<Vec<_>>()
-                .join(", ")
-        });
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response
-                .message
-                .clone()
-                .or(message.clone())
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.message.clone().or(message.clone()),
+            message: response.message.to_owned(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
             connector_response_reference_id: None,
@@ -3428,7 +3416,7 @@ static ADYEN_WEBHOOK_SETUP_CAPABILITIES:
         is_webhook_auto_configuration_supported: true,
         requires_webhook_secret: Some(false),
         config_type: Some(
-            common_types::connector_webhook_configuration::WebhookConfigType::Standard,
+            common_types::connector_webhook_configuration::WebhookConfigType::AllEvents,
         ),
     };
 

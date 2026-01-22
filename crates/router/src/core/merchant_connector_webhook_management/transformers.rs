@@ -167,11 +167,11 @@ pub async fn validate_webhook_registration_request(
         .into())
     } else {
         let is_supported = match webhook_register_request.event_type {
-            common_enums::ConnectorWebhookEventType::Standard => {
+            common_enums::ConnectorWebhookEventType::AllEvents => {
                 matches!(
                     config.config_type,
                     Some(
-                        common_types::connector_webhook_configuration::WebhookConfigType::Standard
+                        common_types::connector_webhook_configuration::WebhookConfigType::AllEvents
                     )
                 )
             }

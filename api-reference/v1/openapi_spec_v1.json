@@ -15184,7 +15184,7 @@
           {
             "type": "string",
             "enum": [
-              "standard"
+              "all_events"
             ]
           },
           {
@@ -39246,7 +39246,7 @@
             "type": "string",
             "description": "Standard webhook configuration supporting all events hyperswitch provides",
             "enum": [
-              "Standard"
+              "AllEvents"
             ]
           },
           {

@@ -5451,18 +5451,10 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: Option<String>,
-    pub error_type: Option<String>,
+    pub message: String,
     pub psp_reference: Option<String>,
-    pub invalid_fields: Option<Vec<InvalidFieldErrorResponse>>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InvalidFieldErrorResponse {
-    pub name: String,
-    pub message: String,
-}
 
 // #[cfg(test)]
 // mod test_adyen_transformers {
@@ -7012,7 +7004,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &common_enums::ConnectorWebhookEventType) -> Result<Self, Self::Error> {
         match item {
-            enums::ConnectorWebhookEventType::Standard => Ok(Self::Standard),
+            enums::ConnectorWebhookEventType::AllEvents => Ok(Self::Standard),
             enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
