@@ -344,6 +344,14 @@ pub enum GsmDecision {
 }
 
 #[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum ApiKeyType {
+    Internal,
+    External,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,

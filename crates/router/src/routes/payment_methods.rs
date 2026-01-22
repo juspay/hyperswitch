@@ -77,6 +77,8 @@ pub async fn create_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
 
+    println!("create_payment_method_api: {:?}", json_payload);
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -198,6 +200,7 @@ pub async fn payment_method_update_api(
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodRetrieveRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsRetrieve;
@@ -205,6 +208,17 @@ pub async fn payment_method_retrieve_api(
         payment_method_id: path.into_inner(),
     })
     .into_inner();
+
+    let api_auth = auth::V2ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: false,
+    };
+
+    let api_key_type = auth::is_internal_merchant_id_profile_id_auth(req.headers());
+
+    let auth_type = Box::new(auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(
+        api_auth,
+    )));
 
     Box::pin(api::server_wrap(
         flow,
@@ -215,13 +229,13 @@ pub async fn payment_method_retrieve_api(
             payment_methods_routes::retrieve_payment_method(
                 state,
                 pm,
-                auth.platform.get_provider().clone(),
+                auth.profile,
+                auth.platform,
+                api_key_type,
+                query_payload.fetch_raw_detail,
             )
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -102,6 +102,14 @@ pub struct PaymentMethodCreate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct PaymentMethodRetrieveRequest {
+    #[serde(default)]
+    pub fetch_raw_detail: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -910,6 +918,15 @@ pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
+pub enum PaymentMethodRawData {
+    Card(CardDetail),
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
@@ -1124,6 +1141,9 @@ pub struct PaymentMethodResponse {
 
     /// Card CVC token storage details
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+
+    /// The raw data associated with the payment method
+    pub payment_method_raw_data: Option<PaymentMethodRawData>,
 }
 
 #[cfg(feature = "v2")]
@@ -1156,6 +1176,15 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+}
+
+impl PaymentMethodsData {
+    pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
+        match self {
+            Self::Card(card_details) => Some(card_details.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]

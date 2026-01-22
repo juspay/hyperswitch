@@ -1197,6 +1197,7 @@ pub async fn create_payment_method_card_core(
                 req.storage_type,
                 None,
                 req.customer_id,
+                None,
             )?;
 
             Ok((resp, payment_method))
@@ -1327,6 +1328,7 @@ pub async fn create_volatile_payment_method_card_core(
                 req.storage_type,
                 None,
                 req.customer_id,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1437,6 +1439,7 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
     )?;
 
     Ok((payment_method_response, payment_method))
@@ -1828,6 +1831,7 @@ pub async fn payment_method_intent_create(
         None,
         None,
         Some(customer_id),
+        None,
     )?;
 
     Ok(services::ApplicationResponse::Json(resp))
@@ -3253,7 +3257,10 @@ pub async fn get_total_payment_method_count_core(
 pub async fn retrieve_payment_method(
     state: SessionState,
     pm: api::PaymentMethodId,
-    provider: domain::Provider,
+    profile: domain::Profile,
+    platform: domain::Platform,
+    api_key_type: enums::ApiKeyType,
+    fetch_raw_detail_query_param: bool,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
@@ -3262,9 +3269,9 @@ pub async fn retrieve_payment_method(
 
     let payment_method = db
         .find_payment_method(
-            provider.get_key_store(),
+            platform.get_provider().get_key_store(),
             &pm_id,
-            provider.get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3276,14 +3283,111 @@ pub async fn retrieve_payment_method(
     .await
     .unwrap_or_default();
 
+    let raw_payment_method_data = get_raw_payment_method_fetch_access(
+        db,
+        platform.get_provider().get_account().get_org_id(),
+        api_key_type,
+        fetch_raw_detail_query_param,
+    )
+    .await
+    .attach_printable("Failed to get raw payment method fetch access")?
+    .get_raw_payment_method_data(&state, &platform, &profile, &payment_method)
+    .await
+    .attach_printable("Failed to get raw payment method data")?;
+
     transformers::generate_payment_method_response(
         &payment_method,
         &single_use_token_in_cache,
         Some(common_enums::StorageType::Persistent),
         None,
         payment_method.customer_id.clone(),
+        raw_payment_method_data,
     )
     .map(services::ApplicationResponse::Json)
+}
+
+#[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum RawPaymentMethodFetchAccess {
+    Allowed,
+    Denied,
+}
+
+impl RawPaymentMethodFetchAccess {
+    pub async fn get_raw_payment_method_data(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_method: &domain::PaymentMethod,
+    ) -> RouterResult<Option<payment_methods::PaymentMethodRawData>> {
+        match self {
+            Self::Denied => Ok(None),
+
+            Self::Allowed => {
+                let vault_data = vault::retrieve_payment_method_from_vault(
+                    state,
+                    platform,
+                    profile,
+                    payment_method,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?
+                .data;
+
+                vault_data
+                    .populated_payment_methods_data_and_get_card_details(
+                        payment_method.payment_method_data.as_ref(),
+                    )
+                    .attach_printable("Failed to get card details for payment method vaulting data")
+                    .map(|opt| opt.map(payment_methods::PaymentMethodRawData::Card))
+            }
+        }
+    }
+}
+
+pub async fn get_raw_payment_method_fetch_access(
+    db: &dyn StorageInterface,
+    organization_id: &id_type::OrganizationId,
+    api_key_type: enums::ApiKeyType,
+    fetch_raw_detail_query_param: bool,
+) -> RouterResult<RawPaymentMethodFetchAccess> {
+    // Query param not set → never allowed
+    if !fetch_raw_detail_query_param {
+        return Ok(RawPaymentMethodFetchAccess::Denied);
+    }
+
+    match api_key_type {
+        // Internal API keys always allowed
+        enums::ApiKeyType::Internal => Ok(RawPaymentMethodFetchAccess::Allowed),
+
+        // External API keys allowed only via org-level config
+        // This supports cases where a PCI-compliant entity needs to retrieve raw payment method details.
+        enums::ApiKeyType::External => {
+            let config = db
+                .find_config_by_key_unwrap_or(
+                    &organization_id.should_return_raw_payment_method_details_key(),
+                    Some("false".to_string()),
+                )
+                .await;
+
+            match config {
+                Ok(conf) if conf.config.eq_ignore_ascii_case("true") => {
+                    Ok(RawPaymentMethodFetchAccess::Allowed)
+                }
+                Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
+                Err(error) => {
+                    router_env::logger::error!(
+                        ?error,
+                        "Failed to fetch raw payment method details config"
+                    );
+                    Ok(RawPaymentMethodFetchAccess::Denied)
+                }
+            }
+        }
+    }
 }
 
 // TODO: When we separate out microservices, this function will be an endpoint in payment_methods
@@ -3450,6 +3554,7 @@ pub async fn update_payment_method_core(
         Some(common_enums::StorageType::Persistent),
         None,
         payment_method.customer_id.clone(),
+        None,
     )?;
 
     // Add a PT task to handle payment_method delete from vault
