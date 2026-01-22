@@ -1934,6 +1934,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -3176,6 +3177,7 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
@@ -3223,6 +3225,7 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
@@ -3230,7 +3233,13 @@ impl
                         })?
                     }
                 }
-            } //
+            }
+            payments::MandateReferenceId::CardWithLimitedData => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Card Only MIT for payment method".to_string(),
+                    connector: "Adyen",
+                })?
+            }
         }?;
 
         let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());

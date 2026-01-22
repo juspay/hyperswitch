@@ -67,7 +67,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -83,7 +83,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -132,7 +132,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -153,7 +153,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -392,7 +392,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -1271,7 +1271,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -1300,7 +1300,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

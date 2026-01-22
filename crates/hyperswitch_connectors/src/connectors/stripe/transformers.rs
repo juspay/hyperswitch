@@ -1531,6 +1531,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                 "stripe",
@@ -2001,6 +2002,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::CardToken(_)
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
+                        | PaymentMethodData::CardWithLimitedDetails(_)
                         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                             Err(ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
@@ -2058,6 +2060,12 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         payment_method_type,
                         setup_future_usage,
                     )
+                }
+                Some(payments::MandateReferenceId::CardWithLimitedData) => {
+                    Err(ConnectorError::NotSupported {
+                        message: "Card Only MIT for payment method".to_string(),
+                        connector: "Stripe",
+                    })?
                 }
             }
         };
@@ -4623,6 +4631,7 @@ impl
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
