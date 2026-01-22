@@ -371,7 +371,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
-          ROUTER__SERVER__WORKERS: 8
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
@@ -632,7 +631,7 @@ jobs:
       - name: Run Cypress tests
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
-          ROUTER__SERVER__WORKERS: 4
+          ROUTER__SERVER__WORKERS: 6
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
