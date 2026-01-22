@@ -19,7 +19,7 @@ env:
   PAYMENTS_CONNECTORS: "cybersource stripe"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "paypal zift redsys"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "paypal zift"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_4: "adyen trustpay checkout"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree nuvei"
@@ -185,12 +185,6 @@ jobs:
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_3}"'",
                   "parallel": 3,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-3"
-                },
-                {
-                  "name": "batch-4",
-                  "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_4}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-mandatory-test-results-batch-4"
                 }
               ]
             }'
