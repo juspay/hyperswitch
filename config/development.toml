@@ -1181,6 +1181,9 @@ card.debit = { connector_list = "cybersource" }
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
+[card_only_mit_supported_connectors]
+connector_list = "peachpayments" # Supported connectors for card only mit
+
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
 

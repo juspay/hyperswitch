@@ -2287,6 +2287,7 @@ fn create_transaction_response(
             .map(|ntid| ntid.clone().expose()),
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     })
 }

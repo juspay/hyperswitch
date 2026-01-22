@@ -391,6 +391,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::CardToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("redsys"),
@@ -861,6 +862,7 @@ fn build_threeds_invoke_response(
         network_txn_id: None,
         connector_response_reference_id: Some(response_data.ds_order.clone()),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     });
 
@@ -898,6 +900,7 @@ fn build_threeds_invoke_exempt_response(
         network_txn_id: None,
         connector_response_reference_id: Some(response_data.ds_order.clone()),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     });
 
@@ -1418,6 +1421,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                         network_txn_id: None,
                         connector_response_reference_id: Some(response_data.ds_order.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1524,6 +1528,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                         network_txn_id: None,
                         connector_response_reference_id: Some(response_data.ds_order.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1665,6 +1670,7 @@ fn get_payments_response(
                 network_txn_id: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1685,6 +1691,7 @@ fn get_payments_response(
             network_txn_id: None,
             connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         });
 
@@ -1952,6 +1959,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             network_txn_id: None,
                             connector_response_reference_id: Some(response.ds_order.clone()),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         });
                         (status, payment_response)
@@ -1966,6 +1974,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.ds_order.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     });
 
