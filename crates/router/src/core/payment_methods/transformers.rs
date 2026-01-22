@@ -1114,9 +1114,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::PaymentMethodRespons
     fn foreign_from(value: api_models::payment_methods::PaymentMethodResponseData) -> Self {
         match value {
             api_models::payment_methods::PaymentMethodResponseData::Card(card) => {
-                api_models::payment_methods::PaymentMethodDataSessionResponse::Card(
-                    api_models::payment_methods::CardDetailResponse::foreign_from(card),
-                )
+                Self::Card(api_models::payment_methods::CardDetailResponse::foreign_from(card))
             }
         }
     }
