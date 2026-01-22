@@ -1781,39 +1781,44 @@ pub async fn populate_raw_customer_details<F: Clone>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn merge_request_customer_data_into_payment_intent_customer_data(
+pub async fn merge_request_and_intent_customer_data(
     state: &SessionState,
-    payment_intent: &mut PaymentIntent,
+    payment_intent_customer_details: Option<Encryptable<pii::SecretSerdeValue>>,
     request_customer_details: &CustomerDetails,
     processor: &domain::Processor,
-) -> CustomResult<(), errors::StorageError> {
+) -> CustomResult<Option<Encryptable<pii::SecretSerdeValue>>, errors::StorageError> {
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
 
-    if let Some(mut request_customer_data) = request_customer_details.get_customer_data() {
-        if let Some(customer_details_encrypted) = &payment_intent.customer_details {
-            let decrypted_data = customer_details_encrypted
-                .clone()
-                .into_inner()
-                .expose()
-                .parse_value::<CustomerData>("CustomerData")
-                .change_context(errors::StorageError::DeserializationFailed)
-                .attach_printable("Failed to parse customer data from payment intent")?;
+    let merged_customer_details =
+    // If the request has any customer data, merge it with intent customer data, else return the intent customer data unmodified
+    // TODO: Optimization: This call is redundant if intent and request customer data is exactly the same
+        if let Some(mut request_customer_data) = request_customer_details.get_customer_data() {
+            if let Some(customer_details_encrypted) = &payment_intent_customer_details {
+                let decrypted_data = customer_details_encrypted
+                    .clone()
+                    .into_inner()
+                    .expose()
+                    .parse_value::<CustomerData>("CustomerData")
+                    .change_context(errors::StorageError::DeserializationFailed)
+                    .attach_printable("Failed to parse customer data from payment intent")?;
 
-            // Customer details in request take priority, so only fill missing fields from payment intent
-            request_customer_data.fill_missing_fields(&decrypted_data);
-        }
+                // Customer details in request take priority, so only fill missing fields from payment intent
+                request_customer_data.fill_missing_fields(&decrypted_data);
+            }
 
-        // Encrypt and update customer details in payment intent
-        payment_intent.customer_details = Some(
-            create_encrypted_data(&key_manager_state, key_store, request_customer_data)
-                .await
-                .change_context(errors::StorageError::EncryptionError)
-                .attach_printable("Unable to encrypt customer details")?,
-        );
-    }
+            // Encrypt and update customer details in payment intent
+            Some(
+                create_encrypted_data(&key_manager_state, key_store, request_customer_data)
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)
+                    .attach_printable("Unable to encrypt customer details")?,
+            )
+        } else {
+            payment_intent_customer_details
+        };
 
-    Ok(())
+    Ok(merged_customer_details)
 }
 
 #[cfg(feature = "v2")]
@@ -1893,11 +1898,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 Some(c) => {
                     let implicit_customer_update = configs::get_config_bool(
                         state,
-                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE, // superposition key
+                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE,
                         &provider
                             .get_account()
                             .get_id()
-                            .get_implicit_customer_update_key(), // database key
+                            .get_implicit_customer_update_key(), // database
                         Some(external_services::superposition::ConfigContext::new().with(
                             "merchant_id",
                             provider.get_account().get_id().get_string_repr(),
@@ -1985,19 +1990,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 }
             })
         }
-        None => match &payment_data.payment_intent.customer_id {
-            None => None,
-            Some(customer_id) => db
-                .find_customer_optional_by_customer_id_merchant_id(
-                    customer_id,
-                    merchant_id,
-                    key_store,
-                    storage_scheme,
-                )
-                .await?
-                .map(Ok),
-        },
+        None => None,
     };
+
     Ok((
         operation,
         match optional_customer {

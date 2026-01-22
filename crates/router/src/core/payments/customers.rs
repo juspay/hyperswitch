@@ -3,6 +3,8 @@ use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+use crate::types::domain;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -13,9 +15,6 @@ use crate::{
     services,
     types::{self, api},
 };
-
-#[cfg(feature = "v2")]
-use crate::types::domain;
 
 #[instrument(skip_all)]
 pub async fn create_connector_customer<F: Clone, T: Clone>(
