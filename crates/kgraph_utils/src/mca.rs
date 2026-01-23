@@ -168,6 +168,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
         api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
         api_enums::PaymentMethodType::UpiQr => Ok(dirval!(UpiType = UpiQr)),
+        api_enums::PaymentMethodType::UpiInApp => Ok(dirval!(UpiType = UpiInApp)),
         api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
         api_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
