@@ -4,12 +4,12 @@
 pub mod create;
 /// Delete payment method flow.
 pub mod delete;
+/// List customer payment methods flow.
+pub mod list;
 /// Retrieve payment method flow.
 pub mod retrieve;
 /// Update payment method flow.
 pub mod update;
-/// List customer payment methods flow.
-pub mod list;
 
 use common_utils::request::Headers;
 pub use create::{CreatePaymentMethod, CreatePaymentMethodV1Request};

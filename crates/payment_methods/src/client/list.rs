@@ -1,9 +1,10 @@
-use api_models::payment_methods::CardDetailFromLocker;
-use api_models::payment_methods::CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response;
+use api_models::payment_methods::{
+    CardDetailFromLocker,
+    CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response,
+};
 use cards::CardNumber;
 use common_enums::{PaymentMethod, PaymentMethodType};
-use common_utils::types::MinorUnit;
-use common_utils::{id_type, request::Method};
+use common_utils::{id_type, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use scheduler::consumer::diesel_models::schema::payment_intent::client_secret;
