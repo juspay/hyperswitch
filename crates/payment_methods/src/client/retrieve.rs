@@ -1,6 +1,8 @@
 //! Retrieve payment method flow types and models.
 
-use api_models::payment_methods::{CardDetailFromLocker, PaymentMethodId};
+use api_models::payment_methods::{
+    CardDetailFromLocker, PaymentMethodId, PaymentMethodResponse as RetrievePaymentMethodResponse,
+};
 use cards::CardNumber;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii, request::Method};
@@ -8,7 +10,6 @@ use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMe
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use serde::Deserialize;
 use time;
-use api_models::payment_methods::PaymentMethodResponse as RetrievePaymentMethodResponse;
 
 /// V1-facing retrieve flow type.
 #[derive(Debug)]
@@ -121,8 +122,7 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
         let payment_method_id = v2_resp.id.clone();
 
         // Convert GlobalCustomerId to CustomerId
-        let customer_id = v2_resp
-            .customer_id;
+        let customer_id = v2_resp.customer_id;
 
         // Convert card details from V2 to V1 format
         let card = v2_resp.payment_method_data.map(|pmd| match pmd {
