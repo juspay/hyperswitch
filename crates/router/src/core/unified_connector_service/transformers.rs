@@ -422,33 +422,12 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // First try to get authentication_data from the request
         let authentication_data = router_data
             .request
             .authentication_data
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-
-        // If not in request, try to extract from connector_meta (stored during Authorize flow)
-        let authentication_data = if authentication_data.is_none() {
-            router_data
-                .request
-                .connector_meta
-                .as_ref()
-                .and_then(|metadata| metadata.get("authentication_data"))
-                .and_then(|value| {
-                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
-                        value.clone(),
-                    )
-                    .ok()
-                })
-                .and_then(|auth_data| {
-                    payments_grpc::AuthenticationData::foreign_try_from(auth_data).ok()
-                })
-        } else {
-            authentication_data
-        };
 
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -2175,6 +2154,12 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
 
+            let authentication_data = response.authentication_data.and_then(|auth_data| {
+                router_request_types::UcsAuthenticationData::foreign_try_from(auth_data)
+                    .ok()
+                    .map(Box::new)
+            });
+
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -2184,7 +2169,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,
@@ -4760,6 +4745,12 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
+        let authentication_data = response.authentication_data.clone().and_then(|auth_data| {
+            router_request_types::UcsAuthenticationData::foreign_try_from(auth_data)
+                .ok()
+                .map(Box::new)
+        });
+
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
@@ -4791,7 +4782,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,

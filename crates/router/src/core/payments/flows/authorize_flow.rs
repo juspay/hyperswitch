@@ -569,14 +569,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             // to internal authentication data, only for TryFrom to convert it back again.
             // Since authenticate_request_data already expects UCS authentication data,
             // we set it directly here to avoid unnecessary conversions.
-            if let Ok(types::PaymentsResponseData::TransactionResponse {
-                authentication_data,
-                ..
-            }) = &self.response.clone()
-            {
-                authenticate_request_data.authentication_data =
-                    authentication_data.clone().map(|boxed| *boxed);
-            };
+            authenticate_request_data.authentication_data =
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    authentication_data,
+                    ..
+                }) = &self.response.clone()
+                {
+                    authentication_data.clone().map(|boxed| *boxed)
+                } else {
+                    None
+                };
 
             let authenticate_response_data: Result<
                 types::PaymentsResponseData,
@@ -610,18 +612,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             let authenticate_response = authenticate_router_data.response.clone();
 
-            authorize_request_data.authentication_data = authentication_data
-                .clone()
-                .map(router_request_types::AuthenticationData::try_from)
-                .transpose()?;
-
-            let authorize_router_data =
-                helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
-                    authenticate_router_data,
-                    authorize_request_data.clone(),
-                    authenticate_response.clone(),
-                );
-
             if let Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata, ..
             }) = &authenticate_response
@@ -633,6 +623,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 .clone()
                 .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?;
+
+            let authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                    authenticate_router_data.clone(),
+                    authorize_request_data.clone(),
+                    authenticate_response.clone(),
+                );
 
             let should_continue_after_authenticate = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::TransactionResponse {
