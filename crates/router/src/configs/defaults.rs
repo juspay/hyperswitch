@@ -12,7 +12,6 @@ impl Default for super::settings::Server {
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             shutdown_timeout: 30,
             keep_alive: common_utils::consts::DEFAULT_KEEP_ALIVE,
-            client_timeout: 30,
             client_request_timeout: common_utils::consts::DEFAULT_CLIENT_REQUEST_TIMEOUT,
             client_disconnect_timeout: common_utils::consts::DEFAULT_CLIENT_DISCONNECT_TIMEOUT,
             #[cfg(feature = "tls")]
