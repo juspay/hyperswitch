@@ -32,7 +32,7 @@ use crate::{
         unified_connector_service as ucs_core,
     },
     logger,
-    routes::{metrics, SessionState},
+    routes::SessionState,
     services,
     types::{self, api, domain, transformers::ForeignTryFrom},
 };
@@ -178,17 +178,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 payment_method: Some(self.payment_method),
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check balance check flow is bloated up for the current connector
-                config
-                    .balance_check_bloated_connectors
-                    .contains(&connector.connector_name)
-            })
-        {
+        ) {
             logger::info!(
                 "Balance check flow is required for connector: {}",
                 connector.connector_name
@@ -359,14 +349,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         Ok((request, true))
     }
 
-    async fn preprocessing_steps<'a>(
-        self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        complete_authorize_preprocessing_steps(state, &self, true, connector).await
-    }
-
     async fn authentication_step<'a>(
         self,
         state: &SessionState,
@@ -419,7 +401,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             ))
             .await?;
 
-            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            // Convert back to CompleteAuthorize router data while preserving authentication response data
             let authenticate_response = authenticate_router_data.response.clone();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata,
@@ -748,7 +730,11 @@ pub async fn call_unified_connector_service_post_authenticate(
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
-    types::RouterData<api::PostAuthenticate, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
+    types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
     interface_errors::ConnectorError,
 > {
     let client = state
@@ -826,75 +812,6 @@ pub async fn call_unified_connector_service_post_authenticate(
     .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
 
     Ok(router_data)
-}
-
-pub async fn complete_authorize_preprocessing_steps<F: Clone>(
-    state: &SessionState,
-    router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-    confirm: bool,
-    connector: &api::ConnectorData,
-) -> RouterResult<types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>> {
-    if confirm {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let preprocessing_request_data =
-            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
-
-        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
-
-        let preprocessing_router_data =
-            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
-                router_data.clone(),
-                preprocessing_request_data,
-                preprocessing_response_data,
-            );
-
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &preprocessing_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
-
-        metrics::PREPROCESSING_STEPS_COUNT.add(
-            1,
-            router_env::metric_attributes!(
-                ("connector", connector.connector_name.to_string()),
-                ("payment_method", router_data.payment_method.to_string()),
-            ),
-        );
-
-        let mut router_data_request = router_data.request.to_owned();
-
-        if let Ok(types::PaymentsResponseData::TransactionResponse {
-            connector_metadata,
-            authentication_data,
-            ..
-        }) = &resp.response
-        {
-            connector_metadata.clone_into(&mut router_data_request.connector_meta);
-            router_data_request.authentication_data = authentication_data.clone().map(|data| *data);
-        };
-
-        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-            resp.clone(),
-            router_data_request,
-            resp.response,
-        );
-
-        Ok(authorize_router_data)
-    } else {
-        Ok(router_data.clone())
-    }
 }
 
 impl<F>
