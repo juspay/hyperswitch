@@ -3534,9 +3534,9 @@ pub async fn get_raw_payment_method_fetch_access(
 
             match config {
                 Ok(conf) if conf.config.eq_ignore_ascii_case("true") => {
-                    Ok(RawPaymentMethodFetchAccess::Allowed)
+                    Ok(fetch_access)
                 }
-                Ok(_) => Ok(fetch_access),
+                Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
                 Err(error) => {
                     router_env::logger::error!(
                         ?error,
