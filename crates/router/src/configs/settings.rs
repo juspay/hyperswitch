@@ -819,6 +819,13 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub shutdown_timeout: u64,
+    #[serde(default = "common_utils::consts::default_keep_alive")]
+    pub keep_alive: u64,
+    pub client_timeout: u64,
+    #[serde(default = "common_utils::consts::default_client_request_timeout")]
+    pub client_request_timeout: u64,
+    #[serde(default = "common_utils::consts::default_client_disconnect_timeout")]
+    pub client_disconnect_timeout: u64,
     #[cfg(feature = "tls")]
     pub tls: Option<ServerTls>,
 }
