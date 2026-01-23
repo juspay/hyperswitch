@@ -30,6 +30,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
+time = "0.3.41"
 
 [lints]
 workspace = true
