@@ -41,7 +41,7 @@ pub enum PaymentMethodCreateData {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct CreatePaymentMethodV2Response {
+pub struct ModularPMCreateResponse {
     //payment method id
     pub id: String,
     pub merchant_id: id_type::MerchantId,
@@ -122,10 +122,10 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
     }
 }
 
-impl TryFrom<CreatePaymentMethodV2Response> for CreatePaymentMethodResponse {
+impl TryFrom<ModularPMCreateResponse> for CreatePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
-    fn try_from(response: CreatePaymentMethodV2Response) -> Result<Self, Self::Error> {
+    fn try_from(response: ModularPMCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: response.id,
             merchant_id: response.merchant_id,
@@ -154,7 +154,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     path = "/v2/payment-methods",
     v1_request = CreatePaymentMethodV1Request,
     v2_request = ModularPMCreateRequest,
-    v2_response = CreatePaymentMethodV2Response,
+    v2_response = ModularPMCreateResponse,
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
     body = CreatePaymentMethod::build_body
