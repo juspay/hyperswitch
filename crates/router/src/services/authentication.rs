@@ -461,7 +461,8 @@ impl GetAuthType for ApiKeyAuth {
     }
 }
 
-#[cfg(feature = "partial-auth")]
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
+
 impl GetAuthType for V2ApiKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
         detached::PayloadType::ApiKey
@@ -484,7 +485,7 @@ impl GetMerchantAccessFlags for ApiKeyAuth {
     }
 }
 
-#[cfg(feature = "partial-auth")]
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
 impl GetMerchantAccessFlags for V2ApiKeyAuth {
     fn is_connected_scope_operation_allowed(&self) -> bool {
         self.allow_connected_scope_operation

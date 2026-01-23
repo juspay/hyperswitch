@@ -3465,6 +3465,7 @@ pub enum RawPaymentMethodFetchAccess {
     Denied,
 }
 
+#[cfg(feature = "v2")]
 impl RawPaymentMethodFetchAccess {
     pub async fn get_raw_payment_method_data(
         &self,
@@ -3472,7 +3473,7 @@ impl RawPaymentMethodFetchAccess {
         platform: &domain::Platform,
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
-    ) -> RouterResult<Option<domain::PaymentMethodVaultingData>> {
+    ) -> RouterResult<Option<hyperswitch_domain_models::vault::PaymentMethodVaultingData>> {
         match self {
             Self::Denied => {
                 logger::debug!("Raw payment method fetch access denied");
@@ -3480,16 +3481,17 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
-                let vault_data = vault::retrieve_payment_method_from_vault(
-                    state,
-                    platform,
-                    profile,
-                    payment_method,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")?
-                .data;
+                let vault_data =
+                    vault::retrieve_payment_method_from_vault(
+                        state,
+                        platform,
+                        profile,
+                        payment_method,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?
+                    .data;
 
                 let payment_method_vault_data = vault_data
                     .populated_payment_methods_data_and_get_payment_method_vaulting_data(

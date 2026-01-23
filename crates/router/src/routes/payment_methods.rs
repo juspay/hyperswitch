@@ -77,8 +77,6 @@ pub async fn create_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
 
-    println!("create_payment_method_api: {:?}", json_payload);
-
     Box::pin(api::server_wrap(
         flow,
         state,

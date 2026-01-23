@@ -25,6 +25,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
+    #[cfg(feature = "v2")]
     pub fn convert_to_raw_payment_method_data(
         &self,
     ) -> Option<payment_methods::RawPaymentMethodData> {
@@ -64,6 +65,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
+    #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
         card_number: &cards::CardNumber,
         payment_methods_data: &Encryptable<payment_methods::PaymentMethodsData>,
