@@ -1511,7 +1511,6 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct NetworkTokenResponse {
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
