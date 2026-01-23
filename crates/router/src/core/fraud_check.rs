@@ -94,7 +94,7 @@ where
 {
     let merchant_connector_account = payments::construct_profile_id_and_get_mca(
         state,
-        platform,
+        platform.get_processor(),
         payment_data,
         &frm_data.connector_details.connector_name,
         None,

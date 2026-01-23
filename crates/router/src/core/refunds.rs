@@ -194,9 +194,8 @@ pub async fn trigger_refund_to_gateway(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         creds_identifier.as_deref(),
-        platform.get_processor().get_key_store(),
         profile_id,
         &routed_through,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -840,9 +839,8 @@ pub async fn sync_refund_with_gateway(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         creds_identifier.as_deref(),
-        platform.get_processor().get_key_store(),
         profile_id,
         &connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
