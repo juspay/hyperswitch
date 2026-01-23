@@ -2368,13 +2368,25 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
+        let initiator_merchant = state
             .store()
             .find_merchant_account_by_merchant_id(&self.0, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let platform = resolve_platform(state, request_headers, merchant, key_store).await?;
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
+
+        let platform = resolve_platform(
+            state,
+            request_headers,
+            initiator_merchant,
+            key_store,
+            initiator,
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
