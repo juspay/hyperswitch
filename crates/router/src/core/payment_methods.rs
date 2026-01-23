@@ -3481,17 +3481,16 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
-                let vault_data =
-                    vault::retrieve_payment_method_from_vault(
-                        state,
-                        platform,
-                        profile,
-                        payment_method,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to retrieve payment method from vault")?
-                    .data;
+                let vault_data = vault::retrieve_payment_method_from_vault(
+                    state,
+                    platform,
+                    profile,
+                    payment_method,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?
+                .data;
 
                 let payment_method_vault_data = vault_data
                     .populated_payment_methods_data_and_get_payment_method_vaulting_data(
