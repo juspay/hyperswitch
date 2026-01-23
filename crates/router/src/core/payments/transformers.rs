@@ -3023,15 +3023,37 @@ where
                 .collect()
         });
 
-        let payment_method_data =
-            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
-                payment_method_data: None,
-                billing: self
-                    .payment_address
-                    .get_request_payment_method_billing()
-                    .cloned()
-                    .map(From::from),
-            });
+        let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+            payment_attempt
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| {
+                    let value = data.clone().expose();
+                    match value {
+                        serde_json::Value::Null => None,
+                        _ => Some(value.parse_value("AdditionalPaymentData")),
+                    }
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse the AdditionalPaymentData from payment_attempt.payment_method_data")?;
+
+        let payment_method_data_inner =
+            additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+        let payment_method_data = (payment_method_data_inner.is_some()
+            || self
+                .payment_address
+                .get_request_payment_method_billing()
+                .is_some())
+        .then_some(api_models::payments::PaymentMethodDataResponseWithBilling {
+            payment_method_data: payment_method_data_inner,
+            billing: self
+                .payment_address
+                .get_request_payment_method_billing()
+                .cloned()
+                .map(From::from),
+        });
 
         let raw_connector_response =
             connector_response_data.and_then(|data| data.raw_connector_response);
