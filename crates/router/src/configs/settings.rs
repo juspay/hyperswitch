@@ -80,6 +80,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub hypersense: Option<HypersenseSettings>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -232,6 +233,12 @@ pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct HypersenseSettings {
+    pub enabled: bool,
+    pub api_url: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1133,6 +1140,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
+        self.hypersense.as_ref().map(|x| x.validate()).transpose()?;
         self.cors.validate()?;
 
         self.scheduler

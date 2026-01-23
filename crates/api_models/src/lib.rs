@@ -19,6 +19,7 @@ pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
 pub mod external_service_auth;
+pub mod external_service_hypersense;
 pub mod feature_matrix;
 pub mod files;
 pub mod gsm;

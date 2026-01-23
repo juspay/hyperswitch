@@ -645,6 +645,8 @@ pub enum Flow {
     HypersenseVerifyToken,
     /// Signout Hypersense Token
     HypersenseSignoutToken,
+    /// Get fee estimate
+    HypersenseFeeEstimate,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
