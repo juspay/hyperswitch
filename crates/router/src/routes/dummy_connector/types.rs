@@ -217,17 +217,20 @@ pub enum DummyConnectorWallet {
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub enum DummyConnectorUpiType {
     UpiCollect,
+    UpiInApp,
 }
 
 impl GetPaymentMethodDetails for DummyConnectorUpiType {
     fn get_name(&self) -> &'static str {
         match self {
             Self::UpiCollect => "UPI Collect",
+            Self::UpiInApp => "UPI InApp",
         }
     }
     fn get_image_link(&self, base_url: &str) -> String {
         let image_name = match self {
             Self::UpiCollect => "UPI_COLLECT.svg",
+            Self::UpiInApp => "UPI_INAPP.svg",
         };
         format!("{base_url}{image_name}")
     }

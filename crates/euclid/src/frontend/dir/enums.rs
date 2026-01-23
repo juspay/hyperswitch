@@ -352,6 +352,7 @@ pub enum UpiType {
     UpiCollect,
     UpiIntent,
     UpiQr,
+    UpiInApp,
 }
 
 #[derive(

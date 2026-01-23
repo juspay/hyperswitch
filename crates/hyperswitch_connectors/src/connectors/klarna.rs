@@ -630,6 +630,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
                         | common_enums::PaymentMethodType::UpiQr
+                        | common_enums::PaymentMethodType::UpiInApp
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
@@ -757,6 +758,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
                         | common_enums::PaymentMethodType::UpiQr
+                        | common_enums::PaymentMethodType::UpiInApp
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
@@ -892,6 +894,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
                         | common_enums::PaymentMethodType::UpiQr
+                        | common_enums::PaymentMethodType::UpiInApp
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
@@ -1019,6 +1022,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
                         | common_enums::PaymentMethodType::UpiQr
+                        | common_enums::PaymentMethodType::UpiInApp
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley

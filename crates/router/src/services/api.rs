@@ -1,6 +1,7 @@
 pub mod client;
 pub mod generic_link_response;
 pub mod request;
+pub mod upi_inapp;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
