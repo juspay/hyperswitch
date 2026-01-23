@@ -1243,9 +1243,11 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
         .attach_printable("Failed to parse connector")?;
 
-    let external_vault_connector = api_enums::VaultConnectors::try_from(connector)
-        .map_err(|err| error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
-            .attach_printable(format!("Failed to parse Vault connector: {err}")))?;
+    let external_vault_connector =
+        api_enums::VaultConnectors::try_from(connector).map_err(|err| {
+            error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
+                .attach_printable(format!("Failed to parse Vault connector: {err}"))
+        })?;
 
     let unified_service_vault_metdata = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {

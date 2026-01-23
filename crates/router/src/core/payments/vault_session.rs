@@ -229,12 +229,14 @@ pub async fn generate_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let connector_name = merchant_connector_account_type.get_connector_name().to_string();
+    let connector_name = merchant_connector_account_type
+        .get_connector_name()
+        .to_string();
     let connector = api_enums::Connector::from_str(&connector_name)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let connector = api_enums::VaultConnectors::try_from(connector)
-        .map_err(|err| error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(err))?;
+    let connector = api_enums::VaultConnectors::try_from(connector).map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err)
+    })?;
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
         .get_connector_account_details()
         .map_err(|err| {
