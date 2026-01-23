@@ -94,7 +94,7 @@ pub async fn refund_create_core(
                 .attach_printable("refund amount validation against payment intent failed")
         })?;
 
-    payment_intent.prevent_refund_after_post_capture_void();
+    payment_intent.prevent_refund_after_post_capture_void()?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req
