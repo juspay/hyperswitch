@@ -119,7 +119,9 @@ impl TryFrom<payments::PaymentMethodData> for PaymentMethodCreateData {
             }
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
-                kind: MicroserviceClientErrorKind::InvalidRequest("Unsupported payment method type for modular PM creation".to_string()),
+                kind: MicroserviceClientErrorKind::InvalidRequest(
+                    "Unsupported payment method type for modular PM creation".to_string(),
+                ),
             }),
         }
     }
@@ -129,7 +131,8 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
     type Error = MicroserviceClientError;
 
     fn try_from(request: &CreatePaymentMethodV1Request) -> Result<Self, Self::Error> {
-        let payment_method_data = PaymentMethodCreateData::try_from(request.payment_method_data.clone())?;
+        let payment_method_data =
+            PaymentMethodCreateData::try_from(request.payment_method_data.clone())?;
         Ok(Self {
             payment_method_type: request.payment_method,
             payment_method_subtype: request.payment_method_type,
