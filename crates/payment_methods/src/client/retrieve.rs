@@ -8,6 +8,7 @@ use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMe
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use serde::Deserialize;
 use time;
+use api_models::payment_methods::PaymentMethodResponse as RetrievePaymentMethodResponse;
 
 /// V1-facing retrieve flow type.
 #[derive(Debug)]
@@ -16,14 +17,12 @@ pub struct RetrievePaymentMethod;
 /// V1-facing retrieve request payload.
 #[derive(Debug)]
 pub struct RetrievePaymentMethodV1Request {
-    /// Identifier for the payment method to fetch.
     pub payment_method_id: PaymentMethodId,
 }
 
 /// V2 modular service request payload.
 #[derive(Clone, Debug)]
 pub struct ModularPMRetrieveResquest {
-    /// Identifier for the payment method to fetch.
     pub payment_method_id: PaymentMethodId,
 }
 
@@ -31,91 +30,47 @@ pub struct ModularPMRetrieveResquest {
 /// This is a copy of the V2 PaymentMethodResponse struct from api_models for use in V1-only builds.
 #[derive(Clone, Debug, Deserialize)]
 pub struct ModularPMRetrieveResponse {
-    /// The unique identifier of the Payment method
     pub id: String,
-
-    /// Unique identifier for a merchant
     pub merchant_id: id_type::MerchantId,
-
-    /// The unique identifier of the customer.
-    pub customer_id: Option<String>,
-
-    /// The type of payment method use for the payment.
+    pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_type: Option<PaymentMethod>,
-
-    /// This is a sub-category of payment method.
     pub payment_method_subtype: Option<PaymentMethodType>,
-
-    /// Indicates whether the payment method supports recurring payments. Optional.
     pub recurring_enabled: Option<bool>,
-
-    /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
-
-    /// A timestamp (ISO 8601 code) that determines when the payment method was last used
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
-
-    /// The payment method details related to the payment method
     pub payment_method_data: Option<PaymentMethodResponseData>,
-
-    /// The connector token details if available (ignored in V1 response)
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
-
-    /// Network token details if available (ignored in V1 response)
     pub network_token: Option<NetworkTokenResponse>,
-
-    /// The storage type for the payment method (ignored in V1 response)
     pub storage_type: Option<common_enums::StorageType>,
-
-    /// Card CVC token storage details (ignored in V1 response)
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct ConnectorTokenDetails {
-    /// The unique identifier of the connector account through which the token was generated
     pub connector_id: id_type::MerchantConnectorAccountId,
-
-    /// The type of tokenization used
     pub token_type: common_enums::TokenizationType,
-
-    /// The status of connector token if it is active or inactive
     pub status: common_enums::ConnectorTokenStatus,
-
-    /// The reference id of the connector token
-    /// This is the reference that was passed to connector when creating the token
     pub connector_token_request_reference_id: Option<String>,
-
-    /// The original payment authorized amount
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
-
-    /// The currency of the original payment authorized amount
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
-
-    /// Metadata associated with the connector token
     pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: masking::Secret<String>,
 }
 
 /// V2 NetworkTokenResponse (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct NetworkTokenResponse {
-    /// The payment method details related to the network token
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct CardCVCTokenStorageDetails {
-    /// Indicates whether the card cvc is stored or not
     pub is_stored: bool,
 
-    /// A timestamp (ISO 8601 code) that determines expiry for stored card cvc token
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<time::PrimitiveDateTime>,
 }
@@ -126,83 +81,26 @@ pub struct CardCVCTokenStorageDetails {
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
-    /// Card payment method data
     Card(CardDetailFromLockerV2),
 }
 
 /// V2 CardDetailFromLocker for deserialization
 #[derive(Clone, Debug, Deserialize)]
 pub struct CardDetailFromLockerV2 {
-    ///Country code of the card issuer
     pub issuer_country: Option<common_enums::CountryAlpha2>,
-
-    ///Last 4 digits of the card number
     pub last4_digits: Option<String>,
-
     #[serde(skip)]
-    /// Full card number (masked)
     pub card_number: Option<CardNumber>,
-
-    /// Expiry month of the card
     pub expiry_month: Option<masking::Secret<String>>,
-
-    /// Expiry year of the card
     pub expiry_year: Option<masking::Secret<String>>,
-
-    /// Card holder name
     pub card_holder_name: Option<masking::Secret<String>>,
-
-    /// Card fingerprint
     pub card_fingerprint: Option<masking::Secret<String>>,
-
-    /// Nickname for the card
     pub nick_name: Option<masking::Secret<String>>,
-
-    /// Card network
     pub card_network: Option<common_enums::CardNetwork>,
-
-    /// Card ISIN
     pub card_isin: Option<String>,
-
-    /// Card issuer
     pub card_issuer: Option<String>,
-
-    /// Card type
     pub card_type: Option<String>,
-
-    /// Indicates if the card is saved to locker
     pub saved_to_locker: bool,
-}
-
-/// V1-facing retrieve response.
-#[derive(Clone, Debug)]
-pub struct RetrievePaymentMethodResponse {
-    /// V1 payment method identifier.
-    pub payment_method_id: String,
-
-    /// Merchant ID.
-    pub merchant_id: id_type::MerchantId,
-
-    /// Customer ID.
-    pub customer_id: Option<id_type::CustomerId>,
-
-    /// Payment method type.
-    pub payment_method: Option<PaymentMethod>,
-
-    /// Payment method subtype.
-    pub payment_method_type: Option<PaymentMethodType>,
-
-    /// Card details.
-    pub card: Option<CardDetailFromLocker>,
-
-    /// Recurring enabled.
-    pub recurring_enabled: Option<bool>,
-
-    /// Created timestamp.
-    pub created: Option<time::PrimitiveDateTime>,
-
-    /// Last used timestamp.
-    pub last_used_at: Option<time::PrimitiveDateTime>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveResquest {
@@ -224,16 +122,7 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
 
         // Convert GlobalCustomerId to CustomerId
         let customer_id = v2_resp
-            .customer_id
-            .map(|id| id_type::CustomerId::try_from(std::borrow::Cow::from(id)))
-            .transpose()
-            .map_err(|e| MicroserviceClientError {
-                operation: "convert_global_customer_id".to_string(),
-                kind: MicroserviceClientErrorKind::Deserialize(format!(
-                    "Failed to convert customer ID: {}",
-                    e
-                )),
-            })?;
+            .customer_id;
 
         // Convert card details from V2 to V1 format
         let card = v2_resp.payment_method_data.map(|pmd| match pmd {
@@ -267,6 +156,11 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
             recurring_enabled: v2_resp.recurring_enabled,
             created: v2_resp.created,
             last_used_at: v2_resp.last_used_at,
+            installment_payment_enabled: None,
+            payment_experience: None,
+            metadata: None,
+            bank_transfer: None,
+            client_secret: None,
         })
     }
 }
