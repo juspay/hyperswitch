@@ -616,7 +616,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
         run: |
           # Start the server in the background
-          target/debug/router &
+          target/debug/router > server.log 2>&1 &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
@@ -644,6 +644,15 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
+      
+      - name: Upload Server Logs
+        # Run this even if the tests fail
+        if: failure() && matrix.run_tests == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs-${{ matrix.batch.name }}
+          path: server.log
+          retention-days: 1
 
       - name: Upload Cypress test results
         if: failure()
