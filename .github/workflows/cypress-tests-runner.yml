@@ -647,7 +647,7 @@ jobs:
       
       - name: Upload Server Logs
         # Run this even if the tests fail
-        if: failure() && matrix.run_tests == 'true'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: server-logs-${{ matrix.batch.name }}
