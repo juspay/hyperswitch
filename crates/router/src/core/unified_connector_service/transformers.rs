@@ -422,12 +422,33 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        // First try to get authentication_data from the request
         let authentication_data = router_data
             .request
             .authentication_data
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
+
+        // If not in request, try to extract from connector_meta (stored during Authorize flow)
+        let authentication_data = if authentication_data.is_none() {
+            router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .and_then(|metadata| metadata.get("authentication_data"))
+                .and_then(|value| {
+                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
+                        value.clone(),
+                    )
+                    .ok()
+                })
+                .and_then(|auth_data| {
+                    payments_grpc::AuthenticationData::foreign_try_from(auth_data).ok()
+                })
+        } else {
+            authentication_data
+        };
 
         let merchant_account_metadata = router_data
             .connector_meta_data

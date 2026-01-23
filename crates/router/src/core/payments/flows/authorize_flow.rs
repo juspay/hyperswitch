@@ -610,7 +610,39 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 ))
                 .await?;
 
-            let authenticate_response = authenticate_router_data.response.clone();
+            let mut authenticate_response = authenticate_router_data.response.clone();
+
+            // Merge authentication_data into connector_metadata for persistence
+            // This ensures authentication_data is available in CompleteAuthorize flow
+            if let Some(ref auth_data) = authentication_data {
+                if let Ok(ref mut response) = authenticate_response {
+                    if let types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        ..
+                    } = response
+                    {
+                        // Create a JSON object with authentication_data
+                        let auth_value = serde_json::json!({
+                            "authentication_data": auth_data
+                        });
+                        // Merge with existing connector_metadata
+                        *connector_metadata = Some(match connector_metadata.take() {
+                            Some(existing_metadata) => {
+                                let mut merged = existing_metadata;
+                                if let Some(obj) = merged.as_object_mut() {
+                                    obj.insert(
+                                        "authentication_data".to_string(),
+                                        serde_json::to_value(auth_data)
+                                            .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                                    );
+                                }
+                                merged
+                            }
+                            None => auth_value,
+                        });
+                    }
+                }
+            }
 
             if let Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata, ..
