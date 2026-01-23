@@ -639,5 +639,6 @@ pub(crate) async fn fetch_raw_secrets(
         superposition,
         comparison_service: conf.comparison_service,
         save_payment_method_on_session: conf.save_payment_method_on_session,
+        payment_method_modular_service: conf.payment_method_modular_service,
     }
 }

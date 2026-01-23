@@ -184,6 +184,7 @@ pub struct Settings<S: SecretState> {
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub save_payment_method_on_session: OnSessionConfig,
+    pub payment_method_modular_service: Option<PaymentMethodModularServiceConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -598,6 +599,11 @@ pub struct NetworkTokenizationService {
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
     pub webhook_source_verification_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PaymentMethodModularServiceConfig{
+    pub base_url: url::Url,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

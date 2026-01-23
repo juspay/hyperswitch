@@ -11,6 +11,7 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
+pub mod pm_modular_transaformers;
 use std::borrow::Cow;
 #[cfg(feature = "v1")]
 use std::collections::HashSet;

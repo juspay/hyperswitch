@@ -21,4 +21,10 @@ impl OrganizationId {
     pub fn try_from_string(org_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(org_id))
     }
+
+    /// Get should call PM modular service key for payment
+    pub fn get_should_call_pm_modular_service_key(&self) -> String {
+        format!("should_call_pm_modular_service_{}", self.get_string_repr())
+    }
+
 }
