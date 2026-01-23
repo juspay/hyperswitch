@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.21.0-hotfix2
+
+### Features
+
+- **relay:** Add capture and capture-retrieve flow ([#11030](https://github.com/juspay/hyperswitch/pull/11030)) ([`99f2518`](https://github.com/juspay/hyperswitch/commit/99f251856c3ee177c6a4247365f2a8c29023ba8f))
+
+**Full Changelog:** [`2026.01.21.0-hotfix1...2026.01.21.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.01.21.0-hotfix1...2026.01.21.0-hotfix2)
+
+- - -
+
 ## 2026.01.21.0-hotfix1
 
 ### Features
