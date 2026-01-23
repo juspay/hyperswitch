@@ -1290,9 +1290,10 @@ pub async fn create_volatile_payment_method_card_core(
     let keymanager_state = &(state).into();
     let merchant_key_store = platform.get_provider().get_key_store();
 
-    let payment_method_data = domain::PaymentMethodVaultingData::try_from(req.payment_method_data)?
-        .populate_bin_details_for_payment_method(state)
-        .await;
+    let payment_method_data =
+        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
+            .populate_bin_details_for_payment_method(state)
+            .await;
 
     let vaulting_result = vault_payment_method_in_volatile_storage(
         state,
@@ -1368,11 +1369,31 @@ pub async fn create_volatile_payment_method_card_core(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to convert payment method")?;
 
+            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+            let card_cvc = req
+                .payment_method_data
+                .get_card()
+                .and_then(|card| card.card_cvc.clone());
+
+            let cvc_expiry_details = card_cvc
+                .async_map(|cvc| {
+                    vault::insert_cvc_using_payment_token(
+                        state,
+                        &domain_payment_method.id,
+                        cvc,
+                        intent_fulfillment_time,
+                        platform.get_provider().get_key_store(),
+                    )
+                })
+                .await
+                .transpose()?;
+
             let resp = pm_transforms::generate_payment_method_response(
                 &domain_payment_method,
                 &None,
                 req.storage_type,
-                None,
+                cvc_expiry_details,
                 req.customer_id,
             )?;
 
@@ -3444,7 +3465,7 @@ pub async fn update_payment_method_core(
         .attach_printable("Failed to insert encrypted cvc in redis")?;
 
     // Stage 2: Update PM metadata and vault if required
-    let response = if request.is_payment_method_metadata_update() {
+    let updated_payment_method = if request.is_payment_method_metadata_update() {
         let pmd: domain::PaymentMethodVaultingData =
             vault::retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
                 .await
@@ -3512,33 +3533,26 @@ pub async fn update_payment_method_core(
         .await
         .attach_printable("Unable to create Payment method data")?;
 
-        let payment_method = db
-            .update_payment_method(
-                platform.get_provider().get_key_store(),
-                payment_method,
-                pm_update,
-                platform.get_provider().get_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update payment method in db")?;
-
-        pm_transforms::generate_payment_method_response(
-            &payment_method,
-            &None,
-            Some(common_enums::StorageType::Persistent),
-            card_cvc_token_details,
-            payment_method.customer_id.clone(),
-        )?
+        db.update_payment_method(
+            platform.get_provider().get_key_store(),
+            payment_method,
+            pm_update,
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method in db")?
     } else {
-        pm_transforms::generate_payment_method_response(
-            &payment_method,
-            &None,
-            Some(common_enums::StorageType::Persistent),
-            card_cvc_token_details,
-            payment_method.customer_id.clone(),
-        )?
+        payment_method
     };
+
+    let response = pm_transforms::generate_payment_method_response(
+        &updated_payment_method,
+        &None,
+        Some(common_enums::StorageType::Persistent),
+        card_cvc_token_details,
+        updated_payment_method.customer_id.clone(),
+    )?;
 
     // Add a PT task to handle payment_method delete from vault
 
