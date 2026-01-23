@@ -3647,6 +3647,7 @@ pub async fn update_payment_method_core(
             fingerprint_id,
             &payment_method,
             request.connector_token_details,
+            request.network_transaction_id,
             None,
             None,
             None,
