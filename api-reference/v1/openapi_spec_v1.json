@@ -1124,7 +1124,14 @@
         },
         "responses": {
           "200": {
-            "description": "Payment canceled post capture"
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing mandatory fields",
