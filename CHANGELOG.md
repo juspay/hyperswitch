@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.21.0-hotfix1
+
+### Features
+
+- **router:** Add support for storing ACH Bank Debit Details in locker ([#11010](https://github.com/juspay/hyperswitch/pull/11010)) ([`66e019e`](https://github.com/juspay/hyperswitch/commit/66e019eee66379d237006ff539b3fa0f1be0076b))
+
+**Full Changelog:** [`2026.01.21.0...2026.01.21.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.01.21.0...2026.01.21.0-hotfix1)
+
+- - -
+
 ## 2026.01.21.0
 
 ### Features
