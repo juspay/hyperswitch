@@ -800,8 +800,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: |
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
