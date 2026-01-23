@@ -644,6 +644,13 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
+
+          sleep 2
+          
+          # 3. Zip the log file
+          # -q: quiet mode (don't spam the CI console)
+          # -1: fastest compression (saves CPU for your 8-core machine)
+          zip -q -1 server.log.zip server.log
       
       - name: Upload Server Logs
         # Run this even if the tests fail
@@ -651,7 +658,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: server-logs-${{ matrix.batch.name }}
-          path: server.log
+          path: server.log.zip
           retention-days: 1
 
       - name: Upload Cypress test results
