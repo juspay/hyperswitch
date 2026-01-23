@@ -350,9 +350,10 @@ jobs:
         run: |
           gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
 
+  # Optional connectors are paused currently because of shortage of hyperswitch runners for the PRs.
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: ${{ github.event_name == 'merge_group' }}
+    if: false
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -420,7 +421,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: ${{ github.event_name == 'merge_group' }}
+    if: false
     needs: [ build-hyperswitch, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
@@ -800,7 +801,6 @@ jobs:
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
     if: |
-      github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     permissions:
