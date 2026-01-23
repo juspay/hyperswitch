@@ -1528,6 +1528,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
+            state_metadata: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

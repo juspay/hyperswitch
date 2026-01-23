@@ -2116,6 +2116,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     .clone()
                                     .unwrap_or_default();
                                 let m_processor = processor.clone();
+                                let m_payment_intent = payment_data.payment_intent.clone();
 
                                 async move {
                                     if let Err(err) =
@@ -2123,7 +2124,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .update_intent_state_metadata_for_post_capture_void(
                                                 &m_state,
                                                 &m_processor,
-                                                &payment_data.payment_intent,
+                                                &m_payment_intent,
                                                 post_capture_void_response,
                                             )
                                             .await
@@ -2136,33 +2137,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 }
                             });
 
-                            let m_db = state.clone().store;
-                            let m_key_store = processor.get_key_store().clone();
-
-                            let merchant_account = m_db
-                                .find_merchant_account_by_merchant_id(
-                                    &m_key_store.merchant_id,
-                                    &m_key_store,
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::MerchantAccountNotFound,
-                                )?;
-
-                            PaymentIntentStateMetadataExt::from(
-                                payment_data
-                                    .payment_intent
-                                    .state_metadata
-                                    .clone()
-                                    .unwrap_or_default(),
-                            )
-                            .update_intent_state_metadata_for_post_capture_void(
-                                &state,
-                                &processor,
-                                &payment_data.payment_intent,
-                                post_capture_void_response,
-                            )
-                            .await?;
                             (None, None, None)
                         }
                     }

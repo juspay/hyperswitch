@@ -837,7 +837,7 @@ pub fn payments_cancel() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment canceled post capture"),
+        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
