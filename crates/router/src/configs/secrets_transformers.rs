@@ -636,6 +636,7 @@ pub(crate) async fn fetch_raw_secrets(
         proxy_status_mapping: conf.proxy_status_mapping,
         trace_header: conf.trace_header,
         internal_services: conf.internal_services,
+        micro_services: conf.micro_services,
         superposition,
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
