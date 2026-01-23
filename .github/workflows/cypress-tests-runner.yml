@@ -355,7 +355,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
         run: |
           # Start the server in the background
-          target/debug/router &
+          target/debug/router > server.log 2>&1 &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
@@ -383,6 +383,24 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
+
+          sleep 2
+          
+          # 3. Zip the log file
+          # -q: quiet mode (don't spam the CI console)
+          # -1: fastest compression (saves CPU for your 8-core machine)
+          zip -q -1 server.log.zip server.log
+
+            
+      - name: Upload Server Logs
+        # Run this even if the tests fail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs-${{ matrix.batch.name }}
+          path: server.log.zip
+          retention-days: 1
+
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
@@ -644,22 +662,6 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
-
-          sleep 2
-          
-          # 3. Zip the log file
-          # -q: quiet mode (don't spam the CI console)
-          # -1: fastest compression (saves CPU for your 8-core machine)
-          zip -q -1 server.log.zip server.log
-      
-      - name: Upload Server Logs
-        # Run this even if the tests fail
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: server-logs-${{ matrix.batch.name }}
-          path: server.log.zip
-          retention-days: 1
 
       - name: Upload Cypress test results
         if: failure()
