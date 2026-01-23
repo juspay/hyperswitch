@@ -4490,9 +4490,8 @@ pub async fn insert_merchant_connector_creds_to_config(
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    processor: &domain::Processor,
     creds_identifier: Option<&str>,
-    key_store: &domain::MerchantKeyStore,
     profile_id: &id_type::ProfileId,
     connector_name: &str,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
@@ -4500,7 +4499,10 @@ pub async fn get_merchant_connector_account(
     let db = &*state.store;
     match creds_identifier {
         Some(creds_identifier) => {
-            let key = merchant_id.get_creds_identifier_key(creds_identifier);
+            let key = processor
+                .get_account()
+                .get_id()
+                .get_creds_identifier_key(creds_identifier);
             let cloned_key = key.clone();
             let redis_fetch = || async {
                 db.get_redis_conn()
@@ -4576,9 +4578,9 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            merchant_id,
+                            processor.get_account().get_id(),
                             merchant_connector_id,
-                            key_store,
+                            processor.get_key_store(),
                         )
                         .await
                         .to_not_found_response(
@@ -4589,13 +4591,16 @@ pub async fn get_merchant_connector_account(
                     }
                     #[cfg(feature = "v2")]
                     {
-                        db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
-                            .await
-                            .to_not_found_response(
-                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: merchant_connector_id.get_string_repr().to_string(),
-                                },
-                            )
+                        db.find_merchant_connector_account_by_id(
+                            merchant_connector_id,
+                            processor.get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_connector_id.get_string_repr().to_string(),
+                            },
+                        )
                     }
                 } else {
                     #[cfg(feature = "v1")]
@@ -4603,7 +4608,7 @@ pub async fn get_merchant_connector_account(
                         db.find_merchant_connector_account_by_profile_id_connector_name(
                             profile_id,
                             connector_name,
-                            key_store,
+                            processor.get_key_store(),
                         )
                         .await
                         .to_not_found_response(
@@ -6074,9 +6079,8 @@ where
 
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         payment_data.get_creds_identifier(),
-        platform.get_processor().get_key_store(),
         profile_id,
         &pre_decided_connector_data_first
             .connector_data
@@ -7582,7 +7586,7 @@ pub enum UnifiedAuthenticationServiceFlow {
 #[cfg(feature = "v1")]
 pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
@@ -7590,7 +7594,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
-        key_store,
+        processor,
         business_profile,
         payment_data,
         connector_call_type,
@@ -7652,7 +7656,7 @@ pub enum PaymentExternalAuthenticationFlow {
 #[cfg(feature = "v1")]
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
@@ -7707,9 +7711,8 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 )?;
             let payment_connector_mca = get_merchant_connector_account(
                 state,
-                &business_profile.merchant_id,
+                processor,
                 None,
-                key_store,
                 business_profile.get_id(),
                 connector_data.connector_name.to_string().as_str(),
                 connector_data.merchant_connector_id.as_ref(),
@@ -8291,13 +8294,13 @@ pub async fn allow_payment_update_enabled_for_client_auth(
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account_v2(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<domain::MerchantConnectorAccount> {
     let db = &*state.store;
     match merchant_connector_id {
         Some(merchant_connector_id) => db
-            .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+            .find_merchant_connector_account_by_id(merchant_connector_id, processor.get_key_store())
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_connector_id.get_string_repr().to_string(),
