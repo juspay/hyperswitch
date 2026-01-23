@@ -20,7 +20,7 @@ pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, str::FromStr, time::Instant,
+    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, time::Instant,
     vec::IntoIter,
 };
 
@@ -4309,134 +4309,33 @@ where
         )
         .await?;
 
-    let mut should_continue_further =
-        tokenization::update_router_data_with_payment_method_token_result(
-            payment_method_token_response,
-            &mut router_data,
-            is_retry_payment,
-            should_continue_further,
-        );
+    let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
+        payment_method_token_response,
+        &mut router_data,
+        is_retry_payment,
+        should_continue_further,
+    );
 
-    (router_data, should_continue_further) = if state
-        .conf
-        .preprocessing_flow_config
-        .as_ref()
-        .is_some_and(|config| {
-            // If authentication flow is bloated up for the current connector
-            // and external 3ds was not attempted,
-            // continue with authentication flows.
-            config
-                .authentication_bloated_connectors
-                .contains(&connector.connector_name)
-                && payment_data
-                    .get_payment_intent()
-                    .request_external_three_ds_authentication
-                    != Some(true)
-        }) {
-        logger::info!(
-            "Using granular authentication steps for connector: {}",
-            connector.connector_name
-        );
-        let (router_data, should_continue_further) = if should_continue_further {
-            router_data
-                .pre_authentication_step(state, &connector, &context)
-                .await?
-        } else {
-            (router_data, false)
-        };
-        let (router_data, should_continue_further) = if should_continue_further {
-            router_data
-                .authentication_step(state, &connector, &context)
-                .await?
-        } else {
-            (router_data, false)
-        };
-        let (router_data, should_continue_further) = if should_continue_further {
-            router_data
-                .post_authentication_step(state, &connector, &context)
-                .await?
-        } else {
-            (router_data, false)
-        };
-        (router_data, should_continue_further)
-    } else if state
-        .conf
-        .preprocessing_flow_config
-        .as_ref()
-        .is_some_and(|config| {
-            // If order create flow is bloated up for the current connector
-            // order create call would have already happened in the previous step.
-            config
-                .order_create_bloated_connectors
-                .contains(&connector.connector_name)
-        })
-    {
-        // If order create flow is bloated up for the current connector
-        // So skip calling complete_preprocessing_steps_if_required function
-        logger::info!(
-            "skipping preprocessing steps for connector: {}",
-            connector.connector_name
-        );
-        (router_data, should_continue_further)
-    } else if state
-        .conf
-        .tokenization
-        .0
-        .contains_key(&connector.connector_name.to_string())
-    {
-        // If payment method tokenization flow is enabled for the current connector
-        // Skip calling complete_preprocessing_steps_if_required function
-        logger::info!(
-            "skipping preprocessing steps for connector as tokenization flow is enabled: {}",
-            connector.connector_name
-        );
-        (router_data, should_continue_further)
-    } else if state
-        .conf
-        .preprocessing_flow_config
-        .as_ref()
-        .is_some_and(|config| {
-            // If balance check flow is bloated up for the current connector
-            // balance check call would have already happened in the previous step.
-            config
-                .balance_check_bloated_connectors
-                .contains(&connector.connector_name)
-        })
-    {
-        // If payment method tokenization flow is enabled for the current connector
-        // Skip calling complete_preprocessing_steps_if_required function
-        logger::info!(
-            "skipping preprocessing steps for connector as balance check is enabled: {}",
-            connector.connector_name
-        );
-        (router_data, should_continue_further)
-    } else if state
-        .conf
-        .preprocessing_flow_config
-        .as_ref()
-        .is_some_and(|config| {
-            // If order create flow is bloated up for the current connector
-            // order create call would have already happened in the previous step.
-            config
-                .settlement_split_bloated_connectors
-                .contains(&connector.connector_name)
-        })
-    {
-        logger::info!(
-            "skipping preprocessing steps for connector as settlement split is bloated: {}",
-            connector.connector_name
-        );
-        (router_data, should_continue_further)
+    let (router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .pre_authentication_step(state, &connector, &context)
+            .await?
     } else {
-        complete_preprocessing_steps_if_required(
-            state,
-            &connector,
-            payment_data,
-            router_data,
-            operation,
-            should_continue_further,
-        )
-        .await?
+        (router_data, false)
+    };
+    let (router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .authentication_step(state, &connector, &context)
+            .await?
+    } else {
+        (router_data, false)
+    };
+    let (mut router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .post_authentication_step(state, &connector, &context)
+            .await?
+    } else {
+        (router_data, false)
     };
 
     if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
@@ -5684,21 +5583,11 @@ where
         .add_session_token(&updated_state, &connector, &gateway_context)
         .await?;
 
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
-
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        &updated_state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
 
     if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
         session_token: Some(session_token),
@@ -7209,203 +7098,6 @@ where
         }
         None => Ok(None),
     }
-}
-
-async fn complete_preprocessing_steps_if_required<F, Req, Q, D>(
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    payment_data: &D,
-    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
-    operation: &BoxedOperation<'_, F, Q, D>,
-    should_continue_payment: bool,
-) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
-where
-    F: Send + Clone + Sync,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
-    Req: Send + Sync,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-{
-    //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
-    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::BankTransfer(_)) => (router_data, should_continue_payment),
-        Some(domain::PaymentMethodData::Wallet(_)) => {
-            if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
-                (
-                    router_data.preprocessing_steps(state, connector).await?,
-                    false,
-                )
-            } else if connector.connector_name == router_types::Connector::Paysafe {
-                match payment_data.get_payment_method_data() {
-                    Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(_))) => {
-                        router_data = router_data.preprocessing_steps(state, connector).await?;
-                        let is_error_in_response = router_data.response.is_err();
-                        (router_data, !is_error_in_response)
-                    }
-                    _ => (router_data, should_continue_payment),
-                }
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        Some(domain::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Payme
-                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else if connector.connector_name == router_types::Connector::Nmi
-                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-                && !matches!(
-                    payment_data
-                        .get_payment_attempt()
-                        .external_three_ds_authentication_attempted,
-                    Some(true)
-                )
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                (router_data, false)
-            } else if connector.connector_name == router_types::Connector::Paysafe
-                && router_data.auth_type == storage_enums::AuthenticationType::NoThreeDs
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else if (connector.connector_name == router_types::Connector::Cybersource
-                || connector.connector_name == router_types::Connector::Barclaycard)
-                && is_operation_complete_authorize(&operation)
-                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
-                let should_continue = matches!(
-                    router_data.response,
-                    Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && router_data.status
-                    != common_enums::AttemptStatus::AuthenticationFailed;
-                (router_data, should_continue)
-            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && (((connector.connector_name == router_types::Connector::Nuvei && {
-                    #[cfg(feature = "v1")]
-                    {
-                        payment_data
-                            .get_payment_intent()
-                            .request_external_three_ds_authentication
-                            != Some(true)
-                    }
-                    #[cfg(feature = "v2")]
-                    {
-                        payment_data
-                            .get_payment_intent()
-                            .request_external_three_ds_authentication
-                            != Some(true).into()
-                    }
-                }) || connector.connector_name == router_types::Connector::Shift4)
-                    && !is_operation_complete_authorize(&operation))
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-                (router_data, should_continue_payment)
-            } else if connector.connector_name == router_types::Connector::Xendit
-                && is_operation_confirm(&operation)
-            {
-                match payment_data.get_payment_intent().split_payments {
-                    Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
-                        common_types::payments::XenditSplitRequest::MultipleSplits(_),
-                    )) => {
-                        router_data = router_data.preprocessing_steps(state, connector).await?;
-                        let is_error_in_response = router_data.response.is_err();
-                        (router_data, !is_error_in_response)
-                    }
-                    _ => (router_data, should_continue_payment),
-                }
-            } else if connector.connector_name == router_types::Connector::Redsys
-                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && is_operation_confirm(&operation)
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-                let should_continue = match router_data.response {
-                    Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        ref connector_metadata,
-                        ..
-                    }) => {
-                        let three_ds_invoke_data: Option<
-                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
-                        > = connector_metadata.clone().and_then(|metadata| {
-                            metadata
-                                .parse_value("PaymentsConnectorThreeDsInvokeData")
-                                .ok() // "ThreeDsInvokeData was not found; proceeding with the payment flow without triggering the ThreeDS invoke action"
-                        });
-                        three_ds_invoke_data.is_none()
-                    }
-                    _ => false,
-                };
-                (router_data, should_continue)
-            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && connector.connector_name == router_types::Connector::Nexixpay
-                && is_operation_complete_authorize(&operation)
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-                let is_error_in_response = router_data.response.is_err();
-                (router_data, !is_error_in_response)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        Some(domain::PaymentMethodData::GiftCard(gift_card_data)) => {
-            if connector.connector_name == router_types::Connector::Adyen
-                && matches!(gift_card_data.deref(), domain::GiftCardData::Givex(..))
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        Some(domain::PaymentMethodData::BankDebit(_)) => {
-            if connector.connector_name == router_types::Connector::Gocardless
-                || connector.connector_name == router_types::Connector::Nordea
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        _ => {
-            // 3DS validation for paypal cards after verification (authorize call)
-            if connector.connector_name == router_types::Connector::Paypal
-                && payment_data.get_payment_attempt().get_payment_method()
-                    == Some(storage_enums::PaymentMethod::Card)
-                && matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-            {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-    };
-
-    Ok(router_data_and_should_continue_payment)
 }
 
 #[cfg(feature = "v1")]
