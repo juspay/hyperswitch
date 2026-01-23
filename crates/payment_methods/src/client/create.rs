@@ -71,9 +71,8 @@ pub struct CreatePaymentMethodResponse {
     pub last_used_at: Option<time::PrimitiveDateTime>,
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
-    pub network_token: Option<pm_api_models::NetworkTokenResponse>
+    pub network_token: Option<pm_api_models::NetworkTokenResponse>,
 }
-
 
 impl TryFrom<api_models::payments::PaymentMethodData> for PaymentMethodCreateData {
     type Error = errors::ApiErrorResponse;
