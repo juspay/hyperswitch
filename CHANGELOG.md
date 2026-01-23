@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.23.0
+
+### Features
+
+- **payment_method:** Add support to pass `network_transaction_id` in /v2 update payment method request ([#10920](https://github.com/juspay/hyperswitch/pull/10920)) ([`9a4f8c6`](https://github.com/juspay/hyperswitch/commit/9a4f8c68c911c397767459b3d4f2728f0974a71c))
+- **platform:** Convert organization to platform organization ([#10910](https://github.com/juspay/hyperswitch/pull/10910)) ([`256e7fe`](https://github.com/juspay/hyperswitch/commit/256e7fee023396efb7378c82554b91c2076138b7))
+
+### Documentation
+
+- **openapi:** Fix v2 authentication headers docs ([#10888](https://github.com/juspay/hyperswitch/pull/10888)) ([`aa022b8`](https://github.com/juspay/hyperswitch/commit/aa022b8617e403f1be946fbcd0f0eea979a253a8))
+
+### Miscellaneous Tasks
+
+- **core:** Deprecate preprocessing flow from core ([#10987](https://github.com/juspay/hyperswitch/pull/10987)) ([`0b1381f`](https://github.com/juspay/hyperswitch/commit/0b1381f923d117af85c19dd5496edb9b6dbea8eb))
+
+**Full Changelog:** [`2026.01.22.0...2026.01.23.0`](https://github.com/juspay/hyperswitch/compare/2026.01.22.0...2026.01.23.0)
+
+- - -
+
 ## 2026.01.22.0
 
 ### Features
