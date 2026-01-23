@@ -34884,31 +34884,6 @@
           "schedule_refund"
         ]
       },
-      "RelayCaptureRequestData": {
-        "type": "object",
-        "required": [
-          "authorized_amount",
-          "amount_to_capture",
-          "currency"
-        ],
-        "properties": {
-          "authorized_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The amount that is authorized for capture",
-            "example": 6540
-          },
-          "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The amount that is being captured",
-            "example": 6540
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          }
-        }
-      },
       "RegisterConnectorWebhookResponse": {
         "type": "object",
         "properties": {
@@ -34942,6 +34917,31 @@
           }
         },
         "additionalProperties": false
+      },
+      "RelayCaptureRequestData": {
+        "type": "object",
+        "required": [
+          "authorized_amount",
+          "amount_to_capture",
+          "currency"
+        ],
+        "properties": {
+          "authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is authorized for capture",
+            "example": 6540
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being captured",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
       },
       "RelayData": {
         "oneOf": [
