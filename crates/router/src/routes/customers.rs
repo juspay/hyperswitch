@@ -26,8 +26,8 @@ pub async fn customers_create(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -56,8 +56,8 @@ pub async fn customers_create(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -86,8 +86,8 @@ pub async fn customers_retrieve(
         })
     } else {
         let api_auth = auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         };
         match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
@@ -138,8 +138,8 @@ pub async fn customers_retrieve(
     } else {
         api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &v2_client_auth,
             req.headers(),
@@ -179,8 +179,8 @@ pub async fn customers_list(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -211,8 +211,8 @@ pub async fn customers_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -244,8 +244,8 @@ pub async fn customers_list_with_count(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -276,8 +276,8 @@ pub async fn customers_list_with_count(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -319,8 +319,8 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -359,8 +359,8 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -392,8 +392,8 @@ pub async fn customers_delete(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -425,8 +425,8 @@ pub async fn customers_delete(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -458,8 +458,8 @@ pub async fn get_customer_mandates(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,

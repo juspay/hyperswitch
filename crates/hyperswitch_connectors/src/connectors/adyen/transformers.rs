@@ -1938,6 +1938,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -3180,6 +3181,7 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
@@ -3227,6 +3229,7 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
@@ -3234,7 +3237,13 @@ impl
                         })?
                     }
                 }
-            } //
+            }
+            payments::MandateReferenceId::CardWithLimitedData => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Card Only MIT for payment method".to_string(),
+                    connector: "Adyen",
+                })?
+            }
         }?;
 
         let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
@@ -4310,6 +4319,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -4333,6 +4343,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             payment_method_balance: Some(PaymentMethodBalance {
@@ -4494,6 +4505,7 @@ pub fn get_adyen_response(
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges,
     };
 
@@ -4601,6 +4613,7 @@ pub fn get_webhook_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
 
@@ -4702,6 +4715,7 @@ pub fn get_redirection_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges,
     };
 
@@ -4774,6 +4788,7 @@ pub fn get_present_to_shopper_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges,
     };
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4844,6 +4859,7 @@ pub fn get_qr_code_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges,
     };
 
@@ -4918,6 +4934,7 @@ pub fn get_redirection_error_response(
             .clone()
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
 
@@ -5354,6 +5371,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges,
             }),
             amount_captured: None, // updated by Webhooks
