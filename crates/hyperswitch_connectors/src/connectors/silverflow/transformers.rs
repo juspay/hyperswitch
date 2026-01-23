@@ -320,6 +320,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowPaymentsResponse, T, Payments
                     }),
                 connector_response_reference_id: Some(item.response.key.clone()),
                 incremental_authorization_allowed: Some(false),
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -408,6 +409,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowCaptureResponse, T, PaymentsR
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.key.clone()),
                 incremental_authorization_allowed: Some(false),
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -503,6 +505,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowVoidResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.key.clone()),
                 incremental_authorization_allowed: Some(false),
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

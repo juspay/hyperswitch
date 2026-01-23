@@ -284,6 +284,8 @@ card.debit = { connector_list = "cybersource" }             # Update Mandate sup
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
+[card_only_mit_supported_connectors]
+connector_list = "peachpayments" # Supported connectors for card only mit
 
 [payouts]
 payout_eligibility = true               # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
@@ -971,6 +973,9 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
+
+[authentication_service_enabled_connectors]
+connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"

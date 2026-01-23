@@ -572,6 +572,7 @@ pub(crate) async fn fetch_raw_secrets(
         zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
+        card_only_mit_supported_connectors: conf.card_only_mit_supported_connectors,
         list_dispute_supported_connectors: conf.list_dispute_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
@@ -622,7 +623,6 @@ pub(crate) async fn fetch_raw_secrets(
         theme: conf.theme,
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
-        preprocessing_flow_config: conf.preprocessing_flow_config.clone(),
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]
@@ -639,6 +639,7 @@ pub(crate) async fn fetch_raw_secrets(
         micro_services: conf.micro_services,
         superposition,
         comparison_service: conf.comparison_service,
+        authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
     }
 }

@@ -643,6 +643,7 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
@@ -1114,6 +1115,7 @@ where
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1251,6 +1253,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1314,6 +1317,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseDat
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1490,6 +1494,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };

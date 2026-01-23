@@ -55,14 +55,15 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook,
+        VerifyWebhookSource,
     },
     router_request_types::{
         self,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
@@ -405,11 +406,12 @@ pub enum CurrentFlowInfo<'a> {
         /// The payment method that is used
         payment_method: Option<PaymentMethod>,
     },
-
     /// SetupMandate flow information
     SetupMandate {
         /// The authentication type being used
         auth_type: &'a enums::AuthenticationType,
+        /// The payment setup mandate request data
+        request_data: &'a router_request_types::SetupMandateRequestData,
     },
 }
 
@@ -444,6 +446,10 @@ pub struct PreProcessingFlowResponse<'a> {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Check if pre-authentication flow is required
+    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
     /// Check if pre-authentication flow is required
     fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
         false
@@ -691,6 +697,13 @@ pub trait UnifiedAuthenticationService:
     + UasPostAuthentication
     + UasAuthenticationConfirmation
     + UasAuthentication
+    + UasProcessWebhook
+{
+}
+
+///trait UasProcessWebhook
+pub trait UasProcessWebhook:
+    ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>
 {
 }
 
@@ -737,6 +750,7 @@ pub trait UnifiedAuthenticationServiceV2:
     + UasPostAuthenticationV2
     + UasAuthenticationV2
     + UasAuthenticationConfirmationV2
+    + UasProcessWebhookV2
 {
 }
 
@@ -768,6 +782,17 @@ pub trait UasAuthenticationConfirmationV2:
     AuthenticationConfirmation,
     UasFlowData,
     UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+///trait UasProcessWebhookV2
+pub trait UasProcessWebhookV2:
+    ConnectorIntegrationV2<
+    ProcessIncomingWebhook,
+    UasFlowData,
+    UasWebhookRequestData,
     UasAuthenticationResponseData,
 >
 {

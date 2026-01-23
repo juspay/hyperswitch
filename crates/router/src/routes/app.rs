@@ -562,6 +562,7 @@ impl AppState {
             #[cfg(feature = "keymanager_mtls")]
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+            use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -1589,6 +1590,10 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
                 )
                 .service(
+                    web::resource("/get-network-token-eligibility")
+                        .route(web::get().to(payment_methods::get_pm_nt_eligibility_api)),
+                )
+                .service(
                     web::resource("/{payment_method_id}/check-network-token-status")
                         .route(web::get().to(payment_methods::network_token_status_check_api)),
                 )
@@ -1855,9 +1860,16 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::organization_retrieve))
-                    .route(web::put().to(admin::organization_update)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::organization_retrieve))
+                            .route(web::put().to(admin::organization_update)),
+                    )
+                    .service(
+                        web::resource("/convert_to_platform")
+                            .route(web::post().to(admin::convert_organization_to_platform)),
+                    ),
             )
     }
 }
@@ -1913,7 +1925,7 @@ impl MerchantAccount {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut routes = web::scope("/accounts")
+        let routes = web::scope("/accounts")
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(admin::merchant_account_list)))
             .service(
@@ -1934,12 +1946,6 @@ impl MerchantAccount {
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
             );
-        if state.conf.platform.enabled {
-            routes = routes.service(
-                web::resource("/{id}/platform")
-                    .route(web::post().to(admin::merchant_account_enable_platform_account)),
-            )
-        }
         routes.app_data(web::Data::new(state))
     }
 }

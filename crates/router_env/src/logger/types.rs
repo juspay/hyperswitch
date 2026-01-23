@@ -156,6 +156,8 @@ pub enum Flow {
     PaymentMethodsDelete,
     /// Network token status check flow.
     NetworkTokenStatusCheck,
+    /// Network token eligibility check flow.
+    NetworkTokenEligibilityCheck,
     /// Default Payment method flow.
     DefaultPaymentMethodsSet,
     /// Payments create flow.
@@ -399,6 +401,8 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
+    /// Convert Organization to Platform
+    ConvertOrganizationToPlatform,
     /// User Sign In
     UserSignIn,
     /// User transfer key
