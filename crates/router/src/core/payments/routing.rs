@@ -64,7 +64,6 @@ use crate::{
     core::{
         errors, errors as oss_errors,
         payments::{
-            helpers::get_apple_pay_retryable_connectors, retry::config_should_call_gsm,
             routing::utils::DecisionEngineApiHandler, OperationSessionGetters,
             OperationSessionSetters,
         },
@@ -584,16 +583,14 @@ pub struct PreRoutingInput<'a> {
     pub pre_routing_results:
         &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
     pub payment_method_type: &'a storage_enums::PaymentMethodType,
-
-    pub state: &'a SessionState,
+    pub connectors: &'a hyperswitch_interfaces::configs::Connectors,
     pub platform: &'a domain::Platform,
     pub business_profile: &'a domain::Profile,
     pub creds_identifier: Option<&'a str>,
 }
 
 pub enum PreRoutingOutcome {
-    Retryable(Vec<api::ConnectorRoutingData>),
-    PreDetermined(api::ConnectorRoutingData),
+    Connectors(Vec<api::ConnectorRoutingData>),
 }
 
 pub async fn resolve_pre_routed_connectors(
@@ -613,16 +610,11 @@ pub async fn resolve_pre_routed_connectors(
         PreRoutingConnectorChoice::Multiple(cs) => cs.clone(),
     };
 
-    let first_routable_connector = routable_connectors
-        .first()
-        .cloned()
-        .ok_or(errors::RoutingError::DslExecutionError)?;
-
-    let mut pre_routing_connector_data_list = Vec::with_capacity(routable_connectors.len());
+    let mut connector_routing_data = Vec::with_capacity(routable_connectors.len());
 
     for connector_choice in routable_connectors {
         let connector_data = api::ConnectorData::get_connector_by_name(
-            &input.state.conf.connectors,
+            &input.connectors,
             &connector_choice.connector.to_string(),
             api::GetToken::Connector,
             connector_choice.merchant_connector_id.clone(),
@@ -631,51 +623,12 @@ pub async fn resolve_pre_routed_connectors(
         .attach_printable("Invalid connector name received")?
         .into();
 
-        pre_routing_connector_data_list.push(connector_data);
+        connector_routing_data.push(connector_data);
     }
 
-    #[cfg(feature = "retry")]
-    {
-        let should_do_retry = config_should_call_gsm(
-            &*input.state.store,
-            input.platform.get_processor().get_account().get_id(),
-            input.business_profile,
-        )
-        .await;
+    logger::debug!("euclid_routing: pre-routing connectors resolved");
 
-        if *input.payment_method_type == storage_enums::PaymentMethodType::ApplePay
-            && should_do_retry
-        {
-            let retryable = get_apple_pay_retryable_connectors(
-                input.state,
-                input.platform,
-                input.creds_identifier,
-                &pre_routing_connector_data_list,
-                first_routable_connector
-                    .merchant_connector_id
-                    .clone()
-                    .as_ref(),
-                input.business_profile.clone(),
-            )
-            .await
-            .change_context(errors::RoutingError::DslExecutionError)?;
-
-            if let Some(list) = retryable {
-                if list.len() > 1 {
-                    logger::info!("Constructed apple pay retryable connector list");
-                    return Ok(PreRoutingOutcome::Retryable(list));
-                }
-            }
-        }
-    }
-
-    logger::debug!("euclid_routing: pre-routing connector present");
-
-    let first_connector = pre_routing_connector_data_list
-        .first()
-        .ok_or(errors::RoutingError::DslExecutionError)?;
-
-    Ok(PreRoutingOutcome::PreDetermined(first_connector.clone()))
+    Ok(PreRoutingOutcome::Connectors(connector_routing_data))
 }
 
 pub fn try_get_attempt_connector<F, D>(

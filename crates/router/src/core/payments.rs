@@ -9333,45 +9333,74 @@ where
             .as_ref(),
     ) {
         logger::debug!("euclid: performing pre-routing");
-        let pre_routing_stage_input = PreRoutingInput {
+        let pre_routing_input = PreRoutingInput {
             pre_routing_results: &routing_data.routing_info.pre_routing_results,
             payment_method_type,
-            state: &state,
+            connectors: &state.conf.connectors,
             platform,
             business_profile,
             creds_identifier: payment_data.get_creds_identifier(),
         };
 
-        if let Ok(outcome) = routing::resolve_pre_routed_connectors(pre_routing_stage_input).await {
-            match outcome {
-                routing::PreRoutingOutcome::Retryable(connector_routing_data_list) => {
-                    logger::info!("euclid: constructed retryable connector list");
-                    return Ok(ConnectorCallType::Retryable(
-                        connector_routing_data_list
-                            .into_iter()
-                            .map(|connector| connector.into())
-                            .collect(),
-                    ));
-                }
-                routing::PreRoutingOutcome::PreDetermined(connector_routing_data) => {
-                    routing_data.routed_through = Some(
-                        connector_routing_data
-                            .connector_data
-                            .connector_name
-                            .to_string()
-                            .clone(),
-                    );
-                    routing_data.merchant_connector_id = connector_routing_data
+        if let Ok(routing::PreRoutingOutcome::Connectors(connectors)) =
+            routing::resolve_pre_routed_connectors(pre_routing_input).await
+        {
+            let first_connector = connectors
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            #[cfg(feature = "retry")]
+            let should_do_retry = retry::config_should_call_gsm(
+                &*state.store,
+                platform.get_processor().get_account().get_id(),
+                business_profile,
+            )
+            .await;
+
+            #[cfg(feature = "retry")]
+            if payment_data.get_payment_attempt().payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    &state,
+                    platform,
+                    payment_data.get_creds_identifier(),
+                    &connectors.clone(),
+                    first_connector
                         .connector_data
                         .merchant_connector_id
-                        .clone();
-                    helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data)
-                        .await?;
-                    return Ok(ConnectorCallType::PreDetermined(
-                        connector_routing_data.into(),
-                    ));
+                        .clone()
+                        .as_ref(),
+                    business_profile.clone(),
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    if connector_data_list.len() > 1 {
+                        logger::info!("Constructed apple pay retryable connector list");
+                        return Ok(ConnectorCallType::Retryable(connector_data_list));
+                    }
                 }
             }
+
+            // pre-determined
+            routing_data.routed_through = Some(
+                first_connector
+                    .connector_data
+                    .connector_name
+                    .to_string()
+                    .clone(),
+            );
+
+            routing_data.merchant_connector_id =
+                first_connector.connector_data.merchant_connector_id.clone();
+
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+
+            return Ok(ConnectorCallType::PreDetermined(
+                first_connector.clone().into(),
+            ));
         }
     };
 
@@ -9443,7 +9472,7 @@ where
             .attach_printable("Invalid connector name received")?;
 
         logger::debug!("euclid_routing: straight through connector present");
-        return decide_multiplex_connector_for_normal_or_recurring_payment(
+        return plan_payment_execution_after_routing(
             &state,
             payment_data,
             routing_data,
@@ -9481,7 +9510,7 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
+pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
@@ -10380,7 +10409,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("euclid: Invalid connector name received")?;
 
-    decide_multiplex_connector_for_normal_or_recurring_payment(
+    plan_payment_execution_after_routing(
         state,
         payment_data,
         routing_data,
