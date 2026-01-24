@@ -157,6 +157,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Incremental Authorization from gRPC Server
     #[error("Failed to perform Incremental Authorization from gRPC Server")]
     IncrementalAuthorizationFailure,
+
+    /// Failed to perform Mandate Revoke from gRPC Server
+    #[error("Failed to perform Mandate Revoke from gRPC Server")]
+    MandateRevokeFailure,
 }
 
 /// UCS Webhook transformation status
