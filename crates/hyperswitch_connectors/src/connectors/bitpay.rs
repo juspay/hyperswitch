@@ -5,7 +5,8 @@ use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
-    ext_traits::ByteSliceExt,
+    ext_traits::{ByteSliceExt, BytesExt},
+    keymanager::ConvertRaw,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
@@ -46,7 +47,11 @@ use masking::{Mask, PeekInterface};
 use transformers as bitpay;
 
 use self::bitpay::BitpayWebhookDetails;
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self},
+};
 
 #[derive(Clone)]
 pub struct Bitpay {
@@ -250,12 +255,22 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Bitpay PaymentsAuthorizeResponse")
             .switch()?;
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.data.price,
+            response.data.currency.clone(),
+        )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -325,13 +340,23 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bit
         let response: bitpay::BitpayPaymentsResponse = res
             .response
             .parse_struct("bitpay PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.data.price,
+            response.data.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
