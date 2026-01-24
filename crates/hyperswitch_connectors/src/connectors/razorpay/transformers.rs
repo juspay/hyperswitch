@@ -230,6 +230,8 @@ pub struct NextAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RazorpayPaymentsResponse {
     pub razorpay_payment_id: String,
+    pub amount: i64,
+    pub currency: String,
 }
 
 impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
@@ -284,14 +286,16 @@ pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, err
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpaySyncResponse {
-    items: Vec<RazorpaySyncItem>,
+    pub items: Vec<RazorpaySyncItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpaySyncItem {
-    id: String,
-    status: RazorpayStatus,
+    pub id: String,
+    pub status: RazorpayStatus,
+    pub amount: i64,
+    pub currency: String,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -367,6 +371,8 @@ impl<F> TryFrom<&RazorpayRouterData<&types::RefundsRouterData<F>>> for RazorpayR
 pub struct RazorpayRefundResponse {
     pub id: String,
     pub status: RazorpayRefundStatus,
+    pub amount: i64,
+    pub currency: String,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize)]
