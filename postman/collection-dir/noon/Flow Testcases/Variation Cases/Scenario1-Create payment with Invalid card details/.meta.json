@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Payments - Create(Invalid card number)",
+    "Payments - Create(Invalid Exp month)",
+    "Payments - Create(Invalid Exp Year)",
+    "Payments - Create(invalid CVV)"
+  ]
+}
