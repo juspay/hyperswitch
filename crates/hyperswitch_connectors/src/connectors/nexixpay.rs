@@ -657,12 +657,36 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("NexixpayPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let (operation_amount, operation_currency) = match &response {
+            nexixpay::NexixpayPaymentsResponse::PaymentResponse(ref response_body) => (
+                &response_body.operation.operation_amount,
+                &response_body.operation.operation_currency,
+            ),
+            nexixpay::NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => (
+                &mandate_response.operation.operation_amount,
+                &mandate_response.operation.operation_currency,
+            ),
+        };
+
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            operation_amount.clone(),
+            operation_currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -726,12 +750,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
             .response
             .parse_struct("NexixpayTransactionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.operation_amount.clone(),
+            response.operation_currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -848,12 +885,31 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("NexixpayOperationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let capture_amount = utils::convert_amount(
+            self.amount_converter,
+            data.request.minor_amount_to_capture,
+            data.request.currency,
+        )?;
+
+        let response_integrity_object = utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(capture_amount),
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -1052,12 +1108,31 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpa
             .response
             .parse_struct("RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let refund_amount = utils::convert_amount(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency,
+        )?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -1124,12 +1199,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexixpay 
             .response
             .parse_struct("NexixpayRSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.operation_amount.clone(),
+            response.operation_currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
