@@ -1,9 +1,7 @@
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
-use hyperswitch_domain_models::{
-    router_data::RouterData, router_flow_types as domain, router_request_types,
-};
+use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -30,10 +28,6 @@ impl<RCD>
         types::PaymentsPostAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
     > for domain::PostAuthenticate
 where
     RCD: Clone
@@ -61,10 +55,7 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
-            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -97,10 +88,7 @@ impl<RCD>
         types::PaymentsPostAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
     > for domain::PostAuthenticate
 where
     RCD: Clone
@@ -119,10 +107,7 @@ where
             types::PaymentsPostAuthenticateData,
             types::PaymentsResponseData,
             RouterGatewayContext,
-            (
-                RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-                Option<router_request_types::UcsAuthenticationData>,
-            ),
+            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
         >,
     > {
         match execution_path {

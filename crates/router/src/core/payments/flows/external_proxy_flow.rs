@@ -165,14 +165,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         .await
     }
 
-    async fn preprocessing_steps<'a>(
-        self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        todo!()
-    }
-
     async fn postprocessing_steps<'a>(
         self,
         state: &SessionState,
