@@ -940,6 +940,11 @@ pub fn calculate_signature(
     };
     let message = signature_data.as_bytes();
 
+    // SECURITY WARNING: Both MD5 and SHA-1 are cryptographically broken algorithms.
+    // MD5: Vulnerable to collision attacks (CERT VU#836068)
+    // SHA-1: Deprecated and vulnerable to collision attacks (SHAttered attack)
+    // These are used here ONLY because the ZSL payment gateway API requires them.
+    // Do NOT use these algorithms for new implementations. Use SHA-256 or stronger.
     let encoded_data = match enctype {
         EncodingType::MD5 => hex::encode(
             common_utils::crypto::Md5
