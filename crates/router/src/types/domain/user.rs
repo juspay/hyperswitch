@@ -8,10 +8,14 @@ use std::{
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
+use base64::Engine;
 use common_enums::EntityType;
 use common_utils::{
-    crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
-    types::keymanager::Identifier,
+    crypto::Encryptable,
+    id_type,
+    new_type::MerchantName,
+    pii, type_name,
+    types::keymanager::{EncryptionTransferRequest, Identifier},
 };
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
@@ -25,8 +29,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
-#[cfg(feature = "keymanager_create")]
-use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
 use crate::{
     consts,
@@ -1258,18 +1260,15 @@ impl UserFromStorage {
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Unable to generate aes 256 key")?;
 
-            #[cfg(feature = "keymanager_create")]
-            {
-                common_utils::keymanager::transfer_key_to_key_manager(
-                    key_manager_state,
-                    EncryptionTransferRequest {
-                        identifier: Identifier::User(self.get_user_id().to_string()),
-                        key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
-                    },
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?;
-            }
+            common_utils::keymanager::transfer_key_to_key_manager(
+                key_manager_state,
+                EncryptionTransferRequest {
+                    identifier: Identifier::User(self.get_user_id().to_string()),
+                    key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
 
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
