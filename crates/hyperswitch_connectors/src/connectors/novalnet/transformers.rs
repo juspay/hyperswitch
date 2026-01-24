@@ -43,6 +43,8 @@ use crate::{
     },
 };
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 pub struct NovalnetRouterData<T> {
     pub amount: StringMinorUnit,
     pub router_data: T,
@@ -162,6 +164,9 @@ pub enum NovalNetPaymentData {
 #[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetCustom {
     lang: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub extra: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -265,7 +270,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             .request
             .get_optional_language_from_browser_info()
             .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string());
-        let custom = NovalnetCustom { lang };
+        let extra = metadata_to_novalnet_extra(item.router_data.request.metadata.clone())?;
+        let custom = NovalnetCustom { lang, extra };
         let hook_url = item.router_data.request.get_webhook_url()?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let create_token = if item.router_data.request.is_mandate_payment() {
@@ -957,6 +963,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
                 .request
                 .get_optional_language_from_browser_info()
                 .unwrap_or(consts::DEFAULT_LOCALE.to_string()),
+            extra: None,
         };
         Ok(Self {
             transaction,
@@ -992,6 +999,7 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
                 .request
                 .get_optional_language_from_browser_info()
                 .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string()),
+            extra: None,
         };
         Ok(Self {
             transaction,
@@ -1154,6 +1162,7 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
 
         let custom = NovalnetCustom {
             lang: consts::DEFAULT_LOCALE.to_string().to_string(),
+            extra: None,
         };
         Ok(Self {
             transaction,
@@ -1361,6 +1370,7 @@ impl TryFrom<&RefundSyncRouterData> for NovalnetSyncRequest {
                 .request
                 .get_optional_language_from_browser_info()
                 .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string()),
+            extra: None,
         };
         Ok(Self {
             transaction,
@@ -1437,6 +1447,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
                 .request
                 .get_optional_language_from_browser_info()
                 .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string()),
+            extra: None,
         };
         Ok(Self {
             transaction,
@@ -1670,8 +1681,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             .request
             .get_optional_language_from_browser_info()
             .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string());
-
-        let custom = NovalnetCustom { lang };
+        let extra = metadata_to_novalnet_extra(item.request.metadata.clone().map(|m| m.expose()))?;
+        let custom = NovalnetCustom { lang, extra };
         let hook_url = item.request.get_webhook_url()?;
         let return_url = item.request.get_return_url()?;
         let create_token = Some(CREATE_TOKEN_REQUIRED);
@@ -1835,4 +1846,33 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             ))?,
         }
     }
+}
+
+pub fn metadata_to_novalnet_extra(
+    metadata: Option<serde_json::Value>,
+) -> Result<Option<HashMap<String, String>>, Error> {
+    let Some(serde_json::Value::Object(map)) = metadata else {
+        return Ok(None);
+    };
+
+    if map.is_empty() {
+        return Ok(None);
+    }
+
+    let mut extra = HashMap::new();
+
+    for (idx, (key, val)) in map.iter().enumerate() {
+        let slot = idx + 1;
+
+        extra.insert(format!("input{}", slot), key.clone());
+
+        let val_str = match val {
+            serde_json::Value::String(s) => s.clone(),
+            _ => val.to_string(),
+        };
+
+        extra.insert(format!("inputval{}", slot), val_str);
+    }
+
+    Ok(Some(extra))
 }
