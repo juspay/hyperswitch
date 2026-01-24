@@ -331,12 +331,32 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Hipay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let amount = response.authorized_amount.clone().unwrap_or_else(|| {
+            self.amount_converter
+                .convert(data.request.amount, data.request.currency)
+        });
+        let currency = response
+            .currency
+            .clone()
+            .unwrap_or_else(|| data.request.currency.to_string());
+
+        let response_integrity_object =
+            utils::get_authorise_integrity_object(self.amount_converter, amount, currency)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -400,12 +420,42 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
             .response
             .parse_struct("hipay HipaySyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // Only compute integrity when the sync response contains amount/currency.
+        let response_integrity_object = match &response {
+            hipay::HipaySyncResponse::Response { amount, currency, .. } => {
+                let sync_amount = amount.clone().unwrap_or_else(|| {
+                    self.amount_converter
+                        .convert(data.request.amount, data.request.currency)
+                });
+                let sync_currency = currency
+                    .clone()
+                    .unwrap_or_else(|| data.request.currency.to_string());
+
+                Some(utils::get_sync_integrity_object(
+                    self.amount_converter,
+                    sync_amount,
+                    sync_currency,
+                ))
+            }
+            hipay::HipaySyncResponse::Error { .. } => None,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.and_then(|mut router_data| {
+            if let Some(integrity_result) = response_integrity_object {
+                let integrity_object = integrity_result?;
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            Ok(router_data)
         })
     }
 
@@ -636,13 +686,37 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
             .response
             .parse_struct("hipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let refund_amount = response.amount.clone().unwrap_or_else(|| {
+            self.amount_converter
+                .convert(data.request.refund_amount, data.request.currency)
+        });
+        let refund_currency = response
+            .currency
+            .clone()
+            .unwrap_or_else(|| data.request.currency.to_string());
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            refund_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -704,13 +778,37 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
             .response
             .parse_struct("hipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let refund_amount = response.amount.clone().unwrap_or_else(|| {
+            self.amount_converter
+                .convert(data.request.refund_amount, data.request.currency)
+        });
+        let refund_currency = response
+            .currency
+            .clone()
+            .unwrap_or_else(|| data.request.currency.to_string());
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            refund_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
