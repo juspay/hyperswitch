@@ -1,6 +1,5 @@
 use common_enums::enums;
-use common_utils::pii::Email;
-use error_stack::ResultExt;
+use common_utils::{pii::Email, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
@@ -11,7 +10,7 @@ use hyperswitch_domain_models::{
     },
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -26,16 +25,13 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct StaxRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for StaxRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for StaxRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -51,7 +47,7 @@ pub struct StaxPaymentsRequestMetaData {
 #[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequest {
     payment_method_id: Secret<String>,
-    total: f64,
+    total: FloatMajorUnit,
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
@@ -406,7 +402,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaxCaptureRequest {
-    total: Option<f64>,
+    total: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCaptureRequest {
@@ -423,7 +419,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCapture
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    pub total: f64,
+    pub total: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
@@ -438,7 +434,7 @@ pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
     created_at: String,
-    total: f64,
+    total: FloatMajorUnit,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
@@ -454,16 +450,22 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = utils::to_currency_base_unit_asf64(
-            item.data.request.refund_amount,
-            item.data.request.currency,
-        )
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        // Compare using minor units: expected is already available as minor_refund_amount
+        let expected_minor = item.data.request.minor_refund_amount;
+
         let filtered_txn: Vec<&ChildTransactionsInResponse> = item
             .response
             .child_transactions
             .iter()
-            .filter(|txn| txn.total == refund_amount)
+            .filter(|txn| {
+                let txn_minor = utils::convert_back_amount_to_minor_units(
+                    &common_utils::types::FloatMajorUnitForConnector,
+                    txn.total,
+                    item.data.request.currency,
+                )
+                .ok();
+                matches!(txn_minor, Some(m) if m == expected_minor)
+            })
             .collect();
 
         let mut refund_txn = filtered_txn
