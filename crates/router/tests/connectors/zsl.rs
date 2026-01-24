@@ -9,7 +9,7 @@ impl utils::Connector for ZslTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Zsl;
         utils::construct_connector_data_old(
-            Box::new(&Zsl),
+            Box::new(Zsl::new()),
             types::Connector::Adyen,
             // Added as Dummy connector as template code is added for future usage
             types::api::GetToken::Connector,
