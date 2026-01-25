@@ -371,7 +371,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _business_profile: &domain::Profile,
         _connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -386,7 +386,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
-        _key_store: &domain::MerchantKeyStore,
+        _processor: &domain::Processor,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
@@ -400,7 +400,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
-        _key_store: &domain::MerchantKeyStore,
+        _platform: &domain::Platform,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
@@ -422,7 +422,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -683,7 +683,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -798,7 +798,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -913,7 +913,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -1006,7 +1006,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

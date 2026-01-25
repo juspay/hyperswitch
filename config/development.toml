@@ -1480,3 +1480,6 @@ org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[micro_services]
+payment_methods_base_url = "http://localhost:8082"
