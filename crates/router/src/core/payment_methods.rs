@@ -3134,7 +3134,7 @@ pub async fn vault_payment_method(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         Some(&external_vault_source),
                     )
                     .await

@@ -1969,7 +1969,7 @@ pub async fn retrieve_payment_method_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         external_vault_source,
                     )
                     .await
@@ -2159,7 +2159,7 @@ pub async fn delete_payment_method_data_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         external_vault_source,
                     )
                     .await
