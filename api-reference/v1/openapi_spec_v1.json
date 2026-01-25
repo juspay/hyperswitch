@@ -11394,6 +11394,33 @@
           }
         ]
       },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BankDebitResponse": {
         "allOf": [
           {
@@ -14279,6 +14306,42 @@
           "credit",
           "debit"
         ]
+      },
+      "CardWithLimitedData": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
       },
       "CartesBancairesParams": {
         "type": "object",
@@ -21114,7 +21177,7 @@
           "merchant_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantAccountRequestType"
+                "$ref": "#/components/schemas/MerchantAccountType"
               }
             ],
             "nullable": true
@@ -25813,6 +25876,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
           }
@@ -34302,6 +34376,24 @@
                 "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_with_limited_data"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/CardWithLimitedData"
+              }
+            }
           }
         ],
         "description": "Details required for recurring payment",
@@ -34682,6 +34774,31 @@
           "schedule_refund"
         ]
       },
+      "RelayCaptureRequestData": {
+        "type": "object",
+        "required": [
+          "authorized_amount",
+          "amount_to_capture",
+          "currency"
+        ],
+        "properties": {
+          "authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is authorized for capture",
+            "example": 6540
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being captured",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -34692,6 +34809,17 @@
             "properties": {
               "refund": {
                 "$ref": "#/components/schemas/RelayRefundRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capture"
+            ],
+            "properties": {
+              "capture": {
+                "$ref": "#/components/schemas/RelayCaptureRequestData"
               }
             }
           }
@@ -34843,7 +34971,8 @@
       "RelayType": {
         "type": "string",
         "enum": [
-          "refund"
+          "refund",
+          "capture"
         ]
       },
       "RequestPaymentMethodTypes": {

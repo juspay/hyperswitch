@@ -506,6 +506,11 @@ pub struct PaymentMethodUpdate {
 
     /// The connector token details to be updated for the payment_method
     pub connector_token_details: Option<ConnectorTokenDetails>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -534,6 +539,20 @@ pub enum PaymentMethodCreateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    BankDebit(BankDebitDetail),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        #[schema(value_type = String)]
+        account_number: masking::Secret<String>,
+        #[schema(value_type = String)]
+        routing_number: masking::Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1124,6 +1143,11 @@ pub struct PaymentMethodResponse {
 
     /// Card CVC token storage details
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

@@ -25,6 +25,8 @@ pub mod helpers;
 /// connector integrity check interface
 pub mod integrity;
 pub mod metrics;
+/// Microservice-specific flow modules
+pub mod micro_service;
 pub mod secrets_interface;
 pub mod types;
 /// ucs handlers

@@ -1269,6 +1269,7 @@ impl<F>
                                     order_status.order_code.clone(),
                                 ),
                                 incremental_authorization_allowed: None,
+                                authentication_data: None,
                                 charges: None,
                             }),
                             ..item.data
@@ -1286,6 +1287,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1570,6 +1572,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 });
 
@@ -1789,6 +1792,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     network_txn_id: None,
                     connector_response_reference_id: Some(capture_received.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1850,6 +1854,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     network_txn_id: None,
                     connector_response_reference_id: Some(cancel_received.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -2554,6 +2559,7 @@ fn process_payment_response(
             network_txn_id: None,
             connector_response_reference_id: Some(order_code.clone()),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     }

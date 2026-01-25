@@ -1,3 +1,4 @@
+pub mod client;
 pub mod configs;
 pub mod controller;
 pub mod core;

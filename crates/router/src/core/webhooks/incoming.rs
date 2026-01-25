@@ -272,7 +272,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let execution_path =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
                     &state,
-                    &platform,
+                    platform.get_processor(),
                     &mca_data.connector_name,
                 )
                 .await?;
@@ -529,7 +529,7 @@ async fn process_ucs_webhook_transform<'a>(
     let (event_type, source_verified, transform_data) =
         unified_connector_service::call_unified_connector_service_for_webhook(
             state,
-            platform,
+            platform.get_processor(),
             connector_name,
             body,
             request_details,
@@ -594,7 +594,7 @@ async fn process_shadow_ucs_webhook_transform<'a>(
     // Execute UCS path
     let ucs_result = unified_connector_service::call_unified_connector_service_for_webhook(
         state,
-        platform,
+        platform.get_processor(),
         connector_name,
         body,
         request_details,
@@ -2100,7 +2100,7 @@ async fn refunds_incoming_webhook_flow(
     };
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &refund.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -2203,7 +2203,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
-            .find_payment_attempt_by_merchant_id_connector_txn_id(
+            .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                 platform.get_processor().get_account().get_id(),
                 id,
                 platform.get_processor().get_account().storage_scheme,
@@ -2212,7 +2212,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_account().storage_scheme,
@@ -2221,7 +2221,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
-            .find_payment_attempt_by_preprocessing_id_merchant_id(
+            .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
                 id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_account().storage_scheme,
@@ -2764,7 +2764,7 @@ async fn disputes_incoming_webhook_flow(
                 let state = state.clone();
                 let platform = platform.clone();
                 let payment_intent = db
-                    .find_payment_intent_by_payment_id_merchant_id(
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
                         &payment_attempt.payment_id,
                         platform.get_processor().get_account().get_id(),
                         platform.get_processor().get_key_store(),
@@ -2910,7 +2910,7 @@ async fn bank_transfer_webhook_flow(
 async fn get_payment_id(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: enums::MerchantStorageScheme,
     key_store: &MerchantKeyStore,
 ) -> errors::RouterResult<common_utils::id_type::PaymentId> {
@@ -2918,8 +2918,8 @@ async fn get_payment_id(
         match payment_id {
             api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_owned()),
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
-                .find_payment_attempt_by_merchant_id_connector_txn_id(
-                    merchant_id,
+                .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
+                    processor_merchant_id,
                     id,
                     storage_scheme,
                     key_store,
@@ -2927,18 +2927,18 @@ async fn get_payment_id(
                 .await
                 .map(|p| p.payment_id),
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     id,
-                    merchant_id,
+                    processor_merchant_id,
                     storage_scheme,
                     key_store,
                 )
                 .await
                 .map(|p| p.payment_id),
             api_models::payments::PaymentIdType::PreprocessingId(ref id) => db
-                .find_payment_attempt_by_preprocessing_id_merchant_id(
+                .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
                     id,
-                    merchant_id,
+                    processor_merchant_id,
                     storage_scheme,
                     key_store,
                 )
