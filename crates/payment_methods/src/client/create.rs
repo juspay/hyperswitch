@@ -115,7 +115,7 @@ impl TryFrom<payments::PaymentMethodData> for PaymentMethodCreateData {
                     card_cvc: Some(card.card_cvc),
                     card_issuing_country_code: card.card_issuing_country_code,
                 };
-                Ok(PaymentMethodCreateData::Card(card_detail))
+                Ok(Self::Card(card_detail))
             }
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
