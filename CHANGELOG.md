@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.26.0
+
+### Features
+
+- **connector:** Implement Payjustnowinstore Payments Webhooks ([#11043](https://github.com/juspay/hyperswitch/pull/11043)) ([`b65bd8f`](https://github.com/juspay/hyperswitch/commit/b65bd8f4b667b7fcf01223a1bc202d15fc007ad9))
+- **platform:**
+  - JWT Authentication for Platform ([#10988](https://github.com/juspay/hyperswitch/pull/10988)) ([`18a7836`](https://github.com/juspay/hyperswitch/commit/18a78369f71e0d9f4d479d43153a2016cb00c58c))
+  - Pass processor context for connector functions in payments core ([#11002](https://github.com/juspay/hyperswitch/pull/11002)) ([`6f07d7a`](https://github.com/juspay/hyperswitch/commit/6f07d7af18f796c959fc19c8117ea68b9bbd3bf1))
+  - Support 3ds payments for platform ([#11011](https://github.com/juspay/hyperswitch/pull/11011)) ([`5599ae5`](https://github.com/juspay/hyperswitch/commit/5599ae5635766220e3fcbc5e405a156fd28a13d6))
+- **relay:** Add capture and capture-retrieve flow ([#11014](https://github.com/juspay/hyperswitch/pull/11014)) ([`b162905`](https://github.com/juspay/hyperswitch/commit/b162905a95686b7850a86a3021070c3c761ed32a))
+- Add modular payment method client ([#10960](https://github.com/juspay/hyperswitch/pull/10960)) ([`3df7b6e`](https://github.com/juspay/hyperswitch/commit/3df7b6e8bf750209e48d092e6c68014e20609d37))
+
+### Bug Fixes
+
+- **connector:**
+  - [NMI] Fix webhook handling and include shipping & billing addresses in request ([#10983](https://github.com/juspay/hyperswitch/pull/10983)) ([`11d650e`](https://github.com/juspay/hyperswitch/commit/11d650e792ec03d8a8d7571a01d5b595a4563e2d))
+  - [Nuvei] Fixed Error handling in the redirection flow ([#10967](https://github.com/juspay/hyperswitch/pull/10967)) ([`e6901eb`](https://github.com/juspay/hyperswitch/commit/e6901eb32094938275ba4261fdc692eb4c684fa5))
+- **ucs:** Fix Capture & Void calls bypass UCS and always route via HS direct ([#11009](https://github.com/juspay/hyperswitch/pull/11009)) ([`5b009fd`](https://github.com/juspay/hyperswitch/commit/5b009fdece22780726f52c71edc6e5595daeb95c))
+
+### Refactors
+
+- **payment_method_v2:** Add `customer_id` column in v2 customers table ([#10933](https://github.com/juspay/hyperswitch/pull/10933)) ([`b55eeae`](https://github.com/juspay/hyperswitch/commit/b55eeaefb9f66c174d74daceaacdc31f1e437a21))
+
+### Miscellaneous Tasks
+
+- **payment_methods_v2:** Payment method token to payment method id api document addition ([#10956](https://github.com/juspay/hyperswitch/pull/10956)) ([`99ae402`](https://github.com/juspay/hyperswitch/commit/99ae40233cdd45019ea22fffe4c9bc65f199e1cc))
+- Populating authentication data for (Cybersource, Nexixpay, Barclaycard) ([#11020](https://github.com/juspay/hyperswitch/pull/11020)) ([`972b561`](https://github.com/juspay/hyperswitch/commit/972b5610adbd33bafff1e8a0bfd4eac6931a27dd))
+
+**Full Changelog:** [`2026.01.23.0...2026.01.26.0`](https://github.com/juspay/hyperswitch/compare/2026.01.23.0...2026.01.26.0)
+
+- - -
+
 ## 2026.01.23.0
 
 ### Features
