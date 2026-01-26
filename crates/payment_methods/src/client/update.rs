@@ -1,8 +1,7 @@
-
 use common_utils::request::{Method, RequestContent};
-use hyperswitch_interfaces::micro_service::{MicroserviceClientError};
-use serde::{Deserialize, Serialize};
+use hyperswitch_interfaces::micro_service::MicroserviceClientError;
 use masking::Secret;
+use serde::{Deserialize, Serialize};
 
 use crate::client::create::{ConnectorTokenDetails, ModularPaymentMethodResponse};
 
@@ -65,17 +64,12 @@ impl TryFrom<ModularPaymentMethodResponse> for UpdatePaymentMethodResponse {
     fn try_from(resp: ModularPaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: resp.id,
-
         })
     }
 }
 
 impl UpdatePaymentMethod {
-
-    fn build_path_params(
-        &self,
-        request: &ModularPMUpdateRequest,
-    ) -> Vec<(&'static str, String)> {
+    fn build_path_params(&self, request: &ModularPMUpdateRequest) -> Vec<(&'static str, String)> {
         vec![("id", request.payment_method_id.clone())]
     }
 
