@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
@@ -120,8 +121,8 @@ pub struct RouterData<Flow, Request, Response> {
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
 
-    // Document number of the customer
-    pub customer_document_number: Option<Secret<String>>,
+    // Document details of the customer consisting of document number and type
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

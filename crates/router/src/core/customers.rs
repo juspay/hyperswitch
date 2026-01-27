@@ -10,7 +10,9 @@ use common_utils::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_methods as payment_methods_domain;
+use hyperswitch_domain_models::{
+    payment_methods as payment_methods_domain, type_encryption::AsyncLift,
+};
 use masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
@@ -30,7 +32,10 @@ use crate::{
     services,
     types::{
         api::customers,
-        domain::{self, types},
+        domain::{
+            self,
+            types::{self, CryptoOperation},
+        },
         storage::{self, enums},
         transformers::ForeignFrom,
     },
@@ -141,6 +146,30 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             state,
         };
 
+        let document_details = Some(
+            self.get_document_details_as_secret()
+                .change_context(errors::CustomersErrorResponse::InternalServerError)?
+                .ok_or(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("document_details not found")?,
+        );
+
+        let document_details_encrypted = document_details
+            .clone()
+            .async_lift(|inner| async {
+                types::crypto_operation(
+                    &state.into(),
+                    common_utils::type_name!(domain::Customer),
+                    CryptoOperation::EncryptOptional(inner),
+                    Identifier::Merchant(merchant_id.clone()),
+                    provider.get_key_store().key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt document_details")?;
+
         let address_from_db = customer_billing_address_struct
             .encrypt_customer_address_and_set_to_db(db)
             .await?;
@@ -148,17 +177,14 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(
-                domain::FromRequestEncryptableCustomer::to_encryptable(
-                    domain::FromRequestEncryptableCustomer {
-                        name: self.name.clone(),
-                        email: self.email.clone().map(|a| a.expose().switch_strategy()),
-                        phone: self.phone.clone(),
-                        tax_registration_id: self.tax_registration_id.clone(),
-                        document_number: self.document_number.clone(),
-                    },
-                ),
-            ),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableCustomer::to_encryptable(
+                domain::FromRequestEncryptableCustomer {
+                    name: self.name.clone(),
+                    email: self.email.clone().map(|a| a.expose().switch_strategy()),
+                    phone: self.phone.clone(),
+                    tax_registration_id: self.tax_registration_id.clone(),
+                },
+            )),
             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
             key,
         )
@@ -207,7 +233,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            document_number: encryptable_customer.document_number,
+            document_details: document_details_encrypted,
             // TODO: Populate created_by from authentication context once it is integrated in auth data
             created_by: None,
             last_modified_by: None,
@@ -271,7 +297,6 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         email: Some(self.email.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
                         tax_registration_id: self.tax_registration_id.clone(),
-                        document_number: self.document_number.clone(),
                     },
                 ),
             ),
@@ -326,7 +351,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            document_number: encryptable_customer.document_number,
+            document_details: None,
             // TODO: Populate created_by from authentication context once it is integrated in auth data
             created_by: None,
             last_modified_by: None,
@@ -753,7 +778,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
                 tax_registration_id: Some(redacted_encrypted_value.clone()),
-                document_number: Some(redacted_encrypted_value),
+                document_details: None,
                 last_modified_by: None,
             }));
 
@@ -903,7 +928,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
             key_manager_state,
             type_name!(storage::Address),
-            types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+            CryptoOperation::Encrypt(REDACTED.to_string().into()),
             identifier.clone(),
             key,
         )
@@ -963,7 +988,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                 types::crypto_operation(
                     key_manager_state,
                     type_name!(storage::Customer),
-                    types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+                    CryptoOperation::Encrypt(REDACTED.to_string().into()),
                     identifier,
                     key,
                 )
@@ -978,7 +1003,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             connector_customer: Box::new(None),
             address_id: None,
             tax_registration_id: Some(redacted_encrypted_value.clone()),
-            document_number: Box::new(Some(redacted_encrypted_value.clone())),
+            document_details: Box::new(None),
             last_modified_by: None,
         };
 
@@ -1235,20 +1260,17 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(
-                domain::FromRequestEncryptableCustomer::to_encryptable(
-                    domain::FromRequestEncryptableCustomer {
-                        name: self.name.clone(),
-                        email: self
-                            .email
-                            .as_ref()
-                            .map(|a| a.clone().expose().switch_strategy()),
-                        phone: self.phone.clone(),
-                        tax_registration_id: self.tax_registration_id.clone(),
-                        document_number: self.document_number.clone(),
-                    },
-                ),
-            ),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableCustomer::to_encryptable(
+                domain::FromRequestEncryptableCustomer {
+                    name: self.name.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
+                    phone: self.phone.clone(),
+                    tax_registration_id: self.tax_registration_id.clone(),
+                },
+            )),
             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
             key,
         )
@@ -1259,6 +1281,25 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encryptable_customer =
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+
+        let document_details = domain_customer
+            .document_details
+            .clone()
+            .async_lift(|inner| async {
+                let inner = inner.map(|enc| enc.into_inner());
+                types::crypto_operation(
+                    key_manager_state,
+                    type_name!(domain::Customer),
+                    CryptoOperation::EncryptOptional(inner),
+                    Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
+                    db.get_master_key(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+                .change_context(storage_impl::StorageError::EncryptionError)
+            })
+            .await
+            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
@@ -1277,7 +1318,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     }),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
-                    document_number: Box::new(encryptable_customer.document_number),
+                    document_details: Box::new(document_details),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: Box::new(self.metadata.clone()),
                     description: self.description.clone(),
@@ -1358,7 +1399,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
                         tax_registration_id: self.tax_registration_id.clone(),
-                        document_number: self.document_number.clone(),
                     },
                 ),
             ),
@@ -1389,7 +1429,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     })),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
-                    document_number: encryptable_customer.document_number,
+                    document_details: None,
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),

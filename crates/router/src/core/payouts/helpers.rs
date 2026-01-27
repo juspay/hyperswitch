@@ -827,7 +827,6 @@ pub(super) async fn get_or_create_customer_details(
                                     .map(|a| a.expose().switch_strategy()),
                                 phone: customer_details.phone.clone(),
                                 tax_registration_id: customer_details.tax_registration_id.clone(),
-                                document_number: customer_details.document_number.clone(),
                             },
                         ),
                     ),
@@ -844,6 +843,26 @@ pub(super) async fn get_or_create_customer_details(
                     domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to form EncryptableCustomer")?;
+
+                let document_details = customer_details
+                    .document_details
+                    .clone()
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            &state.into(),
+                            common_utils::type_name!(domain::Customer),
+                            CryptoOperation::EncryptOptional(inner),
+                            Identifier::Merchant(
+                                platform.get_processor().get_key_store().merchant_id.clone(),
+                            ),
+                            platform.get_processor().get_key_store().key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt document_details")?;
 
                 let customer = domain::Customer {
                     customer_id: customer_id.clone(),
@@ -869,7 +888,7 @@ pub(super) async fn get_or_create_customer_details(
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
                     tax_registration_id: encryptable_customer.tax_registration_id,
-                    document_number: encryptable_customer.document_number,
+                    document_details,
                     // TODO: Populate created_by from authentication context once it is integrated in auth data
                     created_by: None,
                     last_modified_by: None, // Same as created_by on creation
@@ -1420,10 +1439,10 @@ pub(super) fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let customer_document_number = request
+    let customer_document_details = request
         .customer
         .as_ref()
-        .and_then(|customer_details| customer_details.document_number.clone());
+        .and_then(|customer_details| customer_details.document_details.clone());
 
     CustomerDetails {
         customer_id,
@@ -1432,7 +1451,9 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
-        document_number: customer_document_number,
+        document_details: api_models::customers::CustomerDocumentDetails::to(
+            &customer_document_details,
+        ),
     }
 }
 

@@ -295,6 +295,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_expiry,
             &business_profile,
             request.is_payment_id_from_merchant,
+            payment_method_info.as_ref(),
         )
         .await?;
 
@@ -1076,8 +1077,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
+                    .and_then(|customer| customer.id.as_ref())),
             )?;
         }
 
@@ -1464,6 +1464,7 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
         is_payment_id_from_merchant: bool,
+        payment_method: Option<&hyperswitch_domain_models::payment_methods::PaymentMethod>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1509,20 +1510,53 @@ impl PaymentCreate {
 
         let split_payments = request.split_payments.clone();
 
+        let customer_id_from_request = match (&request.customer_id, &request.customer) {
+            (Some(req_id), Some(customer)) => match customer.id.as_ref() {
+                Some(cust_id) if cust_id == req_id => Some(req_id),
+                Some(_) => {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "customer_id mismatch between customer_id and customer.id"
+                            .to_string(),
+                    }
+                    .into());
+                }
+                None => Some(req_id),
+            },
+            (Some(req_id), None) => Some(req_id),
+            (None, Some(customer)) => customer.id.as_ref(),
+            (None, None) => None,
+        };
+
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
-            && (request.name.is_some()
-                || request.email.is_some()
-                || request.phone.is_some()
-                || request.phone_country_code.is_some())
-        {
+        let raw_customer_details = if let Some(customer_id) = customer_id_from_request {
+            let existing_customer_data = state
+                .store
+                .find_customer_optional_by_customer_id_merchant_id(
+                    customer_id,
+                    platform.get_provider().get_account().get_id(),
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            let customer_document_details = if let Some(pm) = payment_method.as_ref() {
+                pm.payment_method_customer_details
+                    .clone()
+                    .map(|encryptable| encryptable.into_inner())
+            } else {
+                existing_customer_data
+                    .as_ref()
+                    .and_then(|cust| cust.document_details.clone().map(|doc| doc.into_inner()))
+            };
+
             Some(CustomerData {
                 name: request.name.clone(),
-                phone: request.phone.clone(),
                 email: request.email.clone(),
+                phone: request.phone.clone(),
                 phone_country_code: request.phone_country_code.clone(),
                 tax_registration_id: None,
-                customer_document_number: None,
+                customer_document_details,
             })
         } else {
             None

@@ -159,7 +159,7 @@ pub async fn construct_relay_refund_router_data<F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_number: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -302,6 +302,7 @@ pub async fn construct_relay_capture_router_data(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -456,6 +457,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)

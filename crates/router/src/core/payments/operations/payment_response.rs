@@ -193,14 +193,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .connector_mandate_detail
             .as_ref()
             .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
-        let payment_method_customer_details =
-            resp.customer_document_number
-                .clone()
-                .map(|document_number| {
-                    common_types::payment_methods::PaymentMethodCustomerDetails {
-                        customer_document_number: Some(document_number),
-                    }
-                });
+        let payment_method_customer_details = api_models::customers::CustomerDocumentDetails::from(
+            &payment_data
+                .payment_intent
+                .get_customer_document_details()
+                .map_err(|_| {
+                    error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
+                })?,
+        );
 
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
@@ -1292,10 +1292,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         let vault_operation = payment_data.vault_operation.clone();
         let payment_method_info = payment_data.payment_method_info.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
-        let payment_method_customer_details = Some(
-            common_types::payment_methods::PaymentMethodCustomerDetails {
-                customer_document_number: resp.customer_document_number.clone(),
-            },
+        let payment_method_customer_details = api_models::customers::CustomerDocumentDetails::from(
+            &payment_data
+                .payment_intent
+                .get_customer_document_details()
+                .map_err(|_| {
+                    error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
+                })?,
         );
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,

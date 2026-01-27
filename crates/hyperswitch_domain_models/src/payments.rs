@@ -380,9 +380,9 @@ impl PaymentIntent {
         }
     }
 
-    pub fn get_customer_document_number(
+    pub fn get_customer_document_details(
         &self,
-    ) -> Result<Option<Secret<String>>, common_utils::errors::ParsingError> {
+    ) -> Result<Option<Secret<Value>>, common_utils::errors::ParsingError> {
         match &self.customer_details {
             Some(details) => {
                 let decrypted_value = details.clone().into_inner().expose();
@@ -390,13 +390,13 @@ impl PaymentIntent {
                 let customer_data: CustomerData =
                     serde_json::from_value(decrypted_value).map_err(|err| {
                         router_env::logger::error!(
-                            "Failed to parse CustomerData while extracting customer_document_number: {:?}",
+                            "Failed to parse CustomerData while extracting customer_document_details: {:?}",
                             err
                         );
                         common_utils::errors::ParsingError::StructParseFailure("CustomerData")
                     })?;
 
-                Ok(customer_data.customer_document_number)
+                Ok(customer_data.customer_document_details)
             }
             None => Ok(None),
         }

@@ -991,6 +991,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_fingerprint_id,
                 external_vault_source: None,
                 last_modified_by,
+                payment_method_customer_details: None,
             },
         }
     }

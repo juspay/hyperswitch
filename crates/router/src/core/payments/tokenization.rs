@@ -130,9 +130,7 @@ pub async fn save_payment_method<FData>(
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
-    payment_method_customer_details: Option<
-        common_types::payment_methods::PaymentMethodCustomerDetails,
-    >,
+    payment_method_customer_details: Option<api_models::customers::CustomerDocumentDetails>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,

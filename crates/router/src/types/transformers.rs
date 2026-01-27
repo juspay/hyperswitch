@@ -1907,10 +1907,10 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
                 .as_ref()
                 .map(|phone| phone.get_inner().to_owned()),
             phone_country_code: customer.phone_country_code.clone(),
-            customer_document_number: customer
-                .document_number
+            customer_document_details: customer
+                .document_details
                 .as_ref()
-                .map(|doc_num| doc_num.get_inner().to_owned()),
+                .map(|doc_details| doc_details.get_inner().to_owned()),
         }
     }
 }

@@ -1405,7 +1405,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
-            customer_document_number: data.customer_document_number.clone(),
+            customer_document_details: data.customer_document_details.clone(),
         }
     }
 }
@@ -1479,7 +1479,7 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            customer_document_number: None,
+            customer_document_details: None,
         }
     }
 }

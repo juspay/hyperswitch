@@ -140,8 +140,7 @@ pub struct PaymentMethod {
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
     #[encrypt(ty = Value)]
-    pub payment_method_customer_details:
-        Option<Encryptable<common_types::payment_methods::PaymentMethodCustomerDetails>>,
+    pub payment_method_customer_details: Option<Encryptable<customers::CustomerDocumentDetails>>,
 }
 
 impl PaymentMethod {
@@ -1213,7 +1212,7 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                 }),
                 metadata: None,
                 tax_registration_id: None,
-                document_number: None,
+                document_details: None,
             },
             connector_customer_details,
         })

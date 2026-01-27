@@ -8,7 +8,6 @@ use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, Queryable,
 };
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -281,11 +280,4 @@ pub enum AssociatedPaymentMethodTokenType {
 pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
-}
-
-/// Customer details associated with the payment method
-#[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct PaymentMethodCustomerDetails {
-    /// Customer’s country-specific identification number used for regulatory or tax purposes
-    pub customer_document_number: Option<Secret<String>>,
 }

@@ -1511,7 +1511,7 @@ pub struct CustomerDetails {
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, masking::WithType>>,
-    pub document_number: Option<Secret<String, masking::WithType>>,
+    pub document_details: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone)]

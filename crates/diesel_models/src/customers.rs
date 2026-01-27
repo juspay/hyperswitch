@@ -33,7 +33,7 @@ pub struct CustomerNew {
     pub tax_registration_id: Option<Encryption>,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
-    pub document_number: Option<Encryption>,
+    pub document_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -63,7 +63,7 @@ impl From<CustomerNew> for Customer {
             updated_by: customer_new.updated_by,
             version: customer_new.version,
             tax_registration_id: customer_new.tax_registration_id,
-            document_number: customer_new.document_number,
+            document_details: customer_new.document_details,
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
         }
@@ -98,7 +98,7 @@ pub struct CustomerNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
-    pub document_number: Option<Encryption>,
+    pub document_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -125,7 +125,7 @@ impl From<CustomerNew> for Customer {
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
             tax_registration_id: customer_new.tax_registration_id,
-            document_number: customer_new.document_number,
+            document_details: customer_new.document_details,
             merchant_reference_id: customer_new.merchant_reference_id,
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
@@ -163,7 +163,7 @@ pub struct Customer {
     pub tax_registration_id: Option<Encryption>,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
-    pub document_number: Option<Encryption>,
+    pub document_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -188,7 +188,7 @@ pub struct Customer {
     pub tax_registration_id: Option<Encryption>,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
-    pub document_number: Option<Encryption>,
+    pub document_details: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -217,7 +217,7 @@ pub struct CustomerUpdateInternal {
     pub updated_by: Option<String>,
     pub tax_registration_id: Option<Encryption>,
     pub last_modified_by: Option<String>,
-    pub document_number: Option<Encryption>,
+    pub document_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -234,7 +234,7 @@ impl CustomerUpdateInternal {
             address_id,
             default_payment_method_id,
             tax_registration_id,
-            document_number,
+            document_details,
             last_modified_by,
             ..
         } = self;
@@ -253,7 +253,7 @@ impl CustomerUpdateInternal {
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
             tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
-            document_number: document_number.map_or(source.document_number, Some),
+            document_details: document_details.map_or(source.document_details, Some),
             last_modified_by: last_modified_by.or(source.last_modified_by),
             ..source
         }
@@ -281,7 +281,7 @@ pub struct CustomerUpdateInternal {
     pub status: Option<DeleteStatus>,
     pub tax_registration_id: Option<Encryption>,
     pub last_modified_by: Option<String>,
-    pub document_number: Option<Encryption>,
+    pub document_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -300,7 +300,7 @@ impl CustomerUpdateInternal {
             default_shipping_address,
             status,
             tax_registration_id,
-            document_number,
+            document_details,
             last_modified_by,
             ..
         } = self;
@@ -323,7 +323,7 @@ impl CustomerUpdateInternal {
                 .map_or(source.default_shipping_address, Some),
             status: status.unwrap_or(source.status),
             tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
-            document_number: document_number.map_or(source.document_number, Some),
+            document_details: document_details.map_or(source.document_details, Some),
             last_modified_by: last_modified_by.or(source.last_modified_by),
             ..source
         }

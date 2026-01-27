@@ -103,7 +103,13 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
         let payer = Payer {
             name,
             email,
-            document: item.router_data.get_customer_document_number()?,
+            document: item
+                .router_data
+                .get_customer_document_details()?
+                .and_then(|details| details.document_number)
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer.document_number",
+                })?,
         };
         let order_id = item.router_data.connector_request_reference_id.clone();
         let callback_url = item.router_data.request.get_router_return_url()?;
