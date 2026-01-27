@@ -7471,6 +7471,7 @@ pub fn override_upi_source_in_additional_payment_data(
             UpiAdditionalData::UpiIntent(_) => {
                 UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
                     upi_source,
+                    app_name: None,
                 }))
             }
             UpiAdditionalData::UpiQr(_) => {

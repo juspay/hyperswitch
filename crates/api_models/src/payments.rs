@@ -4680,6 +4680,8 @@ pub struct UpiIntentData {
     #[schema(value_type = Option<UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
+    /// App name for UPI intent payment
+    pub app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

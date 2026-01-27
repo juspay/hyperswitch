@@ -670,7 +670,7 @@ pub fn build_unified_connector_service_payment_method(
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(upi_intent_data) => {
                     let upi_details = payments_grpc::UpiIntent {
-                        app_name: None,
+                        app_name: upi_intent_data.app_name,
                         upi_source: upi_intent_data
                             .upi_source
                             .map(payments_grpc::UpiSource::foreign_try_from)
