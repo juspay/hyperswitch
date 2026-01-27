@@ -5889,18 +5889,14 @@ pub fn get_debit_routing_savings_amount(
 }
 
 #[cfg(all(feature = "retry", feature = "v1"))]
-pub async fn get_apple_pay_retryable_connectors<F, D>(
+pub async fn get_apple_pay_retryable_connectors(
     state: &SessionState,
     platform: &domain::Platform,
-    payment_data: &D,
+    creds_identifier: Option<&str>,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::Profile,
-) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + Send,
-{
+) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse> {
     let profile_id = business_profile.get_id();
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
@@ -5910,7 +5906,7 @@ where
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
         platform.get_processor().get_account().get_id(),
-        payment_data.get_creds_identifier(),
+        creds_identifier,
         platform.get_processor().get_key_store(),
         profile_id,
         &pre_decided_connector_data_first
