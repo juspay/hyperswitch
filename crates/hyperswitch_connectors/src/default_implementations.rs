@@ -1400,7 +1400,17 @@ macro_rules! default_imp_for_cancel_post_capture_sync {
             PaymentsCancelPostCaptureSyncData,
             PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+             fn build_request(
+                &self,
+                _req: &hyperswitch_domain_models::types::PaymentsCancelPostCaptureSyncRouterData,
+                _connectors: &hyperswitch_interfaces::configs::Connectors
+            ) -> CustomResult<Option<common_utils::request::Request>, hyperswitch_interfaces::errors::ConnectorError> {
+                Err(hyperswitch_interfaces::errors::ConnectorError::NotImplemented(
+                    "Cancel post capture not implemented for this connector".to_string(),
+                ).into())
+            }
+        }
     )*
     };
 }

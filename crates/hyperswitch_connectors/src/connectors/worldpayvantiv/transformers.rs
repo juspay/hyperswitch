@@ -560,7 +560,7 @@ impl<F>
             .payment_detail
             .as_ref()
             .and_then(|detail| detail.response_reason_message.clone())
-            .filter(|_| connector_utils::is_post_capture_void_failure(post_capture_void_status));
+            .filter(|_| connector_utils::is_post_capture_void_failure(status));
 
         Ok(Self {
             response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
