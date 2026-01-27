@@ -2765,12 +2765,12 @@ pub async fn list_payment_methods(
     let payment_attempt = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &pi.payment_id,
-                &pi.merchant_id,
+                &pi.processor_merchant_id,
                 &pi.active_attempt.get_id(),
-                platform.get_provider().get_account().storage_scheme,
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -4585,12 +4585,12 @@ async fn perform_surcharge_ops(
         .async_map(|payment_intent| async {
             state
                 .store
-                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     payment_intent.get_id(),
-                    platform.get_provider().get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_provider().get_account().storage_scheme,
-                    platform.get_provider().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
