@@ -3603,6 +3603,11 @@ pub struct PaymentMethodSessionResponse {
     /// Card CVC token storage details
     #[schema(value_type = Option<CardCVCTokenStorageDetails>)]
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+
+    /// payment method data to be sent in session response
+    #[schema(value_type = Option<PaymentMethodResponseData>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_data: Option<PaymentMethodResponseData>,
 }
 
 #[cfg(feature = "v2")]
