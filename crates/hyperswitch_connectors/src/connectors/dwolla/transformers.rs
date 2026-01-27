@@ -338,6 +338,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                         network_txn_id: None,
                         connector_response_reference_id: Some(payment_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     status: AttemptStatus::from(status),
@@ -356,6 +357,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                         network_txn_id: None,
                         connector_response_reference_id: Some(payment_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     status: AttemptStatus::from(map_topic_to_status(

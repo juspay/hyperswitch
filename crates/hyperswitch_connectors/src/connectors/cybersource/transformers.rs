@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        ResponseId, SetupMandateRequestData,
+        ResponseId, SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -359,6 +359,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -1062,7 +1063,9 @@ impl
                         }),
                     )
                 }
-                None => (None, None, None),
+                Some(payments::MandateReferenceId::CardWithLimitedData) | None => {
+                    (None, None, None)
+                }
             }
         } else {
             (
@@ -2624,6 +2627,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2754,6 +2758,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2819,6 +2824,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3264,6 +3270,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed,
+                authentication_data: None,
                 charges: None,
             })
         }
@@ -3347,6 +3354,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -3497,6 +3505,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3639,6 +3648,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3761,6 +3771,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3837,6 +3848,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3869,6 +3881,29 @@ pub struct CybersourceConsumerAuthValidateResponse {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
+}
+
+impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(
+        value: &CybersourceConsumerAuthValidateResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: value.indicator.clone(),
+            cavv: value.cavv.clone(),
+            threeds_server_transaction_id: None,
+            message_version: value.specification_version.clone(),
+            ds_trans_id: value
+                .directory_server_transaction_id
+                .as_ref()
+                .map(|id| id.clone().expose()),
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: value.xid.clone(),
+            ucaf_collection_indicator: value.ucaf_collection_indicator.clone(),
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -3967,12 +4002,15 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -3985,6 +4023,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4222,6 +4261,7 @@ impl
                     incremental_authorization_allowed: Some(
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
+                    authentication_data: None,
                     charges: None,
                 }),
             },
@@ -4331,6 +4371,7 @@ impl<F>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -4443,12 +4484,15 @@ impl<F>
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4461,6 +4505,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4575,12 +4620,15 @@ impl<F>
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4593,6 +4641,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4689,6 +4738,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -4705,6 +4755,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data

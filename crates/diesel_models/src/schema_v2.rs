@@ -431,6 +431,8 @@ diesel::table! {
         status -> Nullable<DeleteStatus>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Nullable<Varchar>,
     }
 }
 

@@ -118,14 +118,22 @@ impl OrganizationInterface for super::MockDb {
                     organization_name,
                     organization_details,
                     metadata,
-                    platform_merchant_id,
                 } => {
                     organization_name
                         .as_ref()
                         .map(|org_name| org.set_organization_name(org_name.to_owned()));
                     organization_details.clone_into(&mut org.organization_details);
                     metadata.clone_into(&mut org.metadata);
-                    platform_merchant_id.clone_into(&mut org.platform_merchant_id);
+                    org
+                }
+                storage::OrganizationUpdate::ConvertToPlatform => {
+                    org.organization_type = Some(common_enums::OrganizationType::Platform);
+                    org
+                }
+                storage::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id,
+                } => {
+                    org.platform_merchant_id = Some(platform_merchant_id.clone());
                     org
                 }
             })

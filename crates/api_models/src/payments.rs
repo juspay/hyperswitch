@@ -2021,6 +2021,10 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     #[smithy(value_type = "Option<String>")]
     pub client_version: Option<String>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2332,6 +2336,7 @@ pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+    CardWithLimitedData, // indicates the recurring transaction is done by card data only
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
