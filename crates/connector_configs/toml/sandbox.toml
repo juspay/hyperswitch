@@ -7186,6 +7186,48 @@ payment_method_type = "upi_intent"
 api_key="Signing key"
 api_secret="website name"
 key1="merchant_id"
+
+[hyperpg]
+[[hyperpg.credit]]
+payment_method_type = "Mastercard"
+[[hyperpg.credit]]
+payment_method_type = "Visa"
+[[hyperpg.credit]]
+payment_method_type = "Interac"
+[[hyperpg.credit]]
+payment_method_type = "AmericanExpress"
+[[hyperpg.credit]]
+payment_method_type = "JCB"
+[[hyperpg.credit]]
+payment_method_type = "DinersClub"
+[[hyperpg.credit]]
+payment_method_type = "Discover"
+[[hyperpg.credit]]
+payment_method_type = "CartesBancaires"
+[[hyperpg.credit]]
+payment_method_type = "UnionPay"
+[[hyperpg.debit]]
+payment_method_type = "Mastercard"
+[[hyperpg.debit]]
+payment_method_type = "Visa"
+[[hyperpg.debit]]
+payment_method_type = "Interac"
+[[hyperpg.debit]]
+payment_method_type = "AmericanExpress"
+[[hyperpg.debit]]
+payment_method_type = "JCB"
+[[hyperpg.debit]]
+payment_method_type = "DinersClub"
+[[hyperpg.debit]]
+payment_method_type = "Discover"
+[[hyperpg.debit]]
+payment_method_type = "CartesBancaires"
+[[hyperpg.debit]]
+payment_method_type = "UnionPay"
+[hyperpg.connector_auth.BodyKey]
+api_key="Username"
+key1="Password"
+
 [calida]
 [[calida.wallet]]
   payment_method_type = "bluecode"
