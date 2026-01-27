@@ -600,9 +600,30 @@ impl TransactionType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NuveiRedirectionResponse {
+#[serde(untagged)]
+pub enum NuveiRedirectionResponse {
+    Redirection(NuveiCresRedirectResponse),
+    Error(NuveiErrorRedirectResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiCresRedirectResponse {
     pub cres: Secret<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiErrorRedirectResponse {
+    pub error: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiErrorResponse {
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub error_detail: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiACSResponse {
@@ -2287,6 +2308,7 @@ fn create_transaction_response(
             .map(|ntid| ntid.clone().expose()),
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     })
 }
