@@ -97,6 +97,7 @@ pub struct CustomerNew {
     pub id: common_utils::id_type::GlobalCustomerId,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub document_number: Option<Encryption>,
 }
 
@@ -133,6 +134,7 @@ impl From<CustomerNew> for Customer {
             status: customer_new.status,
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
+            customer_id: customer_new.customer_id,
         }
     }
 }
@@ -193,6 +195,7 @@ pub struct Customer {
     #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
     pub status: DeleteStatus,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
 #[cfg(feature = "v1")]

@@ -360,12 +360,19 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum RecommendedAction {
     DoNotRetry,
+    #[serde(rename = "retry_after_10_days")]
     RetryAfter10Days,
+    #[serde(rename = "retry_after_1_hour")]
     RetryAfter1Hour,
+    #[serde(rename = "retry_after_24_hours")]
     RetryAfter24Hours,
+    #[serde(rename = "retry_after_2_days")]
     RetryAfter2Days,
+    #[serde(rename = "retry_after_4_days")]
     RetryAfter4Days,
+    #[serde(rename = "retry_after_6_days")]
     RetryAfter6Days,
+    #[serde(rename = "retry_after_8_days")]
     RetryAfter8Days,
     RetryAfterInstrumentUpdate,
     RetryLater,
@@ -2328,6 +2335,7 @@ pub enum PaymentMethodType {
     Przelewy24,
     PromptPay,
     Pse,
+    Qris,
     RedCompra,
     RedPagos,
     SamsungPay,
@@ -2430,6 +2438,7 @@ impl PaymentMethodType {
             Self::InstantBankTransfer => "Instant Bank Transfer",
             Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
             Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
+            Self::Qris => "QRIS",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -2874,6 +2883,12 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
+impl RefundStatus {
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Success)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2919,6 +2934,7 @@ pub enum RelayStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
     Refund,
+    Capture,
 }
 
 #[derive(
@@ -9608,6 +9624,41 @@ impl From<RelayStatus> for RefundStatus {
     }
 }
 
+impl From<AttemptStatus> for RelayStatus {
+    fn from(refund_status: AttemptStatus) -> Self {
+        match refund_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -9738,6 +9789,36 @@ impl ErrorCategory {
             | Self::SoftDecline => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[allow(non_camel_case_types)]
+pub enum UnifiedCode {
+    /// Customer Error - Issue with payment method details
+    UE_1000,
+    /// Connector Declines - Issue with Configurations
+    UE_2000,
+    /// Connector Error - Technical issue with PSP
+    UE_3000,
+    /// Integration Error - Issue in the integration
+    UE_4000,
+    /// Others - Something went wrong
+    UE_9000,
 }
 
 #[derive(
@@ -10446,4 +10527,12 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
 }

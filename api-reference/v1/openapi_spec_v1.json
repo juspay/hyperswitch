@@ -9065,6 +9065,51 @@
           }
         }
       },
+      "ApiConnectorErrorDetails": {
+        "type": "object",
+        "description": "Error details from the payment connector",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Connector-specific error code",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Connector-specific error message",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "description": "Additional error reason/details",
+            "nullable": true
+          }
+        }
+      },
+      "ApiIssuerErrorDetails": {
+        "type": "object",
+        "description": "Error details from the card issuer",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Error code from the issuer",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message from the issuer",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiNetworkErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ApiKeyExpiration": {
         "oneOf": [
           {
@@ -9078,6 +9123,75 @@
             "format": "date-time"
           }
         ]
+      },
+      "ApiNetworkErrorDetails": {
+        "type": "object",
+        "description": "Network-specific error details (e.g., Visa, Mastercard)",
+        "properties": {
+          "name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "advice_code": {
+            "type": "string",
+            "description": "Network advice code",
+            "nullable": true
+          },
+          "advice_message": {
+            "type": "string",
+            "description": "Network advice message",
+            "nullable": true
+          }
+        }
+      },
+      "ApiUnifiedErrorDetails": {
+        "type": "object",
+        "description": "Unified error details standardized across all payment connectors",
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnifiedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the error",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "User-friendly guidance message",
+            "nullable": true
+          },
+          "recommended_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecommendedAction"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ApplePayAddressParameters": {
         "type": "string",
@@ -11273,6 +11387,33 @@
                     "type": "string",
                     "description": "holder name for bank debit",
                     "example": "A. Schneider"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
                   }
                 }
               }
@@ -14165,6 +14306,42 @@
           "credit",
           "debit"
         ]
+      },
+      "CardWithLimitedData": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
       },
       "CartesBancairesParams": {
         "type": "object",
@@ -17415,7 +17592,8 @@
           "connector",
           "connector_status",
           "connector_dispute_id",
-          "created_at"
+          "created_at",
+          "is_already_refunded"
         ],
         "properties": {
           "dispute_id": {
@@ -17496,6 +17674,10 @@
             "type": "string",
             "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
             "nullable": true
+          },
+          "is_already_refunded": {
+            "type": "boolean",
+            "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
           }
         }
       },
@@ -17503,6 +17685,7 @@
         "type": "object",
         "required": [
           "dispute_id",
+          "amount",
           "dispute_stage",
           "dispute_status",
           "connector_status",
@@ -17513,6 +17696,9 @@
           "dispute_id": {
             "type": "string",
             "description": "The identifier for dispute"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
@@ -21026,7 +21212,7 @@
           "merchant_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantAccountRequestType"
+                "$ref": "#/components/schemas/MerchantAccountType"
               }
             ],
             "nullable": true
@@ -22205,6 +22391,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ConnectorWalletDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "webhook_setup_capabilities": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSetupCapabilities"
               }
             ],
             "nullable": true
@@ -24594,6 +24788,14 @@
             "type": "string",
             "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24755,6 +24957,36 @@
           "payment_method_id": {
             "type": "string",
             "example": "pm_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentErrorDetails": {
+        "type": "object",
+        "description": "Complete error details for V1 PaymentsResponse containing unified, issuer, and connector-level error information.",
+        "properties": {
+          "unified_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiUnifiedErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiIssuerErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiConnectorErrorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -25689,6 +25921,17 @@
                 "$ref": "#/components/schemas/CardDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
           }
         ]
       },
@@ -26550,6 +26793,7 @@
           "przelewy24",
           "prompt_pay",
           "pse",
+          "qris",
           "red_compra",
           "red_pagos",
           "samsung_pay",
@@ -26889,6 +27133,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
               }
             ],
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -28320,6 +28569,14 @@
             "type": "string",
             "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_experience": {
@@ -29925,6 +30182,14 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_experience": {
@@ -33983,6 +34248,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "qris"
+            ],
+            "properties": {
+              "qris": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -34025,6 +34301,23 @@
             "nullable": true
           }
         }
+      },
+      "RecommendedAction": {
+        "type": "string",
+        "enum": [
+          "do_not_retry",
+          "retry_after_10_days",
+          "retry_after_1_hour",
+          "retry_after_24_hours",
+          "retry_after_2_days",
+          "retry_after_4_days",
+          "retry_after_6_days",
+          "retry_after_8_days",
+          "retry_after_instrument_update",
+          "retry_later",
+          "retry_with_different_payment_method_data",
+          "stop_recurring"
+        ]
       },
       "ReconStatus": {
         "type": "string",
@@ -34124,6 +34417,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_with_limited_data"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/CardWithLimitedData"
               }
             }
           }
@@ -34506,6 +34817,31 @@
           "schedule_refund"
         ]
       },
+      "RelayCaptureRequestData": {
+        "type": "object",
+        "required": [
+          "authorized_amount",
+          "amount_to_capture",
+          "currency"
+        ],
+        "properties": {
+          "authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is authorized for capture",
+            "example": 6540
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being captured",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -34516,6 +34852,17 @@
             "properties": {
               "refund": {
                 "$ref": "#/components/schemas/RelayRefundRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capture"
+            ],
+            "properties": {
+              "capture": {
+                "$ref": "#/components/schemas/RelayCaptureRequestData"
               }
             }
           }
@@ -34667,7 +35014,8 @@
       "RelayType": {
         "type": "string",
         "enum": [
-          "refund"
+          "refund",
+          "capture"
         ]
       },
       "RequestPaymentMethodTypes": {
@@ -37700,6 +38048,16 @@
           "delete"
         ]
       },
+      "UnifiedCode": {
+        "type": "string",
+        "enum": [
+          "UE_1000",
+          "UE_2000",
+          "UE_3000",
+          "UE_4000",
+          "UE_9000"
+        ]
+      },
       "UnpaidInvoicesHandling": {
         "type": "string",
         "enum": [
@@ -37832,6 +38190,14 @@
             "description": "Masked VPA ID",
             "example": "ab********@okhdfcbank",
             "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -37840,7 +38206,16 @@
         "properties": {
           "vpa_id": {
             "type": "string",
+            "description": "The Virtual Payment Address (VPA) for UPI collect payment",
             "example": "successtest@iata",
+            "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
             "nullable": true
           }
         }
@@ -37883,10 +38258,30 @@
         ]
       },
       "UpiIntentData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiQrData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiResponse": {
         "allOf": [
@@ -37901,6 +38296,16 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "UpiSource": {
+        "type": "string",
+        "description": "The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.",
+        "enum": [
+          "UPI_CC",
+          "UPI_CL",
+          "UPI_ACCOUNT",
+          "UPI_CC_CL"
         ]
       },
       "ValueType": {
@@ -38868,6 +39273,34 @@
       "WeChatPayRedirection": {
         "type": "object"
       },
+      "WebhookConfigType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Standard webhook configuration supporting all events hyperswitch provides",
+            "enum": [
+              "Standard"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "CustomEvents"
+            ],
+            "properties": {
+              "CustomEvents": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/EventType"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Enum to represent the type of webhook configuration"
+      },
       "WebhookDeliveryAttempt": {
         "type": "string",
         "enum": [
@@ -38966,6 +39399,32 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookSetupCapabilities": {
+        "type": "object",
+        "description": "Connector details for webhook configuration via hyperswitch API",
+        "required": [
+          "is_webhook_auto_configuration_supported"
+        ],
+        "properties": {
+          "is_webhook_auto_configuration_supported": {
+            "type": "boolean",
+            "description": "Indicates if the connector supports webhooks configuration via API"
+          },
+          "requires_webhook_secret": {
+            "type": "boolean",
+            "description": "Indicates whether a webhook secret must be collected from the merchant for verification",
+            "nullable": true
+          },
+          "config_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookConfigType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "XenditChargeResponseData": {
         "oneOf": [

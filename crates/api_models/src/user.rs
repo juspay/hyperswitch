@@ -18,6 +18,7 @@ pub struct SignUpWithMerchantIdRequest {
     pub email: pii::Email,
     pub password: Secret<String>,
     pub company_name: String,
+    pub organization_type: Option<common_enums::OrganizationType>,
 }
 
 pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
@@ -469,4 +470,17 @@ pub struct UserMerchantAccountResponse {
 pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
     pub profile_id: id_type::ProfileId,
     pub profile_name: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct IssueEmbeddedTokenResponse {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct EmbeddedTokenInfoResponse {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_account_version: common_enums::ApiVersion,
+    pub profile_id: id_type::ProfileId,
 }

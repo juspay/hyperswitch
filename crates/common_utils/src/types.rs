@@ -1443,6 +1443,11 @@ impl_enum_str!(
             /// user id of creator.
             user_id: String,
         },
+        /// EmbeddedToken variant
+        EmbeddedToken {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
     }
 );
 

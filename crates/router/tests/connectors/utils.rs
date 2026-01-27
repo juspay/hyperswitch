@@ -1135,6 +1135,8 @@ impl Default for CustomerType {
             setup_future_usage: None,
             customer_id: None,
             billing_address: None,
+            currency: None,
+            metadata: None,
         };
         Self(data)
     }
@@ -1195,6 +1197,7 @@ pub fn get_connector_metadata(
             network_txn_id: _,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            authentication_data: None,
             charges: _,
         }) => connector_metadata,
         _ => None,

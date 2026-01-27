@@ -283,7 +283,8 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            id: self.id,
+            id: self.id.clone(),
+            customer_id: Some(self.id),
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
@@ -384,7 +385,7 @@ impl behaviour::Conversion for Customer {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: self.id,
+            id: self.id.clone(),
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
@@ -409,6 +410,7 @@ impl behaviour::Conversion for Customer {
                 .as_ref()
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
+            customer_id: Some(self.id),
         })
     }
 }

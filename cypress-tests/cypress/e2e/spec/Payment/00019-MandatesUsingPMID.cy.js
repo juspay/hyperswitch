@@ -71,7 +71,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -94,7 +94,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -162,7 +162,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -185,7 +185,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -225,7 +225,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -248,7 +248,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -271,7 +271,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["MITAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -322,7 +322,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT 1", () => {
@@ -359,7 +359,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -393,7 +393,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -497,7 +497,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -583,7 +583,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Confirm No 3DS MIT", () => {

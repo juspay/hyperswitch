@@ -1,3 +1,5 @@
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder};
+
 use crate::routes;
 
 #[derive(utoipa::OpenApi)]
@@ -391,6 +393,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::GsmDecision,
         api_models::enums::GsmFeature,
         api_models::enums::StandardisedCode,
+        api_models::enums::UnifiedCode,
         common_types::domain::GsmFeatureData,
         common_types::domain::RetryFeatureData,
         api_models::payments::NullObject,
@@ -421,6 +424,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
         api_models::payments::UpiData,
+        api_models::payments::UpiSource,
         api_models::payments::UpiCollectData,
         api_models::payments::UpiIntentData,
         api_models::payments::UpiQrData,
@@ -566,6 +570,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
         api_models::mandates::NetworkTransactionIdAndCardDetails,
+        api_models::mandates::CardWithLimitedData,
         api_models::mandates::NetworkTransactionIdAndNetworkTokenDetails,
         api_models::payments::GooglePaySessionResponse,
         api_models::payments::GpayShippingAddressParameters,
@@ -884,34 +889,31 @@ impl utoipa::Modify for SecurityAddon {
                 (
                     "api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
+                        "Authorization",
+                        "Format: `api-key=<api_key>`\n\nUse the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
                     ))),
                 ),
                 (
                     "admin_api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Admin API keys allow you to perform some privileged actions such as \
-                        creating a merchant account and Connector account."
+                        "Authorization",
+                        "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as \
+                        creating a merchant account and Connector account. This is only used during development."
                     ))),
                 ),
                 (
-                    "publishable_key",
+                    "publishable_key__client_secret",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Publishable keys are a type of keys that can be public and have limited \
-                        scope of usage."
+                        "Authorization",
+                        "Format: `publishable-key=<publishable-key>,client-secret=<client-secret>`\n\nPublishable keys are a type of keys that can be public and have limited \
+                        scope of usage. Client Secret provide temporary access to singular data, such as access to a single customer object for a short period of time. This authentication \
+                        scheme is used by the SDK."
                     ))),
                 ),
                 (
-                    "ephemeral_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Ephemeral keys provide temporary access to singular data, such as access \
-                        to a single customer object for a short period of time."
-                    ))),
-                ),
+                    "jwt_key",
+                    SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build())
+                )
             ]);
         }
     }
