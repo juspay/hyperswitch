@@ -4425,6 +4425,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio 1.48.0",
+ "url",
 ]
 
 [[package]]
@@ -6136,6 +6137,7 @@ dependencies = [
  "serde_json",
  "storage_impl",
  "thiserror 1.0.69",
+ "url",
 ]
 
 [[package]]

@@ -94,7 +94,7 @@ where
 {
     let merchant_connector_account = payments::construct_profile_id_and_get_mca(
         state,
-        platform,
+        platform.get_processor(),
         payment_data,
         &frm_data.connector_details.connector_name,
         None,
@@ -776,7 +776,7 @@ pub async fn frm_fulfillment_core(
 ) -> RouterResponse<frm_types::FraudCheckResponseData> {
     let db = &*state.clone().store;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &req.payment_id.clone(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -837,7 +837,7 @@ pub async fn make_fulfillment_api_call(
     req: frm_core_types::FrmFulfillmentRequest,
 ) -> RouterResponse<frm_types::FraudCheckResponseData> {
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,

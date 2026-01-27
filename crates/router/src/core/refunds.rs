@@ -59,14 +59,14 @@ pub async fn refund_create_core(
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
-    let (merchant_id, payment_intent, payment_attempt, amount);
+    let (processor_merchant_id, payment_intent, payment_attempt, amount);
 
-    merchant_id = platform.get_processor().get_account().get_id();
+    processor_merchant_id = platform.get_processor().get_account().get_id();
 
     payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &req.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -111,9 +111,9 @@ pub async fn refund_create_core(
     })?;
 
     payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
             &req.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store()
         ).await
@@ -194,9 +194,8 @@ pub async fn trigger_refund_to_gateway(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         creds_identifier.as_deref(),
-        platform.get_processor().get_key_store(),
         profile_id,
         &routed_through,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -694,13 +693,13 @@ pub async fn refund_retrieve_core(
     refund: diesel_refund::Refund,
 ) -> RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let db = &*state.store;
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
     let payment_id = &refund.payment_id;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -708,10 +707,10 @@ pub async fn refund_retrieve_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+        .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
             &refund.connector_transaction_id,
             payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -840,9 +839,8 @@ pub async fn sync_refund_with_gateway(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         creds_identifier.as_deref(),
-        platform.get_processor().get_key_store(),
         profile_id,
         &connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -2057,7 +2055,7 @@ pub async fn trigger_refund_execute_workflow(
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
             let payment_attempt = db
-                .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+                .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
                     &refund.connector_transaction_id,
                     &refund_core.payment_id,
                     &refund.merchant_id,
@@ -2068,7 +2066,7 @@ pub async fn trigger_refund_execute_workflow(
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let payment_intent = db
-                .find_payment_intent_by_payment_id_merchant_id(
+                .find_payment_intent_by_payment_id_processor_merchant_id(
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
                     &key_store,

@@ -606,11 +606,17 @@ where
             self.allow_platform_self_operation,
         )?;
 
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
+
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -703,11 +709,17 @@ where
             self.allow_platform_self_operation,
         )?;
 
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
+
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store.clone(),
+            initiator,
         )
         .await?;
 
@@ -1339,7 +1351,19 @@ where
         allow_platform_self_operation,
     )?;
 
-    let platform = resolve_platform(state, request_headers, initiator_merchant, key_store).await?;
+    let initiator = Some(domain::Initiator::Api {
+        merchant_id: initiator_merchant.get_id().clone(),
+        merchant_account_type: initiator_merchant.merchant_account_type,
+    });
+
+    let platform = resolve_platform(
+        state,
+        request_headers,
+        initiator_merchant,
+        key_store,
+        initiator,
+    )
+    .await?;
 
     let profile = match profile_id {
         Some(profile_id) => {
@@ -2355,13 +2379,8 @@ where
             merchant_account_type: merchant.merchant_account_type,
         });
 
-        let platform = domain::Platform::new(
-            merchant.clone(),
-            key_store.clone(),
-            merchant,
-            key_store,
-            initiator,
-        );
+        let platform =
+            resolve_platform(state, request_headers, merchant, key_store, initiator).await?;
 
         let auth = AuthenticationData {
             platform,
@@ -2766,11 +2785,17 @@ where
             self.allow_platform_self_operation,
         )?;
 
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
+
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -2995,11 +3020,17 @@ where
             self.allow_platform_self_operation,
         )?;
 
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
+
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -3049,11 +3080,17 @@ where
             self.allow_platform_self_operation,
         )?;
 
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+        });
+
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -3399,13 +3436,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3526,13 +3564,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
 
@@ -3699,13 +3738,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3776,13 +3816,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -3918,13 +3959,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4006,13 +4048,14 @@ where
         });
 
         // If both of them are same then proceed with the profile id present in the request
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4080,13 +4123,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -4182,13 +4226,15 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
+
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
@@ -4248,6 +4294,7 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
@@ -4259,13 +4306,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -4333,13 +4381,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
@@ -4486,13 +4535,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4586,13 +4636,14 @@ where
             })
         };
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -5269,6 +5320,7 @@ async fn resolve_platform<A>(
     request_headers: &HeaderMap,
     initiator_merchant_account: domain::MerchantAccount,
     initiator_merchant_key_store: domain::MerchantKeyStore,
+    initiator: Option<domain::Initiator>,
 ) -> RouterResult<domain::Platform>
 where
     A: SessionStateInfo + Sync,
@@ -5359,11 +5411,6 @@ where
                 )
             }
         };
-
-    let initiator = Some(domain::Initiator::Api {
-        merchant_id: initiator_merchant_account.get_id().clone(),
-        merchant_account_type: initiator_merchant_account.merchant_account_type,
-    });
 
     let platform = match platform_account_with_key_store {
         Some(platform_account) => domain::Platform::new(
