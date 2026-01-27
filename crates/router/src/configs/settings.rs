@@ -40,6 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -173,7 +174,6 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
-    pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
@@ -183,6 +183,8 @@ pub struct Settings<S: SecretState> {
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
+    #[serde(default)]
+    pub micro_services: MicroServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
@@ -193,18 +195,6 @@ pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
     pub unsupported_payment_methods:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct PreProcessingFlowConfig {
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub authentication_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub order_create_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub balance_check_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub settlement_split_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

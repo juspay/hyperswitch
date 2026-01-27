@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils,
+    utils::{self, PaymentsAuthorizeRequestData},
 };
 
 pub struct PayjustnowinstoreRouterData<T> {
@@ -121,9 +121,11 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
                 .merchant_order_reference_id
                 .clone()
                 .unwrap_or(item.router_data.payment_id.clone()),
-            // callback_url is a required field but we don't listen to callbacks.
-            // PJN In-Store requires the value to be exactly "n/a"; any other placeholder will cause the payment to auto-refund.
-            callback_url: "n/a".to_string(),
+            callback_url: item
+                .router_data
+                .request
+                .get_optional_webhook_url()
+                .unwrap_or("n/a".to_string()),
             items,
         })
     }
@@ -364,4 +366,23 @@ impl TryFrom<RefundsResponseRouterData<Execute, PayjustnowinstoreRefundResponse>
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayjustnowinstoreErrorResponse {
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayjustnowinstoreWebhookStatus {
+    Pending,
+    Paid,
+    PaymentFailed,
+    OrderCancelled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayjustnowinstoreWebhookDetails {
+    pub merchant_reference: String,
+    pub token: String,
+    pub payment_status: PayjustnowinstoreWebhookStatus,
+    pub amount: MinorUnit,
+    pub reason: String,
+    pub paid_at: String,
 }
