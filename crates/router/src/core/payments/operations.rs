@@ -731,7 +731,8 @@ where
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
             Some(customer_id) => {
-                db.find_customer_optional_by_customer_id_merchant_id(
+                // Using this function because we should not fail PaymentsCapture if customer is redacted
+                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -846,7 +847,8 @@ where
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
             Some(customer_id) => {
-                db.find_customer_optional_by_customer_id_merchant_id(
+                // Using this function because we should not fail PaymentsCancel if customer is redacted
+                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
