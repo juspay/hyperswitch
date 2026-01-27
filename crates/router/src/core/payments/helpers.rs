@@ -74,7 +74,9 @@ use crate::core::{
     utils as core_utils,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
+    configs::settings::{
+        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
+    },
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -7058,7 +7060,59 @@ pub fn validate_payment_link_request(
     Ok(())
 }
 
+/// Creates a lookup key for issuer error codes with network and code
+/// Returns format: "Network:{network}|IssuerCode:{code:0>2}"
+fn create_issuer_code_lookup_key(network: &common_enums::CardNetwork, issuer_code: &str) -> String {
+    format!("Network:{}|IssuerCode:{:0>2}", network, issuer_code)
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn get_gsm_record(
+    state: &SessionState,
+    connector_name: String,
+    flow: &str,
+    sub_flow: &str,
+    connector_error_code: Option<String>,
+    connector_error_message: Option<String>,
+    issuer_error_code: Option<String>,
+    card_network: Option<common_enums::CardNetwork>,
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
+    // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
+    let issuer_result =
+        if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
+            let issuer_lookup_key = create_issuer_code_lookup_key(network, issuer_code);
+            perform_gsm_lookup(
+                state,
+                Some(issuer_lookup_key.clone()),
+                Some(issuer_lookup_key),
+                connector_name.clone(),
+                flow,
+                sub_flow,
+            )
+            .await
+        } else {
+            None
+        };
+
+    match issuer_result {
+        Some(result) => Some(result),
+        None => {
+            // Priority 2: Fallback to connector_error_code lookup
+            perform_gsm_lookup(
+                state,
+                connector_error_code,
+                connector_error_message,
+                connector_name,
+                flow,
+                sub_flow,
+            )
+            .await
+        }
+    }
+}
+
+/// Perform GSM lookup with the given error code and message.
+async fn perform_gsm_lookup(
     state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
@@ -7136,6 +7190,7 @@ pub async fn get_unified_translation(
         })
         .ok()
 }
+
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: MinorUnit,
@@ -8370,5 +8425,35 @@ where
             .profile_id
             .as_ref()
             .map(|profile_id| format!("{}_{}", connector_name, profile_id.get_string_repr()))
+    }
+}
+
+/// Lookup recommended action from merchant advice codes configuration.
+pub fn get_merchant_advice_code_recommended_action(
+    config: &MerchantAdviceCodeLookupConfig,
+    off_session: Option<bool>,
+    network: Option<&common_enums::CardNetwork>,
+    advice_code: Option<&str>,
+) -> Option<common_enums::RecommendedAction> {
+    match (off_session, network, advice_code) {
+        (Some(true), Some(network), Some(advice_code)) => config
+            .get_config(network, advice_code)
+            .map(|config| config.recommended_action)
+            .or_else(|| {
+                metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
+                    1,
+                    router_env::metric_attributes!(
+                        ("network", network.to_string()),
+                        ("advice_code", advice_code.to_owned()),
+                    ),
+                );
+                logger::warn!(
+                    network = %network,
+                    advice_code = %advice_code,
+                    "No merchant advice code config found"
+                );
+                None
+            }),
+        _ => None,
     }
 }
