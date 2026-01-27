@@ -376,7 +376,7 @@ pub struct RefundResponseData {
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub status: RefundStatus,
-    pub created_at: Option<FloatMajorUnit>,
+    pub created_at: Option<i64>,
     pub failure_reason: Option<String>,
 }
 
@@ -545,7 +545,7 @@ pub struct RapydIncomingWebhook {
     pub data: WebhookData,
     pub trigger_operation_id: Option<String>,
     pub status: String,
-    pub created_at: FloatMajorUnit,
+    pub created_at: i64,
 }
 
 #[derive(Debug, Deserialize)]
