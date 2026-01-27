@@ -80,7 +80,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
 
@@ -90,11 +90,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // Stage 1
         let store = &*state.store;
-        let m_merchant_id = merchant_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
 
         // Parallel calls - level 0
         let mut payment_intent = store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
                 &m_merchant_id,
                 platform.get_processor().get_key_store(),
@@ -182,13 +182,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = state.store.clone();
 
         let m_payment_id = payment_intent.payment_id.clone();
-        let m_merchant_id = merchant_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
         let merchant_key_store = platform.get_processor().get_key_store().clone();
 
         let payment_attempt_fut = tokio::spawn(
             async move {
                 store
-                    .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                         &m_payment_id,
                         &m_merchant_id,
                         attempt_id.as_str(),
@@ -201,7 +201,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
-        let m_merchant_id = merchant_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
         let m_request_shipping = request.shipping.clone();
         let m_payment_intent_shipping_address_id = payment_intent.shipping_address_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
@@ -229,7 +229,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
-        let m_merchant_id = merchant_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
         let m_request_billing = request.billing.clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
@@ -511,7 +511,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
-        let m_merchant_id = merchant_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
         let session_state = state.clone();
 
         let payment_method_billing_future = tokio::spawn(
@@ -984,7 +984,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
@@ -997,7 +997,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Box::new(self),
             state,
             payment_data,
-            key_store,
+            platform,
             customer,
             storage_scheme,
             business_profile,
