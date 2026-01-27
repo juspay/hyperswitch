@@ -133,6 +133,7 @@ impl_api_event_type!(
         GetApiEventMetricRequest,
         SdkEventsRequest,
         ReportRequest,
+        GenerateGeneralizedReportApiRequest,
         ConnectorEventsRequest,
         OutgoingWebhookLogsRequest,
         GetGlobalSearchRequest,

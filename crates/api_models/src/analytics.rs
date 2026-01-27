@@ -547,3 +547,39 @@ pub struct AuthEventMetricsResponse<T> {
 pub struct AuthEventsAnalyticsMetadata {
     pub total_error_message_count: Option<u64>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportType {
+    V1Payments,
+    V2Payments,
+    RevenueRecovery,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LambdaReportDataRequest {
+    pub time_range: TimeRange,
+    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LambdaReportInput {
+    pub report_type: ReportType,
+    pub request: LambdaReportDataRequest,
+    pub auth: AuthInfo,
+    pub email: Secret<String, EmailStrategy>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateGeneralizedReportApiRequest {
+    pub report_type: ReportType,
+    pub time_range: TimeRange,
+    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+}

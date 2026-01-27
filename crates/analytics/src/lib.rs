@@ -1111,7 +1111,6 @@ impl Default for AnalyticsConfig {
         }
     }
 }
-
 #[derive(Clone, Debug, serde::Deserialize, Default, serde::Serialize)]
 pub struct ReportConfig {
     pub payment_function: String,
@@ -1120,6 +1119,7 @@ pub struct ReportConfig {
     pub authentication_function: String,
     pub payout_function: String,
     pub region: String,
+    pub generalized_report_function: String,
 }
 
 /// Analytics Flow routes Enums
