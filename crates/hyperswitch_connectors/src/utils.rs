@@ -517,9 +517,9 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
 
 pub(crate) fn is_post_capture_void_failure(status: common_enums::PostCaptureVoidStatus) -> bool {
     match status {
-        common_enums::PostCaptureVoidStatus::Failure => true,
+        common_enums::PostCaptureVoidStatus::Failed => true,
         common_enums::PostCaptureVoidStatus::Pending
-        | common_enums::PostCaptureVoidStatus::Success => false,
+        | common_enums::PostCaptureVoidStatus::Succeeded => false,
     }
 }
 

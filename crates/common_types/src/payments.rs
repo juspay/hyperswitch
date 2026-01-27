@@ -1044,8 +1044,7 @@ impl PaymentIntentStateMetadata {
             self.post_capture_void
                 .as_ref()
                 .map(|post_capture_void| post_capture_void.status),
-            Some(common_enums::PostCaptureVoidStatus::Success)
-                | Some(common_enums::PostCaptureVoidStatus::Pending)
+            Some(common_enums::PostCaptureVoidStatus::Pending)
         )
     }
 
@@ -1055,7 +1054,7 @@ impl PaymentIntentStateMetadata {
             self.post_capture_void
                 .as_ref()
                 .map(|post_capture_void| post_capture_void.status),
-            Some(common_enums::PostCaptureVoidStatus::Success)
+            Some(common_enums::PostCaptureVoidStatus::Succeeded)
         )
     }
 

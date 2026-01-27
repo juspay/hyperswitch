@@ -33292,7 +33292,7 @@
         "type": "string",
         "description": "Indicates the type of payment method. Eg: 'card', 'wallet', etc.",
         "enum": [
-          "success",
+          "succeeded",
           "pending",
           "failed"
         ]
