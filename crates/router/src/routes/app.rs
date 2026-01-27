@@ -3286,3 +3286,17 @@ impl RecoveryDataBackfill {
             ))
     }
 }
+
+#[cfg(feature = "v2")]
+pub struct RecoveryReports;
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl RecoveryReports {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/recovery/reports")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/upload").route(web::post().to(
+                super::revenue_recovery_reports::upload_revenue_recovery_report_stream_handler,
+            )))
+    }
+}
