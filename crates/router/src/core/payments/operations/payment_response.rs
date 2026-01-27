@@ -3179,6 +3179,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         connector_token_details: Some(
                             connector_token_details_for_payment_method_update,
                         ),
+                        network_transaction_id: None,
                     };
 
                 Box::pin(payment_methods::update_payment_method_core(

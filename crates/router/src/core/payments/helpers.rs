@@ -155,7 +155,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 phone_number: address
                                     .phone
                                     .as_ref()
-                                    .and_then(|phone| phone.number.clone()),
+                                    .and_then(|phone_details| phone_details.number.clone())
+                                    .and_then(utils::trim_secret_string),
                                 email: address
                                     .email
                                     .as_ref()
@@ -195,7 +196,8 @@ pub async fn create_or_update_address_for_payment_by_request(
                     country_code: address
                         .phone
                         .as_ref()
-                        .and_then(|value| value.country_code.clone()),
+                        .and_then(|phone_details| phone_details.country_code.clone())
+                        .and_then(utils::trim_string),
                     updated_by: storage_scheme.to_string(),
                     email: encryptable_address.email.map(|email| {
                         let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
@@ -363,7 +365,8 @@ pub async fn get_domain_address(
                         phone_number: address
                             .phone
                             .as_ref()
-                            .and_then(|phone| phone.number.clone()),
+                            .and_then(|phone_details| phone_details.number.clone())
+                            .and_then(utils::trim_secret_string),
                         email: address
                             .email
                             .as_ref()
@@ -382,7 +385,11 @@ pub async fn get_domain_address(
                 .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
             phone_number: encryptable_address.phone_number,
-            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+            country_code: address
+                .phone
+                .as_ref()
+                .and_then(|phone_details| phone_details.country_code.clone())
+                .and_then(utils::trim_string),
             merchant_id: merchant_id.to_owned(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
@@ -575,6 +582,15 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                         ),
+                        RecurringDetails::CardWithLimitedData(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
                     }
                 }
                 None => {
@@ -746,7 +762,7 @@ pub async fn get_token_for_recurring_mandate(
         .original_payment_id
         .as_ref()
         .async_map(|payment_id| async {
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
                 platform.get_processor().get_key_store(),
@@ -763,7 +779,7 @@ pub async fn get_token_for_recurring_mandate(
     let original_payment_attempt = original_payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 &mandate.merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
@@ -1233,7 +1249,7 @@ pub fn create_startpay_url(
         "{}/payments/redirect/{}/{}/{}",
         base_url,
         payment_intent.get_id().get_string_repr(),
-        payment_intent.merchant_id.get_string_repr(),
+        payment_intent.processor_merchant_id.get_string_repr(),
         payment_attempt.attempt_id
     )
 }
@@ -1249,7 +1265,7 @@ pub fn create_redirect_url(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.merchant_id.get_string_repr(),
+        payment_attempt.processor_merchant_id.get_string_repr(),
         connector_name,
     ) + creds_identifier_path.as_ref()
 }
@@ -1273,7 +1289,7 @@ pub fn create_authorize_url(
         "{}/payments/{}/{}/authorize/{}",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.merchant_id.get_string_repr(),
+        payment_attempt.processor_merchant_id.get_string_repr(),
         connector_name
     )
 }
@@ -1304,7 +1320,7 @@ pub fn create_complete_authorize_url(
         "{}/payments/{}/{}/redirect/complete/{}{}",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.merchant_id.get_string_repr(),
+        payment_attempt.processor_merchant_id.get_string_repr(),
         connector_name,
         creds_identifier
     )
@@ -1625,13 +1641,15 @@ pub fn get_customer_details_from_request(
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone.clone())
-        .or(request.phone.clone());
+        .or(request.phone.clone())
+        .and_then(utils::trim_secret_string);
 
     let customer_phone_code = request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone_country_code.clone())
-        .or(request.phone_country_code.clone());
+        .or(request.phone_country_code.clone())
+        .and_then(utils::trim_string);
 
     let tax_registration_id = request
         .customer
@@ -2380,6 +2398,9 @@ pub fn determine_standard_vault_action(
                     VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker
                 }
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+                    VaultFetchAction::NoFetchAction
+                }
+                Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
@@ -4088,7 +4109,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 
             #[cfg(feature = "v1")]
             let payment_intent = db
-                .find_payment_intent_by_payment_id_merchant_id(
+                .find_payment_intent_by_payment_id_processor_merchant_id(
                     &payment_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_key_store(),
@@ -4244,6 +4265,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4333,6 +4355,7 @@ mod tests {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4420,6 +4443,7 @@ mod tests {
             enable_overcapture: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4468,9 +4492,8 @@ pub async fn insert_merchant_connector_creds_to_config(
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    processor: &domain::Processor,
     creds_identifier: Option<&str>,
-    key_store: &domain::MerchantKeyStore,
     profile_id: &id_type::ProfileId,
     connector_name: &str,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
@@ -4478,7 +4501,10 @@ pub async fn get_merchant_connector_account(
     let db = &*state.store;
     match creds_identifier {
         Some(creds_identifier) => {
-            let key = merchant_id.get_creds_identifier_key(creds_identifier);
+            let key = processor
+                .get_account()
+                .get_id()
+                .get_creds_identifier_key(creds_identifier);
             let cloned_key = key.clone();
             let redis_fetch = || async {
                 db.get_redis_conn()
@@ -4554,9 +4580,9 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            merchant_id,
+                            processor.get_account().get_id(),
                             merchant_connector_id,
-                            key_store,
+                            processor.get_key_store(),
                         )
                         .await
                         .to_not_found_response(
@@ -4567,13 +4593,16 @@ pub async fn get_merchant_connector_account(
                     }
                     #[cfg(feature = "v2")]
                     {
-                        db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
-                            .await
-                            .to_not_found_response(
-                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: merchant_connector_id.get_string_repr().to_string(),
-                                },
-                            )
+                        db.find_merchant_connector_account_by_id(
+                            merchant_connector_id,
+                            processor.get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_connector_id.get_string_repr().to_string(),
+                            },
+                        )
                     }
                 } else {
                     #[cfg(feature = "v1")]
@@ -4581,7 +4610,7 @@ pub async fn get_merchant_connector_account(
                         db.find_merchant_connector_account_by_profile_id_connector_name(
                             profile_id,
                             connector_name,
-                            key_store,
+                            processor.get_key_store(),
                         )
                         .await
                         .to_not_found_response(
@@ -5629,6 +5658,119 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+            let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => Some(
+                    card_with_limited_details
+                        .card_number
+                        .get_extended_card_bin(),
+                ),
+                _ => None,
+            };
+
+            let last4 = Some(card_with_limited_details.card_number.get_last4());
+            if card_with_limited_details.card_issuer.is_some()
+                && card_with_limited_details.card_network.is_some()
+                && card_with_limited_details.card_type.is_some()
+                && card_with_limited_details.card_issuing_country.is_some()
+                && card_with_limited_details.bank_code.is_some()
+            {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Card(
+                    Box::new(api_models::payments::AdditionalCardInfo {
+                        card_issuer: card_with_limited_details.card_issuer.to_owned(),
+                        card_network: card_with_limited_details.card_network.clone(),
+                        card_type: card_with_limited_details.card_type.to_owned(),
+                        card_issuing_country: card_with_limited_details
+                            .card_issuing_country
+                            .to_owned(),
+                        card_issuing_country_code: card_with_limited_details
+                            .card_issuing_country_code
+                            .to_owned(),
+                        bank_code: card_with_limited_details.bank_code.to_owned(),
+                        card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                        card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                        card_holder_name: card_with_limited_details.card_holder_name.clone(),
+                        last4: last4.clone(),
+                        card_isin: card_isin.clone(),
+                        card_extended_bin: card_extended_bin.clone(),
+                        // These are filled after calling the processor / connector
+                        payment_checks: None,
+                        authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
+                    }),
+                )))
+            } else {
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
+                    .await
+                    .flatten()
+                    .map(|card_info| {
+                        api_models::payments::AdditionalPaymentData::Card(Box::new(
+                            api_models::payments::AdditionalCardInfo {
+                                card_issuer: card_info.card_issuer,
+                                card_network: card_with_limited_details
+                                    .card_network
+                                    .clone()
+                                    .or(card_info.card_network),
+                                bank_code: card_info.bank_code,
+                                card_type: card_info.card_type,
+                                card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
+                                last4: last4.clone(),
+                                card_isin: card_isin.clone(),
+                                card_extended_bin: card_extended_bin.clone(),
+                                card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                                card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                                card_holder_name: card_with_limited_details
+                                    .card_holder_name
+                                    .clone(),
+                                // These are filled after calling the processor / connector
+                                payment_checks: None,
+                                authentication_data: None,
+                                is_regulated: None,
+                                signature_network: None,
+                            },
+                        ))
+                    });
+                Ok(Some(card_info.unwrap_or_else(|| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: None,
+                            card_network: card_with_limited_details.card_network.clone(),
+                            bank_code: None,
+                            card_type: None,
+                            card_issuing_country: None,
+                            card_issuing_country_code: None,
+                            last4,
+                            card_isin,
+                            card_extended_bin,
+                            card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                            card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                            card_holder_name: card_with_limited_details.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
+                        },
+                    ))
+                })))
+            }
+        }
         domain::PaymentMethodData::MobilePayment(mobile_payment) => Ok(Some(
             api_models::payments::AdditionalPaymentData::MobilePayment {
                 details: Some(mobile_payment.to_owned().into()),
@@ -5939,9 +6081,8 @@ where
 
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         payment_data.get_creds_identifier(),
-        platform.get_processor().get_key_store(),
         profile_id,
         &pre_decided_connector_data_first
             .connector_data
@@ -6896,6 +7037,7 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::CardWithLimitedDetails(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
@@ -7499,7 +7641,7 @@ pub enum UnifiedAuthenticationServiceFlow {
 #[cfg(feature = "v1")]
 pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
@@ -7507,7 +7649,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
-        key_store,
+        processor,
         business_profile,
         payment_data,
         connector_call_type,
@@ -7569,7 +7711,7 @@ pub enum PaymentExternalAuthenticationFlow {
 #[cfg(feature = "v1")]
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
@@ -7624,9 +7766,8 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 )?;
             let payment_connector_mca = get_merchant_connector_account(
                 state,
-                &business_profile.merchant_id,
+                processor,
                 None,
-                key_store,
                 business_profile.get_id(),
                 connector_data.connector_name.to_string().as_str(),
                 connector_data.merchant_connector_id.as_ref(),
@@ -8208,13 +8349,13 @@ pub async fn allow_payment_update_enabled_for_client_auth(
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account_v2(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<domain::MerchantConnectorAccount> {
     let db = &*state.store;
     match merchant_connector_id {
         Some(merchant_connector_id) => db
-            .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+            .find_merchant_connector_account_by_id(merchant_connector_id, processor.get_key_store())
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_connector_id.get_string_repr().to_string(),

@@ -165,7 +165,7 @@ pub async fn trigger_refund_to_gateway(
     .await?;
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
@@ -287,7 +287,7 @@ pub async fn internal_trigger_refund_to_gateway(
 
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
@@ -864,7 +864,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
@@ -960,7 +960,7 @@ pub async fn internal_sync_refund_with_gateway(
     .await?;
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,

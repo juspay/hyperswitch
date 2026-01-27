@@ -4,6 +4,8 @@ pub mod connector_onboarding;
 pub mod currency;
 pub mod db_utils;
 pub mod ext_traits;
+#[cfg(feature = "olap")]
+pub mod oidc;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 #[cfg(feature = "olap")]
@@ -173,7 +175,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     let db = &*state.store;
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -183,7 +185,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
-                .find_payment_attempt_by_merchant_id_connector_txn_id(
+                .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                     platform.get_processor().get_account().get_id(),
                     &connector_transaction_id,
                     platform.get_processor().get_account().storage_scheme,
@@ -191,7 +193,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -202,7 +204,7 @@ pub async fn find_payment_intent_from_payment_id_type(
         }
         payments::PaymentIdType::PaymentAttemptId(attempt_id) => {
             let attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
@@ -210,7 +212,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -253,7 +255,7 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &refund.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -261,7 +263,7 @@ pub async fn find_payment_intent_from_refund_id_type(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    db.find_payment_intent_by_payment_id_merchant_id(
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
         platform.get_processor().get_account().get_id(),
         platform.get_processor().get_key_store(),
@@ -296,7 +298,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
     };
-    db.find_payment_intent_by_payment_id_merchant_id(
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -376,7 +378,7 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -695,6 +697,18 @@ pub fn get_http_status_code_type(
             .attach_printable("Invalid http status code")?,
     };
     Ok(status_code_type.to_string())
+}
+
+// Trims whitespace from a Secret string and returns None if empty
+pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+    let trimmed = secret.expose().trim().to_string();
+    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+}
+
+// Trims whitespace from a regular string and returns None if empty
+pub fn trim_string(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    (!trimmed.is_empty()).then_some(trimmed)
 }
 
 pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
