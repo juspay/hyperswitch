@@ -463,31 +463,36 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
-            let (pre_authenticate_router_data, authentication_data) =
-                Box::pin(payments_gateway::handle_gateway_call::<
-                    _,
-                    _,
-                    _,
-                    PaymentFlowData,
-                    _,
-                >(
-                    state,
-                    pre_authenticate_router_data,
-                    connector,
-                    gateway_context,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                ))
-                .await?;
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                pre_authenticate_router_data,
+                connector,
+                gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            ))
+            .await?;
 
             // Convert back to CompleteAuthorize router data while preserving pre authentication response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
 
-            authorize_request_data.authentication_data = authentication_data
-                .clone()
-                .map(router_request_types::AuthenticationData::try_from)
-                .transpose()?;
+            authorize_request_data.ucs_authentication_data =
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    ref authentication_data,
+                    ..
+                }) = pre_authenticate_response
+                {
+                    authentication_data.clone().map(|boxed| *boxed)
+                } else {
+                    None
+                };
 
             let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
@@ -564,21 +569,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let mut authenticate_request_data =
                 types::PaymentsAuthenticateData::try_from(self.request.to_owned())?;
 
-            // Mapping authentication_data from the authorize response before creating
-            // authenticate_request_data would require converting UCS authentication data
-            // to internal authentication data, only for TryFrom to convert it back again.
-            // Since authenticate_request_data already expects UCS authentication data,
-            // we set it directly here to avoid unnecessary conversions.
             authenticate_request_data.authentication_data =
-                if let Ok(types::PaymentsResponseData::TransactionResponse {
-                    authentication_data,
-                    ..
-                }) = &self.response.clone()
-                {
-                    authentication_data.clone().map(|boxed| *boxed)
-                } else {
-                    None
-                };
+                authorize_request_data.ucs_authentication_data.clone();
 
             let authenticate_response_data: Result<
                 types::PaymentsResponseData,
@@ -588,80 +580,67 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let authenticate_router_data =
                 helpers::router_data_type_conversion::<_, api::Authenticate, _, _, _, _>(
                     self.clone(),
-                    authenticate_request_data.clone(),
+                    authenticate_request_data,
                     authenticate_response_data,
                 );
 
-            let (authenticate_router_data, authentication_data) =
-                Box::pin(payments_gateway::handle_gateway_call::<
-                    _,
-                    _,
-                    _,
-                    PaymentFlowData,
-                    _,
-                >(
-                    state,
-                    authenticate_router_data,
-                    connector,
-                    gateway_context,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                ))
-                .await?;
+            // Call UCS for Authenticate flow and store authentication result for next step
+            let authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                authenticate_router_data,
+                connector,
+                gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            ))
+            .await?;
 
-            let mut authenticate_response = authenticate_router_data.response.clone();
+            let authenticate_response = authenticate_router_data.response.clone();
 
-            // Merge authentication_data into connector_metadata for persistence
-            // This ensures authentication_data is available in CompleteAuthorize flow
-            if let Some(ref auth_data) = authentication_data {
-                if let Ok(ref mut response) = authenticate_response {
-                    if let types::PaymentsResponseData::TransactionResponse {
-                        connector_metadata,
-                        ..
-                    } = response
-                    {
-                        // Create a JSON object with authentication_data
-                        let auth_value = serde_json::json!({
-                            "authentication_data": auth_data
-                        });
-                        // Merge with existing connector_metadata
-                        *connector_metadata = Some(match connector_metadata.take() {
-                            Some(existing_metadata) => {
-                                let mut merged = existing_metadata;
-                                if let Some(obj) = merged.as_object_mut() {
-                                    obj.insert(
-                                        "authentication_data".to_string(),
-                                        serde_json::to_value(auth_data)
-                                            .map_err(|_| ApiErrorResponse::InternalServerError)?,
-                                    );
-                                }
-                                merged
-                            }
-                            None => auth_value,
-                        });
-                    }
-                }
-            }
+            // Extract authentication_data from authenticate response
+            let authentication_data_clone =
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_metadata,
+                    authentication_data,
+                    ..
+                }) = &authenticate_router_data.response
+                {
+                    connector_metadata.clone_into(&mut authorize_request_data.metadata);
+                    authorize_request_data.ucs_authentication_data =
+                        authentication_data.clone().map(|data| *data);
 
-            if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
-            }) = &authenticate_response
-            {
-                connector_metadata.clone_into(&mut authorize_request_data.metadata);
-            };
+                    authentication_data.clone()
+                } else {
+                    None
+                };
 
-            authorize_request_data.authentication_data = authentication_data
-                .clone()
-                .map(router_request_types::AuthenticationData::try_from)
-                .transpose()?;
-
-            let authorize_router_data =
+            let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     authenticate_router_data.clone(),
                     authorize_request_data.clone(),
                     authenticate_response.clone(),
                 );
+
+            // Merge authentication_data into connector_metadata for persistence
+            // This ensures authentication_data is available in CompleteAuthorize flow
+            if let Some(auth_data) = authentication_data_clone {
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_metadata,
+                    ..
+                }) = &mut authorize_router_data.response
+                {
+                    *connector_metadata = Some(serde_json::json!({
+                        "authentication_data": auth_data
+                    }));
+                }
+            }
 
             let should_continue_after_authenticate = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1434,7 +1413,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             types::PaymentsPreAuthenticateData,
             types::PaymentsResponseData,
         >,
-        Option<router_request_types::UcsAuthenticationData>,
+        (),
     ),
     interface_errors::ConnectorError,
 > {
@@ -1514,18 +1493,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            let domain_authentication_data = payment_pre_authenticate_response
-                .authentication_data
-                .clone()
-                .map(|grpc_authentication_data| {
-                    router_request_types::UcsAuthenticationData::foreign_try_from(
-                        grpc_authentication_data,
-                    )
-                })
-                .transpose()
-                .attach_printable("Failed to Convert to domain AuthenticationData")?;
-
-            Ok((router_data, domain_authentication_data, payment_pre_authenticate_response))
+            Ok((router_data, (), payment_pre_authenticate_response))
         },
     ))
     .await

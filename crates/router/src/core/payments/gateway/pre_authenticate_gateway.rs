@@ -4,9 +4,7 @@ use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    router_data::RouterData, router_flow_types as domain, router_request_types,
-};
+use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -60,10 +58,7 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
-            RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -82,12 +77,13 @@ where
             &header_payload,
             lineage_ids,
             merchant_connector_account,
-            processor,
+            &processor,
             connector_enum,
             unified_connector_service_execution_mode,
             merchant_order_reference_id,
         )
         .await
+        .map(|(router_data, _)| router_data)
     }
 }
 

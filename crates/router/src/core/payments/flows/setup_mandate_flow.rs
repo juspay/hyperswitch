@@ -358,23 +358,22 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
-            let (pre_authenticate_router_data, _authentication_data) =
-                Box::pin(payments_gateway::handle_gateway_call::<
-                    _,
-                    _,
-                    _,
-                    PaymentFlowData,
-                    _,
-                >(
-                    state,
-                    pre_authenticate_router_data,
-                    connector,
-                    gateway_context,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                ))
-                .await?;
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                pre_authenticate_router_data,
+                connector,
+                gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            ))
+            .await?;
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
             let mut setup_mandate_router_data =
                 helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
