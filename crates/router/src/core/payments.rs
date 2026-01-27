@@ -14070,7 +14070,7 @@ impl PaymentIntentStateMetadataExt {
         state: &SessionState,
         processor: &domain::Processor,
         payment_intent: &payments::PaymentIntent,
-        post_capture_void_status: common_types::domain::PostCaptureVoidData,
+        post_capture_void_data: common_types::domain::PostCaptureVoidData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.clone();
         let key_store = processor.get_key_store().clone();
@@ -14083,7 +14083,7 @@ impl PaymentIntentStateMetadataExt {
             .state_metadata
             .clone()
             .unwrap_or_default()
-            .set_post_capture_void_data(post_capture_void_status);
+            .set_post_capture_void_data(post_capture_void_data);
 
         let domain_update = payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
             state_metadata: current_state.clone(),

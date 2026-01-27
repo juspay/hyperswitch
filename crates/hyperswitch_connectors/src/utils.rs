@@ -515,6 +515,14 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     }
 }
 
+pub(crate) fn is_post_capture_void_failure(status: common_enums::PostCaptureVoidStatus) -> bool {
+    match status {
+        common_enums::PostCaptureVoidStatus::Failure => true,
+        common_enums::PostCaptureVoidStatus::Pending
+        | common_enums::PostCaptureVoidStatus::Success => false,
+    }
+}
+
 pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
     match status {
         common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {

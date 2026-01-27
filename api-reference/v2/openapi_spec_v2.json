@@ -23716,6 +23716,11 @@
             "description": "Connector reference id for post capture void",
             "nullable": true
           },
+          "description": {
+            "type": "string",
+            "description": "Description or message related to the post capture void",
+            "nullable": true
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time",
