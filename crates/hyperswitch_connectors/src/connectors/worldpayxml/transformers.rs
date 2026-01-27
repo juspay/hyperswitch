@@ -1314,6 +1314,7 @@ impl<F>
                         connector_response_reference_id: Some(data.order_code.clone()),
                         incremental_authorization_allowed: None,
                         charges: None,
+                        authentication_data: None,
                     }),
                     ..item.data
                 })
