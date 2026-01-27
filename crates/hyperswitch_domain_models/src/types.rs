@@ -15,9 +15,9 @@ use crate::{
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
         GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostCaptureVoid, PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreProcessing,
-        ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
-        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        PostAuthenticate, PostCaptureVoid, PostCaptureVoidSync, PostSessionTokens, PreAuthenticate,
+        PreProcessing, ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session,
+        SettlementSplitCreate, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -38,8 +38,8 @@ use crate::{
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,

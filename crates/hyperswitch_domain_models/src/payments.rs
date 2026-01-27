@@ -244,29 +244,19 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v1")]
-    pub fn is_post_capture_void_pending(
-        &self,
-    ) -> bool {
-        self.state_metadata.as_ref().map(|state_metadata| {
-            if state_metadata.is_post_capture_void_pending() {
-               true
-            } else {
-               false
-            }
-        }).unwrap_or(false)
+    pub fn is_post_capture_void_pending(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_pending())
+            .unwrap_or(false)
     }
 
     #[cfg(feature = "v1")]
-    pub fn is_post_capture_void_applied(
-        &self,
-    ) -> bool {
-        self.state_metadata.as_ref().map(|state_metadata| {
-            if state_metadata.is_post_capture_void_applied() {
-               true
-            } else {
-               false
-            }
-        }).unwrap_or(false)
+    pub fn is_post_capture_void_applied(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_applied())
+            .unwrap_or(false)
     }
 
     #[cfg(feature = "v2")]
@@ -379,9 +369,8 @@ impl PaymentIntent {
         {
             Err(error_stack::report!(
                 crate::errors::api_error_response::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "Refund cannot be performed after a post-capture void has been issued"
-                            .into()
+                    message: "Refund cannot be performed after a post-capture void has been issued"
+                        .into()
                 }
             ))
         } else {

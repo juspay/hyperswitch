@@ -1690,7 +1690,7 @@ pub async fn payments_cancel_post_capture(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancelPostCaptureSync, payment_id))]
-pub async fn payments_cancel_post_capture_sync(
+pub async fn payments_cancel_post_capture_retrieve(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -2885,7 +2885,6 @@ impl GetLockingInput for payment_types::PaymentsCancelPostCaptureSyncBody {
         }
     }
 }
-
 
 #[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsExtendAuthorizationRequest {

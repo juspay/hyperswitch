@@ -5414,7 +5414,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
     }
 }
 
-
 #[cfg(feature = "v2")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPostCaptureSyncData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -5445,14 +5444,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
                 .connector
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            connector_post_capture_void_transaction_id: payment_data.payment_intent.state_metadata.and_then(|state_metadata| state_metadata.get_connector_post_capture_void_transaction_id()).ok_or(
-                errors::ApiErrorResponse::ResourceIdNotFound,
-            )?,
+            connector_post_capture_void_transaction_id: payment_data
+                .payment_intent
+                .state_metadata
+                .and_then(|state_metadata| {
+                    state_metadata.get_connector_post_capture_void_transaction_id()
+                })
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }
-
 
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;

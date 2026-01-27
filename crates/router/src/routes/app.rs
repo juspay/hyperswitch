@@ -967,7 +967,7 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/cancel_post_capture")
                     .route(web::post().to(payments::payments_cancel_post_capture))
-                    .route(web::get().to(payments::payments_cancel_post_capture_sync))
+                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),

@@ -223,7 +223,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .iter()
             .any(|refund| refund.is_refund_applied());
 
-        
         crate::utils::when(is_refund_issued, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
@@ -233,17 +232,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             ))
         })?;
 
-        let is_post_capture_void_applied = payment_data.payment_intent.is_post_capture_void_applied();
-        
+        let is_post_capture_void_applied =
+            payment_data.payment_intent.is_post_capture_void_applied();
+
         crate::utils::when(is_post_capture_void_applied, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "This payment is already voided post capture"
-                        .into()
+                    message: "This payment is already voided post capture".into()
                 }
             ))
         })?;
-
 
         Ok(())
     }

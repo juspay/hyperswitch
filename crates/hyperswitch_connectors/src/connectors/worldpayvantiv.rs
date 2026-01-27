@@ -17,8 +17,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoid, Session, SetupMandate,
-            Void, PostCaptureVoidSync
+            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync,
+            Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         Accept, Dsync, Evidence, Fetch, Retrieve, Upload,
@@ -26,9 +26,10 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, DisputeSyncData,
         FetchDisputesRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData, PaymentsCancelPostCaptureSyncData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, DisputeSyncResponse, FetchDisputesResponse,
@@ -37,9 +38,10 @@ use hyperswitch_domain_models::{
         UploadFileResponse,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData,
+        PaymentsCancelPostCaptureSyncRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData, PaymentsCancelPostCaptureSyncRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -460,7 +462,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
 }
 
 impl api::PaymentPostCaptureVoidSync for Worldpayvantiv {}
-impl ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData> for Worldpayvantiv {
+impl
+    ConnectorIntegration<
+        PostCaptureVoidSync,
+        PaymentsCancelPostCaptureSyncData,
+        PaymentsResponseData,
+    > for Worldpayvantiv
+{
     fn get_headers(
         &self,
         req: &PaymentsCancelPostCaptureSyncRouterData,
@@ -478,11 +486,10 @@ impl ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData
         req: &PaymentsCancelPostCaptureSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-         Ok(format!(
+        Ok(format!(
             "{}/reports/dtrPaymentStatus/{}",
             connectors.worldpayvantiv.secondary_base_url.to_owned(),
-            req.request
-                .connector_post_capture_void_transaction_id
+            req.request.connector_post_capture_void_transaction_id
         ))
     }
 
@@ -494,9 +501,13 @@ impl ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
-                .url(&types::PaymentsPostCaptureVoidSyncType::get_url(self, req, connectors)?)
+                .url(&types::PaymentsPostCaptureVoidSyncType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::PaymentsPostCaptureVoidSyncType::get_headers(self, req, connectors)?)
+                .headers(types::PaymentsPostCaptureVoidSyncType::get_headers(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }

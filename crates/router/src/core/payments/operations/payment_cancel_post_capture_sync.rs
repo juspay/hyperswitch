@@ -68,7 +68,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-         helpers::validate_payment_status_against_allowed_statuses(
+        helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
             &[
                 enums::IntentStatus::Succeeded,
@@ -217,8 +217,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .payment_intent
             .state_metadata
             .as_ref()
-            .map(|state_metadata| state_metadata.is_post_capture_void_pending()).unwrap_or(false);
-            
+            .map(|state_metadata| state_metadata.is_post_capture_void_pending())
+            .unwrap_or(false);
+
         if !is_post_capture_void_pending {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {

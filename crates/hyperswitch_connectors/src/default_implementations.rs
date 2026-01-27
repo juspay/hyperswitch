@@ -34,8 +34,9 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GiftCardBalanceCheck,
-            IncrementalAuthorization, PostCaptureVoid, PostCaptureVoidSync, PostProcessing, PostSessionTokens,
-            PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
+            IncrementalAuthorization, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
+            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate,
+            UpdateMetadata,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -64,13 +65,14 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsAuthenticateData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsCancelPostCaptureData,
+        PaymentsCancelPostCaptureSyncData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
@@ -136,11 +138,12 @@ use hyperswitch_interfaces::{
         payments::{
             ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
             PaymentAuthorizeSessionToken, PaymentExtendAuthorization,
-            PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostCaptureVoidSync, PaymentPostSessionTokens,
-            PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
-            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGiftCardBalanceCheck,
-            PaymentsPostAuthenticate, PaymentsPostProcessing, PaymentsPreAuthenticate,
-            PaymentsPreProcessing, PaymentsSettlementSplitCreate, TaxCalculation,
+            PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostCaptureVoidSync,
+            PaymentPostSessionTokens, PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata,
+            PaymentsAuthenticate, PaymentsCompleteAuthorize, PaymentsCreateOrder,
+            PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsSettlementSplitCreate,
+            TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -10343,8 +10346,11 @@ impl<const T: u8>
 impl<const T: u8> PaymentPostCaptureVoidSync for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
-    for connectors::DummyConnector<T>
+    ConnectorIntegration<
+        PostCaptureVoidSync,
+        PaymentsCancelPostCaptureSyncData,
+        PaymentsResponseData,
+    > for connectors::DummyConnector<T>
 {
 }
 

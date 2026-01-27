@@ -16,8 +16,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, UploadFileRequestData, PaymentsCancelPostCaptureSyncData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsSyncData,
+        ResponseId, RetrieveFileRequestData, SetupMandateRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, RefundsRouterData, SetupMandateRouterData, 
+        PaymentsCaptureRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -523,19 +523,31 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, VantivSyncResponse, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             PaymentStatus::ProcessedSuccessfully => common_enums::PostCaptureVoidStatus::Success,
             PaymentStatus::TransactionDeclined => common_enums::PostCaptureVoidStatus::Failed,
-            PaymentStatus::PaymentStatusNotFound 
-            |PaymentStatus::NotYetProcessed
-            |PaymentStatus::StatusUnavailable => common_enums::PostCaptureVoidStatus::Pending,
+            PaymentStatus::PaymentStatusNotFound
+            | PaymentStatus::NotYetProcessed
+            | PaymentStatus::StatusUnavailable => common_enums::PostCaptureVoidStatus::Pending,
         };
         let connector_reference_id = item
             .response
@@ -543,17 +555,15 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsCancelPostCapt
             .as_ref()
             .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
 
-         Ok(Self {
-                    response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
-                        post_capture_void_status: status,
-                        connector_reference_id,
-                    }),
-                    ..item.data
-                })
-
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: status,
+                connector_reference_id,
+            }),
+            ..item.data
+        })
     }
 }
-
 
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>

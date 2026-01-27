@@ -10926,6 +10926,7 @@ pub struct PaymentsCancelPostCaptureRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelPostCaptureSyncBody {
     /// The identifier for the payment
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
 }
 

@@ -94,8 +94,12 @@ impl Conversion {
             Derives::AuthorizeData => syn::Ident::new("PaymentsAuthorizeData", Span::call_site()),
             Derives::Sync => syn::Ident::new("PaymentsRetrieveRequest", Span::call_site()),
             Derives::SyncData => syn::Ident::new("PaymentsSyncData", Span::call_site()),
-            Derives::CancelPostCaptureSync => syn::Ident::new("PaymentsCancelPostCaptureSyncBody", Span::call_site()),
-            Derives::CancelPostCaptureSyncData => syn::Ident::new("PaymentsCancelPostCaptureSyncData", Span::call_site()),
+            Derives::CancelPostCaptureSync => {
+                syn::Ident::new("PaymentsCancelPostCaptureSyncBody", Span::call_site())
+            }
+            Derives::CancelPostCaptureSyncData => {
+                syn::Ident::new("PaymentsCancelPostCaptureSyncData", Span::call_site())
+            }
             Derives::Cancel => syn::Ident::new("PaymentsCancelRequest", Span::call_site()),
             Derives::CancelData => syn::Ident::new("PaymentsCancelData", Span::call_site()),
             Derives::ApproveData => syn::Ident::new("PaymentsApproveData", Span::call_site()),
