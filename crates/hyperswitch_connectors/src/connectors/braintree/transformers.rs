@@ -3117,9 +3117,22 @@ impl
                 })
             }
             BraintreeSessionResponse::ErrorResponse(error_data) => Ok(Self {
-                response: Err(
-                    *build_error_response::<()>(&error_data.errors, item.http_code).unwrap_err(),
-                ),
+                response: match build_error_response::<()>(&error_data.errors, item.http_code) {
+                    Err(err) => Err(*err),
+                    Ok(_) => Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: NO_ERROR_CODE.to_string(),
+                        message: NO_ERROR_MESSAGE.to_string(),
+                        reason: None,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    }),
+                },
                 ..data
             }),
         }
