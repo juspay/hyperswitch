@@ -4486,11 +4486,12 @@ pub fn get_adyen_response(
         });
     let network_txn_id = response
         .additional_data
-        .clone()
+        .as_ref()
         .and_then(|additional_data| {
             additional_data
                 .network_tx_reference
-                .map(|network_tx_id| network_tx_id.expose())
+                .as_ref()
+                .map(|network_tx_id| network_tx_id.clone().expose())
         });
 
     let charges = match &response.splits {
