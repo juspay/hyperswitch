@@ -440,6 +440,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         ),
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
+        ucs_authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
         merchant_order_reference_id: payment_data
@@ -4697,6 +4698,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .clone()
                 .map(|m| m.expose()),
             authentication_data: None,
+            ucs_authentication_data: None,
             request_extended_authorization: None,
             split_payments: None,
             minor_amount: payment_data.payment_attempt.get_total_amount(),

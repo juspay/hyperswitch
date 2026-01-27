@@ -77,7 +77,7 @@ where
             &header_payload,
             lineage_ids,
             merchant_connector_account,
-            &processor,
+            processor,
             connector_enum,
             unified_connector_service_execution_mode,
             merchant_order_reference_id,
