@@ -239,7 +239,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
         _state: &'a SessionState,
         _payment_data: &mut PaymentCaptureData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _key_store: &domain::MerchantKeyStore,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

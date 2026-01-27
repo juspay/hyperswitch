@@ -724,7 +724,7 @@ where
         &operation,
         &mut payment_data,
         &validate_result,
-        platform.get_processor().get_key_store(),
+        platform,
         &business_profile,
     )
     .await?;
@@ -4529,7 +4529,7 @@ where
         operation,
         payment_data,
         validate_result,
-        platform.get_processor().get_key_store(),
+        platform,
         business_profile,
         should_retry_with_pan,
     )
@@ -7645,7 +7645,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     payment_data: &mut D,
     validate_result: &operations::ValidateResult,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
@@ -7712,7 +7712,7 @@ where
                             state,
                             payment_data,
                             validate_result.storage_scheme,
-                            merchant_key_store,
+                            platform,
                             business_profile,
                             should_retry_with_pan,
                         )
@@ -7730,7 +7730,7 @@ where
                             state,
                             payment_data,
                             validate_result.storage_scheme,
-                            merchant_key_store,
+                            platform,
                             business_profile,
                             should_retry_with_pan,
                         )
@@ -7782,7 +7782,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     operation: &BoxedOperation<'_, F, Req, D>,
     payment_data: &mut D,
     validate_result: &operations::ValidateResult,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: &domain::Profile,
 ) -> RouterResult<D>
 where
@@ -7801,7 +7801,7 @@ where
                     state,
                     payment_data,
                     validate_result.storage_scheme,
-                    merchant_key_store,
+                    platform,
                     business_profile,
                     false,
                 )
@@ -10736,7 +10736,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         &state,
         &payment_attempt,
         &payment_intent,
-        platform.get_processor().get_key_store(),
+        &platform,
         storage_scheme,
     )
     .await?
@@ -11053,14 +11053,17 @@ pub async fn payments_manual_update(
         .zip(error_message.as_ref())
         .zip(payment_attempt.connector.as_ref())
     {
+        let card_network = payment_attempt.extract_card_network();
         helpers::get_gsm_record(
             &state,
-            Some(code.to_string()),
-            Some(message.to_string()),
             connector_name.to_string(),
             // We need to get the unified_code and unified_message of the Authorize flow
             consts::PAYMENT_FLOW_STR,
             consts::AUTHORIZE_FLOW_STR,
+            Some(code.to_string()),
+            Some(message.to_string()),
+            None, // issuer_error_code not available in manual update
+            card_network,
         )
         .await
     } else {

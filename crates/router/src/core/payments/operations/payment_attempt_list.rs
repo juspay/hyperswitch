@@ -184,7 +184,7 @@ impl<F: Clone + Send + Sync>
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentAttemptListData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

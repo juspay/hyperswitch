@@ -2021,6 +2021,10 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     #[smithy(value_type = "Option<String>")]
     pub client_version: Option<String>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 }
 
 #[cfg(feature = "v2")]
