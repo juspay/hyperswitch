@@ -33,10 +33,6 @@ impl<RCD>
         types::PaymentsPreAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
     > for domain::PreAuthenticate
 where
     RCD: Clone
@@ -105,10 +101,6 @@ impl<RCD>
         types::PaymentsPreAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
     > for domain::PreAuthenticate
 where
     RCD: Clone
@@ -127,10 +119,6 @@ where
             types::PaymentsPreAuthenticateData,
             types::PaymentsResponseData,
             RouterGatewayContext,
-            (
-                RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
-                Option<router_request_types::UcsAuthenticationData>,
-            ),
         >,
     > {
         match execution_path {

@@ -56,9 +56,7 @@ use transformers as redsys;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{
-        self as connector_utils, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
-    },
+    utils::{self as connector_utils, PaymentsPreAuthenticateRequestData},
 };
 
 #[derive(Clone)]

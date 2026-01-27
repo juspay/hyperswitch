@@ -854,16 +854,6 @@ pub struct PaymentsPostAuthenticateData {
     pub complete_authorize_url: Option<String>,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CresData {
-    pub three_ds_server_trans_id: String,
-    pub acs_trans_id: String,
-    pub message_type: String,
-    pub message_version: String,
-    pub trans_status: String,
-}
-
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
@@ -1226,30 +1216,6 @@ impl
         ),
     ) -> Self {
         todo!()
-    }
-}
-
-impl TryFrom<UcsAuthenticationData> for AuthenticationData {
-    type Error = error_stack::Report<ApiErrorResponse>;
-
-    fn try_from(authentication_data: UcsAuthenticationData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            eci: authentication_data.eci,
-            cavv: authentication_data.cavv.unwrap_or_default(),
-            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id,
-            message_version: authentication_data.message_version,
-            ds_trans_id: authentication_data.ds_trans_id,
-            created_at: date_time::now(),
-            challenge_code: None,
-            challenge_cancel: None,
-            challenge_code_reason: None,
-            message_extension: None,
-            acs_trans_id: authentication_data.acs_trans_id,
-            authentication_type: None,
-            transaction_status: authentication_data.trans_status,
-            cb_network_params: None,
-            exemption_indicator: None,
-        })
     }
 }
 
