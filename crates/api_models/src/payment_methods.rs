@@ -514,6 +514,25 @@ pub struct PaymentMethodUpdate {
 }
 
 #[cfg(feature = "v2")]
+impl PaymentMethodUpdate {
+    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
+        match &self.payment_method_data {
+            Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn is_payment_method_metadata_update(&self) -> bool {
+        match &self.payment_method_data {
+            Some(PaymentMethodUpdateData::Card(card_update)) => {
+                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
+            }
+            _ => false,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -530,6 +549,16 @@ pub enum PaymentMethodUpdateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodCreateData {
+    pub fn get_card(&self) -> Option<CardDetail> {
+        match self {
+            Self::Card(card_detail) => Some(card_detail.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -3574,6 +3603,11 @@ pub struct PaymentMethodSessionResponse {
     /// Card CVC token storage details
     #[schema(value_type = Option<CardCVCTokenStorageDetails>)]
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+
+    /// payment method data to be sent in session response
+    #[schema(value_type = Option<PaymentMethodResponseData>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_data: Option<PaymentMethodResponseData>,
 }
 
 #[cfg(feature = "v2")]
