@@ -846,8 +846,6 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_cancel_post_capture() {}
 
-
-
 /// Payments - Cancel Post Capture Retrieve
 ///
 /// Retrieves a canceled Payment post capture
