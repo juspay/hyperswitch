@@ -56,7 +56,9 @@ use transformers as redsys;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self as connector_utils, PaymentsPreAuthenticateRequestData},
+    utils::{
+        self as connector_utils, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -1079,13 +1081,15 @@ impl ConnectorSpecifications for Redsys {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
-                request_data: _,
+                request_data,
             } => {
                 // For Redsys in authorize flow, if we reached authentication_step
                 // (controlled by should_continue_after_preauthenticate in pre_authentication_step),
                 // we should proceed with UCS authenticate call for 3DS flows.
                 // This handles the 3DS exempt scenario where no redirect is needed after preauthenticate.
                 auth_type.is_three_ds()
+                    && request_data.payment_method_data.get_payment_method()
+                        == Some(common_enums::PaymentMethod::Card)
             }
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
