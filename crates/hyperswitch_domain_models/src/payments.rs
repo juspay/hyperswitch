@@ -243,6 +243,32 @@ impl PaymentIntent {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_pending(
+        &self,
+    ) -> bool {
+        self.state_metadata.as_ref().map(|state_metadata| {
+            if state_metadata.is_post_capture_void_pending() {
+               true
+            } else {
+               false
+            }
+        }).unwrap_or(false)
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_applied(
+        &self,
+    ) -> bool {
+        self.state_metadata.as_ref().map(|state_metadata| {
+            if state_metadata.is_post_capture_void_applied() {
+               true
+            } else {
+               false
+            }
+        }).unwrap_or(false)
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
     pub fn create_finish_redirection_url(
@@ -354,7 +380,7 @@ impl PaymentIntent {
             Err(error_stack::report!(
                 crate::errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                     message:
-                        "Refund void cannot be performed after a post-capture void has been issued"
+                        "Refund cannot be performed after a post-capture void has been issued"
                             .into()
                 }
             ))

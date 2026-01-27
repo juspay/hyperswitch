@@ -178,6 +178,8 @@ pub enum Flow {
     PaymentsCancel,
     /// Payments cancel post capture flow.
     PaymentsCancelPostCapture,
+    /// Payments cancel post capture sync flow.
+    PaymentsCancelPostCaptureSync,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.

@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
-            InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
+            InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
             PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SettlementSplitCreate,
             SetupMandate, UpdateMetadata, Void,
         },
@@ -52,7 +52,7 @@ use hyperswitch_domain_models::{
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
         FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
@@ -190,6 +190,9 @@ pub type PaymentsVoidType =
 /// Type alias for `ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>`
 pub type PaymentsPostCaptureVoidType =
     dyn ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>`
+pub type PaymentsPostCaptureVoidSyncType =
+    dyn ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>;
 
 /// Type alias for `ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>`
 pub type TokenizationType = dyn ConnectorIntegration<

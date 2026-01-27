@@ -23,22 +23,22 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(operations = "all", flow = "cancel_post_capture")]
-pub struct PaymentCancelPostCapture;
+#[operation(operations = "all", flow = "cancel_post_capture_sync")]
+pub struct PaymentCancelPostCaptureSync;
 
-type PaymentCancelPostCaptureOperation<'b, F> =
-    BoxedOperation<'b, F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>;
+type PaymentCancelPostCaptureSyncOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsCancelPostCaptureSyncBody, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureRequest>
-    for PaymentCancelPostCapture
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureSyncBody>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsCancelPostCaptureRequest,
+        _request: &api::PaymentsCancelPostCaptureSyncBody,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
@@ -46,7 +46,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         operations::GetTrackerResponse<
             'a,
             F,
-            api::PaymentsCancelPostCaptureRequest,
+            api::PaymentsCancelPostCaptureSyncBody,
             PaymentData<F>,
         >,
     > {
@@ -68,7 +68,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_payment_status_against_allowed_statuses(
+         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
             &[
                 enums::IntentStatus::Succeeded,
@@ -78,7 +78,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             "cancel_post_capture",
         )?;
 
-        let mut payment_attempt = db
+        let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
@@ -121,10 +121,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
-
-        payment_attempt
-            .cancellation_reason
-            .clone_from(&request.cancellation_reason);
 
         let profile_id = payment_intent
             .profile_id
@@ -213,45 +209,32 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
     async fn validate_request_with_state(
         &self,
         _state: &SessionState,
-        _request: &api::PaymentsCancelPostCaptureRequest,
+        _request: &api::PaymentsCancelPostCaptureSyncBody,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
-        // Validates that no refunds have been issued against the payment before allowing post-capture void
-        let is_refund_issued = payment_data
-            .refunds
-            .iter()
-            .any(|refund| refund.is_refund_applied());
-
-        
-        crate::utils::when(is_refund_issued, || {
+        let is_post_capture_void_pending = payment_data
+            .payment_intent
+            .state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_pending()).unwrap_or(false);
+            
+        if !is_post_capture_void_pending {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Post Capture Void cannot be performed after a refund has been issued"
+                    message: "Post-capture sync is allowed only after a post-capture void has been initiated"
                         .into()
                 }
-            ))
-        })?;
-
-        let is_post_capture_void_applied = payment_data.payment_intent.is_post_capture_void_applied();
-        
-        crate::utils::when(is_post_capture_void_applied, || {
-            Err(error_stack::report!(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "This payment is already voided post capture"
-                        .into()
-                }
-            ))
-        })?;
-
+            ))?
+        };
 
         Ok(())
     }
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
-    for PaymentCancelPostCapture
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureSyncBody, PaymentData<F>>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     async fn populate_raw_customer_details<'a>(
@@ -273,7 +256,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _provider: &domain::Provider,
     ) -> errors::CustomResult<
         (
-            PaymentCancelPostCaptureOperation<'a, F>,
+            PaymentCancelPostCaptureSyncOperation<'a, F>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -292,7 +275,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
-        PaymentCancelPostCaptureOperation<'a, F>,
+        PaymentCancelPostCaptureSyncOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -303,7 +286,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         &'a self,
         _platform: &domain::Platform,
         state: &SessionState,
-        _request: &api::PaymentsCancelPostCaptureRequest,
+        _request: &api::PaymentsCancelPostCaptureSyncBody,
         _payment_intent: &storage::PaymentIntent,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -321,8 +304,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
 }
 
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureRequest>
-    for PaymentCancelPostCapture
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureSyncBody>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -334,7 +317,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<(PaymentCancelPostCaptureOperation<'b, F>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentCancelPostCaptureSyncOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -343,16 +326,16 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
 }
 
 impl<F: Send + Clone + Sync>
-    ValidateRequest<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
-    for PaymentCancelPostCapture
+    ValidateRequest<F, api::PaymentsCancelPostCaptureSyncBody, PaymentData<F>>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCancelPostCaptureRequest,
+        request: &api::PaymentsCancelPostCaptureSyncBody,
         processor: &'a domain::Processor,
     ) -> RouterResult<(
-        PaymentCancelPostCaptureOperation<'b, F>,
+        PaymentCancelPostCaptureSyncOperation<'b, F>,
         operations::ValidateResult,
     )> {
         Ok((

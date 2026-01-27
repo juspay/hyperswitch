@@ -2,6 +2,7 @@ pub mod approve_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
+pub mod cancel_post_capture_sync_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod extend_authorization_flow;

@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
-            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
+            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
             PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
         PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
@@ -68,6 +68,17 @@ pub trait PaymentPostCaptureVoidV2:
     PostCaptureVoid,
     PaymentFlowData,
     PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentPostCaptureVoidSyncV2
+pub trait PaymentPostCaptureVoidSyncV2:
+    ConnectorIntegrationV2<
+    PostCaptureVoidSync,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureSyncData,
     PaymentsResponseData,
 >
 {
@@ -310,6 +321,7 @@ pub trait PaymentV2:
     + PaymentCaptureV2
     + PaymentVoidV2
     + PaymentPostCaptureVoidV2
+    + PaymentPostCaptureVoidSyncV2
     + PaymentApproveV2
     + PaymentRejectV2
     + MandateSetupV2

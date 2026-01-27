@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+            PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreProcessing,
             Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
             Void,
         },
@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
         PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
@@ -46,6 +46,7 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PaymentPostCaptureVoid
+    + PaymentPostCaptureVoidSync
     + PaymentApprove
     + PaymentReject
     + MandateSetup
@@ -105,6 +106,12 @@ pub trait PaymentVoid:
 /// trait PaymentPostCaptureVoid
 pub trait PaymentPostCaptureVoid:
     api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoidSync
+pub trait PaymentPostCaptureVoidSync:
+    api::ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
 {
 }
 

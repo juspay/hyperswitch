@@ -1069,6 +1069,13 @@ impl PaymentIntentStateMetadata {
         });
         self
     }
+
+    /// Get the connector transaction id for post capture void if exists
+    pub fn get_connector_post_capture_void_transaction_id(&self) -> Option<String> {
+        self.post_capture_void
+            .as_ref()
+            .and_then(|post_capture_void| post_capture_void.connector_reference_id.clone())
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);

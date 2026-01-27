@@ -38,7 +38,7 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
+        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
         SetupMandate, UpdateMetadata, Void,
     },
@@ -75,7 +75,7 @@ pub use hyperswitch_domain_models::{
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
         PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
@@ -174,6 +174,8 @@ pub type PaymentsUpdateMetadataRouterData =
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureRouterData =
     RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureSyncRouterData =
+    RouterData<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
 pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
@@ -196,6 +198,8 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureResponseRouterData<R> =
     ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureSyncResponseRouterData<R> =
+    ResponseRouterData<PostCaptureVoidSync, R, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>;
 pub type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
     ExtendAuthorization,
     R,
@@ -528,6 +532,7 @@ impl Capturable for PaymentsCancelData {
         }
     }
 }
+impl Capturable for PaymentsCancelPostCaptureSyncData {}
 impl Capturable for PaymentsCancelPostCaptureData {
     fn get_captured_amount<F>(
         &self,

@@ -85,7 +85,7 @@ use strum::IntoEnumIterator;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
+    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCancelPostCaptureSync, PaymentCapture, PaymentConfirm,
     PaymentCreate, PaymentExtendAuthorization, PaymentIncrementalAuthorization,
     PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentStatus,
     PaymentUpdate, PaymentUpdateMetadata,
@@ -833,6 +833,7 @@ where
                 .await?;
         };
 
+
         operation
             .to_domain()?
             .payments_dynamic_tax_calculation(
@@ -869,6 +870,7 @@ where
                 _ => (),
             };
 
+
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(ref connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -877,6 +879,7 @@ where
                     )
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
+
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -8444,6 +8447,9 @@ where
                 | storage_enums::IntentStatus::PartiallyCaptured
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
+        "PaymentCancelPostCaptureSync" => {
+            payment_data.get_payment_intent().is_post_capture_void_pending()
+        },
         "PaymentCapture" => {
             matches!(
                 payment_data.get_payment_intent().status,
