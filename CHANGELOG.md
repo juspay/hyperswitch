@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.27.0
+
+### Bug Fixes
+
+- **connector:** [adyen] googlepay FPAN + 3ds ([#11022](https://github.com/juspay/hyperswitch/pull/11022)) ([`fa4bd5e`](https://github.com/juspay/hyperswitch/commit/fa4bd5e5bf99b749e9f73cf4c744e70752106f04))
+
+### Refactors
+
+- **connector:** [ checkout ] gpay and applepay predecrypted mandates ([#11000](https://github.com/juspay/hyperswitch/pull/11000)) ([`b338383`](https://github.com/juspay/hyperswitch/commit/b3383835deba8a1631d56ac5b31576df4d03f5e2))
+
+**Full Changelog:** [`2026.01.26.0...2026.01.27.0`](https://github.com/juspay/hyperswitch/compare/2026.01.26.0...2026.01.27.0)
+
+- - -
+
 ## 2026.01.26.0
 
 ### Features
