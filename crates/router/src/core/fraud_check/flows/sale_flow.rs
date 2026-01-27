@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_intent;
 use masking::ExposeInterface;
 
 use crate::{
@@ -61,19 +62,20 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 
         let customer_id = self.payment_intent.customer_id.clone();
 
-        let customer_details = self.payment_intent
-        .customer_details
-        .clone()
-        .map(|customer_details_encrypted| {
-            customer_details_encrypted
-                .into_inner()
-                .expose()
-                .parse_value::<hyperswitch_domain_models::payments::payment_intent::CustomerData>("CustomerData")
-        })
-        .transpose()
-        .change_context(errors::StorageError::DeserializationFailed)
-        .attach_printable("Failed to parse customer data from payment intent")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let customer_details = self
+            .payment_intent
+            .customer_details
+            .clone()
+            .map(|customer_details_encrypted| {
+                customer_details_encrypted
+                    .into_inner()
+                    .expose()
+                    .parse_value::<payment_intent::CustomerData>("CustomerData")
+            })
+            .transpose()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to parse customer data from payment intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
