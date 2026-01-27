@@ -4854,44 +4854,41 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
             .transpose()?;
 
         // Map the mandate_type from domain type to grpc type
-        let mandate_type = mandate_data.mandate_type.as_ref().map(|domain_mandate_type| {
-            match domain_mandate_type {
-                MandateDataType::SingleUse(amount_data) => {
-                    payments_grpc::MandateType {
-                        mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
+        let mandate_type = mandate_data
+            .mandate_type
+            .as_ref()
+            .map(|domain_mandate_type| match domain_mandate_type {
+                MandateDataType::SingleUse(amount_data) => payments_grpc::MandateType {
+                    mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
+                        payments_grpc::MandateAmountData {
+                            amount: amount_data.amount.get_amount_as_i64(),
+                            currency: amount_data.currency.to_string(),
+                            start_date: amount_data.start_date.map(
+                                |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                            ),
+                            end_date: amount_data.end_date.map(|dt: time::PrimitiveDateTime| {
+                                dt.assume_utc().unix_timestamp()
+                            }),
+                        },
+                    )),
+                },
+                MandateDataType::MultiUse(amount_data_opt) => payments_grpc::MandateType {
+                    mandate_type: amount_data_opt.as_ref().map(|amount_data| {
+                        payments_grpc::mandate_type::MandateType::MultiUse(
                             payments_grpc::MandateAmountData {
                                 amount: amount_data.amount.get_amount_as_i64(),
                                 currency: amount_data.currency.to_string(),
-                                start_date: amount_data
-                                    .start_date
-                                    .map(|dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp()),
-                                end_date: amount_data
-                                    .end_date
-                                    .map(|dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp()),
+                                start_date: amount_data.start_date.map(
+                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                                ),
+                                end_date: amount_data.end_date.map(
+                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                                ),
                             },
-                        )),
-                    }
-                }
-                MandateDataType::MultiUse(amount_data_opt) => {
-                    payments_grpc::MandateType {
-                        mandate_type: amount_data_opt.as_ref().map(|amount_data| {
-                            payments_grpc::mandate_type::MandateType::MultiUse(
-                                payments_grpc::MandateAmountData {
-                                    amount: amount_data.amount.get_amount_as_i64(),
-                                    currency: amount_data.currency.to_string(),
-                                    start_date: amount_data
-                                        .start_date
-                                        .map(|dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp()),
-                                    end_date: amount_data
-                                        .end_date
-                                        .map(|dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp()),
-                                },
-                            )
-                        }),
-                    }
-                }
-            }
-        });
+                        )
+                    }),
+                },
+            });
 
         Ok(Self {
             update_mandate_id: mandate_data.update_mandate_id.clone(),
