@@ -60,8 +60,8 @@ pub async fn create_payment_method_api(
             .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -93,8 +93,40 @@ pub async fn create_payment_method_api(
             .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::NetworkTokenEligibilityCheck))]
+pub async fn get_pm_nt_eligibility_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::NetworkTokenEligibilityRequest>,
+) -> HttpResponse {
+    let flow = Flow::NetworkTokenEligibilityCheck;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, req, _req_state| async move {
+            Box::pin(payment_methods_routes::get_card_nt_eligibility(
+                &state,
+                req,
+                &auth.platform,
+                &auth.profile,
+            ))
+            .await
+        },
+        &auth::V2ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -124,8 +156,8 @@ pub async fn create_payment_method_intent_api(
             .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -185,8 +217,8 @@ pub async fn payment_method_update_api(
             )
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -219,8 +251,8 @@ pub async fn payment_method_retrieve_api(
             )
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -249,8 +281,8 @@ pub async fn payment_method_delete_api(
             payment_methods_routes::delete_payment_method(state, pm, auth.platform, auth.profile)
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -535,8 +567,8 @@ pub async fn save_payment_method_api(
     let payload = json_payload.into_inner();
     let pm_id = path.into_inner();
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
@@ -574,8 +606,8 @@ pub async fn list_payment_method_api(
     let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
@@ -614,8 +646,8 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
@@ -656,8 +688,8 @@ pub async fn list_customer_payment_method_api_client(
     let payload = query_payload.into_inner();
     let api_key = auth::get_api_key(req.headers()).ok();
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
     let (auth, _, is_ephemeral_auth) =
         match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
@@ -704,8 +736,8 @@ pub async fn initiate_pm_collect_link_flow(
             payment_methods_routes::initiate_pm_collect_link(state, auth.platform, req)
         },
         &auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -738,8 +770,8 @@ pub async fn list_customer_payment_method_api(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -779,8 +811,8 @@ pub async fn get_payment_method_token_data(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -813,8 +845,8 @@ pub async fn get_total_payment_method_count(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -885,8 +917,8 @@ pub async fn payment_method_retrieve_api(
             .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -905,8 +937,8 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
@@ -947,8 +979,8 @@ pub async fn payment_method_delete_api(
         payment_method_id: payment_method_id.into_inner().0,
     };
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
@@ -999,8 +1031,8 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorWrite,
@@ -1040,8 +1072,8 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorRead,
@@ -1069,8 +1101,8 @@ pub async fn default_payment_method_set_api(
     let pc = payload.clone();
     let customer_id = &pc.customer_id;
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: true,
-        is_platform_allowed: true,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
@@ -1391,8 +1423,8 @@ pub async fn payment_methods_session_create(
             .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1428,8 +1460,8 @@ pub async fn payment_methods_session_update(
             }
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1461,8 +1493,8 @@ pub async fn payment_methods_session_retrieve(
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::V2ClientAuth(
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(
@@ -1679,8 +1711,8 @@ pub async fn network_token_status_check_api(
             )
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1715,8 +1747,8 @@ pub async fn payment_method_get_token_details_api(
             }
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

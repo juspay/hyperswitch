@@ -2927,6 +2927,7 @@ pub enum RelayStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
     Refund,
+    Capture,
 }
 
 #[derive(
@@ -9616,6 +9617,41 @@ impl From<RelayStatus> for RefundStatus {
     }
 }
 
+impl From<AttemptStatus> for RelayStatus {
+    fn from(refund_status: AttemptStatus) -> Self {
+        match refund_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -10484,4 +10520,12 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
 }

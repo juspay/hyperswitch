@@ -63,9 +63,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantTransferKey
             | Flow::MerchantAccountList
             | Flow::EnablePlatformAccount => Self::MerchantAccount,
-            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
-                Self::Organization
-            }
+            Flow::OrganizationCreate
+            | Flow::OrganizationRetrieve
+            | Flow::OrganizationUpdate
+            | Flow::ConvertOrganizationToPlatform => Self::Organization,
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
@@ -373,9 +374,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::Proxy => Self::Proxy,
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
-            Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
-                Self::GenericTokenization
-            }
+            Flow::TokenizationCreate
+            | Flow::TokenizationRetrieve
+            | Flow::TokenizationDelete
+            | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
         }

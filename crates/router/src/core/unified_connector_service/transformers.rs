@@ -2165,6 +2165,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -2345,6 +2346,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -2447,6 +2449,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                     network_txn_id: None,
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -2597,6 +2600,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     network_txn_id: response.network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -2700,6 +2704,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -3747,6 +3752,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             None => (None, None),
         };
 
+        let authentication_data = response
+            .authentication_data
+            .clone()
+            .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+            .transpose()?
+            .map(Box::new);
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
@@ -3780,6 +3792,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,
@@ -4680,6 +4693,12 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                         payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
                     })
             });
+        let authentication_data = response
+            .authentication_data
+            .clone()
+            .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+            .transpose()?
+            .map(Box::new);
 
         let resource_id: router_request_types::ResponseId = match response
             .transaction_id
@@ -4759,6 +4778,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,
@@ -5471,6 +5491,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                     network_txn_id: None,
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,

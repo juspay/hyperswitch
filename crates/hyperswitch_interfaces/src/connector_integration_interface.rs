@@ -532,6 +532,12 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
+            Self::New(connector) => connector.is_balance_check_flow_required(current_flow),
+        }
+    }
     fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match self {
             Self::Old(connector) => connector.is_order_create_flow_required(current_flow),

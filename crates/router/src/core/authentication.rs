@@ -114,7 +114,7 @@ pub async fn perform_authentication(
 
 pub async fn perform_post_authentication(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: domain::Profile,
     authentication_id: common_utils::id_type::AuthenticationId,
     payment_id: &common_utils::id_type::PaymentId,
@@ -124,7 +124,7 @@ pub async fn perform_post_authentication(
 > {
     let key_state = &state.into();
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, key_store, &business_profile, None).await?;
+        utils::get_authentication_connector_data(state, processor, &business_profile, None).await?;
     let is_pull_mechanism_enabled =
         check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             three_ds_connector_account
@@ -136,7 +136,7 @@ pub async fn perform_post_authentication(
         .find_authentication_by_merchant_id_authentication_id(
             &business_profile.merchant_id,
             &authentication_id,
-            key_store,
+            processor.get_key_store(),
             key_state,
         )
         .await
@@ -180,7 +180,7 @@ pub async fn perform_post_authentication(
             router_data,
             authentication,
             None,
-            key_store,
+            processor.get_key_store(),
             authentication_info,
         )
         .await?
@@ -194,7 +194,7 @@ pub async fn perform_post_authentication(
         state,
         authentication_id.get_string_repr(),
         false,
-        key_store.key.get_inner(),
+        processor.get_key_store().key.get_inner(),
     )
     .await
     .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
@@ -213,7 +213,7 @@ pub async fn perform_post_authentication(
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_pre_authentication(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     card: hyperswitch_domain_models::payment_method_data::Card,
     token: String,
     business_profile: &domain::Profile,
@@ -229,7 +229,7 @@ pub async fn perform_pre_authentication(
     ApiErrorResponse,
 > {
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
+        utils::get_authentication_connector_data(state, processor, business_profile, None).await?;
     let authentication_connector_name = authentication_connector.to_string();
     let authentication = utils::create_new_authentication(
         state,
@@ -245,7 +245,7 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
-        key_store,
+        processor.get_key_store(),
     )
     .await?;
 
@@ -282,7 +282,7 @@ pub async fn perform_pre_authentication(
             router_data,
             authentication,
             acquirer_details.clone(),
-            key_store,
+            processor.get_key_store(),
             authentication_info,
         )
         .await?;
@@ -327,7 +327,7 @@ pub async fn perform_pre_authentication(
         router_data,
         authentication,
         acquirer_details,
-        key_store,
+        processor.get_key_store(),
         authentication_info,
     )
     .await?;
