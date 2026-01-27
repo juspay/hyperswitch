@@ -4301,7 +4301,7 @@ impl
             next_action: None,
             cancellation_reason: None,
             error_code: None,
-            error_message: None,
+            error_message: pa.error_message,
             unified_code: None,
             unified_message: None,
             error_details: None,
