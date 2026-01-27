@@ -570,7 +570,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                                 payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
                                     state,
                                     payment_token,
-                                    payment_data.payment_attempt.payment_method_type,
                                     platform.get_processor().get_key_store().key.get_inner(),
                                 )
                                 .await,

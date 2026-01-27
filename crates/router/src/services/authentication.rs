@@ -462,7 +462,6 @@ impl GetAuthType for ApiKeyAuth {
 }
 
 #[cfg(all(feature = "partial-auth", feature = "v2"))]
-
 impl GetAuthType for V2ApiKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
         detached::PayloadType::ApiKey

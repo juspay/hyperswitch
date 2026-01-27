@@ -30,7 +30,7 @@ use common_utils::{
     crypto::{EncodeMessage, Encryptable, GcmAes256},
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::{AsyncExt, ValueExt},
+    ext_traits::{AsyncExt, BytesExt, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
 };
@@ -3182,6 +3182,7 @@ fn get_pm_list_context(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,
     is_payment_associated: bool,
+    storage_type: enums::StorageType,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let payment_method_data = payment_method
         .payment_method_data
@@ -3207,6 +3208,7 @@ fn get_pm_list_context(
                             .unwrap_or_else(|| {
                                 payment_method.get_id().get_string_repr().to_owned()
                             }),
+                        storage_type,
                     ),
                 ),
             })
@@ -3264,9 +3266,11 @@ fn get_pm_list_context(
 fn get_pm_list_token_data(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,
+    storage_type: enums::StorageType,
 ) -> Result<Option<storage::PaymentTokenData>, error_stack::Report<errors::ApiErrorResponse>> {
-    let pm_list_context = get_pm_list_context(payment_method_type, payment_method, true)?
-        .get_required_value("PaymentMethodListContext")?;
+    let pm_list_context =
+        get_pm_list_context(payment_method_type, payment_method, true, storage_type)?
+            .get_required_value("PaymentMethodListContext")?;
 
     match pm_list_context {
         PaymentMethodListContext::Card {
@@ -3350,7 +3354,12 @@ pub async fn list_customer_payment_methods_core(
 
                 let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 
-                let token_data = get_pm_list_token_data(payment_method_type, &pm)?;
+                let token_data = get_pm_list_token_data(
+                    payment_method_type,
+                    &pm,
+                    // storage type is hardcoded to Persistent as we are fetching saved payment methods from the database
+                    enums::StorageType::Persistent,
+                )?;
 
                 if let Some(token_data) = token_data {
                     pm_routes::ParentPaymentMethodToken::create_key_for_token(
@@ -3412,7 +3421,19 @@ pub async fn retrieve_payment_method(
     fetch_raw_detail_query_param: bool,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
-    let raw_payment_method_fetch_access = get_raw_payment_method_fetch_access(
+
+    // 1. Resolve parent token (if any) -> storage type & optional token data
+    let (storage_type, card_token_data_opt) =
+        resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
+
+    // 2. Fetch payment method record based on resolved storage type
+    let payment_method =
+        fetch_payment_method_by_storage(&state, &platform, &pm, storage_type, card_token_data_opt)
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Failed to fetch payment method by storage")?;
+
+    let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         db,
         platform.get_provider().get_account().get_id(),
         api_key_type,
@@ -3420,28 +3441,16 @@ pub async fn retrieve_payment_method(
     )
     .await
     .attach_printable("Failed to get raw payment method fetch access")?;
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-
-    let payment_method = db
-        .find_payment_method(
-            platform.get_provider().get_key_store(),
-            &pm_id,
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let single_use_token_in_cache = get_single_use_token_from_store(
         &state.clone(),
-        domain::SingleUseTokenKey::store_key(&pm_id.clone()),
+        domain::SingleUseTokenKey::store_key(&payment_method.id.clone()),
     )
     .await
     .unwrap_or_default();
 
     let raw_payment_method_data = raw_payment_method_fetch_access
-        .get_raw_payment_method_data(&state, &platform, &profile, &payment_method)
+        .get_raw_payment_method_data(&state, &platform, &profile, &payment_method, storage_type)
         .await
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
@@ -3449,12 +3458,136 @@ pub async fn retrieve_payment_method(
     transformers::generate_payment_method_response(
         &payment_method,
         &single_use_token_in_cache,
-        Some(common_enums::StorageType::Persistent),
+        Some(storage_type),
         None,
         payment_method.customer_id.clone(),
         raw_payment_method_data,
     )
     .map(services::ApplicationResponse::Json)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn fetch_payment_method_by_storage(
+    state: &SessionState,
+    platform: &domain::Platform,
+    pm_incoming: &api::PaymentMethodId,
+    storage_type: common_enums::StorageType,
+    card_token_data_opt: Option<storage::CardTokenData>,
+) -> RouterResult<domain::PaymentMethod> {
+    let db = state.store.as_ref();
+    match storage_type {
+        common_enums::StorageType::Volatile => {
+            // When it is Volatile storage payment token data will be always present in redis
+            let token_data = card_token_data_opt
+                .as_ref()
+                .ok_or(report!(errors::ApiErrorResponse::PaymentMethodNotFound))
+                .attach_printable("Failed to get card token data for volatile storage")?;
+
+            fetch_volatile_payment_method_record(
+                state,
+                platform.get_provider().get_key_store(),
+                token_data.payment_method_id.get_string_repr(),
+            )
+            .await
+        }
+        common_enums::StorageType::Persistent => {
+            // In S2S calls, id passed in the request could be payment method id as well
+            // If a temporary token is passed after the redis expiration it will also be treated as
+            // a persistent GlobalPaymentMethodId, but for temp tokens GlobalPaymentMethodId will fail
+            let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(
+                pm_incoming.payment_method_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
+            fetch_payment_method(state, platform.get_provider(), &pm_id).await
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+async fn fetch_volatile_payment_method_record(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    pm_id: &str,
+) -> RouterResult<domain::PaymentMethod> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let response = redis_conn.get_key::<bytes::Bytes>(&pm_id.into()).await;
+
+    let resp = match response {
+        Ok(response) => response,
+        Err(err) => {
+            return Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".into(),
+            })
+        }
+    };
+
+    let payment_method = resp
+        .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting PaymentMethod from redis")?;
+
+    let keymanager_state = &state.into();
+
+    let domain_payment_method = domain::PaymentMethod::convert_back(
+        keymanager_state,
+        payment_method,
+        key_store.key.get_inner(),
+        key_store.merchant_id.clone().into(),
+    )
+    .await
+    .change_context(errors::StorageError::EncryptionError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(domain_payment_method)
+}
+
+#[cfg(feature = "v2")]
+async fn resolve_storage_type_from_token(
+    state: &SessionState,
+    token: &String,
+) -> RouterResult<(common_enums::StorageType, Option<storage::CardTokenData>)> {
+    // Try redis lookup for parent token
+    let token_data_res = pm_routes::ParentPaymentMethodToken::create_key_for_token(token)
+        .get_data_for_token(state)
+        .await;
+
+    match token_data_res {
+        Ok(token_data) => {
+            // only Permanent/PermanentCard token variants carry storage type info relevant for saved PMs
+            match token_data {
+                storage::PaymentTokenData::PermanentCard(card) => {
+                    let storage_type = card.storage_type;
+                    Ok((storage_type, Some(card)))
+                }
+                // Any token kind other than PermanentCard is invalid for retrieving a saved payment method.
+                // Only PermanentCard is currently supported; all other enum variants should be removed.
+                storage::PaymentTokenData::TemporaryGeneric(_)
+                | storage::PaymentTokenData::AuthBankDebit(_) => {
+                    Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound))
+                }
+            }
+        }
+        Err(err) => {
+            // If token not found in redis treat incoming id as a persistent PM id as it could have been obtained from a S2S payment method retrieve call
+            // Or it would be an MIT case
+            if matches!(
+                err.current_context(),
+                errors::ApiErrorResponse::GenericNotFoundError { .. }
+            ) {
+                Ok((common_enums::StorageType::Persistent, None))
+            } else {
+                Err(err)
+            }
+        }
+    }
 }
 
 #[derive(
@@ -3473,6 +3606,7 @@ impl RawPaymentMethodFetchAccess {
         platform: &domain::Platform,
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
+        storage_type: common_enums::StorageType,
     ) -> RouterResult<Option<hyperswitch_domain_models::vault::PaymentMethodVaultingData>> {
         match self {
             Self::Denied => {
@@ -3481,11 +3615,12 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
-                let vault_data = vault::retrieve_payment_method_from_vault(
+                let vault_data = vault::retrieve_payment_method_data_from_storage(
                     state,
                     platform,
                     profile,
                     payment_method,
+                    storage_type,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3505,7 +3640,7 @@ impl RawPaymentMethodFetchAccess {
     }
 }
 
-pub async fn get_raw_payment_method_fetch_access(
+pub async fn get_raw_payment_method_data_fetch_access(
     db: &dyn StorageInterface,
     merchant_id: &id_type::MerchantId,
     api_key_type: enums::ApiKeyType,
@@ -3532,9 +3667,7 @@ pub async fn get_raw_payment_method_fetch_access(
                 .await;
 
             match config {
-                Ok(conf) if conf.config.eq_ignore_ascii_case("true") => {
-                    Ok(fetch_access)
-                }
+                Ok(conf) if conf.config.eq_ignore_ascii_case("true") => Ok(fetch_access),
                 Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
                 Err(error) => {
                     router_env::logger::error!(
@@ -4417,7 +4550,11 @@ pub async fn payment_methods_session_confirm(
 
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-    let token_data = get_pm_list_token_data(request.payment_method_type, &payment_method)?;
+    let token_data = get_pm_list_token_data(
+        request.payment_method_type,
+        &payment_method,
+        request.storage_type.unwrap_or_default(),
+    )?;
 
     let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 

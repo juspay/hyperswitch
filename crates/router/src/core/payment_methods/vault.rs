@@ -1863,7 +1863,6 @@ pub async fn insert_cvc_using_payment_token(
 pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_token: &String,
-    payment_method: common_enums::PaymentMethod,
     encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<masking::Secret<String>> {
     let redis_conn = state
@@ -1954,6 +1953,92 @@ pub async fn delete_payment_token(
             .attach_printable("Unable to delete payment_token")?;
     }
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_data_from_storage(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    pm: &domain::PaymentMethod,
+    storage_type: enums::StorageType,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let mut payment_method_data = match storage_type {
+        enums::StorageType::Persistent => {
+            retrieve_payment_method_from_vault(state, platform, profile, pm).await?
+        }
+        enums::StorageType::Volatile => {
+            retrieve_volatile_payment_method_from_redis(
+                state,
+                platform.get_provider().get_key_store(),
+                pm.id.get_string_repr(),
+            )
+            .await?
+        }
+    };
+
+    let card_cvc = retrieve_and_delete_cvc_from_payment_token(
+        state,
+        &pm.id.get_string_repr().to_string(),
+        platform.get_processor().get_key_store().key.get_inner(),
+    )
+    .await
+    .map_err(|err| {
+        logger::warn!(
+            "Failed to retrieve CVC for payment method {}: {:?}",
+            pm.id.get_string_repr(),
+            err
+        );
+        err
+    });
+
+    if let Ok(card_cvc) = card_cvc {
+        payment_method_data.data.set_card_cvc(card_cvc);
+    }
+
+    Ok(payment_method_data)
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_volatile_payment_method_from_redis(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    pm_id: &str,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let response = redis_conn
+        .get_and_deserialize_key::<common_utils::encryption::Encryption>(
+            &pm_id.to_string().into(),
+            "Vec<u8>",
+        )
+        .await;
+
+    match response {
+        Ok(resp) => {
+            let decrypted_payload: domain::PaymentMethodVaultingData =
+                pm_cards::decrypt_generic_data(state, Some(resp), key_store)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to decrypt volatile payment method vault data")?
+                    .get_required_value("PaymentMethodVaultingData")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get required decrypted volatile payment method vault data",
+                    )?;
+
+            Ok(pm_types::VaultRetrieveResponse {
+                data: decrypted_payload,
+            })
+        }
+        Err(err) => Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Token is invalid or expired".into(),
+        }),
+    }
 }
 
 #[cfg(feature = "v2")]
