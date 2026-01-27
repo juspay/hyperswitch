@@ -287,11 +287,11 @@ pub enum NextAction {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ResponseData {
     pub id: String,
-    pub amount: i64,
+    pub amount: FloatMajorUnit,
     pub status: RapydPaymentStatus,
     pub next_action: NextAction,
     pub redirect_url: Option<String>,
-    pub original_amount: Option<i64>,
+    pub original_amount: Option<FloatMajorUnit>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<enums::Currency>,
     pub country_code: Option<String>,
@@ -373,10 +373,10 @@ pub struct RefundResponseData {
     //Some field related to foreign exchange and split payment can be added as and when implemented
     pub id: String,
     pub payment: String,
-    pub amount: i64,
+    pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub status: RefundStatus,
-    pub created_at: Option<i64>,
+    pub created_at: Option<FloatMajorUnit>,
     pub failure_reason: Option<String>,
 }
 
@@ -545,7 +545,7 @@ pub struct RapydIncomingWebhook {
     pub data: WebhookData,
     pub trigger_operation_id: Option<String>,
     pub status: String,
-    pub created_at: i64,
+    pub created_at: FloatMajorUnit,
 }
 
 #[derive(Debug, Deserialize)]
