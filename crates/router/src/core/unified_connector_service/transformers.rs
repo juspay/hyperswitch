@@ -562,7 +562,7 @@ impl
                 .request
                 .threeds_method_comp_ind
                 .clone()
-                .map(|ind| ind.foreign_into()),
+                .map(|ind| payments_grpc::ThreeDsCompletionIndicator::foreign_from(ind).into()),
         })
     }
 }
@@ -3924,6 +3924,18 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
     }
 }
 
+impl ForeignFrom<api_models::payments::ThreeDsCompletionIndicator>
+    for payments_grpc::ThreeDsCompletionIndicator
+{
+    fn foreign_from(value: api_models::payments::ThreeDsCompletionIndicator) -> Self {
+        match value {
+            api_models::payments::ThreeDsCompletionIndicator::Success => Self::Success,
+            api_models::payments::ThreeDsCompletionIndicator::Failure => Self::Failure,
+            api_models::payments::ThreeDsCompletionIndicator::NotAvailable => Self::NotAvailable,
+        }
+    }
+}
+
 impl ForeignFrom<common_enums::ExemptionIndicator> for payments_grpc::ExemptionIndicator {
     fn foreign_from(value: common_enums::ExemptionIndicator) -> Self {
         match value {
@@ -4777,12 +4789,6 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
         };
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
-
-        let authentication_data = response.authentication_data.clone().and_then(|auth_data| {
-            router_request_types::UcsAuthenticationData::foreign_try_from(auth_data)
-                .ok()
-                .map(Box::new)
-        });
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {

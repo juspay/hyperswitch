@@ -1220,16 +1220,6 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
     }
 }
 
-impl ForeignFrom<api_models::payments::ThreeDsCompletionIndicator> for i32 {
-    fn foreign_from(value: api_models::payments::ThreeDsCompletionIndicator) -> Self {
-        match value {
-            api_models::payments::ThreeDsCompletionIndicator::Success => 1,
-            api_models::payments::ThreeDsCompletionIndicator::Failure => 2,
-            api_models::payments::ThreeDsCompletionIndicator::NotAvailable => 3,
-        }
-    }
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
