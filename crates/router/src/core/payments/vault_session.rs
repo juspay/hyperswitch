@@ -229,14 +229,13 @@ pub async fn generate_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let connector = api_enums::Connector::from_str(
+    let connector = api_enums::VaultConnectors::try_from(
         &merchant_connector_account_type
             .get_connector_name()
-            .to_string(),
     )
-    .and_then(|c| api_enums::VaultConnectors::try_from(c))
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .map_err(|error| error.attach_printable("Failed to convert connector to vault connector"))?;
+    
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
         .get_connector_account_details()
         .map_err(|err| {
