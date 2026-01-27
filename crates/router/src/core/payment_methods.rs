@@ -1278,9 +1278,10 @@ pub async fn create_payment_method_card_core(
     .await
     .attach_printable("failed to add payment method to db")?;
 
-    let payment_method_data = domain::PaymentMethodVaultingData::try_from(req.payment_method_data)?
-        .populate_bin_details_for_payment_method(state)
-        .await;
+    let payment_method_data =
+        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
+            .populate_bin_details_for_payment_method(state)
+            .await;
 
     let vaulting_result = vault_payment_method(
         state,
@@ -1340,11 +1341,31 @@ pub async fn create_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
+            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+            let card_cvc = req
+                .payment_method_data
+                .get_card()
+                .and_then(|card| card.card_cvc.clone());
+
+            let cvc_expiry_details = card_cvc
+                .async_map(|cvc| {
+                    vault::insert_cvc_using_payment_token(
+                        state,
+                        &payment_method.id,
+                        cvc,
+                        intent_fulfillment_time,
+                        platform.get_provider().get_key_store(),
+                    )
+                })
+                .await
+                .transpose()?;
+
             let resp = pm_transforms::generate_payment_method_response(
                 &payment_method,
                 &None,
                 req.storage_type,
-                None,
+                cvc_expiry_details,
                 req.customer_id,
             )?;
 
@@ -1392,9 +1413,10 @@ pub async fn create_volatile_payment_method_card_core(
     let keymanager_state = &(state).into();
     let merchant_key_store = platform.get_provider().get_key_store();
 
-    let payment_method_data = domain::PaymentMethodVaultingData::try_from(req.payment_method_data)?
-        .populate_bin_details_for_payment_method(state)
-        .await;
+    let payment_method_data =
+        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
+            .populate_bin_details_for_payment_method(state)
+            .await;
 
     let vaulting_result = vault_payment_method_in_volatile_storage(
         state,
@@ -1470,11 +1492,31 @@ pub async fn create_volatile_payment_method_card_core(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to convert payment method")?;
 
+            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+            let card_cvc = req
+                .payment_method_data
+                .get_card()
+                .and_then(|card| card.card_cvc.clone());
+
+            let cvc_expiry_details = card_cvc
+                .async_map(|cvc| {
+                    vault::insert_cvc_using_payment_token(
+                        state,
+                        &domain_payment_method.id,
+                        cvc,
+                        intent_fulfillment_time,
+                        platform.get_provider().get_key_store(),
+                    )
+                })
+                .await
+                .transpose()?;
+
             let resp = pm_transforms::generate_payment_method_response(
                 &domain_payment_method,
                 &None,
                 req.storage_type,
-                None,
+                cvc_expiry_details,
                 req.customer_id,
             )?;
 
@@ -3427,11 +3469,20 @@ pub async fn retrieve_payment_method(
     .await
     .unwrap_or_default();
 
+    let card_cvc_expiry =
+        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(&state, pm_id.to_owned())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve cvc from redis")
+            .ok();
+
     transformers::generate_payment_method_response(
         &payment_method,
         &single_use_token_in_cache,
         Some(common_enums::StorageType::Persistent),
-        None,
+        card_cvc_expiry.map(|time| {
+            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
+        }),
         payment_method.customer_id.clone(),
     )
     .map(services::ApplicationResponse::Json)
@@ -3508,6 +3559,7 @@ pub async fn update_payment_method_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
     let current_vault_id = payment_method.locker_id.clone();
 
     when(
@@ -3520,73 +3572,94 @@ pub async fn update_payment_method_core(
         },
     )?;
 
-    let pmd: domain::PaymentMethodVaultingData =
-        vault::retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
-
-    let vault_request_data = request
-        .payment_method_data
-        .clone()
-        .map(|payment_method_data| {
-            pm_transforms::generate_pm_vaulting_req_from_update_request(pmd, payment_method_data)
-        });
-
-    let vaulting_response = match vault_request_data {
-        // cannot use async map because of problems related to lifetimes
-        // to overcome this, we will have to use a move closure and add some clones
-        Some(ref vault_request_data) => {
-            let (vault_response, _) = vault_payment_method(
+    // Stage 1: Update CVC in redis if provided
+    let card_cvc = request.fetch_card_cvc_update();
+    let card_cvc_token_details = card_cvc
+        .async_map(|cvc| {
+            vault::insert_cvc_using_payment_token(
                 state,
-                vault_request_data,
-                platform,
-                profile,
-                // using current vault_id for now,
-                // will have to refactor this to generate new one on each vaulting later on
-                current_vault_id,
-                &payment_method
-                    .customer_id
-                    .clone()
-                    .get_required_value("GlobalCustomerId")?,
+                payment_method_id,
+                cvc,
+                common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+                platform.get_provider().get_key_store(),
             )
-            .await
-            .attach_printable("Failed to add payment method in vault")?;
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert encrypted cvc in redis")?;
 
-            Some(vault_response)
-        }
-        None => None,
-    };
+    // Stage 2: Update PM metadata and vault if required
+    let updated_payment_method = if request.is_payment_method_metadata_update() {
+        let pmd: domain::PaymentMethodVaultingData =
+            vault::retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?
+                .data;
 
-    let (vault_id, fingerprint_id) = match vaulting_response {
-        Some(vaulting_response) => {
-            let vault_id = vaulting_response.vault_id.get_string_repr().to_owned();
-            (Some(vault_id), vaulting_response.fingerprint_id)
-        }
-        None => (None, None),
-    };
+        let vault_request_data = request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
+                pm_transforms::generate_pm_vaulting_req_from_update_request(
+                    pmd,
+                    payment_method_data,
+                )
+            });
 
-    let pm_update = create_pm_additional_data_update(
-        vault_request_data.as_ref(),
-        state,
-        platform.get_provider().get_key_store(),
-        vault_id,
-        fingerprint_id,
-        &payment_method,
-        request.connector_token_details,
-        request.network_transaction_id,
-        None,
-        None,
-        None,
-        None,
-        None,
-    )
-    .await
-    .attach_printable("Unable to create Payment method data")?;
+        let vaulting_response = match vault_request_data {
+            // cannot use async map because of problems related to lifetimes
+            // to overcome this, we will have to use a move closure and add some clones
+            Some(ref vault_request_data) => {
+                let (vault_response, _) = vault_payment_method(
+                    state,
+                    vault_request_data,
+                    platform,
+                    profile,
+                    // using current vault_id for now,
+                    // will have to refactor this to generate new one on each vaulting later on
+                    current_vault_id,
+                    &payment_method
+                        .customer_id
+                        .clone()
+                        .get_required_value("GlobalCustomerId")?,
+                )
+                .await
+                .attach_printable("Failed to add payment method in vault")?;
 
-    let payment_method = db
-        .update_payment_method(
+                Some(vault_response)
+            }
+            None => None,
+        };
+
+        let (vault_id, fingerprint_id) = match vaulting_response {
+            Some(vaulting_response) => {
+                let vault_id = vaulting_response.vault_id.get_string_repr().to_owned();
+                (Some(vault_id), vaulting_response.fingerprint_id)
+            }
+            None => (None, None),
+        };
+
+        let pm_update = create_pm_additional_data_update(
+            vault_request_data.as_ref(),
+            state,
+            platform.get_provider().get_key_store(),
+            vault_id,
+            fingerprint_id,
+            &payment_method,
+            request.connector_token_details,
+            request.network_transaction_id,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .attach_printable("Unable to create Payment method data")?;
+
+        db.update_payment_method(
             platform.get_provider().get_key_store(),
             payment_method,
             pm_update,
@@ -3594,14 +3667,17 @@ pub async fn update_payment_method_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment method in db")?;
+        .attach_printable("Failed to update payment method in db")?
+    } else {
+        payment_method
+    };
 
     let response = pm_transforms::generate_payment_method_response(
-        &payment_method,
+        &updated_payment_method,
         &None,
         Some(common_enums::StorageType::Persistent),
-        None,
-        payment_method.customer_id.clone(),
+        card_cvc_token_details,
+        updated_payment_method.customer_id.clone(),
     )?;
 
     // Add a PT task to handle payment_method delete from vault
@@ -4065,23 +4141,6 @@ pub async fn payment_methods_session_update_payment_method(
     .await
     .attach_printable("Failed to retrieve payment method id from payment method token data")?;
 
-    // Stage 1: Update CVC in redis if provided
-    let card_cvc = request.fetch_card_cvc_update();
-    let card_cvc_token_details = card_cvc
-        .async_map(|cvc| {
-            vault::insert_cvc_using_payment_token(
-                &state,
-                &payment_method_id,
-                cvc,
-                common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
-                platform.get_provider().get_key_store(),
-            )
-        })
-        .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to insert encrypted cvc in redis")?;
-
     // Update payment method session with associated payment methods
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
         associated_payment_methods: Some(vec![associated_pm_token_details.clone()])
@@ -4125,8 +4184,12 @@ pub async fn payment_methods_session_update_payment_method(
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
-        card_cvc_token_details,
-        update_response.and_then(|resp| resp.payment_method_data),
+        update_response
+            .as_ref()
+            .and_then(|resp| resp.card_cvc_token_storage),
+        update_response
+            .as_ref()
+            .and_then(|resp| resp.payment_method_data.clone()),
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4316,28 +4379,9 @@ pub async fn payment_methods_session_confirm(
 
     let token_data = get_pm_list_token_data(request.payment_method_type, &payment_method)?;
 
-    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-
-    let card_cvc = request
-        .payment_method_data
-        .get_card()
-        .map(|card| card.card_cvc.clone());
-
-    let cvc_expiry_details = card_cvc
-        .async_map(|cvc| {
-            vault::insert_cvc_using_payment_token(
-                &state,
-                &payment_method_response.id,
-                cvc,
-                intent_fulfillment_time,
-                platform.get_provider().get_key_store(),
-            )
-        })
-        .await
-        .transpose()?;
-
     // insert the token data into redis
     if let Some(token_data) = token_data {
+        let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
         pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
             .insert(intent_fulfillment_time, token_data, &state)
             .await?;
@@ -4436,7 +4480,7 @@ pub async fn payment_methods_session_confirm(
         payments_response,
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
-        cvc_expiry_details,
+        payment_method_response.card_cvc_token_storage,
         None,
     );
 
