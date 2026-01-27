@@ -773,6 +773,7 @@ impl Authenticate for api_models::payments::PaymentsCancelRequest {
     }
 }
 impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelPostCaptureSyncBody {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {
     #[cfg(feature = "v2")]
     fn should_return_raw_response(&self) -> Option<bool> {
