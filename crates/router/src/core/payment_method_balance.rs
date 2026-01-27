@@ -78,7 +78,7 @@ pub async fn payments_check_gift_card_balance_core(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
             helpers::get_merchant_connector_account_v2(
                 state,
-                platform.get_processor().get_key_store(),
+                platform.get_processor(),
                 Some(&gift_card_connector_id),
             )
             .await
