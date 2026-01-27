@@ -2059,13 +2059,20 @@ pub struct WebhookPaymentInformation {
     pub amount: WebhookAmount,
     pub status_reason_information: Option<StatusReasonInformation>,
     // sepa direct debit fields
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debtor: Option<Debtor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debtor_account: Option<DebtorAccount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debtor_agent: Option<DebtorAgent>,
     // sepa credit transfer fields
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creditor: Option<Creditor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creditor_account: Option<CreditorAccount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creditor_agent: Option<CreditorAgent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sepa_direct_debit_information: Option<SepaDirectDebitInformation>,
 }
 
@@ -2101,7 +2108,23 @@ pub struct MandateInformation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct Debtor {
-    pub name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<DebtorAddress>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct DebtorAddress {
+    pub lines: Option<Vec<Secret<String>>>,
+    pub city: Option<Secret<String>>,
+    pub postal_code: Option<Secret<String>>,
+    pub country_code: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
