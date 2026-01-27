@@ -9398,9 +9398,7 @@ where
 
             helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
-            return Ok(ConnectorCallType::PreDetermined(
-                first_connector.clone().into(),
-            ));
+            return Ok(ConnectorCallType::PreDetermined(first_connector.clone()));
         }
     };
 
@@ -9420,90 +9418,92 @@ where
     let straight_through_routing_stage =
         request_straight_through_routing_stage.or(algorithmic_straight_through_routing_stage);
 
-    if let Some(straight_through_routing_stage) = straight_through_routing_stage {
-        let straight_through_routing_outcome = straight_through_routing_stage
-            .route(StraightThroughRoutingInput {
-                creds_identifier: payment_data.get_creds_identifier(),
-            })
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("euclid: Failed execution of straight through routing")?;
-
-        payment_data.set_routing_approach_in_attempt(Some(
-            straight_through_routing_stage.routing_approach(),
-        ));
-        let mut connectors = straight_through_routing_outcome.connectors.connectors;
-        if straight_through_routing_outcome.check_eligibility {
-            let transaction_data = core_routing::PaymentsDslInput::new(
-                payment_data.get_setup_mandate(),
-                payment_data.get_payment_attempt(),
-                payment_data.get_payment_intent(),
-                payment_data.get_payment_method_data(),
-                payment_data.get_address(),
-                payment_data.get_recurring_details(),
-                payment_data.get_currency(),
-            );
-
-            connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state,
-                platform.get_processor().get_key_store(),
-                connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors.clone(),
-                business_profile,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
-        }
-        let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id.clone(),
-                )
-                .map(|connector_data| connector_data.into())
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-        logger::debug!("euclid_routing: straight through connector present");
-        return plan_payment_execution_after_routing(
-            &state,
-            payment_data,
-            routing_data,
-            connector_data,
-            mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
-            business_profile.is_network_tokenization_enabled,
-        )
-        .await;
-    };
-
-    let new_pd = payment_data.clone();
     let transaction_data = core_routing::PaymentsDslInput::new(
-        new_pd.get_setup_mandate(),
-        new_pd.get_payment_attempt(),
-        new_pd.get_payment_intent(),
-        new_pd.get_payment_method_data(),
-        new_pd.get_address(),
-        new_pd.get_recurring_details(),
-        new_pd.get_currency(),
+        payment_data.get_setup_mandate(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        payment_data.get_recurring_details(),
+        payment_data.get_currency(),
     );
 
-    route_connector_v1_for_payments(
+    let (connectors, routing_approach, requires_eligibility) =
+        if let Some(straight_through_routing_stage) = straight_through_routing_stage {
+            let straight_through_routing_outcome = straight_through_routing_stage
+                .route(StraightThroughRoutingInput {
+                    creds_identifier: payment_data.get_creds_identifier(),
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("euclid: Failed execution of straight through routing")?;
+
+            logger::debug!("euclid_routing: straight through connector present");
+
+            (
+                straight_through_routing_outcome.connectors.connectors,
+                straight_through_routing_stage.routing_approach(),
+                straight_through_routing_outcome.check_eligibility,
+            )
+        } else {
+            // static & dynamic routing block
+            let routing_outcome_with_approach = route_connector_v1_for_payments(
+                &state,
+                platform,
+                business_profile,
+                transaction_data.clone(),
+                eligible_connectors.clone(),
+            )
+            .await?;
+
+            (
+                routing_outcome_with_approach.connectors,
+                routing_outcome_with_approach.routing_approach,
+                routing_outcome_with_approach.requires_eligibility,
+            )
+        };
+
+    let connectors = if requires_eligibility {
+        routing::perform_eligibility_analysis_with_fallback(
+            &state,
+            platform.get_processor().get_key_store(),
+            connectors,
+            &TransactionData::Payment(transaction_data),
+            eligible_connectors.clone(),
+            business_profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed eligibility analysis and fallback")?
+    } else {
+        connectors
+    };
+
+    let connector_data = connectors
+        .into_iter()
+        .map(|conn| {
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &conn.connector.to_string(),
+                api::GetToken::Connector,
+                conn.merchant_connector_id,
+            )
+            .map(|connector_data| connector_data.into())
+        })
+        .collect::<CustomResult<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("euclid: Invalid connector name received")?;
+
+    payment_data.set_routing_approach_in_attempt(Some(routing_approach));
+
+    plan_payment_execution_after_routing(
         &state,
-        platform,
-        business_profile,
         payment_data,
-        transaction_data,
         routing_data,
-        eligible_connectors,
+        connector_data,
         mandate_type,
+        business_profile.is_connector_agnostic_mit_enabled,
+        business_profile.is_network_tokenization_enabled,
     )
     .await
 }
@@ -10265,20 +10265,14 @@ pub async fn route_connector_v2_for_payments(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn route_connector_v1_for_payments<F, D>(
+pub async fn route_connector_v1_for_payments(
     state: &SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
-    payment_data: &mut D,
     transaction_data: core_routing::PaymentsDslInput<'_>,
-    routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
-    mandate_type: Option<api::MandateTransactionType>,
-) -> RouterResult<ConnectorCallType>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
+) -> RouterResult<routing::RoutingResultWithApproach> {
+    let mut routing_approach = common_enums::RoutingApproach::DefaultFallback;
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
@@ -10340,37 +10334,31 @@ where
                     transaction_data: &transaction_data,
                 };
 
-                let mut routing_outcome = static_stage.route(static_input).await?;
+                let routing_outcome = static_stage.route(static_input).await?;
 
-                let eligibility = routing::perform_eligibility_analysis_with_fallback(
-                    state,
-                    platform.get_processor().get_key_store(),
-                    routing_outcome.connectors.clone(),
-                    &TransactionData::Payment(transaction_data.clone()),
-                    eligible_connectors,
-                    business_profile,
-                )
-                .await?;
-
-                routing_outcome.connectors = eligibility;
+                routing_approach = common_enums::RoutingApproach::RuleBasedRouting;
 
                 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-                {
-                    if business_profile.dynamic_routing_algorithm.is_some() {
-                        let dynamic_input = routing::DynamicRoutingInput {
-                            state,
-                            business_profile,
-                            transaction_data: &transaction_data,
-                            static_connectors: &routing_outcome.connectors,
-                        };
+                let routing_outcome = if business_profile.dynamic_routing_algorithm.is_some() {
+                    let dynamic_input = routing::DynamicRoutingInput {
+                        state,
+                        business_profile,
+                        transaction_data: &transaction_data,
+                        static_connectors: &routing_outcome.connectors,
+                    };
 
-                        let dynamic_stage = routing::DynamicRoutingStage;
+                    let dynamic_stage = routing::DynamicRoutingStage;
 
-                        if let Ok(dynamic_outcome) = dynamic_stage.route(dynamic_input).await {
-                            routing_outcome.connectors = dynamic_outcome.connectors;
-                        }
+                    if let Ok(dynamic_outcome) = dynamic_stage.route(dynamic_input).await {
+                        routing_approach =
+                            common_enums::RoutingApproach::Other("DynamicRouting".to_string());
+                        dynamic_outcome
+                    } else {
+                        routing_outcome
                     }
-                }
+                } else {
+                    routing_outcome
+                };
 
                 Ok::<_, error_stack::Report<errors::RoutingError>>(routing_outcome.connectors)
             }
@@ -10394,31 +10382,11 @@ where
             fallback_config.clone()
         };
 
-    let connector_data = routable_connectors
-        .into_iter()
-        .map(|conn| {
-            api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &conn.connector.to_string(),
-                api::GetToken::Connector,
-                conn.merchant_connector_id,
-            )
-            .map(|connector_data| connector_data.into())
-        })
-        .collect::<CustomResult<Vec<_>, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("euclid: Invalid connector name received")?;
-
-    plan_payment_execution_after_routing(
-        state,
-        payment_data,
-        routing_data,
-        connector_data,
-        mandate_type,
-        business_profile.is_connector_agnostic_mit_enabled,
-        business_profile.is_network_tokenization_enabled,
-    )
-    .await
+    Ok(routing::RoutingResultWithApproach {
+        connectors: routable_connectors,
+        routing_approach,
+        requires_eligibility: true,
+    })
 }
 
 #[cfg(feature = "payouts")]

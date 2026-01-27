@@ -579,6 +579,47 @@ impl RoutingStage for StraightThroughRoutingStage {
     }
 }
 
+pub struct StaticRoutingInput<'a> {
+    pub platform: &'a domain::Platform,
+    pub business_profile: &'a domain::Profile,
+    pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
+    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+}
+
+pub struct StaticRoutingStage {
+    pub ctx: RoutingContext,
+}
+
+impl RoutingStage for StaticRoutingStage {
+    type Input<'a> = StaticRoutingInput<'a>;
+    type Output = ConnectorOutcome;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let connectors = static_routing_v1(
+                &self.ctx.routing_algorithm,
+                &routing::TransactionData::Payment(input.transaction_data.clone()),
+            )
+            .await
+            .change_context(errors::RoutingError::DslExecutionError)
+            .attach_printable("euclid: unable to perform static routing")?;
+
+            Ok(ConnectorOutcome { connectors })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::RuleBasedRouting
+    }
+}
+
+pub struct RoutingResultWithApproach {
+    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+    pub routing_approach: common_enums::RoutingApproach,
+    pub requires_eligibility: bool,
+}
+
 pub struct PreRoutingInput<'a> {
     pub pre_routing_results:
         &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
@@ -614,7 +655,7 @@ pub async fn resolve_pre_routed_connectors(
 
     for connector_choice in routable_connectors {
         let connector_data = api::ConnectorData::get_connector_by_name(
-            &input.connectors,
+            input.connectors,
             &connector_choice.connector.to_string(),
             api::GetToken::Connector,
             connector_choice.merchant_connector_id.clone(),
@@ -714,41 +755,6 @@ where
     }
 
     try_get_mandate_connector::<F, D>(state, payment_data, routing_data)
-}
-
-pub struct StaticRoutingInput<'a> {
-    pub platform: &'a domain::Platform,
-    pub business_profile: &'a domain::Profile,
-    pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
-    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
-}
-
-pub struct StaticRoutingStage {
-    pub ctx: RoutingContext,
-}
-
-impl RoutingStage for StaticRoutingStage {
-    type Input<'a> = StaticRoutingInput<'a>;
-    type Output = ConnectorOutcome;
-    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
-
-    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
-        Box::pin(async move {
-            let connectors = static_routing_v1(
-                &self.ctx.routing_algorithm,
-                &routing::TransactionData::Payment(input.transaction_data.clone()),
-            )
-            .await
-            .change_context(errors::RoutingError::DslExecutionError)
-            .attach_printable("euclid: unable to perform static routing")?;
-
-            Ok(ConnectorOutcome { connectors })
-        })
-    }
-
-    fn routing_approach(&self) -> common_enums::RoutingApproach {
-        common_enums::RoutingApproach::RuleBasedRouting
-    }
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
