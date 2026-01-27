@@ -49,21 +49,44 @@ impl FileStorageConfig {
     }
 }
 
-/// Trait for file storage operations
 #[async_trait::async_trait]
 pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
-    /// Uploads a file to the selected storage scheme.
     async fn upload_file(
         &self,
         file_key: &str,
         file: Vec<u8>,
     ) -> CustomResult<(), FileStorageError>;
 
-    /// Deletes a file from the selected storage scheme.
     async fn delete_file(&self, file_key: &str) -> CustomResult<(), FileStorageError>;
 
-    /// Retrieves a file from the selected storage scheme.
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError>;
+
+    async fn initiate_multipart_upload(
+        &self,
+        file_key: &str,
+        content_type: &str,
+    ) -> CustomResult<String, FileStorageError> {
+        Err(FileStorageError::NotSupported.into())
+    }
+
+    async fn upload_part(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        part_number: i32,
+        body: aws_sdk_s3::primitives::ByteStream,
+    ) -> CustomResult<String, FileStorageError> {
+        Err(FileStorageError::NotSupported.into())
+    }
+
+    async fn complete_multipart_upload(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        parts: Vec<api_models::revenue_recovery_reports::CompletedPart>,
+    ) -> CustomResult<(), FileStorageError> {
+        Err(FileStorageError::NotSupported.into())
+    }
 }
 
 dyn_clone::clone_trait_object!(FileStorageInterface);
@@ -80,18 +103,17 @@ impl Display for InvalidFileStorageConfig {
     }
 }
 
-/// Represents errors that can occur during file storage operations.
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum FileStorageError {
-    /// Indicates that the file upload operation failed.
     #[error("Failed to upload file")]
     UploadFailed,
 
-    /// Indicates that the file retrieval operation failed.
     #[error("Failed to retrieve file")]
     RetrieveFailed,
 
-    /// Indicates that the file deletion operation failed.
     #[error("Failed to delete file")]
     DeleteFailed,
+
+    #[error("Operation not supported by this file storage backend")]
+    NotSupported,
 }

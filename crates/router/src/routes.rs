@@ -53,6 +53,8 @@ pub mod refunds;
 pub mod revenue_recovery_data_backfill;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_redis;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_reports;
 #[cfg(feature = "olap")]
 pub mod routing;
 #[cfg(feature = "v1")]
@@ -105,7 +107,7 @@ pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, Webh
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]
-pub use self::app::{RecoveryDataBackfill, Tokenization};
+pub use self::app::{RecoveryDataBackfill, RecoveryReports, Tokenization};
 #[cfg(all(feature = "stripe", feature = "v1"))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
