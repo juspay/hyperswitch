@@ -178,8 +178,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 payment_methods::cards::update_last_used_at(
                     payment_method_info,
                     state,
-                    platform.get_processor().get_account().storage_scheme,
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
                 )
                 .await
                 .map_err(|e| {
@@ -221,7 +221,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 resp.request.setup_future_usage,
                 Some(enums::FutureUsage::OffSession)
             );
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         // Skip payment method creation when on-session saving is not supported for the payment method
         should_avoid_saving = if resp
@@ -277,9 +276,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         match state
                             .store
                             .find_payment_method(
-                                platform.get_processor().get_key_store(),
+                                platform.get_provider().get_key_store(),
                                 payment_method_id,
-                                storage_scheme,
+                                platform.get_provider().get_account().storage_scheme,
                             )
                             .await
                         {
@@ -372,7 +371,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         let payment_attempt_update =
                             storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                                 payment_method_id,
-                                updated_by: storage_scheme.clone().to_string(),
+                                updated_by: cloned_platform
+                                    .get_processor()
+                                    .get_account()
+                                    .storage_scheme
+                                    .clone()
+                                    .to_string(),
                             };
 
                         #[cfg(feature = "v1")]
@@ -381,7 +385,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             .update_payment_attempt_with_attempt_id(
                                 payment_attempt,
                                 payment_attempt_update,
-                                storage_scheme,
+                                cloned_platform.get_processor().get_account().storage_scheme,
                                 cloned_platform.get_processor().get_key_store(),
                             )
                             .await;
@@ -394,7 +398,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 &key_store.clone(),
                                 payment_attempt,
                                 payment_attempt_update,
-                                storage_scheme,
+                                cloned_platform.get_processor().get_account().storage_scheme,
                             )
                             .await;
 
@@ -652,11 +656,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 
         update_payment_method_status_and_ntid(
             state,
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_data,
             resp.status,
             resp.response.clone(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await?;
         Ok(())
@@ -1307,9 +1311,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             match state
                 .store
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
             {
@@ -1430,11 +1434,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 
         update_payment_method_status_and_ntid(
             state,
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_data,
             resp.status,
             resp.response.clone(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await?;
         Ok(())
