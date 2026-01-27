@@ -1756,10 +1756,14 @@ impl<F>
             Some(void_response) => {
                 let post_capture_void_status =
                     get_post_capture_void_status(void_response.response)?;
+                let description =
+                    connector_utils::is_post_capture_void_failure(post_capture_void_status)
+                        .then_some(void_response.message.clone());
                 Ok(Self {
                     response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                         post_capture_void_status,
                         connector_reference_id: Some(void_response.cnp_txn_id),
+                        description,
                     }),
                     ..item.data
                 })
@@ -1768,6 +1772,7 @@ impl<F>
                 response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                     post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
                     connector_reference_id: None,
+                    description: Some(item.response.message.clone()),
                 }),
                 ..item.data
             }),

@@ -228,4 +228,6 @@ pub struct PostCaptureVoidData {
     pub status: common_enums::PostCaptureVoidStatus,
     /// Connector reference id for post capture void
     pub connector_reference_id: Option<String>,
+    /// Description or message related to the post capture void
+    pub description: Option<String>,
 }

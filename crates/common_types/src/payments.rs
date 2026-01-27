@@ -1007,6 +1007,8 @@ pub struct PostCaptureVoidResponse {
     pub status: enums::PostCaptureVoidStatus,
     /// Connector reference id for post capture void
     pub connector_reference_id: Option<String>,
+    /// Description or message related to the post capture void
+    pub description: Option<String>,
     /// Timestamp when the post capture void was last updated
     pub updated_at: PrimitiveDateTime,
 }
@@ -1042,8 +1044,7 @@ impl PaymentIntentStateMetadata {
             self.post_capture_void
                 .as_ref()
                 .map(|post_capture_void| post_capture_void.status),
-            Some(common_enums::PostCaptureVoidStatus::Success)
-                | Some(common_enums::PostCaptureVoidStatus::Pending)
+            Some(common_enums::PostCaptureVoidStatus::Pending)
         )
     }
 
@@ -1053,7 +1054,7 @@ impl PaymentIntentStateMetadata {
             self.post_capture_void
                 .as_ref()
                 .map(|post_capture_void| post_capture_void.status),
-            Some(common_enums::PostCaptureVoidStatus::Success)
+            Some(common_enums::PostCaptureVoidStatus::Succeeded)
         )
     }
 
@@ -1065,6 +1066,7 @@ impl PaymentIntentStateMetadata {
         self.post_capture_void = Some(PostCaptureVoidResponse {
             status: post_capture_void_data.status,
             connector_reference_id: post_capture_void_data.connector_reference_id,
+            description: post_capture_void_data.description,
             updated_at: date_time::now(),
         });
         self

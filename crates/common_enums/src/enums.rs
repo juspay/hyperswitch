@@ -10519,7 +10519,7 @@ pub enum RoutingRegion {
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PostCaptureVoidStatus {
-    Success,
+    Succeeded,
     #[default]
     Pending,
     Failed,
