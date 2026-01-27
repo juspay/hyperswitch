@@ -2058,6 +2058,60 @@ pub struct WebhookPaymentInformation {
     pub status: WebhookStatus,
     pub amount: WebhookAmount,
     pub status_reason_information: Option<StatusReasonInformation>,
+    // sepa direct debit fields
+    pub debtor: Option<Debtor>,
+    pub debtor_account: Option<DebtorAccount>,
+    pub debtor_agent: Option<DebtorAgent>,
+    // sepa credit transfer fields
+    pub creditor: Option<Creditor>,
+    pub creditor_account: Option<CreditorAccount>,
+    pub creditor_agent: Option<CreditorAgent>,
+    pub sepa_direct_debit_information: Option<SepaDirectDebitInformation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct Creditor {
+    pub name: Secret<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct CreditorAccount {
+    pub iban: Secret<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct CreditorAgent {
+    pub bic: Secret<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct SepaDirectDebitInformation {
+    pub sequence_type: Option<String>,
+    pub mandate_information: Option<MandateInformation>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct MandateInformation {
+    #[serde(rename = "UMR")]
+    pub umr: Option<Secret<String>>,
+    pub signing_city: Option<Secret<String>>,
+    pub signing_date: Option<Secret<String>>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct Debtor {
+    pub name: Secret<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct DebtorAccount {
+    pub iban: Secret<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct DebtorAgent {
+    pub bic: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
