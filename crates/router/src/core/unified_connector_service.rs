@@ -1235,8 +1235,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         .ok_or(UnifiedConnectorServiceError::ParsingFailed)
         .attach_printable("Failed to obtain ConnectorMetadata")?;
 
-    let connector = external_vault_merchant_connector_account
-            .get_connector_name();
+    let connector = external_vault_merchant_connector_account.get_connector_name();
 
     let external_vault_connector = api_enums::VaultConnectors::try_from(connector)
         .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
