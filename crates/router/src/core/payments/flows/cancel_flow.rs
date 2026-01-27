@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use hyperswitch_domain_models::router_data_v2::PaymentFlowData;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -85,31 +86,23 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
             router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
 
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::Void,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let resp = services::execute_connector_processing_step(
+        payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
             state,
-            connector_integration,
-            &self,
+            self,
+            connector,
+            &gateway_context,
             call_connector_action,
             connector_request,
             return_raw_connector_response,
         )
         .await
-        .to_payment_failed_response()?;
-
-        Ok(resp)
     }
 
     async fn add_access_token<'a>(

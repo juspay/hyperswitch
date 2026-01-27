@@ -324,7 +324,7 @@ async fn store_bank_details_in_payment_methods(
     let (connector_name, access_token) = connector_details;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payload.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
