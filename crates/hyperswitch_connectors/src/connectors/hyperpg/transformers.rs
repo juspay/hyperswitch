@@ -73,7 +73,11 @@ impl TryFrom<&ConnectorAuthType> for HyperpgAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
                 merchant_id: api_secret.to_owned(),
