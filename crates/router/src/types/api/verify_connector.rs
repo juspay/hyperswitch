@@ -53,6 +53,7 @@ impl VerifyConnectorData {
             request_extended_authorization: None,
             request_incremental_authorization: false,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
             merchant_order_reference_id: None,

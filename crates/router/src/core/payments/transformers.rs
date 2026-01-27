@@ -4737,6 +4737,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        use hyperswitch_domain_models::router_request_types::UcsAuthenticationData;
+
         let payment_data = additional_data.payment_data.clone();
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
@@ -4944,6 +4946,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .as_ref()
                     .map(AuthenticationData::foreign_try_from)
                     .transpose()?),
+            ucs_authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(UcsAuthenticationData::foreign_try_from)
+                .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,

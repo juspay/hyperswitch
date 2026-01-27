@@ -6,7 +6,7 @@ pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{
-    consts, date_time, errors,
+    consts, errors,
     ext_traits::OptionExt,
     id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
@@ -68,6 +68,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
+    pub ucs_authentication_data: Option<UcsAuthenticationData>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,

@@ -56,7 +56,7 @@ use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
-        transformers::{self, ForeignFrom, ForeignInto},
+        transformers::{self, ForeignFrom},
     },
 };
 
@@ -443,9 +443,8 @@ impl
                     )
                     .ok()
                 })
-                .and_then(|auth_data| {
-                    payments_grpc::AuthenticationData::foreign_try_from(auth_data).ok()
-                })
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?
         } else {
             authentication_data
         };

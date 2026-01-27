@@ -1325,6 +1325,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             request_extended_authorization: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             merchant_order_reference_id: None,
