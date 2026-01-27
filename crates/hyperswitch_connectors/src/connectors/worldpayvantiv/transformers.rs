@@ -543,7 +543,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
-            PaymentStatus::ProcessedSuccessfully => common_enums::PostCaptureVoidStatus::Success,
+            PaymentStatus::ProcessedSuccessfully => common_enums::PostCaptureVoidStatus::Succeeded,
             PaymentStatus::TransactionDeclined => common_enums::PostCaptureVoidStatus::Failed,
             PaymentStatus::PaymentStatusNotFound
             | PaymentStatus::NotYetProcessed
@@ -555,10 +555,18 @@ impl<F>
             .as_ref()
             .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
 
+
+        let description = item.response.payment_detail.as_ref()
+    .and_then(|detail| detail.response_reason_message.clone())
+    .filter(|_| connector_utils::is_post_capture_void_failure(post_capture_void_status));
+
+
+
         Ok(Self {
             response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status: status,
                 connector_reference_id,
+                description
             }),
             ..item.data
         })
