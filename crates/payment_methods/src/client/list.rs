@@ -1,10 +1,14 @@
 use api_models::payment_methods::{
-    CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response,
     CustomerPaymentMethod,
+    CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response,
 };
 use common_utils::{id_type, request::Method};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use crate::types::{ModularListCustomerPaymentMethodsRequest, ModularListCustomerPaymentMethodsResponse,PaymentMethodResponseData};
+
+use crate::types::{
+    ModularListCustomerPaymentMethodsRequest, ModularListCustomerPaymentMethodsResponse,
+    PaymentMethodResponseData,
+};
 
 /// V1-facing retrieve flow type.
 #[derive(Debug)]
@@ -28,15 +32,16 @@ impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymen
 impl TryFrom<ModularListCustomerPaymentMethodsResponse> for ListCustomerPaymentMethodsV1Response {
     type Error = MicroserviceClientError;
 
-    fn try_from(v2_response: ModularListCustomerPaymentMethodsResponse) -> Result<Self, Self::Error> {
+    fn try_from(
+        v2_response: ModularListCustomerPaymentMethodsResponse,
+    ) -> Result<Self, Self::Error> {
         let customer_payment_methods = v2_response
             .customer_payment_methods
             .into_iter()
             .map(|pm| CustomerPaymentMethod {
                 payment_token: pm.id.clone(),
                 payment_method_id: pm.id,
-                customer_id: pm
-                    .customer_id,
+                customer_id: pm.customer_id,
                 payment_method: pm.payment_method_type,
                 payment_method_type: Some(pm.payment_method_subtype),
                 payment_method_issuer: None,

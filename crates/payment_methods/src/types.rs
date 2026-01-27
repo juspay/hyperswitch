@@ -1,9 +1,7 @@
-use api_models::payment_methods::{
-    CardDetailFromLocker,
-};
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
+use api_models::payment_methods::CardDetailFromLocker;
 use common_enums::{PaymentMethod, PaymentMethodType};
-use common_utils::{id_type};
+use common_utils::id_type;
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
 #[derive(Clone, Debug)]
