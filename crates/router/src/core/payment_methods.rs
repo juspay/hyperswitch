@@ -107,7 +107,7 @@ pub async fn retrieve_payment_method_core(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    merchant_key_store: &domain::MerchantKeyStore,
+    provider: &domain::Provider,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
@@ -118,7 +118,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::Card,
                 pm,
-                merchant_key_store,
+                provider.get_key_store(),
                 business_profile,
             )
             .await?;
@@ -131,7 +131,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::BankDebit,
                 pm,
-                merchant_key_store,
+                provider.get_key_store(),
                 business_profile,
             )
             .await?;
@@ -156,7 +156,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::BankTransfer,
                 pm,
-                merchant_key_store,
+                provider.get_key_store(),
                 business_profile,
             )
             .await?;
@@ -170,7 +170,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::Wallet,
                 pm,
-                merchant_key_store,
+                provider.get_key_store(),
                 business_profile,
             )
             .await?;
@@ -184,7 +184,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::BankRedirect,
                 pm,
-                merchant_key_store,
+                provider.get_key_store(),
                 business_profile,
             )
             .await?;
@@ -534,7 +534,7 @@ pub async fn retrieve_payment_method_with_token(
 #[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -554,7 +554,7 @@ pub async fn retrieve_payment_method_with_token(
                 &generic_token.token,
                 payment_intent,
                 payment_attempt,
-                merchant_key_store,
+                platform.get_provider().get_key_store(),
                 card_token_data,
             )
             .await?
@@ -574,7 +574,7 @@ pub async fn retrieve_payment_method_with_token(
                 &generic_token.token,
                 payment_intent,
                 payment_attempt,
-                merchant_key_store,
+                platform.get_provider().get_key_store(),
                 card_token_data,
             )
             .await?
@@ -598,7 +598,7 @@ pub async fn retrieve_payment_method_with_token(
                     .unwrap_or(&card_token.token),
                 payment_intent,
                 card_token_data,
-                merchant_key_store,
+                platform,
                 storage_scheme,
                 mandate_id,
                 payment_method_info
@@ -638,7 +638,7 @@ pub async fn retrieve_payment_method_with_token(
                     .unwrap_or(&card_token.token),
                 payment_intent,
                 card_token_data,
-                merchant_key_store,
+                platform,
                 storage_scheme,
                 mandate_id,
                 payment_method_info
@@ -671,7 +671,7 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
             pm_auth::retrieve_payment_method_from_auth_service(
                 state,
-                merchant_key_store,
+                platform.get_processor(),
                 auth_token,
                 payment_intent,
                 customer,
@@ -708,9 +708,8 @@ pub async fn retrieve_payment_method_with_token(
 
             let bank_debit_detail = cards::get_bank_debit_from_hs_locker(
                 state,
-                merchant_key_store,
+                platform.get_provider(),
                 &customer.customer_id,
-                &merchant_key_store.merchant_id,
                 locker_id,
             )
             .await?;
