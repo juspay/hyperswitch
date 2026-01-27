@@ -4158,24 +4158,15 @@ pub async fn payment_methods_session_update_payment_method(
             "Failed to update payment method session with associated payment methods",
         )?;
 
-    // Stage 2: Update saved payment method if there is any metadata update
-    let update_response = if request.is_payment_method_metadata_update() {
-        let payment_method_update_request = request.payment_method_update_request.clone();
-
-        Some(
-            Box::pin(update_payment_method_core(
-                &state,
-                &platform,
-                &profile,
-                payment_method_update_request,
-                &payment_method_id,
-            ))
-            .await
-            .attach_printable("Failed to update saved payment method")?,
-        )
-    } else {
-        None
-    };
+    let update_response = Box::pin(update_payment_method_core(
+        &state,
+        &platform,
+        &profile,
+        request.payment_method_update_request.clone(),
+        &payment_method_id,
+    ))
+    .await
+    .attach_printable("Failed to update saved payment method")?;
 
     let response = transformers::generate_payment_method_session_response(
         updated_payment_method_session,
@@ -4183,12 +4174,8 @@ pub async fn payment_methods_session_update_payment_method(
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
-        update_response
-            .as_ref()
-            .and_then(|resp| resp.card_cvc_token_storage),
-        update_response
-            .as_ref()
-            .and_then(|resp| resp.payment_method_data.clone()),
+        update_response.card_cvc_token_storage,
+        update_response.payment_method_data.clone(),
     );
 
     Ok(services::ApplicationResponse::Json(response))
