@@ -1,4 +1,6 @@
 use common_enums::PaymentMethodType;
+#[cfg(feature = "v2")]
+use common_utils::request;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     encryption::Encryption,
@@ -6,8 +8,6 @@ use common_utils::{
     generate_id_with_default_len, id_type,
     pii::Email,
 };
-#[cfg(feature = "v2")]
-use common_utils::{encryption::Encryption, request};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_flow_types::{
@@ -1826,17 +1826,20 @@ pub async fn insert_cvc_using_payment_token(
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
-    let payload = payload_to_be_encrypted
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    // let payload = payload_to_be_encrypted
+    //     .encode_to_string_of_json()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Encrypt the CVC and store it in Redis
-    let encrypted_payload: Encryption =
-        pm_cards::create_encrypted_data(&(state.into()), key_store, payload.clone())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
-            .into();
+    let encrypted_payload: Encryption = pm_cards::create_encrypted_data(
+        &(state.into()),
+        key_store,
+        payload_to_be_encrypted.clone(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
+    .into();
 
     redis_conn
         .serialize_and_set_key_with_expiry(

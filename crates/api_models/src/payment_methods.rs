@@ -533,25 +533,6 @@ impl PaymentMethodUpdate {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentMethodUpdate {
-    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
-        match &self.payment_method_data {
-            Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn is_payment_method_metadata_update(&self) -> bool {
-        match &self.payment_method_data {
-            Some(PaymentMethodUpdateData::Card(card_update)) => {
-                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
-            }
-            _ => false,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]

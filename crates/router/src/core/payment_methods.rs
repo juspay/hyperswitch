@@ -3675,15 +3675,9 @@ pub async fn update_payment_method_core(
 
         db.update_payment_method(
             platform.get_provider().get_key_store(),
-            vault_id,
-            fingerprint_id,
-            &payment_method,
-            request.connector_token_details,
-            None,
-            None,
-            None,
-            None,
-            None,
+            payment_method,
+            pm_update,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
