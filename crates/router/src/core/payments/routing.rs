@@ -4,7 +4,7 @@ pub mod utils;
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::hash::{Hash, Hasher};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, future::Future, pin::Pin, str::FromStr, sync::Arc};
 
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
@@ -496,6 +496,183 @@ pub fn make_dsl_input(
     })
 }
 
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub trait RoutingStage: Send + Sync {
+    type Input<'a>
+    where
+        Self: 'a;
+
+    type Fut<'a>: Future<Output = RoutingResult<ConnectorOutcome>> + Send
+    where
+        Self: 'a;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a>;
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach;
+}
+
+pub struct RoutingContext {
+    pub routing_algorithm: Arc<CachedAlgorithm>,
+}
+
+pub struct ConnectorOutcome {
+    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+}
+
+pub struct StaticRoutingInput<'a> {
+    pub platform: &'a domain::Platform,
+    pub business_profile: &'a domain::Profile,
+    pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
+    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+}
+
+pub struct StaticRoutingStage {
+    pub ctx: RoutingContext,
+}
+
+impl RoutingStage for StaticRoutingStage {
+    type Input<'a> = StaticRoutingInput<'a>;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<ConnectorOutcome>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let connectors = static_routing_v1(
+                &self.ctx.routing_algorithm,
+                &routing::TransactionData::Payment(input.transaction_data.clone()),
+            )
+            .await
+            .change_context(errors::RoutingError::DslExecutionError)
+            .attach_printable("euclid: unable to perform static routing")?;
+
+            Ok(ConnectorOutcome { connectors })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::RuleBasedRouting
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub struct DynamicRoutingStage;
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+impl DynamicRoutingStage {
+    async fn resolve_dynamic_connectors(
+        &self,
+        input: &DynamicRoutingInput<'_>,
+        routing_type: &api_models::routing::RoutingType,
+    ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+        if !routing_type.is_dynamic_routing()
+            || !input.state.conf.open_router.dynamic_routing_enabled
+        {
+            Ok(input.static_connectors.to_vec())
+        } else {
+            let payment_attempt = input.transaction_data.payment_attempt.clone();
+            let dynamic_result = perform_dynamic_routing_with_open_router(
+                input.state,
+                input.static_connectors.to_vec(),
+                input.business_profile,
+                payment_attempt,
+            )
+            .await
+            .unwrap_or_else(|e| {
+                logger::error!(open_router_error=?e);
+                DynamicRoutingResult {
+                    connectors: input.static_connectors.to_vec(),
+                    routing_approach: None,
+                }
+            });
+
+            Ok(dynamic_result.connectors)
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub struct DynamicRoutingInput<'a> {
+    pub state: &'a SessionState,
+    pub business_profile: &'a domain::Profile,
+    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+    pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+impl RoutingStage for DynamicRoutingStage {
+    type Input<'a> = DynamicRoutingInput<'a>;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<ConnectorOutcome>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let Some(algo) = input.business_profile.dynamic_routing_algorithm.clone() else {
+                return Ok(ConnectorOutcome {
+                    connectors: input.static_connectors.to_vec(),
+                });
+            };
+
+            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+                .parse_value("DynamicRoutingAlgorithmRef")
+                .change_context(errors::RoutingError::DeserializationError {
+                    from: "json".into(),
+                    to: "DynamicAlgorithmRef".into(),
+                })?;
+
+            let dynamic_split = api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Dynamic,
+                split: dynamic_routing_config
+                    .dynamic_routing_volume_split
+                    .unwrap_or_default(),
+            };
+
+            let static_split = api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Static,
+                split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
+                    - dynamic_routing_config
+                        .dynamic_routing_volume_split
+                        .unwrap_or_default(),
+            };
+
+            let routing_choice =
+                perform_dynamic_routing_volume_split(vec![dynamic_split, static_split], None)
+                    .change_context(errors::RoutingError::VolumeSplitFailed)
+                    .attach_printable("failed to perform volume split on routing type")?;
+
+            let connectors = self
+                .resolve_dynamic_connectors(&input, &routing_choice.routing_type)
+                .await?;
+
+            Ok(ConnectorOutcome { connectors })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::SuccessRateExploration
+    }
+}
+
+pub async fn static_routing_v1(
+    routing_algorithm: &CachedAlgorithm,
+    transaction_data: &routing::TransactionData<'_>,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    logger::debug!("euclid_routing: performing routing for connector selection");
+    let backend_input = match transaction_data {
+        routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
+        #[cfg(feature = "payouts")]
+        routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
+    };
+
+    let routable_connectors = match routing_algorithm {
+        CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
+        CachedAlgorithm::Priority(plist) => plist.clone(),
+        CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(splits.to_vec())
+            .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+        CachedAlgorithm::Advanced(interpreter) => {
+            execute_dsl_and_get_connector_v1(backend_input, interpreter)?
+        }
+    };
+    Ok(routable_connectors)
+}
+
 pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -633,7 +810,7 @@ pub async fn perform_static_routing_v1(
     ))
 }
 
-async fn ensure_algorithm_cached_v1(
+pub async fn ensure_algorithm_cached_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &common_utils::id_type::RoutingId,
@@ -1734,18 +1911,18 @@ pub fn make_dsl_input_for_surcharge(
     Ok(backend_input)
 }
 
+pub struct DynamicRoutingResult {
+    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+    pub routing_approach: Option<common_enums::RoutingApproach>,
+}
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_dynamic_routing_with_open_router<F, D>(
+pub async fn perform_dynamic_routing_with_open_router(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
     payment_data: oss_storage::PaymentAttempt,
-    old_payment_data: &mut D,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
+) -> RoutingResult<DynamicRoutingResult> {
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
         .clone()
@@ -1777,7 +1954,6 @@ where
             profile.get_id(),
             &payment_data,
             is_elimination_enabled,
-            old_payment_data,
         )
         .await?;
 
@@ -1785,7 +1961,7 @@ where
             // This will initiate the elimination process for the connector.
             // Penalize the elimination score of the connector before making a payment.
             // Once the payment is made, we will update the score based on the payment status
-            if let Some(connector) = connectors.first() {
+            if let Some(connector) = connectors.connectors.first() {
                 logger::debug!(
                 "penalizing the elimination score of the gateway with id {} in open_router for profile {}",
                 connector, profile.get_id().get_string_repr()
@@ -1803,7 +1979,10 @@ where
         }
         connectors
     } else {
-        routable_connectors
+        DynamicRoutingResult {
+            connectors: routable_connectors,
+            routing_approach: Some(utils::RoutingApproach::Default.into()),
+        }
     };
 
     Ok(connectors)
@@ -2007,18 +2186,13 @@ where
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn perform_decide_gateway_call_with_open_router<F, D>(
+pub async fn perform_decide_gateway_call_with_open_router(
     state: &SessionState,
     mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
     payment_attempt: &oss_storage::PaymentAttempt,
     is_elimination_enabled: bool,
-    old_payment_data: &mut D,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
+) -> RoutingResult<DynamicRoutingResult> {
     logger::debug!(
         "performing decide_gateway call with open_router for profile {}",
         profile_id.get_string_repr()
@@ -2075,11 +2249,11 @@ where
                 .to_string(),
             );
 
-            old_payment_data.set_routing_approach_in_attempt(Some(
+            let routing_approach = Some(
                 common_enums::RoutingApproach::from_decision_engine_approach(
                     &decided_gateway.routing_approach,
                 ),
-            ));
+            );
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
                 logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
@@ -2101,7 +2275,10 @@ where
             routing_event.set_routable_connectors(routable_connectors.clone());
             state.event_handler().log_event(&routing_event);
 
-            Ok(routable_connectors)
+            Ok(DynamicRoutingResult {
+                connectors: routable_connectors,
+                routing_approach,
+            })
         }
         Err(err) => {
             logger::error!("open_router_error_response: {:?}", err);
@@ -2112,7 +2289,10 @@ where
         }
     }?;
 
-    Ok(sr_sorted_connectors)
+    Ok(DynamicRoutingResult {
+        connectors: sr_sorted_connectors.connectors,
+        routing_approach: sr_sorted_connectors.routing_approach,
+    })
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

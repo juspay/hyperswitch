@@ -2721,3 +2721,8 @@ pub async fn update_gateway_score_open_router(
         response,
     ))
 }
+
+pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums::TransactionType {
+    let txn_data = TransactionData::Payment(input.clone());
+    enums::TransactionType::from(&txn_data)
+}
