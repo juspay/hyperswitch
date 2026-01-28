@@ -1041,7 +1041,7 @@ pub fn payments_update_metadata() {}
     ),
     request_body=PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Eligbility submit is successful", body = PaymentsEligibilityResponse),
+        (status = 200, description = "Eligibility submit is successful", body = PaymentsEligibilityResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
