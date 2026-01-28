@@ -503,6 +503,7 @@ async fn fetch_three_ds_execution_path(
     let is_merchant_eligible_for_uas =
         payments::helpers::is_merchant_eligible_authentication_service(
             &platform.get_processor().get_account().get_id().clone(),
+            &platform.get_processor().get_account().get_org_id().clone(),
             state,
         )
         .await?;
