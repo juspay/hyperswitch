@@ -397,6 +397,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    let rrn = connector_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peachpayments.as_ref())
+        .and_then(|peachpaymentsdata| peachpaymentsdata.rrn.clone());
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -464,6 +469,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_stored_credential: None,
         billing_descriptor: None,
         partner_merchant_identifier_details: None,
+        rrn,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4662,6 +4668,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let shipping_cost = payment_data.payment_intent.amount_details.shipping_cost;
 
+        let rrn = payment_data
+            .payment_intent
+            .connector_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peachpayments.as_ref())
+            .and_then(|peachpaymentsdata| peachpaymentsdata.rrn.clone());
+
         Ok(Self {
             payment_method_data: payment_method_data
                 .unwrap_or(domain::PaymentMethodData::Card(domain::Card::default())),
@@ -4717,6 +4730,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             is_stored_credential: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            rrn,
         })
     }
 }
@@ -4777,6 +4791,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .and_then(|braintree| braintree.merchant_account_id.clone());
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+
+        let rrn = connector_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peachpayments.as_ref())
+            .and_then(|peachpaymentsdata| peachpaymentsdata.rrn.clone());
 
         let order_details = additional_data
             .payment_data
@@ -4966,6 +4985,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             partner_merchant_identifier_details: payment_data
                 .payment_intent
                 .partner_merchant_identifier_details,
+            rrn,
         })
     }
 }

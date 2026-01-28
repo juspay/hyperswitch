@@ -102,6 +102,7 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub routing_reference: RoutingReference,
     pub card: CardDetails,
     pub amount: AmountDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
@@ -139,6 +140,7 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
     pub cof_data: CardOnFileData,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
@@ -938,7 +940,7 @@ impl ResponseCode {
 pub struct EcommerceCardPaymentOnlyResponseData {
     pub amount: Option<AmountDetails>,
     pub stan: Option<Secret<String>>,
-    pub rrn: Option<Secret<String>>,
+    pub rrn: Option<String>,
     pub approval_code: Option<String>,
     pub merchant_advice_code: Option<String>,
     pub description: Option<String>,

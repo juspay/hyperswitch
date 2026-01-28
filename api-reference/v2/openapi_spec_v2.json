@@ -9447,6 +9447,14 @@
               }
             ],
             "nullable": true
+          },
+          "peachpayments": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -23524,6 +23532,15 @@
         "properties": {
           "complete_response": {
             "type": "string"
+          }
+        }
+      },
+      "PeachpaymentsData": {
+        "type": "object",
+        "properties": {
+          "rrn": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

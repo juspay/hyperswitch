@@ -1017,6 +1017,7 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            rrn: None,
         };
         Self(data)
     }
