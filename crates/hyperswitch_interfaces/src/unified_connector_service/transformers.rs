@@ -179,13 +179,13 @@ pub struct WebhookTransformData {
     pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
+impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceGetResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceGetResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -212,7 +212,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((response.status(), prev_status))?),
             };
 
             Err(ErrorResponse {
@@ -229,7 +229,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -258,10 +258,10 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
     }
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
+impl ForeignTryFrom<(payments_grpc::PaymentStatus, AttemptStatus)> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(grpc_status: payments_grpc::PaymentStatus) -> Result<Self, Self::Error> {
+    fn foreign_try_from((grpc_status, prev_status): (payments_grpc::PaymentStatus, AttemptStatus)) -> Result<Self, Self::Error> {
         match grpc_status {
             payments_grpc::PaymentStatus::Started => Ok(Self::Started),
             payments_grpc::PaymentStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
@@ -294,7 +294,7 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
-            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
+            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }

@@ -27,11 +27,12 @@ type UnifiedConnectorServiceResult = CustomResult<
 #[allow(missing_docs)]
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
+    prev_status: AttemptStatus
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((response, prev_status))?;
 
     Ok((router_data_response, status_code))
 }
