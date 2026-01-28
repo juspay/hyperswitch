@@ -319,7 +319,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
             if connector_data.connector_name.supports_file_storage_module() {
                 let payment_intent = state
                     .store
-                    .find_payment_intent_by_payment_id_merchant_id(
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
                         &dispute.payment_id,
                         platform.get_processor().get_account().get_id(),
                         platform.get_processor().get_key_store(),
@@ -330,7 +330,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
 
                 let payment_attempt = state
                     .store
-                    .find_payment_attempt_by_attempt_id_merchant_id(
+                    .find_payment_attempt_by_attempt_id_processor_merchant_id(
                         &dispute.attempt_id,
                         platform.get_processor().get_account().get_id(),
                         platform.get_processor().get_account().storage_scheme,

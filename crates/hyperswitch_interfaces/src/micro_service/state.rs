@@ -33,7 +33,7 @@ pub trait ClientOperation {
     type V1Response;
     /// Modular service request payload produced by request transformation.
     ///
-    /// This is not sent automatically; it is passed into `body()` and/or `path_params()`.
+    /// This is not sent automatically; it is passed into `body()`.
     type V2Request;
     /// Modular service response payload returned by the upstream service.
     ///
@@ -68,7 +68,31 @@ pub trait ClientOperation {
     ///
     /// Keys should correspond to `{token}` placeholders in `PATH_TEMPLATE`.
     /// This is typically used for resource IDs.
-    fn path_params(&self, _request: &Self::V2Request) -> Vec<(&'static str, String)> {
+    ///
+    /// # Example
+    /// # impl ClientOperation for ExampleOp {
+    /// #     fn path_params(&self, request: &Self::V1Request) -> Vec<(&'static str, String)> {
+    /// #         vec![("id", request.payment_method_id.clone())]
+    /// #     }
+    /// # }
+    fn path_params(&self, _request: &Self::V1Request) -> Vec<(&'static str, String)> {
+        Vec::new()
+    }
+
+    /// Optional query parameters appended to the request URL.
+    ///
+    /// Use this for filters or pagination, not for sensitive data.
+    ///
+    /// # Example
+    /// # impl ClientOperation for ExampleOp {
+    /// #     fn query_params(&self, request: &Self::V1Request) -> Vec<(&'static str, String)> {
+    /// #         vec![
+    /// #             ("limit", request.limit.to_string()),
+    /// #             ("customer_id", request.customer_id.clone()),
+    /// #         ]
+    /// #     }
+    /// # }
+    fn query_params(&self, _request: &Self::V1Request) -> Vec<(&'static str, String)> {
         Vec::new()
     }
 
@@ -94,6 +118,8 @@ pub struct Validated<O: ClientOperation> {
 pub struct TransformedRequest<O: ClientOperation> {
     /// Flow instance.
     pub(crate) op: O,
+    /// V1 request payload.
+    pub(crate) v1_request: O::V1Request,
     /// Transformed request payload.
     pub(crate) request: O::V2Request,
 }
