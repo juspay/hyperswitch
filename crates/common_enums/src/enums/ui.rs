@@ -56,6 +56,7 @@ pub enum ElementSize {
     Deserialize,
     strum::Display,
     strum::EnumString,
+    strum::AsRefStr,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -185,7 +186,7 @@ impl Serialize for ElementSize {
         S: serde::ser::Serializer,
     {
         match self {
-            Self::Variants(variant) => serializer.serialize_str(variant.to_string().as_str()),
+            Self::Variants(variant) => serializer.serialize_str(variant.as_ref()),
             Self::Pixels(pixel_count) => {
                 serializer.serialize_str(format!("{pixel_count}px").as_str())
             }
