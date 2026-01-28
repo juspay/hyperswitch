@@ -918,11 +918,13 @@ impl RevenueRecoveryAttempt {
 
         let gsm_record = helpers::get_gsm_record(
             state,
-            error_code.clone(),
-            error_message,
             connector_name,
             REVENUE_RECOVERY,
             consts::DEFAULT_SUBFLOW_STR,
+            error_code.clone(),
+            error_message,
+            None, // issuer_error_code
+            None, // card_network
         )
         .await;
 
