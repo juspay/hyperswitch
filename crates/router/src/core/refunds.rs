@@ -355,10 +355,26 @@ pub async fn trigger_refund_to_gateway(
                 )
             };
 
+            let refund_status = match err.status_code {
+                // If status code is 5xx, we do not change the refund status here
+                500..=511 => None,
+                // For other errors, we mark the refund as Failure, since these are definite failures
+                _ => Some(enums::RefundStatus::Failure),
+            };
+
+            let (refund_error_message, refund_error_code) =
+                if err.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
+                    // In case of timeout, we don't have specific error code/message from connector
+                    // So we don't update those fields in the refund record
+                    (None, None)
+                } else {
+                    (err.reason.or(Some(err.message)), Some(err.code))
+                };
+
             diesel_refund::RefundUpdate::ErrorUpdate {
-                refund_status: Some(enums::RefundStatus::Failure),
-                refund_error_message: err.reason.or(Some(err.message)),
-                refund_error_code: Some(err.code),
+                refund_status,
+                refund_error_message,
+                refund_error_code,
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
                 processor_refund_data: None,
