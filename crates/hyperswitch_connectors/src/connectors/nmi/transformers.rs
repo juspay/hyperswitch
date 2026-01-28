@@ -521,8 +521,8 @@ pub struct NmiValidateRequest {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NmiValidatePaymentData {
-    ApplePayDecrypt(Box<ApplePayDecryptedData>),
-    ApplePay(Box<ApplePayData>),
+    ApplePayPayment(ApplePayPaymentData),
+    GooglePayPayment(GooglePayPaymentData),
     Card(Box<CardData>),
 }
 
@@ -608,10 +608,9 @@ impl NmiMerchantDefinedField {
 pub enum PaymentMethod {
     CardNonThreeDs(Box<CardData>),
     CardThreeDs(Box<CardThreeDsData>),
-    GPay(Box<GooglePayData>),
-    ApplePay(Box<ApplePayData>),
+    ApplePayPayment(ApplePayPaymentData),
+    GooglePayPayment(GooglePayPaymentData),
     MandatePayment(Box<MandatePayment>),
-    ApplePayDecrypt(Box<ApplePayDecryptedData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -656,6 +655,29 @@ pub struct ApplePayDecryptedData {
     ccexp: Secret<String>,
     cavv: Secret<String>,
     eci: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayDecryptedData {
+    decrypted_googlepay_data: String,
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    cavv: Option<Secret<String>>,
+    eci: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum ApplePayPaymentData {
+    ApplePayDecrypt(Box<ApplePayDecryptedData>),
+    ApplePay(Box<ApplePayData>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum GooglePayPaymentData {
+    GooglePayDecrypt(Box<GooglePayDecryptedData>),
+    GPay(Box<GooglePayData>),
 }
 
 impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsRequest {
@@ -754,7 +776,11 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 None => Ok(Self::try_from(card)?),
             },
             PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                WalletData::GooglePay(ref googlepay_data) => Ok(Self::try_from(googlepay_data)?),
+                WalletData::GooglePay(ref googlepay_data) => {
+                    let payment_method_token =
+                        router_data.and_then(|data| data.payment_method_token.clone());
+                    Ok(Self::try_from((googlepay_data, payment_method_token))?)
+                }
                 WalletData::ApplePay(ref applepay_data) => {
                     let payment_method_token =
                         router_data.and_then(|data| data.payment_method_token.clone());
@@ -865,25 +891,75 @@ impl TryFrom<&Card> for PaymentMethod {
     }
 }
 
-impl TryFrom<&GooglePayWalletData> for PaymentMethod {
-    type Error = Report<ConnectorError>;
-    fn try_from(wallet_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
-        let gpay_data = GooglePayData {
-            googlepay_payment_data: Secret::new(
-                wallet_data
-                    .tokenization_data
-                    .get_encrypted_google_pay_token()
-                    .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "gpay wallet_token",
-                    })?
-                    .clone(),
-            ),
-        };
-        Ok(Self::GPay(Box::new(gpay_data)))
+impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for GooglePayPaymentData {
+    type Error = Error;
+    fn try_from(
+        (google_pay_wallet_data, payment_method_token): (
+            &GooglePayWalletData,
+            Option<PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match payment_method_token {
+            Some(payment_method_token) => match payment_method_token {
+                PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt_data) => {
+                    Ok(Self::GooglePayDecrypt(Box::new(GooglePayDecryptedData {
+                        decrypted_googlepay_data: "1".to_string(), // Set to "1" to indicate decrypted data is being sent
+                        ccnumber: google_pay_decrypt_data
+                            .application_primary_account_number
+                            .clone(),
+                        ccexp: google_pay_decrypt_data
+                            .get_expiry_date_as_mmyy()
+                            .change_context(ConnectorError::InvalidDataFormat {
+                                field_name: "expiration_month/expiration_year",
+                            })?,
+                        cavv: google_pay_decrypt_data.cryptogram.clone(),
+                        eci: google_pay_decrypt_data.eci_indicator.clone(),
+                    })))
+                }
+                PaymentMethodToken::ApplePayDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Apple Pay", "NMI"))?
+                }
+                PaymentMethodToken::Token(_) => {
+                    Err(unimplemented_payment_method!("Google Pay", "Manual", "NMI"))?
+                }
+                PaymentMethodToken::PazeDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Paze", "NMI"))?
+                }
+            },
+            None => {
+                let gpay_data = GooglePayData {
+                    googlepay_payment_data: Secret::new(
+                        google_pay_wallet_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(ConnectorError::MissingRequiredField {
+                                field_name: "gpay wallet_token",
+                            })?
+                            .clone(),
+                    ),
+                };
+                Ok(Self::GPay(Box::new(gpay_data)))
+            }
+        }
     }
 }
 
-impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for PaymentMethod {
+impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for PaymentMethod {
+    type Error = Error;
+    fn try_from(
+        (google_pay_wallet_data, payment_method_token): (
+            &GooglePayWalletData,
+            Option<PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::GooglePayPayment(GooglePayPaymentData::try_from((
+            google_pay_wallet_data,
+            payment_method_token,
+        ))?))
+    }
+}
+
+impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for ApplePayPaymentData {
     type Error = Error;
     fn try_from(
         (apple_pay_wallet_data, payment_method_token): (
@@ -946,112 +1022,77 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for PaymentMetho
     }
 }
 
+impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for PaymentMethod {
+    type Error = Error;
+    fn try_from(
+        (apple_pay_wallet_data, payment_method_token): (
+            &ApplePayWalletData,
+            Option<PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::ApplePayPayment(ApplePayPaymentData::try_from((
+            apple_pay_wallet_data,
+            payment_method_token,
+        ))?))
+    }
+}
+
 impl TryFrom<&NmiRouterData<&SetupMandateRouterData>> for NmiValidateRequest {
     type Error = Error;
     fn try_from(item: &NmiRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
         if item.router_data.request.amount > 0 {
-            Err(ConnectorError::FlowNotSupported {
+            return Err(ConnectorError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "NMI".to_string(),
             }
-            .into())
-        } else if let PaymentMethodData::Card(card_details) =
-            &item.router_data.request.payment_method_data
-        {
-            let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+            .into());
+        };
 
-            let card_data = CardData {
-                ccnumber: card_details.card_number.clone(),
-                ccexp: card_details
-                    .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
-                cvv: card_details.card_cvc.clone(),
-            };
-            Ok(Self {
-                transaction_type: TransactionType::Validate,
-                security_key: auth_type.api_key,
-                payment_data: NmiValidatePaymentData::Card(Box::new(card_data)),
-                orderid: item.router_data.connector_request_reference_id.clone(),
-                customer_vault: CustomerAction::AddCustomer,
-                billing_details: item.get_billing_details(),
-                shipping_details: item.get_shipping_details(),
-            })
-        } else if let PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_wallet_data)) =
-            &item.router_data.request.payment_method_data
-        {
-            let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+        let payment_data     = match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref card_details) => {
+                let card_data = CardData {
+                    ccnumber: card_details.card_number.clone(),
+                    ccexp: card_details
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                    cvv: card_details.card_cvc.clone(),
+                };
+                Ok(NmiValidatePaymentData::Card(Box::new(card_data)))
+            }
+            PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_wallet_data)) => {
+                let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
 
-            let payment_data = match item.router_data.payment_method_token.clone() {
-                Some(payment_method_token) => match payment_method_token {
-                    PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data) => {
-                        Ok(NmiValidatePaymentData::ApplePayDecrypt(Box::new(
-                            ApplePayDecryptedData {
-                                decrypted_applepay_data: "1".to_string(), // Set to "1" to indicate decrypted data is being sent
-                                ccnumber: apple_pay_decrypt_data
-                                    .application_primary_account_number
-                                    .clone(),
-                                ccexp: apple_pay_decrypt_data
-                                    .get_expiry_date_as_mmyy()
-                                    .change_context(ConnectorError::InvalidDataFormat {
-                                        field_name: "application_expiration_date",
-                                    })?,
-                                cavv: apple_pay_decrypt_data
-                                    .payment_data
-                                    .online_payment_cryptogram
-                                    .clone(),
-                                eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
-                            },
-                        )))
-                    }
-                    PaymentMethodToken::Token(_) => {
-                        Err(unimplemented_payment_method!("Apple Pay", "Manual", "NMI"))
-                    }
-                    PaymentMethodToken::PazeDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Paze", "NMI"))
-                    }
-                    PaymentMethodToken::GooglePayDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Google Pay", "NMI"))
-                    }
-                },
-                None => {
-                    let apple_pay_encrypted_data = apple_pay_wallet_data
-                        .payment_data
-                        .get_encrypted_apple_pay_payment_data_mandatory()
-                        .change_context(ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data",
-                        })?;
-
-                    let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
-                        .decode(apple_pay_encrypted_data)
-                        .change_context(ConnectorError::InvalidDataFormat {
-                            field_name: "apple_pay_encrypted_data",
-                        })?;
-
-                    let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
-
-                    let apple_pay_data = ApplePayData {
-                        applepay_payment_data: Secret::new(hex_encoded_apple_pay_data),
-                    };
-                    Ok(NmiValidatePaymentData::ApplePay(Box::new(apple_pay_data)))
-                }
-            }?;
-
-            Ok(Self {
-                transaction_type: TransactionType::Validate,
-                security_key: auth_type.api_key,
-                payment_data,
-                orderid: item.router_data.connector_request_reference_id.clone(),
-                customer_vault: CustomerAction::AddCustomer,
-                billing_details: item.get_billing_details(),
-                shipping_details: item.get_shipping_details(),
-            })
-        } else {
-            Err(
-                ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
-                    "Nmi",
+                Ok(NmiValidatePaymentData::ApplePayPayment(
+                    ApplePayPaymentData::try_from((
+                        apple_pay_wallet_data,
+                        item.router_data.payment_method_token.clone(),
+                    ))?,
                 ))
-                .into(),
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref google_pay_wallet_data)) => {
+                let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+
+                Ok(NmiValidatePaymentData::GooglePayPayment(
+                    GooglePayPaymentData::try_from((
+                        google_pay_wallet_data,
+                        item.router_data.payment_method_token.clone(),
+                    ))?,
+                ))
+            }
+            _ => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Nmi"),
             )
-        }
+            .into()),
+        };
+        let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+        Ok(Self {
+            transaction_type: TransactionType::Validate,
+            security_key: auth_type.api_key,
+            payment_data: payment_data?,
+            orderid: item.router_data.connector_request_reference_id.clone(),
+            customer_vault: CustomerAction::AddCustomer,
+            billing_details: item.get_billing_details(),
+            shipping_details: item.get_shipping_details(),
+        })
     }
 }
 
