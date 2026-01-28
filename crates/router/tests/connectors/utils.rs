@@ -1000,6 +1000,7 @@ impl Default for PaymentAuthorizeType {
             authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
+            guest_customer: None,
             integrity_object: None,
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
