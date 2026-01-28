@@ -88,7 +88,7 @@ impl RetrievePaymentMethod {
 
     fn build_path_params(
         &self,
-        request: &RetrievePaymentMethodV2Request,
+        request: &RetrievePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
         vec![("id", request.payment_method_id.payment_method_id.clone())]
     }

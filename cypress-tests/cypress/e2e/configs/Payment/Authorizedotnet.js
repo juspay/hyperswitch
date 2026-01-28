@@ -49,6 +49,7 @@ const paymentMethodData = {
       avs_result_code: "Y",
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };

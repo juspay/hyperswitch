@@ -379,7 +379,7 @@ where
         _state: &'b SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
+        _platform: &domain::Platform,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,

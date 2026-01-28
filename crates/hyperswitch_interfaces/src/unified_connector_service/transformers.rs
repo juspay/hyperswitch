@@ -376,7 +376,9 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     }),
                     card_network: card_data.card_network,
                     domestic_network: card_data.domestic_network,
-                })
+                    // needs to be updated
+            auth_code: None,
+        })
             }
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 Ok(Self::Upi {
@@ -390,6 +392,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     payment_checks: None,
                     card_network: None,
                     domestic_network: None,
+                    auth_code: None,
                 })
             }
         }

@@ -39,6 +39,7 @@ impl<O: ClientOperation> Validated<O> {
         })?;
         Ok(TransformedRequest {
             op: self.op,
+            v1_request: self.request,
             request,
         })
     }
@@ -57,13 +58,13 @@ impl<O: ClientOperation> TransformedRequest<O> {
         // Step 1: Build path and URL.
         let path = {
             let mut path = O::PATH_TEMPLATE.to_string();
-            for (key, value) in self.op.path_params(&self.request) {
+            for (key, value) in self.op.path_params(&self.v1_request) {
                 let token = format!("{{{key}}}");
                 path = path.replace(&token, &value);
             }
             path
         };
-        let url = base_url.join(&path).map_err(|e| {
+        let mut url = base_url.join(&path).map_err(|e| {
             logger::error!(operation, error = ?e, "microservice URL join failed");
             MicroserviceClientError {
                 operation: operation.to_string(),
@@ -72,6 +73,13 @@ impl<O: ClientOperation> TransformedRequest<O> {
                 )),
             }
         })?;
+        let query_params = self.op.query_params(&self.v1_request);
+        if !query_params.is_empty() {
+            let mut query = url.query_pairs_mut();
+            for (key, value) in query_params {
+                query.append_pair(key, &value);
+            }
+        }
 
         // Step 2: Build headers and inject trace/request/tenant context.
         let mut http_request = Request::new(O::METHOD, url.as_str());

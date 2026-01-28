@@ -442,6 +442,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
+        guest_customer: None,
         merchant_order_reference_id: payment_data
             .payment_intent
             .merchant_reference_id
@@ -4721,6 +4722,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             authentication_data: None,
             request_extended_authorization: None,
             split_payments: None,
+            guest_customer: None,
             minor_amount: payment_data.payment_attempt.get_total_amount(),
             merchant_order_reference_id,
             integrity_object: None,
@@ -4969,6 +4971,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,
+            guest_customer: None,
             merchant_order_reference_id,
             integrity_object: None,
             additional_payment_method_data,
