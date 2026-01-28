@@ -64,9 +64,9 @@ impl TryFrom<&HyperpgRouterData<&PaymentsAuthorizeRouterData>> for HyperpgPaymen
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct HyperpgAuthType {
-    pub(super) username: Secret<String>,
-    pub(super) password: Secret<String>,
-    pub(super) merchant_id: Secret<String>,
+    pub username: Secret<String>,
+    pub password: Secret<String>,
+    pub merchant_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for HyperpgAuthType {

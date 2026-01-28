@@ -1252,7 +1252,7 @@ pub fn create_redirect_url(
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{cd}"));
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
-        "https://ff7e38e97b58.ngrok-free.app".to_string(),
+        router_base_url,
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
         connector_name,

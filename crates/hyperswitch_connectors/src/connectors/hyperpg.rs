@@ -42,7 +42,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
 use transformers as hyperpg;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -117,7 +116,7 @@ impl ConnectorCommon for Hyperpg {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         // This method is not implemented for Phonepe, as it will always call the UCS service which has the logic to create headers.
         Err(errors::ConnectorError::NotImplemented("get_auth_header method".to_string()).into())
