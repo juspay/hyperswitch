@@ -419,7 +419,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         state: &SessionState,
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
-        router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        router_data: &types::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -440,7 +444,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 | enums::AttemptStatus::PartiallyAuthorized
         );
 
-        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+        let is_eligible_for_mandate_update =
+            is_valid_response && is_integrity_ok && is_payment_successful;
 
         // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
         if let (true, Some(payment_method), Some(mca_id)) = (
@@ -473,18 +478,21 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             if !is_active_mandate && is_off_session {
                 let payment_attempt = payment_data.get_payment_attempt();
 
-                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
-                    payment_attempt
-                        .connector_mandate_detail
-                        .clone()
-                        .map(|cmr| {
-                            (
-                                cmr.connector_mandate_id,
-                                cmr.mandate_metadata,
-                                cmr.connector_mandate_request_reference_id,
-                            )
-                        })
-                        .unwrap_or((None, None, None));
+                let (
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                ) = payment_attempt
+                    .connector_mandate_detail
+                    .clone()
+                    .map(|cmr| {
+                        (
+                            cmr.connector_mandate_id,
+                            cmr.mandate_metadata,
+                            cmr.connector_mandate_request_reference_id,
+                        )
+                    })
+                    .unwrap_or((None, None, None));
 
                 let connector_mandate_details = tokenization::update_connector_mandate_details(
                     Some(mandate_details),
@@ -797,7 +805,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 | enums::AttemptStatus::PartiallyAuthorized
         );
 
-        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+        let is_eligible_for_mandate_update =
+            is_valid_response && is_integrity_ok && is_payment_successful;
 
         // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
         if let (true, Some(payment_method), Some(mca_id)) = (
@@ -828,18 +837,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 
             // Combine business logic conditions: not active mandate AND off_session
             if !is_active_mandate && is_off_session {
-                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
-                    payment_attempt
-                        .connector_mandate_detail
-                        .clone()
-                        .map(|cmr| {
-                            (
-                                cmr.connector_mandate_id,
-                                cmr.mandate_metadata,
-                                cmr.connector_mandate_request_reference_id,
-                            )
-                        })
-                        .unwrap_or((None, None, None));
+                let (
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                ) = payment_attempt
+                    .connector_mandate_detail
+                    .clone()
+                    .map(|cmr| {
+                        (
+                            cmr.connector_mandate_id,
+                            cmr.mandate_metadata,
+                            cmr.connector_mandate_request_reference_id,
+                        )
+                    })
+                    .unwrap_or((None, None, None));
 
                 let connector_mandate_details = tokenization::update_connector_mandate_details(
                     Some(mandate_details),
@@ -1570,7 +1582,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         state: &SessionState,
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
-        router_data: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        router_data: &types::RouterData<
+            F,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1591,7 +1607,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 | enums::AttemptStatus::PartiallyAuthorized
         );
 
-        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+        let is_eligible_for_mandate_update =
+            is_valid_response && is_integrity_ok && is_payment_successful;
 
         // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
         if let (true, Some(payment_method), Some(mca_id)) = (
@@ -1622,18 +1639,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
             // Combine business logic conditions: not active mandate AND off_session
             if !is_active_mandate && is_off_session {
-                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
-                    payment_attempt
-                        .connector_mandate_detail
-                        .clone()
-                        .map(|cmr| {
-                            (
-                                cmr.connector_mandate_id,
-                                cmr.mandate_metadata,
-                                cmr.connector_mandate_request_reference_id,
-                            )
-                        })
-                        .unwrap_or((None, None, None));
+                let (
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                ) = payment_attempt
+                    .connector_mandate_detail
+                    .clone()
+                    .map(|cmr| {
+                        (
+                            cmr.connector_mandate_id,
+                            cmr.mandate_metadata,
+                            cmr.connector_mandate_request_reference_id,
+                        )
+                    })
+                    .unwrap_or((None, None, None));
 
                 let connector_mandate_details = tokenization::update_connector_mandate_details(
                     Some(mandate_details),
@@ -1758,7 +1778,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         state: &SessionState,
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
-        router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        router_data: &types::RouterData<
+            F,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1779,7 +1803,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 | enums::AttemptStatus::PartiallyAuthorized
         );
 
-        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+        let is_eligible_for_mandate_update =
+            is_valid_response && is_integrity_ok && is_payment_successful;
 
         // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
         if let (true, Some(payment_method), Some(mca_id)) = (
@@ -1810,18 +1835,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 
             // Combine business logic conditions: not active mandate AND off_session
             if !is_active_mandate && is_off_session {
-                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
-                    payment_attempt
-                        .connector_mandate_detail
-                        .clone()
-                        .map(|cmr| {
-                            (
-                                cmr.connector_mandate_id,
-                                cmr.mandate_metadata,
-                                cmr.connector_mandate_request_reference_id,
-                            )
-                        })
-                        .unwrap_or((None, None, None));
+                let (
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                ) = payment_attempt
+                    .connector_mandate_detail
+                    .clone()
+                    .map(|cmr| {
+                        (
+                            cmr.connector_mandate_id,
+                            cmr.mandate_metadata,
+                            cmr.connector_mandate_request_reference_id,
+                        )
+                    })
+                    .unwrap_or((None, None, None));
 
                 let connector_mandate_details = tokenization::update_connector_mandate_details(
                     Some(mandate_details),
