@@ -11,6 +11,7 @@ ignore_errors = false
 
 [key_manager]
 url = "http://localhost:5000"
+use_legacy_key_store_decryption = false
 
 [master_database]
 username = "postgres"
@@ -36,7 +37,7 @@ password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
 force_two_factor_auth = false
-force_cookies = true
+force_cookies = false
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
@@ -811,6 +812,9 @@ card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
+
+[card_only_mit_supported_connectors]
+connector_list = "peachpayments" # Supported connectors for card only mit
 
 [analytics]
 source = "sqlx"

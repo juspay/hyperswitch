@@ -220,7 +220,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        crate::core::payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -281,7 +281,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        crate::core::payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -510,7 +510,7 @@ where
 
 pub async fn get_authentication_connector_data(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     authentication_connector: Option<String>,
 ) -> RouterResult<(
@@ -555,9 +555,8 @@ pub async fn get_authentication_connector_data(
     let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,
-        &business_profile.merchant_id,
+        processor,
         None,
-        key_store,
         profile_id,
         authentication_connector.to_string().as_str(),
         None,

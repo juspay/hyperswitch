@@ -4,7 +4,7 @@ use common_utils::{pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, BankRedirectData, PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_request_types::ResponseId,
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     },
     types,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -243,6 +243,7 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankTransfer(_)
@@ -563,6 +564,15 @@ pub struct MolliePaymentsResponse {
     pub links: Links,
     pub mandate_id: Option<Secret<String>>,
     pub payment_id: Option<String>,
+    pub details: Option<MolliePaymentDetails>,
+}
+
+/// Details object containing failure information for failed payments
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MolliePaymentDetails {
+    pub failure_reason: Option<String>,
+    pub failure_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -670,6 +680,49 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.status.clone());
+
+        // Handle failed payments: extract error details from the details object
+        // Mollie returns 2xx but with status "failed" when payment fails after 3DS authentication
+        if crate::utils::is_payment_failure(status) {
+            let (failure_reason, failure_message) = item
+                .response
+                .details
+                .as_ref()
+                .map(|details| {
+                    (
+                        details.failure_reason.clone(),
+                        details.failure_message.clone(),
+                    )
+                })
+                .unwrap_or((None, None));
+
+            let error_code = failure_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+            let error_message = failure_message
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+
+            return Ok(Self {
+                status,
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.id),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                    connector_response_reference_id: None,
+                }),
+                ..item.data
+            });
+        }
+
         let url = item
             .response
             .links
@@ -687,7 +740,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 connector_mandate_request_reference_id: None,
             });
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response
@@ -700,6 +753,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

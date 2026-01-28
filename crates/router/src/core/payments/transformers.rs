@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
 #[cfg(feature = "v1")]
-use api_models::payments::PaymentMethodTokenizationDetails;
+use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
@@ -79,7 +79,7 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
@@ -98,7 +98,7 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
@@ -137,7 +137,7 @@ where
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         customer_id: None,
         connector: connector_id.to_owned(),
         payment_id: payment_data
@@ -172,7 +172,7 @@ where
         recurring_mandate_payment_data: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -299,7 +299,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::Authorize>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -358,11 +358,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .payment_intent
         .create_finish_redirection_url(
             router_base_url,
-            platform
-                .get_processor()
-                .get_account()
-                .publishable_key
-                .as_ref(),
+            processor.get_account().publishable_key.as_ref(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to construct finish redirection url")?
@@ -446,6 +442,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
+        guest_customer: None,
         merchant_order_reference_id: payment_data
             .payment_intent
             .merchant_reference_id
@@ -478,7 +475,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
@@ -566,7 +563,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::ExternalVaultProxy>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -625,11 +622,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         .payment_intent
         .create_finish_redirection_url(
             router_base_url,
-            platform
-                .get_processor()
-                .get_account()
-                .publishable_key
-                .as_ref(),
+            processor.get_account().publishable_key.as_ref(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to construct finish redirection url")?
@@ -718,7 +711,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     // Construct RouterDataV2 for external vault proxy
     let router_data_v2 = construct_external_vault_proxy_router_data_v2(
         state,
-        platform.get_processor().get_account(),
+        processor.get_account(),
         merchant_connector_account,
         &payment_data,
         request,
@@ -746,7 +739,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentCaptureData<api::Capture>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -825,12 +818,13 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         integrity_object: None,
         split_payments: None,
         webhook_url: None,
+        merchant_order_reference_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
@@ -916,7 +910,7 @@ pub async fn construct_router_data_for_psync<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentStatusData<api::PSync>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -973,7 +967,7 @@ pub async fn construct_router_data_for_psync<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1135,7 +1129,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         hyperswitch_domain_models::router_flow_types::Void,
     >,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -1178,12 +1172,13 @@ pub async fn construct_router_data_for_cancel<'a>(
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         split_payments: None,
+        merchant_order_reference_id: None,
     };
 
     // Construct RouterDataV2 for cancel operation
     let router_data_v2 = construct_cancel_router_data_v2(
         state,
-        platform.get_processor().get_account(),
+        processor.get_account(),
         merchant_connector_account,
         &payment_data,
         request,
@@ -1211,7 +1206,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentIntentData<api::Session>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -1336,7 +1331,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
@@ -1417,7 +1412,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::SetupMandate>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -1477,11 +1472,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .payment_intent
         .create_finish_redirection_url(
             router_base_url,
-            platform
-                .get_processor()
-                .get_account()
-                .publishable_key
-                .as_ref(),
+            processor.get_account().publishable_key.as_ref(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to construct finish redirection url")?
@@ -1561,7 +1552,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
@@ -1647,7 +1638,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -1703,6 +1694,7 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     });
 
@@ -1788,10 +1780,8 @@ where
         (state.conf.l2_l3_data_config.enabled && payment_data.is_l2_l3_enabled).then(|| {
             let shipping_address = unified_address.get_shipping();
             let billing_address = unified_address.get_payment_billing();
-            let merchant_tax_registration_id = platform
-                .get_processor()
-                .get_account()
-                .get_merchant_tax_registration_id();
+            let merchant_tax_registration_id =
+                processor.get_account().get_merchant_tax_registration_id();
 
             Box::new(types::L2L3Data {
                 order_info: Some(types::OrderInfo {
@@ -1855,7 +1845,7 @@ where
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
@@ -1905,7 +1895,7 @@ where
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -1953,7 +1943,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     state: &'a SessionState,
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -2065,7 +2055,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
 
     router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
@@ -2105,7 +2095,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -3903,7 +3893,7 @@ where
 
         let payment_method_tokenization_details = payment_data
             .get_payment_method_info()
-            .map(PaymentMethodTokenizationDetails::foreign_try_from)
+            .map(api_payments::PaymentMethodTokenizationDetails::foreign_try_from)
             .transpose()?;
 
         let payments_response = api::PaymentsResponse {
@@ -3974,6 +3964,9 @@ where
                 .filter(|message| message != NO_ERROR_MESSAGE),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            error_details: payment_attempt
+                .error_details
+                .map(api_payments::PaymentErrorDetails::foreign_from),
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             connector_label,
@@ -4312,6 +4305,7 @@ impl
             error_message: None,
             unified_code: None,
             unified_message: None,
+            error_details: None,
             payment_experience: None,
             connector_label: None,
             allowed_payment_method_types: None,
@@ -4367,7 +4361,7 @@ impl
 }
 
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<&domain::PaymentMethod> for PaymentMethodTokenizationDetails {
+impl ForeignTryFrom<&domain::PaymentMethod> for api_payments::PaymentMethodTokenizationDetails {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(payment_method: &domain::PaymentMethod) -> Result<Self, Self::Error> {
         let connector_common_mandate_details = payment_method
@@ -4706,6 +4700,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             authentication_data: None,
             request_extended_authorization: None,
             split_payments: None,
+            guest_customer: None,
             minor_amount: payment_data.payment_attempt.get_total_amount(),
             merchant_order_reference_id,
             integrity_object: None,
@@ -4954,6 +4949,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,
+            guest_customer: None,
             merchant_order_reference_id,
             integrity_object: None,
             additional_payment_method_data,
@@ -5188,6 +5184,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             integrity_object: None,
             split_payments: None,
             webhook_url: None,
+            merchant_order_reference_id: None,
         })
     }
 }
@@ -5260,6 +5257,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             integrity_object: None,
             split_payments: payment_data.payment_intent.split_payments,
             webhook_url,
+            merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
         })
     }
 }
@@ -5318,6 +5316,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method: Some(capture_method),
             split_payments: None,
+            merchant_order_reference_id: None,
         })
     }
 }
@@ -5375,6 +5374,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method,
             split_payments: payment_data.payment_intent.split_payments.clone(),
+            merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
         })
     }
 }
@@ -6175,6 +6175,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .transpose()?,
             tokenization: payment_data.payment_intent.tokenization,
             router_return_url,
+            merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
         })
     }
 }

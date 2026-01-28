@@ -868,6 +868,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
+                                authentication_data: None,
                                 charges: None,
                             }),
                             ..item.data
@@ -892,6 +893,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..item.data
@@ -957,6 +959,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1016,6 +1019,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         network_txn_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..item.data
@@ -1043,6 +1047,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPixVoidResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

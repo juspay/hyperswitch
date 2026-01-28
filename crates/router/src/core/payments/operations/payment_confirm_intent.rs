@@ -637,7 +637,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         state: &'a SessionState,
         payment_data: &mut PaymentConfirmData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        _platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
@@ -665,7 +665,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1015,7 +1015,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             .map(|mandate_reference| match mandate_reference {
                 api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
                 api_models::payments::MandateReferenceId::NetworkMandateId(_)
-                | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+                | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)
+                | api_models::payments::MandateReferenceId::CardWithLimitedData => false,
             })
             .unwrap_or(false);
 

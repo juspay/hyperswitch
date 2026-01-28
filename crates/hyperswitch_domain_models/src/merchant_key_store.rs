@@ -42,11 +42,17 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     {
         let identifier = keymanager::Identifier::Merchant(item.merchant_id.clone());
 
+        let decryption_operation = if state.use_legacy_key_store_decryption {
+            CryptoOperation::Decrypt(item.key)
+        } else {
+            CryptoOperation::DecryptLocally(item.key)
+        };
+
         Ok(Self {
             key: crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::DecryptLocally(item.key),
+                decryption_operation,
                 identifier,
                 key.peek(),
             )

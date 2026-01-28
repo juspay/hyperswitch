@@ -719,6 +719,11 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+pub struct BalanceCheckResult {
+    pub balance_check_result: Result<Option<PaymentMethodBalance>, ErrorResponse>,
+    pub should_continue_payment: bool,
+}
+
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,
@@ -1312,6 +1317,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
+            guest_customer: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,
