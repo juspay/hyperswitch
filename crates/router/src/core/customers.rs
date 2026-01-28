@@ -1282,24 +1282,38 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
-        let document_details = domain_customer
-            .document_details
-            .clone()
-            .async_lift(|inner| async {
-                let inner = inner.map(|enc| enc.into_inner());
-                types::crypto_operation(
-                    key_manager_state,
-                    type_name!(domain::Customer),
-                    CryptoOperation::EncryptOptional(inner),
-                    Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
-                    db.get_master_key(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-                .change_context(storage_impl::StorageError::EncryptionError)
-            })
-            .await
-            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+        let document_details = hyperswitch_domain_models::type_encryption::crypto_operation(
+            &key_manager_state,
+            type_name!(api_models::customers::CustomerDocumentDetails),
+            CryptoOperation::EncryptOptional(
+                self.document_details
+                    .clone()
+                    .map(|struct_value| {
+                        serde_json::to_value(struct_value)
+                            .map(Secret::new)
+                            .map_err(|_| common_utils::errors::CryptoError::EncodingFailed)
+                    })
+                    .transpose()
+                    .map_err(|e| {
+                        error_stack::Report::new(
+                            errors::CustomersErrorResponse::InternalServerError,
+                        )
+                        .attach_printable(e)
+                    })?,
+            ),
+            Identifier::Merchant(provider.get_account().get_id().clone()),
+            &key,
+        )
+        .await
+        .map_err(|e| {
+            error_stack::Report::new(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable(e)
+        })?
+        .try_into_optionaloperation()
+        .map_err(|e| {
+            error_stack::Report::new(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable(e)
+        })?;
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
