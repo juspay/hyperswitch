@@ -1402,9 +1402,10 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
-            (response.clone(), prev_status),
-        )?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response.clone(),
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1450,7 +1451,10 @@ pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((response, prev_status))?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1498,7 +1502,10 @@ pub fn handle_unified_connector_service_response_for_payment_authenticate(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((response, prev_status))?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1510,7 +1517,10 @@ pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((response, prev_status))?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1522,7 +1532,10 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((response, prev_status))?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1534,9 +1547,10 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
-            (response.clone(), prev_status),
-        )?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response.clone(),
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1570,9 +1584,10 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
-            (response.clone(), prev_status),
-        )?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response.clone(),
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1645,7 +1660,10 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((response, prev_status))?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }

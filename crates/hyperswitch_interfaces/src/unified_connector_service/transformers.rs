@@ -212,7 +212,10 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from((response.status(), prev_status))?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -258,10 +261,12 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     }
 }
 
-impl ForeignTryFrom<(payments_grpc::PaymentStatus, AttemptStatus)> for AttemptStatus {
+impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from((grpc_status, prev_status): (payments_grpc::PaymentStatus, AttemptStatus)) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (grpc_status, prev_status): (payments_grpc::PaymentStatus, Self),
+    ) -> Result<Self, Self::Error> {
         match grpc_status {
             payments_grpc::PaymentStatus::Started => Ok(Self::Started),
             payments_grpc::PaymentStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
