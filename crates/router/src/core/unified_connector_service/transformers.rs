@@ -1786,7 +1786,6 @@ impl
             .map(|pm_type| pm_type.into());
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-        println!("mandate_id: {:#?}", router_data.request.mandate_id);
         let mandate_reference_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
