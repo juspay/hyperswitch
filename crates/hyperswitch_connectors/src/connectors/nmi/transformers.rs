@@ -1048,45 +1048,38 @@ impl TryFrom<&NmiRouterData<&SetupMandateRouterData>> for NmiValidateRequest {
             .into());
         };
 
-        let payment_data     = match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref card_details) => {
-                let card_data = CardData {
-                    ccnumber: card_details.card_number.clone(),
-                    ccexp: card_details
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
-                    cvv: card_details.card_cvc.clone(),
-                };
-                Ok(NmiValidatePaymentData::Card(Box::new(card_data)))
-            }
-            PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_wallet_data)) => {
-                let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
-
-                Ok(NmiValidatePaymentData::ApplePayPayment(
-                    ApplePayPaymentData::try_from((
+        let payment_data: Result<NmiValidatePaymentData, Error> =
+            match item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ref card_details) => {
+                    let card_data = CardData {
+                        ccnumber: card_details.card_number.clone(),
+                        ccexp: card_details
+                            .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                        cvv: card_details.card_cvc.clone(),
+                    };
+                    Ok(NmiValidatePaymentData::Card(Box::new(card_data)))
+                }
+                PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_wallet_data)) => Ok(
+                    NmiValidatePaymentData::ApplePayPayment(ApplePayPaymentData::try_from((
                         apple_pay_wallet_data,
                         item.router_data.payment_method_token.clone(),
-                    ))?,
-                ))
-            }
-            PaymentMethodData::Wallet(WalletData::GooglePay(ref google_pay_wallet_data)) => {
-                let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
-
-                Ok(NmiValidatePaymentData::GooglePayPayment(
-                    GooglePayPaymentData::try_from((
+                    ))?),
+                ),
+                PaymentMethodData::Wallet(WalletData::GooglePay(ref google_pay_wallet_data)) => Ok(
+                    NmiValidatePaymentData::GooglePayPayment(GooglePayPaymentData::try_from((
                         google_pay_wallet_data,
                         item.router_data.payment_method_token.clone(),
-                    ))?,
-                ))
-            }
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Nmi"),
-            )
-            .into()),
-        };
-        let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+                    ))?),
+                ),
+                _ => Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Nmi"),
+                )
+                .into()),
+            };
+        let auth: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
         Ok(Self {
             transaction_type: TransactionType::Validate,
-            security_key: auth_type.api_key,
+            security_key: auth.api_key,
             payment_data: payment_data?,
             orderid: item.router_data.connector_request_reference_id.clone(),
             customer_vault: CustomerAction::AddCustomer,
