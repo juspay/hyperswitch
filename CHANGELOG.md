@@ -4,6 +4,41 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1
+
+### Features
+
+- **payment_method_data:** [adyen] Auth code in payment response ([#10985](https://github.com/juspay/hyperswitch/pull/10985)) ([`4ea0ed2`](https://github.com/juspay/hyperswitch/commit/4ea0ed247fe795d204f4951ecde10733312729d6))
+
+**Full Changelog:** [`2026.01.28.0...2026.01.28.1`](https://github.com/juspay/hyperswitch/compare/2026.01.28.0...2026.01.28.1)
+
+- - -
+
+## 2026.01.28.0
+
+### Features
+
+- **core:** Bumped UCS dependency to bring latest changes ([#10977](https://github.com/juspay/hyperswitch/pull/10977)) ([`fff0461`](https://github.com/juspay/hyperswitch/commit/fff0461cecc34195d0831991ea1077cd0edf2122))
+- **errors:** Populate error details in response ([#10837](https://github.com/juspay/hyperswitch/pull/10837)) ([`f4d5f0c`](https://github.com/juspay/hyperswitch/commit/f4d5f0cabd6b7894dced796e919081868e16a4fa))
+- **platform:**
+  - `make_pm_data` to work with platform setup ([#11017](https://github.com/juspay/hyperswitch/pull/11017)) ([`c942ecc`](https://github.com/juspay/hyperswitch/commit/c942eccf0957274b71dc925351735c4c88cb33ee))
+  - Enable connected merchant creation for platform organization in sandbox ([#11039](https://github.com/juspay/hyperswitch/pull/11039)) ([`4c84814`](https://github.com/juspay/hyperswitch/commit/4c848142ce0262af4558990e8db23b21b4159b49))
+- Card_redirect_ucs ([#10924](https://github.com/juspay/hyperswitch/pull/10924)) ([`ff301f3`](https://github.com/juspay/hyperswitch/commit/ff301f35e3196d4305c1fcb8be027f7cc317c952))
+
+### Bug Fixes
+
+- **payments:** Avoid unnecessary database call for 'on-session' payments ([#11038](https://github.com/juspay/hyperswitch/pull/11038)) ([`1de62ea`](https://github.com/juspay/hyperswitch/commit/1de62ea5e564a68db61e67c1db60a97006b05509))
+- Fixed payload in NT API from body to query params ([#11025](https://github.com/juspay/hyperswitch/pull/11025)) ([`cdb77cf`](https://github.com/juspay/hyperswitch/commit/cdb77cf32d8b1eab8983d4c1c00eeb421ba3ad51))
+
+### Refactors
+
+- Refactored S2S PM APIs to store cvc ([#10912](https://github.com/juspay/hyperswitch/pull/10912)) ([`88a5b51`](https://github.com/juspay/hyperswitch/commit/88a5b51c2ade36dba8e8da5d851b7196399116b4))
+- Refactor PaymentMethod sessions update API to include payment_method_data in response and fix fingerprintID bug in PM delete ([#11021](https://github.com/juspay/hyperswitch/pull/11021)) ([`15f4384`](https://github.com/juspay/hyperswitch/commit/15f43849a75d13255d3fffa0d81bf9f1d6f806d9))
+
+**Full Changelog:** [`2026.01.27.0...2026.01.28.0`](https://github.com/juspay/hyperswitch/compare/2026.01.27.0...2026.01.28.0)
+
+- - -
+
 ## 2026.01.27.0
 
 ### Bug Fixes
