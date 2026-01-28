@@ -1667,6 +1667,16 @@ impl PaymentsRequest {
         }
     }
 
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.customer
+            .as_ref()
+            .and_then(|data| data.document_details.as_ref())
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
+    }
+
     pub fn get_feature_metadata_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<

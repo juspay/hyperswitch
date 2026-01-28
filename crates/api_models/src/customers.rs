@@ -115,6 +115,14 @@ impl CustomerRequest {
             .map(|document_details| document_details.encode_to_value().map(Secret::new))
             .transpose()
     }
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), common_utils::errors::ValidationError> {
+        self.document_details
+            .as_ref()
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
+    }
 }
 
 /// The customer details
@@ -505,5 +513,49 @@ impl CustomerDocumentDetails {
         value
             .as_ref()
             .and_then(|details| serde_json::to_value(details).ok().map(Secret::new))
+    }
+    pub fn validate(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), common_utils::errors::ValidationError> {
+        use common_enums::enums::DocumentKind;
+        use error_stack::Report;
+
+        match (&self.document_type, &self.document_number) {
+            (Some(doc_type), Some(doc_number)) => {
+                let digits_only: String = doc_number
+                    .peek()
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect();
+
+                match doc_type {
+                    DocumentKind::Cpf if digits_only.len() != 11 => Err(Report::new(
+                        common_utils::errors::ValidationError::IncorrectValueProvided {
+                            field_name: "document_number",
+                        },
+                    )
+                    .attach_printable("CPF document number must contain exactly 11 digits")),
+
+                    DocumentKind::Cnpj if digits_only.len() != 14 => Err(Report::new(
+                        common_utils::errors::ValidationError::IncorrectValueProvided {
+                            field_name: "document_number",
+                        },
+                    )
+                    .attach_printable("CNPJ document number must contain exactly 14 digits")),
+
+                    _ => Ok(()),
+                }
+            }
+
+            (Some(_), None) | (None, Some(_)) => Err(Report::new(
+                common_utils::errors::ValidationError::InvalidValue {
+                    message: "Both document_type and document_number must be provided together"
+                        .to_string(),
+                },
+            )
+            .attach_printable("Both document_type and document_number must be provided together")),
+
+            (None, None) => Ok(()),
+        }
     }
 }

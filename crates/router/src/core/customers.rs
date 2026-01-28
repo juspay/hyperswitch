@@ -50,6 +50,14 @@ pub async fn create_customer(
     customer_data: customers::CustomerRequest,
     connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
+    if let Some(doc_details) = customer_data.document_details.as_ref() {
+        if let Err(err) = doc_details.validate() {
+            Err(errors::CustomersErrorResponse::InvalidRequestData {
+                message: err.to_string(),
+            })?;
+        }
+    }
+
     let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -1035,6 +1043,13 @@ pub async fn update_customer(
     provider: domain::Provider,
     update_customer: customers::CustomerUpdateRequestInternal,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
+    if let Some(doc_details) = update_customer.request.document_details.as_ref() {
+        if let Err(err) = doc_details.validate() {
+            Err(errors::CustomersErrorResponse::InvalidRequestData {
+                message: err.to_string(),
+            })?;
+        }
+    }
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     //Add this in update call if customer can be updated anywhere else
@@ -1283,7 +1298,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         let document_details = hyperswitch_domain_models::type_encryption::crypto_operation(
-            &key_manager_state,
+            key_manager_state,
             type_name!(api_models::customers::CustomerDocumentDetails),
             CryptoOperation::EncryptOptional(
                 self.document_details
@@ -1302,7 +1317,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     })?,
             ),
             Identifier::Merchant(provider.get_account().get_id().clone()),
-            &key,
+            key,
         )
         .await
         .map_err(|e| {

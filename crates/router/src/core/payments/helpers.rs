@@ -1534,9 +1534,13 @@ pub fn validate_customer_information(
                 "The field names `{mismatched_fields}` sent in both places is ambiguous"
             ),
         })?
-    } else {
-        Ok(())
     }
+    if let Err(err) = request.validate_document_details() {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: err.to_string(),
+        })?;
+    }
+    Ok(())
 }
 
 pub async fn validate_card_ip_blocking_for_business_profile(
