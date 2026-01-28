@@ -865,7 +865,7 @@ jobs:
     needs: build-hyperswitch
     if: |
       github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
