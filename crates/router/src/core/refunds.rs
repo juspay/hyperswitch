@@ -13,8 +13,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
-use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
-use hyperswitch_interfaces::consts as interfaces_consts;
+use hyperswitch_interfaces::{
+    consts as interfaces_consts,
+    integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
+};
 use router_env::{instrument, tracing, tracing::Instrument};
 use scheduler::{
     consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
@@ -959,13 +961,17 @@ pub async fn sync_refund_with_gateway(
                 200..=299 => Some(enums::RefundStatus::Failure),
                 _ => None,
             };
-            let (refund_error_message, refund_error_code) = if error_message.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
-                // In case of timeout, we don't have specific error code/message from connector
-                // So we don't update those fields in the refund record
-                (None, None)
-            }else {
-                (error_message.reason.or(Some(error_message.message)), Some(error_message.code))
-            };
+            let (refund_error_message, refund_error_code) =
+                if error_message.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
+                    // In case of timeout, we don't have specific error code/message from connector
+                    // So we don't update those fields in the refund record
+                    (None, None)
+                } else {
+                    (
+                        error_message.reason.or(Some(error_message.message)),
+                        Some(error_message.code),
+                    )
+                };
             diesel_refund::RefundUpdate::ErrorUpdate {
                 refund_status,
                 refund_error_message,
