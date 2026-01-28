@@ -275,6 +275,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CalidaPaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment_request_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

@@ -203,6 +203,14 @@ impl MerchantId {
         )
     }
 
+    /// get should enable MIT with limited card data
+    pub fn get_should_enable_mit_with_limited_card_data(&self) -> String {
+        format!(
+            "should_enable_mit_with_limited_card_data_{}",
+            self.get_string_repr()
+        )
+    }
+
     /// get_max_auto_single_connector_payout_retries_enabled_
     pub fn get_max_auto_single_connector_payout_retries_enabled(
         &self,
@@ -238,5 +246,10 @@ impl MerchantId {
             "should_store_eligibility_check_data_for_authentication_{}",
             self.get_string_repr()
         )
+    }
+
+    /// Get threeds_routing_region key for merchant
+    pub fn get_threeds_routing_region_uas_key(&self) -> String {
+        format!("threeds_routing_region_uas_{}", self.get_string_repr())
     }
 }

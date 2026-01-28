@@ -63,7 +63,7 @@ where
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -83,7 +83,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -124,17 +124,29 @@ where
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response =
-                    ucs_data.router_data_response.map(|(response, status)| {
+                let router_data_response = match ucs_data.router_data_response {
+                    Ok((response, status)) => {
                         router_data.status = status;
-                        response
-                    });
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                 // Populate connector_customer_id if present
                 ucs_data.connector_customer_id.map(|connector_customer_id| {
                     router_data.connector_customer = Some(connector_customer_id);
+                });
+
+                ucs_data.connector_response.map(|connector_response| {
+                    router_data.connector_response = Some(connector_response);
                 });
 
                 Ok((router_data, (), setup_mandate_response))

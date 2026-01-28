@@ -639,6 +639,33 @@ pub struct ConnectorResponseData {
 }
 
 impl ConnectorResponseData {
+    pub fn with_auth_code(auth_code: String, pmt: common_enums::PaymentMethodType) -> Self {
+        let additional_payment_method_data = match pmt {
+            common_enums::PaymentMethodType::GooglePay => {
+                AdditionalPaymentMethodConnectorResponse::GooglePay {
+                    auth_code: Some(auth_code),
+                }
+            }
+            common_enums::PaymentMethodType::ApplePay => {
+                AdditionalPaymentMethodConnectorResponse::ApplePay {
+                    auth_code: Some(auth_code),
+                }
+            }
+            _ => AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: None,
+                domestic_network: None,
+                auth_code: Some(auth_code),
+            },
+        };
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
+            is_overcapture_enabled: None,
+            mandate_reference: None,
+        }
+    }
     pub fn with_additional_payment_method_data(
         additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
     ) -> Self {
@@ -685,6 +712,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         card_network: Option<String>,
         /// Domestic(Co-Branded) Card network returned by the processor
         domestic_network: Option<String>,
+        /// auth code returned by the processor
+        auth_code: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
@@ -692,8 +721,13 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
     },
+    GooglePay {
+        auth_code: Option<String>,
+    },
+    ApplePay {
+        auth_code: Option<String>,
+    },
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
@@ -720,6 +754,7 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub connector_response_reference_id: Option<String>,
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
@@ -735,6 +770,7 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -752,6 +788,7 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -959,6 +996,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
@@ -989,6 +1027,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1284,6 +1323,7 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
@@ -1307,6 +1347,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1597,6 +1638,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
@@ -1628,6 +1670,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1881,6 +1924,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
@@ -1911,6 +1955,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -2128,6 +2173,7 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
@@ -2151,6 +2197,7 @@ impl
                     error: error_details,
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -2299,6 +2346,7 @@ impl
                     status_code: _,
                     attempt_status: _,
                     connector_transaction_id,
+                    connector_response_reference_id,
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
@@ -2332,6 +2380,7 @@ impl
                     error: error_details,
                     updated_by: storage_scheme.to_string(),
                     connector_payment_id: connector_transaction_id,
+                    connector_response_reference_id,
                 }
             }
             Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {

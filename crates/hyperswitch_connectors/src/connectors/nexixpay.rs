@@ -207,6 +207,7 @@ impl ConnectorCommon for Nexixpay {
             reason: concatenated_descriptions,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1241,17 +1242,10 @@ impl ConnectorSpecifications for Nexixpay {
     fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method,
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { payment_method, .. } => {
                 payment_method == Some(enums::PaymentMethod::Card)
-                    && request_data
-                        .redirect_response
-                        .as_ref()
-                        .and_then(|redirect_response| redirect_response.payload.as_ref())
-                        .is_some()
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 

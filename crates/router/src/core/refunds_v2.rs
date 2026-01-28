@@ -165,7 +165,7 @@ pub async fn trigger_refund_to_gateway(
     .await?;
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
@@ -287,7 +287,7 @@ pub async fn internal_trigger_refund_to_gateway(
 
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
@@ -454,24 +454,29 @@ async fn get_unified_error_and_message(
 ) -> (String, String) {
     let option_gsm = helpers::get_gsm_record(
         state,
-        Some(err.code.clone()),
-        Some(err.message.clone()),
         connector.connector_name.to_string(),
         consts::REFUND_FLOW_STR,
         consts::DEFAULT_SUBFLOW_STR,
+        Some(err.code.clone()),
+        Some(err.message.clone()),
+        err.network_decline_code.clone(),
+        None, // card_network not available in refund context
     )
     .await;
+
     // Note: Some connectors do not have a separate list of refund errors
     // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
     // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
     let option_gsm = if option_gsm.is_none() {
         helpers::get_gsm_record(
             state,
-            Some(err.code.clone()),
-            Some(err.message.clone()),
             connector.connector_name.to_string(),
             consts::PAYMENT_FLOW_STR,
             consts::AUTHORIZE_FLOW_STR,
+            Some(err.code.clone()),
+            Some(err.message.clone()),
+            err.network_decline_code.clone(),
+            None, // card_network not available in refund context
         )
         .await
     } else {
@@ -859,7 +864,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
@@ -955,7 +960,7 @@ pub async fn internal_sync_refund_with_gateway(
     .await?;
     let profile_id = payment_intent.profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,

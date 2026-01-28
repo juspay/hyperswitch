@@ -160,6 +160,7 @@ impl ConnectorCommon for Archipel {
                     code: err.code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     message: err
                         .description
                         .clone()

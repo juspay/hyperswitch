@@ -66,7 +66,9 @@ where
     redis_conn
         .get_and_deserialize_key(&get_cache_key_from_role_id(role_id).into(), "RoleInfo")
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::GenericNotFoundError {
+            message: "Role info not found in cache".to_string(),
+        })
 }
 
 pub fn get_cache_key_from_role_id(role_id: &str) -> String {

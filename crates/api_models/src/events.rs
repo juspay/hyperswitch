@@ -39,6 +39,7 @@ use crate::{
     files::*,
     mandates::*,
     organization::{
+        ConvertOrganizationToPlatformRequest, ConvertOrganizationToPlatformResponse,
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },
     payment_methods::*,
@@ -74,6 +75,8 @@ impl_api_event_type!(
         RetrievePaymentLinkResponse,
         MandateListConstraints,
         CreateFileResponse,
+        ConvertOrganizationToPlatformRequest,
+        ConvertOrganizationToPlatformResponse,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,

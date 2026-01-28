@@ -64,6 +64,7 @@ pub struct CustomerRequest {
     pub keep_active: bool,
     pub email: Email,
     pub name: Secret<String>,
+    pub primary_processing_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]

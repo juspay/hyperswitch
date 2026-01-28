@@ -286,7 +286,6 @@ pub enum MerchantAccountUpdate {
     },
     UnsetDefaultProfile,
     ModifiedAtUpdate,
-    ToPlatformAccount,
 }
 
 #[cfg(feature = "v2")]
@@ -305,7 +304,6 @@ pub enum MerchantAccountUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
     ModifiedAtUpdate,
-    ToPlatformAccount,
 }
 
 #[cfg(feature = "v1")]
@@ -480,35 +478,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
             },
-            MerchantAccountUpdate::ToPlatformAccount => Self {
-                modified_at: now,
-                merchant_name: None,
-                merchant_details: None,
-                return_url: None,
-                webhook_details: None,
-                sub_merchants_enabled: None,
-                parent_merchant_id: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                publishable_key: None,
-                storage_scheme: None,
-                locker_id: None,
-                metadata: None,
-                routing_algorithm: None,
-                primary_business_details: None,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                organization_id: None,
-                is_recon_enabled: None,
-                default_profile: None,
-                recon_status: None,
-                payment_link_config: None,
-                pm_collect_link_config: None,
-                is_platform_account: Some(true),
-                product_type: None,
-            },
         }
     }
 }
@@ -570,18 +539,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
                 recon_status: None,
                 is_platform_account: None,
-                product_type: None,
-            },
-            MerchantAccountUpdate::ToPlatformAccount => Self {
-                modified_at: now,
-                merchant_name: None,
-                merchant_details: None,
-                publishable_key: None,
-                storage_scheme: None,
-                metadata: None,
-                organization_id: None,
-                recon_status: None,
-                is_platform_account: Some(true),
                 product_type: None,
             },
         }

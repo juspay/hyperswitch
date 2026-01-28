@@ -422,6 +422,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: item
                     .response
                     .payment_method
@@ -443,6 +444,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
         };

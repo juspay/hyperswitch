@@ -98,6 +98,7 @@ fn build_test_data(
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
         connector_wallets_details: None,
+        webhook_setup_capabilities: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),

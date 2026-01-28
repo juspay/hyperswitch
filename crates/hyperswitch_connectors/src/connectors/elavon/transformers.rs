@@ -275,6 +275,7 @@ impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAut
                 reason: Some(error.error_message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -289,6 +290,7 @@ impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAut
                         reason: Some(response.ssl_result_message.clone()),
                         attempt_status: None,
                         connector_transaction_id: Some(response.ssl_txn_id.clone()),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -314,6 +316,7 @@ impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAut
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 }
@@ -461,6 +464,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ElavonSyncResponse>> for PaymentsSyn
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -500,6 +504,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                 reason: Some(error.error_message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -514,6 +519,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         reason: Some(response.ssl_result_message.clone()),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -531,6 +537,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 }
@@ -561,6 +568,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                 reason: Some(error.error_message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -575,6 +583,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                         reason: Some(response.ssl_result_message.clone()),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,

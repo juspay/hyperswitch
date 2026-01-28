@@ -790,7 +790,7 @@ where
                                 create_payment_method_metadata(None, connector_token)?;
 
                             locker_id = resp.payment_method.and_then(|pm| {
-                                if pm == PaymentMethod::Card {
+                                if pm == PaymentMethod::Card || pm == PaymentMethod::BankDebit {
                                     Some(resp.payment_method_id)
                                 } else {
                                     None
@@ -1116,8 +1116,12 @@ pub async fn save_in_locker_internal(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    match (payment_method_request.card.clone(), card_detail) {
-        (_, Some(card)) | (Some(card), _) => Box::pin(
+    match (
+        payment_method_request.card.clone(),
+        card_detail,
+        payment_method_request.payment_method_data.clone(),
+    ) {
+        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
             PmCards {
                 state,
                 provider: platform.get_provider(),
@@ -1127,6 +1131,29 @@ pub async fn save_in_locker_internal(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
+
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
+                bank_debit_create_data,
+            )),
+        ) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                platform.get_processor().get_key_store(),
+                &customer_id,
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Bank Debit Failed"),
+
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {

@@ -1,9 +1,7 @@
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
-use hyperswitch_domain_models::{
-    router_data::RouterData, router_flow_types as domain, router_request_types,
-};
+use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -30,10 +28,6 @@ impl<RCD>
         types::PaymentsPostAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
     > for domain::PostAuthenticate
 where
     RCD: Clone
@@ -61,14 +55,11 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
-            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -79,7 +70,7 @@ where
             &header_payload,
             lineage_ids,
             merchant_connector_account,
-            &platform,
+            processor,
             unified_connector_service_execution_mode,
             merchant_order_reference_id,
         )
@@ -97,10 +88,7 @@ impl<RCD>
         types::PaymentsPostAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
     > for domain::PostAuthenticate
 where
     RCD: Clone
@@ -119,10 +107,7 @@ where
             types::PaymentsPostAuthenticateData,
             types::PaymentsResponseData,
             RouterGatewayContext,
-            (
-                RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
-                Option<router_request_types::UcsAuthenticationData>,
-            ),
+            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
         >,
     > {
         match execution_path {

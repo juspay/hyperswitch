@@ -53,8 +53,8 @@ pub async fn customer_create(
             customers::create_customer(state, auth.platform.get_provider().clone(), req, None)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -95,8 +95,8 @@ pub async fn customer_retrieve(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -150,8 +150,8 @@ pub async fn customer_update(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -187,8 +187,8 @@ pub async fn customer_delete(
             customers::delete_customer(state, auth.platform.get_provider().clone(), customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -231,8 +231,8 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))

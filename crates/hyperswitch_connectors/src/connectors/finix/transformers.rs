@@ -433,6 +433,7 @@ pub(crate) fn get_setup_mandate_router_data<Request>(
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
         ..item.data
@@ -543,6 +544,7 @@ pub(crate) fn get_finix_response<F, T>(
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(router_data.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -567,6 +569,7 @@ pub(crate) fn get_finix_response<F, T>(
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         },
