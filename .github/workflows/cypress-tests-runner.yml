@@ -566,7 +566,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
         run: |
           # Start the server in the background
-          target/debug/router &
+          target/debug/router > "${SERVER_LOG_PATH}" 2>&1 &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
