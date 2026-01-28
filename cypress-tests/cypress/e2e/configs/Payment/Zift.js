@@ -63,6 +63,7 @@ const payment_method_data_no3ds = {
     card_holder_name: "John Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
