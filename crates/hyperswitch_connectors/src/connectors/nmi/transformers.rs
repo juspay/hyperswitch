@@ -521,8 +521,8 @@ pub struct NmiValidateRequest {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NmiValidatePaymentData {
-    ApplePayPayment(ApplePayPaymentData),
-    GooglePayPayment(GooglePayPaymentData),
+    ApplePayPayment(Box<ApplePayPaymentData>),
+    GooglePayPayment(Box<GooglePayPaymentData>),
     Card(Box<CardData>),
 }
 
@@ -1059,18 +1059,22 @@ impl TryFrom<&NmiRouterData<&SetupMandateRouterData>> for NmiValidateRequest {
                     };
                     Ok(NmiValidatePaymentData::Card(Box::new(card_data)))
                 }
-                PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_wallet_data)) => Ok(
-                    NmiValidatePaymentData::ApplePayPayment(ApplePayPaymentData::try_from((
-                        apple_pay_wallet_data,
-                        item.router_data.payment_method_token.clone(),
-                    ))?),
-                ),
-                PaymentMethodData::Wallet(WalletData::GooglePay(ref google_pay_wallet_data)) => Ok(
-                    NmiValidatePaymentData::GooglePayPayment(GooglePayPaymentData::try_from((
-                        google_pay_wallet_data,
-                        item.router_data.payment_method_token.clone(),
-                    ))?),
-                ),
+                PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_wallet_data)) => {
+                    Ok(NmiValidatePaymentData::ApplePayPayment(Box::new(
+                        ApplePayPaymentData::try_from((
+                            apple_pay_wallet_data,
+                            item.router_data.payment_method_token.clone(),
+                        ))?,
+                    )))
+                }
+                PaymentMethodData::Wallet(WalletData::GooglePay(ref google_pay_wallet_data)) => {
+                    Ok(NmiValidatePaymentData::GooglePayPayment(Box::new(
+                        GooglePayPaymentData::try_from((
+                            google_pay_wallet_data,
+                            item.router_data.payment_method_token.clone(),
+                        ))?,
+                    )))
+                }
                 _ => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Nmi"),
                 )
