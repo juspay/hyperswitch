@@ -22,10 +22,8 @@ pub struct RetrievePaymentMethodV1Request {
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveResquest {
     type Error = MicroserviceClientError;
 
-    fn try_from(value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_id: value.payment_method_id.clone(),
-        })
+    fn try_from(_value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
+        Ok(Self)
     }
 }
 

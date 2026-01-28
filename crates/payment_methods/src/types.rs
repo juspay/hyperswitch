@@ -1,4 +1,4 @@
-use api_models::payment_methods::{CardDetailFromLocker, PaymentMethodId};
+use api_models::payment_methods::{CardDetailFromLocker};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
@@ -7,9 +7,7 @@ use time::PrimitiveDateTime;
 
 /// V2 modular service request payload.
 #[derive(Clone, Debug)]
-pub struct ModularPMRetrieveResquest {
-    pub payment_method_id: PaymentMethodId,
-}
+pub struct ModularPMRetrieveResquest;
 
 /// V2 PaymentMethodResponse as returned by the V2 API.
 /// This is a copy of the V2 PaymentMethodResponse struct from api_models for use in V1-only builds.
