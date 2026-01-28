@@ -1,21 +1,29 @@
 #!/usr/bin/env bash
+# Hardened Cypress Parallel Execution Script
 set -euo pipefail
 
 # -----------------------------
 # Global Variables & Cleanup
 # -----------------------------
-tmp_file=$(mktemp)        # failure-only (legacy)
+tmp_file=$(mktemp)        # failure-only tracking
 job_log=$(mktemp)         # GNU parallel job log
-results_log=$(mktemp)     # unified results: service:connector:status:duration
+results_log=$(mktemp)     # unified results log
+lock_file="/tmp/cypress_results.lock"
 
 cleanup() {
   local exit_code=$?
+  print_color yellow "Cleaning up temporary files and stray processes..."
+  
+  # Kill Cypress, Chrome, and Xvfb specifically to prevent memory zombies
+  pkill -9 -f "cypress" 2>/dev/null || true
+  pkill -9 -f "chrome" 2>/dev/null || true
+  pkill -9 -f "Xvfb" 2>/dev/null || true
+  
   [[ -f "$tmp_file" ]] && rm -f "$tmp_file"
   [[ -f "$job_log" ]] && rm -f "$job_log"
   [[ -f "$results_log" ]] && rm -f "$results_log"
+  [[ -f "$lock_file" ]] && rm -f "$lock_file"
 
-  # Kill any stray Xvfb processes owned by this script
-  pkill -P $$ Xvfb 2>/dev/null || true
   exit "$exit_code"
 }
 trap cleanup EXIT
@@ -45,15 +53,16 @@ export -f print_color
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
+export -f command_exists
 
 # -----------------------------
 # Dependency Check
 # -----------------------------
 check_dependencies() {
-  local dependencies=("parallel" "npm")
+  local dependencies=("parallel" "npm" "xvfb-run")
   for cmd in "${dependencies[@]}"; do
     if ! command_exists "$cmd"; then
-      print_color red "ERROR: ${cmd} is not installed!"
+      print_color red "ERROR: ${cmd} is not installed! (Run: sudo apt-get install parallel xvfb)"
       exit 1
     fi
   done
@@ -64,15 +73,7 @@ check_dependencies() {
   fi
 
   print_color blue "Verifying Cypress binary..."
-  if command_exists "xvfb-run"; then
-    xvfb-run --auto-servernum npm exec cypress verify
-  else
-    export DISPLAY=:99
-    Xvfb :99 &
-    local xvfb_pid=$!
-    npm exec cypress verify
-    kill "$xvfb_pid" 2>/dev/null || true
-  fi
+  xvfb-run --auto-servernum npm exec cypress verify
   print_color green "Cypress verified."
 }
 
@@ -83,7 +84,9 @@ execute_test() {
   local connector="$1"
   local service="$2"
   local failure_log="$3"
-  local job_slot="${4:-1}"
+  local res_log="$4"
+  local lock_fn="$5"
+  local job_slot="${6:-1}"
 
   local start_ts=$(date +%s)
   local start_fmt=$(date '+%H:%M:%S')
@@ -92,66 +95,47 @@ execute_test() {
   print_color blue "[START] $service:$connector (Slot: $job_slot) at $start_fmt"
   echo "----------------------------------------------------"
 
+  # Set specific environment variables
+  export CYPRESS_CONNECTOR="$connector"
   export REPORT_NAME="${service}_${connector}_report"
 
-  # -----------------------------
-  # XVFB
-  # -----------------------------
-  local unique_display=$((100 + job_slot))
-  export DISPLAY=":${unique_display}"
-
-  Xvfb "$DISPLAY" &
-  local xvfb_pid=$!
-  trap "kill $xvfb_pid 2>/dev/null || true" RETURN
-  sleep 1
-
-  # -----------------------------
-  # EXECUTE TEST
-  # -----------------------------
+  # Execute Cypress via xvfb-run
+  # --auto-servernum: Prevents "Display already in use" race conditions
+  # --server-args: Ensures a standard screen size for snapshots
   local exit_code=0
-  if ! bash -c '
-        export CYPRESS_CONNECTOR="'"$connector"'"
-        npm run "cypress:'"$service"'"
-      '
-  then
+  if ! xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" \
+       npm run "cypress:${service}"; then
     exit_code=1
   fi
 
-  local end_ts=$(date +%s)
-  local duration=$((end_ts - start_ts))
+  local duration=$(($(date +%s) - start_ts))
+  local status="PASS"
+  [[ $exit_code -ne 0 ]] && status="FAIL"
 
-  local status
-  if [[ $exit_code -eq 0 ]]; then
-    status="PASS"
-    print_color green "[PASS] $service:$connector | ${duration}s"
-  else
-    status="FAIL"
-    print_color red "[FAIL] $service:$connector | ${duration}s"
-  fi
+  # Atomically record result using flock to prevent interleaved lines
+  (
+    flock -x 200
+    echo "${service}:${connector}:${status}:${duration}" >> "$res_log"
+    if [[ "$status" == "FAIL" ]]; then
+      echo "${service}:${connector}" >> "$failure_log"
+      print_color red "[FAIL] $service:$connector | ${duration}s"
+    else
+      print_color green "[PASS] $service:$connector | ${duration}s"
+    fi
+  ) 200>"$lock_fn"
 
-  # Always record result
-  echo "${service}:${connector}:${status}:${duration}" >> "$results_log"
-
-  # Keep legacy failure list (used for exit code)
-  if [[ "$status" == "FAIL" ]]; then
-    echo "${service}:${connector}" >> "$failure_log"
-    return 1
-  fi
-
-  return 0
+  return $exit_code
 }
 
 export -f execute_test
-export -f command_exists
-export -f print_color
-export results_log
 
 # -----------------------------
-# Runner
+# Runner Logic
 # -----------------------------
 run_tests() {
   local jobs="${1:-1}"
 
+  # Build arrays from environment variables
   read -r -a payments <<< "${PAYMENTS_CONNECTORS:-}"
   read -r -a payouts <<< "${PAYOUTS_CONNECTORS:-}"
   read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST:-}"
@@ -164,74 +148,61 @@ run_tests() {
     ["ROUTING"]="routing"
   )
 
-  local active_services=()
   for env_var in "${!env_to_service[@]}"; do
-    [[ -n "${!env_var:-}" ]] && active_services+=("${env_to_service[$env_var]}")
-  done
-
-  for service in "${active_services[@]}"; do
+    local service="${env_to_service[$env_var]}"
     declare -n connectors="$service"
 
     if [[ ${#connectors[@]} -gt 0 ]]; then
-      print_color yellow " Starting Parallel Execution for '$service' (Jobs: $jobs)"
+      print_color yellow ">>> Starting Parallel Execution for '$service' (Workers: $jobs)"
 
+      # Run parallel: Passing all logs as arguments to ensure subshell visibility
       parallel --jobs "$jobs" \
                --group \
                --joblog "$job_log" \
-               execute_test {} "$service" "$tmp_file" {%} \
+               execute_test {} "$service" "$tmp_file" "$results_log" "$lock_file" {%} \
                ::: "${connectors[@]}" || true
     fi
   done
 
   # -----------------------------
-  # Final Summary
+  # Final Summary Reporting
   # -----------------------------
   if [[ -s "$results_log" ]]; then
+    echo -e "\n"
+    print_color blue "================ EXECUTION SUMMARY ================"
+    
+    # PASS List
+    awk -F: '$3=="PASS" { printf "\033[0;32m  ✔ %-30s | %4ss\033[0m\n", $1 ":" $2, $4 }' "$results_log"
+    
+    # FAIL List
+    awk -F: '$3=="FAIL" { printf "\033[0;31m  ✖ %-30s | %4ss\033[0m\n", $1 ":" $2, $4 }' "$results_log"
 
-    print_color green "\n========================================"
-    print_color green " SUCCESSFUL CONNECTORS"
-    print_color green "========================================"
-    awk -F: '$3=="PASS" {
-      printf "  • %-30s | %5ss\n", $1 ":" $2, $4
-    }' "$results_log"
-    print_color green "\n========================================"
-
-    print_color red "\n========================================"
-    print_color red " FAILED CONNECTORS"
-    print_color red "========================================"
-    awk -F: '$3=="FAIL" {
-      printf "  • %-30s | %5ss\n", $1 ":" $2, $4
-    }' "$results_log"
-    print_color red "\n========================================"
-
-    print_color blue "\n========================================"
-    print_color blue " EXECUTION STATS"
-    print_color blue "========================================"
+    print_color blue "---------------------------------------------------"
     awk -F: '
     {
-      total += $4
-      count++
+      count++; total += $4
       if ($3=="PASS") pass++
       if ($3=="FAIL") fail++
     }
     END {
-      printf "  ➜ Total connectors run: %d\n", count
-      printf "  ➜ Successful: %d\n", pass
-      printf "  ➜ Failed: %d\n", fail
+      printf "  TOTAL: %d | SUCCESS: %d | FAILED: %d | AVG: %ds\n", count, pass, fail, (count?total/count:0)
     }' "$results_log"
+    print_color blue "==================================================="
   fi
 
+  # Exit 1 if the failure log has content
   [[ -s "$tmp_file" ]] && return 1 || return 0
 }
 
 # -----------------------------
-# Main
+# Main Entry Point
 # -----------------------------
 main() {
   local command="${1:-}"
   local jobs="${2:-3}"
   local test_dir="${3:-cypress-tests}"
 
+  # Navigate to the correct test directory
   if [[ "$(basename "$PWD")" != "$(basename "$test_dir")" && -d "$test_dir" ]]; then
     cd "$test_dir"
   fi
