@@ -244,6 +244,7 @@ jobs:
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -305,6 +306,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
+          touch "${{ env.SERVER_LOG_PATH }}"
           # Start the server in the background
           target/debug/router &
 
@@ -336,9 +338,12 @@ jobs:
 
           kill "${{ env.PID }}"
 
-      - name: Compress server logs
+      - name: Compress and upload server logs on failure
         if: env.RUN_TESTS == 'true'
-        run: gzip -9 "${{ env.SERVER_LOG_PATH }}"
+        run: |
+          if [[ -f "${{ env.SERVER_LOG_PATH }}" ]]; then
+            gzip -9 "${{ env.SERVER_LOG_PATH }}"
+          fi
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true'
@@ -346,6 +351,7 @@ jobs:
         with:
           name: server-logs
           path: ${{ env.SERVER_LOG_PATH }}.gz
+          if-no-files-found: ignore
           retention-days: 1
 
       - name: Upload Cypress test results
