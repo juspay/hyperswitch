@@ -174,7 +174,7 @@ run_tests() {
     awk -F: '$3=="FAIL" { printf "\033[0;31m  ✖ %-30s | %4ss\033[0m\n", $1 ":" $2, $4 }' "$results_log"
     print_color blue "---------------------------------------------------"
     awk -F: '{ count++; total += $4; if ($3=="PASS") pass++; if ($3=="FAIL") fail++ } 
-    END { printf "  TOTAL: %d | SUCCESS: %d | FAILED: %d | AVG: %ds\n", count, pass, fail, (count?total/count:0) }' "$results_log"
+    END { printf "  TOTAL: %d | SUCCESS: %d | FAILED: %d ", count, pass, fail }' "$results_log"
     print_color blue "==================================================="
   fi
 }

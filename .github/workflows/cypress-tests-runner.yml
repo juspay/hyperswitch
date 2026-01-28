@@ -19,7 +19,7 @@ env:
   PAYMENTS_CONNECTORS: "cybersource stripe"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe finix"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay nexixpay fiuu"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "paypal zift"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "paypal zift adyen"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_4: "cybersource stripe finix"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree nuvei"
