@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::{
     ext_traits::OptionExt,
     request::Method,
-    types::{FloatMajorUnit, MinorUnit},
+    types::{FloatMajorUnit, MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -26,12 +26,12 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct RapydRouterData<T> {
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(FloatMajorUnit, T)> for RapydRouterData<T> {
-    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
+impl<T> From<(StringMajorUnit, T)> for RapydRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -41,7 +41,7 @@ impl<T> From<(FloatMajorUnit, T)> for RapydRouterData<T> {
 
 #[derive(Default, Debug, Serialize)]
 pub struct RapydPaymentsRequest {
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
     pub payment_method_options: Option<PaymentMethodOptions>,
@@ -183,7 +183,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
         ))?;
         let return_url = item.router_data.request.get_router_return_url()?;
         Ok(Self {
-            amount: item.amount,
+            amount: item.amount.clone(),
             currency: item.router_data.request.currency,
             payment_method,
             capture,
@@ -323,7 +323,7 @@ pub struct DisputeResponseData {
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
-    pub amount: Option<FloatMajorUnit>,
+    pub amount: Option<StringMajorUnit>,
     pub currency: Option<enums::Currency>,
 }
 
@@ -336,7 +336,7 @@ impl<F> TryFrom<&RapydRouterData<&types::RefundsRouterData<F>>> for RapydRefundR
                 .request
                 .connector_transaction_id
                 .to_string(),
-            amount: Some(item.amount),
+            amount: Some(item.amount.clone()),
             currency: Some(item.router_data.request.currency),
         })
     }
@@ -428,7 +428,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::Refund
 
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
-    amount: Option<FloatMajorUnit>,
+    amount: Option<StringMajorUnit>,
     receipt_email: Option<Secret<String>>,
     statement_descriptor: Option<String>,
 }
@@ -439,7 +439,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsCaptureRouterData>> for CaptureReq
         item: &RapydRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.amount),
+            amount: Some(item.amount.clone()),
             receipt_email: None,
             statement_descriptor: None,
         })
