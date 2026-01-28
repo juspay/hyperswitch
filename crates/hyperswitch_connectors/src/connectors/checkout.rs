@@ -189,6 +189,7 @@ impl ConnectorCommon for Checkout {
                 .or(response.error_type),
             attempt_status: None,
             connector_transaction_id: response.request_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -206,6 +207,8 @@ impl ConnectorValidation for Checkout {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
             PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::ApplePay,
         ]);
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }

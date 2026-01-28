@@ -4,6 +4,8 @@ pub mod connector_onboarding;
 pub mod currency;
 pub mod db_utils;
 pub mod ext_traits;
+#[cfg(feature = "olap")]
+pub mod oidc;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 #[cfg(feature = "olap")]
@@ -173,7 +175,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     let db = &*state.store;
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -183,7 +185,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
-                .find_payment_attempt_by_merchant_id_connector_txn_id(
+                .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                     platform.get_processor().get_account().get_id(),
                     &connector_transaction_id,
                     platform.get_processor().get_account().storage_scheme,
@@ -191,7 +193,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -202,7 +204,7 @@ pub async fn find_payment_intent_from_payment_id_type(
         }
         payments::PaymentIdType::PaymentAttemptId(attempt_id) => {
             let attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
@@ -210,7 +212,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -253,7 +255,7 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &refund.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -261,7 +263,7 @@ pub async fn find_payment_intent_from_refund_id_type(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    db.find_payment_intent_by_payment_id_merchant_id(
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
         platform.get_processor().get_account().get_id(),
         platform.get_processor().get_key_store(),
@@ -296,7 +298,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
     };
-    db.find_payment_intent_by_payment_id_merchant_id(
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -376,7 +378,7 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -672,6 +674,7 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -694,6 +697,18 @@ pub fn get_http_status_code_type(
             .attach_printable("Invalid http status code")?,
     };
     Ok(status_code_type.to_string())
+}
+
+// Trims whitespace from a Secret string and returns None if empty
+pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+    let trimmed = secret.expose().trim().to_string();
+    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+}
+
+// Trims whitespace from a regular string and returns None if empty
+pub fn trim_string(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    (!trimmed.is_empty()).then_some(trimmed)
 }
 
 pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
@@ -1020,17 +1035,18 @@ pub fn add_apple_pay_flow_metrics(
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
-                1,
-                router_env::metric_attributes!(
-                    (
-                        "connector",
-                        connector.to_owned().unwrap_or("null".to_string()),
+            domain::ApplePayFlow::DecryptAtApplication(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW
+                .add(
+                    1,
+                    router_env::metric_attributes!(
+                        (
+                            "connector",
+                            connector.to_owned().unwrap_or("null".to_string()),
+                        ),
+                        ("merchant_id", merchant_id.clone()),
                     ),
-                    ("merchant_id", merchant_id.clone()),
                 ),
-            ),
-            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::SkipDecryption => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 1,
                 router_env::metric_attributes!(
                     (
@@ -1053,7 +1069,7 @@ pub fn add_apple_pay_payment_status_metrics(
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptAtApplication(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1065,8 +1081,8 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
-                    .add(
+                domain::ApplePayFlow::SkipDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
                             (
@@ -1075,13 +1091,14 @@ pub fn add_apple_pay_payment_status_metrics(
                             ),
                             ("merchant_id", merchant_id.clone()),
                         ),
-                    ),
+                    )
+                }
             }
         }
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptAtApplication(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1093,16 +1110,18 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
-                    1,
-                    router_env::metric_attributes!(
-                        (
-                            "connector",
-                            connector.to_owned().unwrap_or("null".to_string()),
+                domain::ApplePayFlow::SkipDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            ("merchant_id", merchant_id.clone()),
                         ),
-                        ("merchant_id", merchant_id.clone()),
-                    ),
-                ),
+                    )
+                }
             }
         }
     }
@@ -1123,7 +1142,8 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    platform: &domain::Platform,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1141,7 +1161,8 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    platform: domain::Platform,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1180,6 +1201,8 @@ where
             None,
             None,
             None,
+            processor,
+            initiator,
         )?;
 
         let event_type = status.into();
@@ -1193,12 +1216,13 @@ where
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
+                let cloned_processor = processor.clone();
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
-                            platform.clone(),
+                            cloned_processor,
                             business_profile,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
@@ -1262,14 +1286,14 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
-        let cloned_platform = platform.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
+            let processor = platform.get_processor().clone();
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        cloned_platform,
+                        processor,
                         business_profile,
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
@@ -1331,9 +1355,9 @@ pub async fn trigger_payouts_webhook(
     if should_trigger_webhook {
         let event_type = (*status).into();
         if let Some(event_type) = event_type {
-            let cloned_platform = platform.clone();
             let cloned_state = state.clone();
             let cloned_response = payout_response.clone();
+            let processor = platform.get_processor().clone();
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
@@ -1343,7 +1367,7 @@ pub async fn trigger_payouts_webhook(
                     let primary_object_created_at = cloned_response.created;
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        cloned_platform,
+                        processor,
                         business_profile,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
@@ -1394,17 +1418,19 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let cloned_state = state.clone();
     let cloned_profile = profile.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
     let created_at = subscription.created_at;
+    let processor = platform.get_processor().clone();
 
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
-            platform,
+            processor,
             cloned_profile,
             common_enums::enums::EventType::InvoicePaid,
             common_enums::enums::EventClass::Subscriptions,

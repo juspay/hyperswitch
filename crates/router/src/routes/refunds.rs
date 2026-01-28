@@ -61,13 +61,13 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            refund_create_core(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            refund_create_core(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
@@ -105,8 +105,8 @@ pub async fn refunds_create(
     } else {
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
@@ -121,8 +121,7 @@ pub async fn refunds_create(
         &req,
         internal_refund_create_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            refund_create_core(state, platform, req.payload, global_refund_id.clone())
+            refund_create_core(state, auth.platform, req.payload, global_refund_id.clone())
         },
         auth_type,
         api_locking::LockAction::NotApplicable,
@@ -161,19 +160,19 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.clone().into();
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_response_wrapper(
                 state,
-                platform,
-                auth.profile_id,
+                auth.platform,
+                profile_id,
                 refund_request,
                 refund_retrieve_core_with_refund_id,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -212,13 +211,12 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.clone().into();
-            refund_retrieve_core_with_refund_id(state, platform, auth.profile, refund_request)
+            refund_retrieve_core_with_refund_id(state, auth.platform, auth.profile, refund_request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -257,8 +255,8 @@ pub async fn refunds_retrieve_with_gateway_creds(
     } else {
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -273,8 +271,7 @@ pub async fn refunds_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.clone().into();
-            refund_retrieve_core_with_refund_id(state, platform, auth.profile, refund_request)
+            refund_retrieve_core_with_refund_id(state, auth.platform, auth.profile, refund_request)
         },
         auth_type,
         api_locking::LockAction::NotApplicable,
@@ -306,18 +303,18 @@ pub async fn refunds_retrieve_with_body(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_response_wrapper(
                 state,
-                platform,
-                auth.profile_id,
+                auth.platform,
+                profile_id,
                 req,
                 refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -345,12 +342,11 @@ pub async fn refunds_update(
         &req,
         refund_update_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            refund_update_core(state, platform, req)
+            refund_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -382,14 +378,14 @@ pub async fn refunds_metadata_update(
         |state, auth: auth::AuthenticationData, req, _| {
             refund_metadata_update_core(
                 state,
-                auth.merchant_account,
+                auth.platform.get_processor().get_account().clone(),
                 req.payload,
                 global_refund_id.clone(),
             )
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -413,13 +409,12 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            refund_list(state, platform, None, req)
+            refund_list(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -445,12 +440,17 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_list(state, auth.merchant_account, auth.profile, req)
+            refund_list(
+                state,
+                auth.platform.get_processor().get_account().clone(),
+                auth.profile,
+                req,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -479,18 +479,17 @@ pub async fn refunds_list_profile(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             refund_list(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -519,13 +518,12 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            refund_filter_list(state, platform, req)
+            refund_filter_list(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -550,13 +548,12 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
-            get_filters_for_refunds(state, platform, None)
+            get_filters_for_refunds(state, auth.platform, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -584,17 +581,16 @@ pub async fn get_refunds_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.clone().into();
             get_filters_for_refunds(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -621,13 +617,12 @@ pub async fn get_refunds_aggregates(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            get_aggregates_for_refunds(state, platform, None, req)
+            get_aggregates_for_refunds(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -677,18 +672,17 @@ pub async fn get_refunds_aggregate_profile(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             get_aggregates_for_refunds(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,

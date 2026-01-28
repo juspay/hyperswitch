@@ -31,7 +31,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
     ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
 };
 use hyperswitch_domain_models::{
-    platform::Platform,
+    platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
@@ -73,7 +73,7 @@ pub mod transformers;
 
 pub async fn get_access_token_from_ucs_response(
     session_state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
@@ -83,7 +83,7 @@ pub async fn get_access_token_from_ucs_response(
         .and_then(|state| state.access_token.as_ref())
         .map(AccessToken::foreign_from)?;
 
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
@@ -106,13 +106,13 @@ pub async fn get_access_token_from_ucs_response(
 
 pub async fn set_access_token_for_ucs(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     access_token: AccessToken,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
 ) -> Result<(), errors::StorageError> {
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
@@ -230,7 +230,7 @@ async fn determine_connector_integration_type(
 
 pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: &RouterData<F, T, R>,
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
@@ -240,11 +240,7 @@ where
     R: Send + Sync + Clone,
 {
     // Extract context information
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
@@ -553,15 +549,11 @@ where
 
 pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
 ) -> RouterResult<ExecutionPath> {
     // Extract context information
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
@@ -661,6 +653,30 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::Card(card_details)),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
+            card_redirect_data,
+        ) => {
+            let card_redirect_type = match card_redirect_data {
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Knet
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Benefit {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Benefit
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::MomoAtm {} => {
+                    payments_grpc::card_redirect::CardRedirectType::MomoAtm
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::CardRedirect {} => {
+                    payments_grpc::card_redirect::CardRedirectType::CardRedirect
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardRedirect(payments_grpc::CardRedirect {
+                    r#type: card_redirect_type.into(),
+                })),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
             let upi_type = match upi_data {
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
@@ -668,15 +684,33 @@ pub fn build_unified_connector_service_payment_method(
                 ) => {
                     let upi_details = payments_grpc::UpiCollect {
                         vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+                        upi_source: upi_collect_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
                     };
                     PaymentMethod::UpiCollect(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent { app_name: None };
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(upi_intent_data) => {
+                    let upi_details = payments_grpc::UpiIntent {
+                        app_name: None,
+                        upi_source: upi_intent_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
+                    };
                     PaymentMethod::UpiIntent(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
-                    let upi_details = payments_grpc::UpiQr {};
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(upi_qr_data) => {
+                    let upi_details = payments_grpc::UpiQr {
+                        upi_source: upi_qr_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
+                    };
                     PaymentMethod::UpiQr(upi_details)
                 }
             };
@@ -705,8 +739,199 @@ pub fn build_unified_connector_service_payment_method(
                 Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
                     }),
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Ideal { bank_name } => {
+                let ideal = payments_grpc::Ideal {
+                    bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?
+                    .map(|b| b.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Ideal(ideal)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+                country,
+            } => {
+                let giropay = payments_grpc::Giropay {
+                    bank_account_bic: bank_account_bic.map(|v| v.expose().into()),
+                    bank_account_iban: bank_account_iban.map(|v| v.expose().into()),
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Giropay(giropay)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { bank_name, country } => {
+                let eps = payments_grpc::Eps {
+                    bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?
+                    .map(|b| b.into()),
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eps(eps)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Przelewy24 { bank_name } => {
+                let p24 = payments_grpc::Przelewy24 {
+                    bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?
+                    .map(|b| b.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Przelewy24(p24)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Blik { blik_code}  => {
+                let blik = payments_grpc::Blik {
+                    blik_code,
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Blik(blik)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { country } => {
+                let trustly = payments_grpc::Trustly {
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string())).map(|c| c.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Trustly(trustly)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Interac {
+                country,
+                email,
+            } => {
+                let interac = payments_grpc::Interac {
+                    country: country
+                        .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                        .map(|c| c.into()),
+                    email: email.map(|e| e.expose().expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Interac(interac)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_holder_name,
+            } => {
+                let bancontact = payments_grpc::BancontactCard {
+                    card_number: card_number.map(|v| CardNumber::from_str(&v.get_card_no())).transpose()
+                        .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
+                    card_exp_month: card_exp_month.map(|v| v.expose().into()),
+                    card_exp_year: card_exp_year.map(|v| v.expose().into()),
+                    card_holder_name: card_holder_name.map(|v| v.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BancontactCard(bancontact)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingFpx { issuer }  => {
+                let online_banking_fpx = payments_grpc::OnlineBankingFpx {
+                    issuer: payments_grpc::BankNames::foreign_try_from(issuer)?.into(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::OnlineBankingFpx(online_banking_fpx)),
+                })
+            }
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented bank redirect type: {bank_redirect_data:?}"
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+        },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(
+            bank_transfer_data,
+        ) => match *bank_transfer_data {
+            hyperswitch_domain_models::payment_method_data::RealTimePaymentData::DuitNow {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::DuitNow(
+                    payments_grpc::DuitNow {  }
+                )),
+            }),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(
+            bank_transfer_data,
+        ) => match *bank_transfer_data {
+            hyperswitch_domain_models::payment_method_data::BankTransferData::AchBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::AchBankTransfer(
+                    payments_grpc::AchBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BacsBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::BacsBankTransfer(
+                    payments_grpc::BacsBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::SepaBankTransfer(
+                    payments_grpc::SepaBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::MultibancoBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::MultibancoBankTransfer(
+                    payments_grpc::MultibancoBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransfer(payments_grpc::InstantBankTransfer {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransferFinland {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransferFinland(payments_grpc::InstantBankTransferFinland {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransferPoland {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransferPoland(payments_grpc::InstantBankTransferPoland {})),
+                    }),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+        },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(
+            pay_later_data,
+        ) => match pay_later_data {
+            hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Klarna(
+                    payments_grpc::Klarna {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Affirm(
+                    payments_grpc::Affirm {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::AfterpayClearpay(
+                    payments_grpc::AfterpayClearpay {  }
+                )),
+            }),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
             ))
             .into()),
         },
@@ -803,6 +1028,55 @@ pub fn build_unified_connector_service_payment_method(
                         )),
                     })
                 },
+                hyperswitch_domain_models::payment_method_data::WalletData::AmazonPayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::AmazonPayRedirect(
+                        payments_grpc::AmazonPayRedirectWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::CashappQr(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::CashappQr(
+                        payments_grpc::CashappQrWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::WeChatPayQr(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::WeChatPayQr(
+                        payments_grpc::WeChatPayQrWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::AliPayRedirect(
+                        payments_grpc::AliPayRedirectWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::RevolutPay(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::RevolutPay(
+                        payments_grpc::RevolutPayWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::BluecodeRedirect {} => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Bluecode(
+                        payments_grpc::Bluecode {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
+                    paypal_redirection,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PaypalRedirect(
+                        payments_grpc::PaypalRedirectWallet {
+                            email: paypal_redirection.email.map(|e| e.expose().expose().into()),
+                        }
+                    )),
+                }),
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
@@ -817,6 +1091,108 @@ pub fn build_unified_connector_service_payment_method(
                 })),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_nti_data) => {
+            let card_details_for_nti = payments_grpc::CardDetailsForNetworkTransactionId::foreign_try_from(card_nti_data)?;
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardDetailsForNetworkTransactionId(card_details_for_nti)),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => {
+            let network_token = payments_grpc::NetworkTokenData::foreign_try_from(network_token_data)?;
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::NetworkToken(network_token)),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(
+            bank_debit_data,
+        ) => match bank_debit_data {
+            hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                card_holder_name,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => {
+                let bank_name = bank_name
+                    .map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?;
+                let bank_type = bank_type
+                    .map(payments_grpc::BankType::foreign_try_from)
+                    .transpose()?;
+                let bank_holder_type = bank_holder_type
+                    .map(payments_grpc::BankHolderType::foreign_try_from)
+                    .transpose()?;
+
+                let ach = payments_grpc::Ach {
+                    account_number: Some(account_number.expose().into()),
+                    routing_number: Some(routing_number.expose().into()),
+                    card_holder_name: card_holder_name.map(|name| name.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                    bank_name: bank_name.map(Into::into).unwrap_or_default(),
+                    bank_type: bank_type.map(Into::into).unwrap_or_default(),
+                    bank_holder_type: bank_holder_type.map(Into::into).unwrap_or_default(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Ach(ach)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => {
+                let sepa = payments_grpc::Sepa {
+                    iban: Some(iban.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Sepa(sepa)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::BecsBankDebit {
+                account_number,
+                bsb_number,
+                bank_account_holder_name,
+            } => {
+                let becs = payments_grpc::Becs {
+                    account_number: Some(account_number.expose().into()),
+                    bsb_number: Some(bsb_number.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Becs(becs)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::BacsBankDebit {
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+            } => {
+                let bacs = payments_grpc::Bacs {
+                    account_number: Some(account_number.expose().into()),
+                    sort_code: Some(sort_code.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Bacs(bacs)),
+                })
+            }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(
+                "Unimplemented bank debit variant".to_string(),
+            )
+            .into()),
+        },
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
@@ -884,7 +1260,7 @@ fn get_ucs_client(
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: String,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
@@ -900,11 +1276,7 @@ pub fn build_unified_connector_service_auth_metadata(
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
 
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     match &auth_type {
         ConnectorAuthType::SignatureKey {
@@ -1095,6 +1467,18 @@ pub fn handle_unified_connector_service_response_for_payment_method_token_create
 
 pub fn handle_unified_connector_service_response_for_sdk_session_token(
     response: payments_grpc::PaymentServiceSdkSessionTokenResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_incremental_authorization(
+    response: payments_grpc::PaymentServiceIncrementalAuthorizationResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1314,7 +1698,7 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
 /// This provides a clean interface similar to payment flow UCS calls
 pub async fn call_unified_connector_service_for_webhook(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     body: &actix_web::web::Bytes,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1361,11 +1745,7 @@ pub async fn call_unified_connector_service_for_webhook(
         body,
         request_details,
         webhook_secrets,
-        platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_string_repr(),
+        processor.get_account().get_id().get_string_repr(),
         connector_name,
     )?;
 
@@ -1381,7 +1761,7 @@ pub async fn call_unified_connector_service_for_webhook(
 
             build_unified_connector_service_auth_metadata(
                 mca_type,
-                platform,
+                processor,
                 connector_name.to_string(),
             )
         })
@@ -1401,7 +1781,7 @@ pub async fn call_unified_connector_service_for_webhook(
     let grpc_headers = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
         .lineage_ids(LineageIds::new(
-            platform.get_processor().get_account().get_id().clone(),
+            processor.get_account().get_id().clone(),
             profile_id,
         ))
         .external_vault_proxy_metadata(None)
@@ -1818,7 +2198,7 @@ pub async fn send_comparison_data(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_execute(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
@@ -1830,7 +2210,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     // Build auth metadata using standard UCS function
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1844,7 +2224,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
@@ -1892,7 +2272,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_sync(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
@@ -1904,7 +2284,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     // Build auth metadata using standard UCS function
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1918,7 +2298,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;

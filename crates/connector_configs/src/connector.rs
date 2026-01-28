@@ -15,7 +15,7 @@ use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PayloadCurrencyAuthKeyType {
     pub api_key: String,
-    pub processing_account_id: String,
+    pub processing_account_id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -227,6 +227,7 @@ pub struct ConnectorTomlConfig {
     pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
+    pub network_token: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -370,6 +371,7 @@ pub struct ConnectorConfig {
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
+    pub worldpaymodular: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub worldpay_payout: Option<ConnectorTomlConfig>,
     pub worldpayvantiv: Option<ConnectorTomlConfig>,
@@ -603,6 +605,7 @@ impl ConnectorConfig {
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
+            Connector::Worldpaymodular => Ok(connector_data.worldpaymodular),
             Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),

@@ -117,14 +117,13 @@ impl ConnectorCommon for Adyenplatform {
 
         let message = if let Some(invalid_fields) = &response.invalid_fields {
             match serde_json::to_string(invalid_fields) {
-                Ok(invalid_fields_json) => format!(
-                    "{}\nInvalid fields: {}",
-                    response.title, invalid_fields_json
-                ),
+                Ok(invalid_fields_json) => {
+                    format!("{} Invalid fields: {}", response.title, invalid_fields_json)
+                }
                 Err(_) => response.title.clone(),
             }
         } else if let Some(detail) = &response.detail {
-            format!("{}\nDetail: {}", response.title, detail)
+            format!("{} Detail: {}", response.title, detail)
         } else {
             response.title.clone()
         };
@@ -136,6 +135,7 @@ impl ConnectorCommon for Adyenplatform {
             reason: response.detail,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

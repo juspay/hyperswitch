@@ -49,7 +49,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -66,7 +66,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                platform,
+                processor,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,
@@ -121,7 +121,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -163,14 +163,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             gateway_context,
         )
         .await
-    }
-
-    async fn preprocessing_steps<'a>(
-        self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        todo!()
     }
 
     async fn postprocessing_steps<'a>(
@@ -336,6 +328,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
             Ok(Some(types::CreateOrderResult {
                 create_order_result: create_order_resp,
+                should_continue_further: should_continue_payment,
             }))
         } else {
             // If the connector does not require order creation, return None
@@ -350,12 +343,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         match create_order_result.create_order_result {
             Ok(order_id) => {
                 self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
-                self.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }
-            Err(err) => {
-                self.response = Err(err.clone());
-            }
+            Err(_err) => (),
         }
     }
 
@@ -367,7 +356,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
@@ -386,7 +375,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                platform,
+                processor,
                 self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)

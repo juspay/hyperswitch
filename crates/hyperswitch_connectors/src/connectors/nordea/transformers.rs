@@ -342,6 +342,7 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::Wallet(_))
             | Some(PaymentMethodData::PayLater(_))
             | Some(PaymentMethodData::BankRedirect(_))
@@ -422,6 +423,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::Wallet(_))
             | Some(PaymentMethodData::PayLater(_))
             | Some(PaymentMethodData::BankRedirect(_))
@@ -513,6 +515,7 @@ fn convert_nordea_payment_response(
         network_txn_id: None,
         connector_response_reference_id: payment_response.external_id.clone(),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
 
@@ -595,6 +598,7 @@ impl
                         status_code: item.http_code,
                         attempt_status: Some(common_enums::AttemptStatus::Failure),
                         connector_transaction_id: first_error.payment_id.clone(),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -644,6 +648,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: payment.external_id.clone(),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 });
 
@@ -662,6 +667,7 @@ impl
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     });
                     (response, common_enums::AttemptStatus::AuthenticationPending)

@@ -20,6 +20,7 @@ import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
+import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
@@ -32,11 +33,14 @@ import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
+import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
 import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
@@ -62,6 +66,7 @@ import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
+import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
@@ -87,6 +92,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
+  cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
   datatrans: datatransConnectorDetails,
@@ -99,11 +105,13 @@ const connectorDetails = {
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  mollie: mollieConnectorDetails,
   moneris: monerisConnectorDetails,
   multisafepay: multisafepayConnectorDetails,
   nexinets: nexinetsConnectorDetails,
@@ -129,12 +137,14 @@ const connectorDetails = {
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
+  volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   worldpayvantiv: worldpayvantivConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
   zift: ziftConnectorDetails,
+  loonio: loonioConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -394,6 +404,7 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
+      "authorizedotnet",
       "bamboraapac",
       "bankofamerica",
       "billwerk",
@@ -432,6 +443,7 @@ export const CONNECTOR_LISTS = {
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
     MANUAL_RETRY: ["cybersource"],
+    PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
     // Add more inclusion lists
   },
 };
@@ -444,3 +456,52 @@ export const shouldExcludeConnector = (connectorId, list) => {
 export const shouldIncludeConnector = (connectorId, list) => {
   return !list.includes(connectorId);
 };
+
+export function setNormalizedValue(
+  webhookBody,
+  config,
+  connectorTransactionID
+) {
+  if (!config?.path) {
+    throw new Error("Invalid config: missing path");
+  }
+  // Split the dot-separated path into individual keys
+  const keys = config.path.split(".");
+  let target = webhookBody;
+
+  // Traverse the object until the parent of the final key
+  for (const key of keys.slice(0, -1)) {
+    if (!Object.prototype.hasOwnProperty.call(target, key)) {
+      throw new Error(`Path does not exist: ${config.path}`);
+    }
+    target = target[key];
+  }
+  // The final key where the normalized value will be assigned
+  const finalKey = keys[keys.length - 1];
+
+  // Coerce value based on expected type
+  const normalizedconnectorTransactionID = coerceValue(
+    connectorTransactionID,
+    config.type
+  );
+
+  target[finalKey] = normalizedconnectorTransactionID;
+}
+
+function coerceValue(value, type) {
+  switch (type) {
+    case "string":
+      return String(value);
+
+    case "number": {
+      const num = Number(value);
+      if (!Number.isFinite(num)) {
+        throw new Error(`Cannot coerce "${value}" to number`);
+      }
+      return num;
+    }
+
+    default:
+      return value;
+  }
+}

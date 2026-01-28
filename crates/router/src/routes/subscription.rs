@@ -67,18 +67,17 @@ pub async fn create_subscription(
         &req,
         json_payload.into_inner(),
         move |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::create_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 payload.clone(),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
@@ -109,18 +108,17 @@ pub async fn pause_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::pause_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -146,18 +144,17 @@ pub async fn resume_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::resume_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -183,18 +180,17 @@ pub async fn cancel_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::cancel_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -230,10 +226,9 @@ pub async fn confirm_subscription(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::confirm_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 payload.clone(),
                 subscription_id.clone(),
@@ -277,8 +272,12 @@ pub async fn get_subscription_items(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            subscriptions::get_subscription_items(state.into(), platform, profile_id.clone(), query)
+            subscriptions::get_subscription_items(
+                state.into(),
+                auth.platform,
+                profile_id.clone(),
+                query,
+            )
         },
         auth::auth_type(
             &*auth_type,
@@ -312,18 +311,17 @@ pub async fn get_subscription(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             subscriptions::get_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
@@ -352,18 +350,17 @@ pub async fn create_and_confirm_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::create_and_confirm_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 payload.clone(),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
@@ -388,8 +385,8 @@ pub async fn get_estimate(
         Err(response) => return response,
     };
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
     let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
         Ok(auth) => auth,
@@ -401,8 +398,7 @@ pub async fn get_estimate(
         &req,
         query.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            subscriptions::get_estimate(state.into(), platform, profile_id.clone(), query)
+            subscriptions::get_estimate(state.into(), auth.platform, profile_id.clone(), query)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -429,18 +425,17 @@ pub async fn update_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::update_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -466,18 +461,17 @@ pub async fn list_subscriptions(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             subscriptions::list_subscriptions(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 query.clone(),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,

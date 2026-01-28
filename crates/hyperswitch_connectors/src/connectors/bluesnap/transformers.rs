@@ -244,6 +244,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
@@ -423,6 +424,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("bluesnap"),
@@ -461,17 +463,20 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
         let applepay_metadata = apple_pay_metadata
             .clone()
             .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
+            .change_context(errors::ConnectorError::ParsingFailed)
             .map(|combined_metadata| {
-                ApplepaySessionTokenMetadata::ApplePayCombined(combined_metadata.apple_pay_combined)
+                ApplepaySessionTokenMetadata::ApplePayCombined(
+                    combined_metadata.apple_pay_combined.clone(),
+                )
             })
             .or_else(|_| {
                 apple_pay_metadata
                     .parse_value::<ApplepaySessionTokenData>("ApplepaySessionTokenData")
+                    .change_context(errors::ConnectorError::ParsingFailed)
                     .map(|old_metadata| {
                         ApplepaySessionTokenMetadata::ApplePay(old_metadata.apple_pay)
                     })
-            })
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            })?;
         let session_token_data = match applepay_metadata {
             ApplepaySessionTokenMetadata::ApplePay(apple_pay_data) => {
                 Ok(apple_pay_data.session_token_data)
@@ -525,17 +530,18 @@ impl
         let applepay_metadata = metadata
             .clone()
             .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
+            .change_context(errors::ConnectorError::ParsingFailed)
             .map(|combined_metadata| {
                 ApplepaySessionTokenMetadata::ApplePayCombined(combined_metadata.apple_pay_combined)
             })
             .or_else(|_| {
                 metadata
                     .parse_value::<ApplepaySessionTokenData>("ApplepaySessionTokenData")
+                    .change_context(errors::ConnectorError::ParsingFailed)
                     .map(|old_metadata| {
                         ApplepaySessionTokenMetadata::ApplePay(old_metadata.apple_pay)
                     })
-            })
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            })?;
 
         let (payment_request_data, session_token_data) = match applepay_metadata {
             ApplepaySessionTokenMetadata::ApplePayCombined(_apple_pay_combined) => {
@@ -891,6 +897,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

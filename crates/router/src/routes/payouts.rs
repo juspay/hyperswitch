@@ -53,12 +53,11 @@ pub async fn payouts_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_create_core(state, platform, req)
+            payouts_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -87,13 +86,13 @@ pub async fn payouts_retrieve(
         &req,
         payout_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            payouts_retrieve_core(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            payouts_retrieve_core(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -133,12 +132,11 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_update_core(state, platform, req)
+            payouts_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -179,10 +177,7 @@ pub async fn payouts_confirm(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
-            let platform = auth.into();
-            payouts_confirm_core(state, platform, req)
-        },
+        |state, auth, req, _| payouts_confirm_core(state, auth.platform, req),
         &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
@@ -207,12 +202,11 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_cancel_core(state, platform, req)
+            payouts_cancel_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -236,12 +230,11 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_fulfill_core(state, platform, req)
+            payouts_fulfill_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -265,13 +258,12 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_list_core(state, platform, None, req)
+            payouts_list_core(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -300,18 +292,17 @@ pub async fn payouts_list_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             payouts_list_core(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -340,13 +331,12 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_filtered_list_core(state, platform, None, req)
+            payouts_filtered_list_core(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -375,18 +365,17 @@ pub async fn payouts_list_by_filter_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             payouts_filtered_list_core(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -415,13 +404,12 @@ pub async fn payouts_list_available_filters_for_merchant(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payouts_list_available_filters_core(state, platform, None, req)
+            payouts_list_available_filters_core(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -450,18 +438,17 @@ pub async fn payouts_list_available_filters_for_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             payouts_list_available_filters_core(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -495,14 +482,11 @@ pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) ->
         state,
         &req,
         (),
-        |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
-            get_payout_filters_core(state, platform)
-        },
+        |state, auth: auth::AuthenticationData, _, _| get_payout_filters_core(state, auth.platform),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -584,8 +568,7 @@ pub async fn get_payouts_aggregates(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            get_aggregates_for_payouts(state, platform, None, req)
+            get_aggregates_for_payouts(state, auth.platform, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPayoutRead,
@@ -610,11 +593,10 @@ pub async fn get_payouts_aggregates_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             get_aggregates_for_payouts(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },

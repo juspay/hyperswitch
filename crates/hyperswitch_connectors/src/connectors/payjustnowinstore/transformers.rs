@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils,
+    utils::{self, PaymentsAuthorizeRequestData},
 };
 
 pub struct PayjustnowinstoreRouterData<T> {
@@ -121,9 +121,11 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
                 .merchant_order_reference_id
                 .clone()
                 .unwrap_or(item.router_data.payment_id.clone()),
-            // Webhooks are not implemented yet for PJN In-Store, and `callback_url` is a mandatory field.
-            // Since PJN Instore does not accept null or empty values, a placeholder is used here.
-            callback_url: "callback_url".to_string(),
+            callback_url: item
+                .router_data
+                .request
+                .get_optional_webhook_url()
+                .unwrap_or("n/a".to_string()),
             items,
         })
     }
@@ -156,6 +158,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -228,6 +231,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.token.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -247,6 +251,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -338,6 +343,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PayjustnowinstoreRefundResponse>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -360,4 +366,23 @@ impl TryFrom<RefundsResponseRouterData<Execute, PayjustnowinstoreRefundResponse>
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayjustnowinstoreErrorResponse {
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayjustnowinstoreWebhookStatus {
+    Pending,
+    Paid,
+    PaymentFailed,
+    OrderCancelled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayjustnowinstoreWebhookDetails {
+    pub merchant_reference: String,
+    pub token: String,
+    pub payment_status: PayjustnowinstoreWebhookStatus,
+    pub amount: MinorUnit,
+    pub reason: String,
+    pub paid_at: String,
 }

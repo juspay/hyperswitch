@@ -22,20 +22,19 @@ pub async fn relay(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             relay::relay_flow_decider(
                 state,
-                platform,
+                auth.platform,
                 #[cfg(feature = "v1")]
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
                 req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -61,20 +60,19 @@ pub async fn relay_retrieve(
         &req,
         relay_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             relay::relay_retrieve(
                 state,
-                platform,
+                auth.platform,
                 #[cfg(feature = "v1")]
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
                 req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

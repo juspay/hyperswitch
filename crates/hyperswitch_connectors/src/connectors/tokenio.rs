@@ -314,6 +314,7 @@ impl ConnectorCommon for Tokenio {
             reason: Some(response.get_message()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,

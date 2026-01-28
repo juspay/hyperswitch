@@ -71,7 +71,10 @@ use crate::{
     connectors::nuvei::transformers::{NuveiPaymentsResponse, NuveiTransactionSyncResponse},
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData as _},
+    utils::{
+        self, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+        RouterData as _,
+    },
 };
 
 #[derive(Clone)]
@@ -1479,20 +1482,42 @@ impl ConnectorRedirectResponse for Nuvei {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
-                    let acs_response: nuvei::NuveiACSResponse =
-                        utils::safe_base64_decode(redirect_response.cres.expose())?
-                            .as_slice()
-                            .parse_struct("NuveiACSResponse")
-                            .switch()?;
-                    match acs_response.trans_status {
-                        None | Some(nuvei::LiabilityShift::Failed) => {
+
+                    match redirect_response {
+                        nuvei::NuveiRedirectionResponse::Redirection(response) => {
+                            let acs_response: nuvei::NuveiACSResponse =
+                                utils::safe_base64_decode(response.cres.expose())?
+                                    .as_slice()
+                                    .parse_struct("NuveiACSResponse")
+                                    .switch()?;
+                            match acs_response.trans_status {
+                                None | Some(nuvei::LiabilityShift::Failed) => {
+                                    Ok(CallConnectorAction::StatusUpdate {
+                                        status: enums::AttemptStatus::AuthenticationFailed,
+                                        error_code: None,
+                                        error_message: Some(
+                                            "3ds Authentication failed".to_string(),
+                                        ),
+                                    })
+                                }
+                                _ => Ok(CallConnectorAction::Trigger),
+                            }
+                        }
+                        nuvei::NuveiRedirectionResponse::Error(error) => {
+                            let nuvei_error: nuvei::NuveiErrorResponse =
+                                utils::safe_base64_decode(error.error.expose())?
+                                    .as_slice()
+                                    .parse_struct("NuveiErrorResponse")
+                                    .switch()?;
+
                             Ok(CallConnectorAction::StatusUpdate {
                                 status: enums::AttemptStatus::AuthenticationFailed,
-                                error_code: None,
-                                error_message: Some("3ds Authentication failed".to_string()),
+                                error_code: nuvei_error.error_code,
+                                error_message: nuvei_error
+                                    .error_detail
+                                    .or(nuvei_error.error_message),
                             })
                         }
-                        _ => Ok(CallConnectorAction::Trigger),
                     }
                 } else {
                     Ok(CallConnectorAction::Trigger)
@@ -1667,6 +1692,19 @@ static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
 impl ConnectorSpecifications for Nuvei {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&NUVEI_CONNECTOR_INFO)
+    }
+
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
+                *auth_type == enums::AuthenticationType::ThreeDs
+            }
+        }
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

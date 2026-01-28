@@ -120,6 +120,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             revenue_recovery_payment_data.key_store.clone(),
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
+            None,
         );
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
@@ -1154,11 +1155,13 @@ pub async fn check_hard_decline(
 
     let gsm_record = payments::helpers::get_gsm_record(
         state,
-        error_code,
-        error_message,
         connector_name,
         REVENUE_RECOVERY,
         consts::DEFAULT_SUBFLOW_STR,
+        error_code,
+        error_message,
+        None, // issuer_error_code not available in recovery context
+        None, // card_network
     )
     .await;
 

@@ -1000,12 +1000,7 @@ pub async fn get_payout_filters_core(
     platform: domain::Platform,
 ) -> RouterResponse<api::PayoutListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(
-            state,
-            platform.get_processor().get_account().get_id().to_owned(),
-            None,
-        )
-        .await?
+        super::admin::list_payment_connectors(state, platform.get_processor().clone(), None).await?
     {
         data
     } else {
@@ -3147,9 +3142,8 @@ pub async fn make_payout_data(
             Some(
                 payment_helpers::get_merchant_connector_account(
                     state,
-                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor(),
                     None,
-                    platform.get_processor().get_key_store(),
                     &profile_id,
                     connector_name.as_str(),
                     payout_attempt.merchant_connector_id.as_ref(),
@@ -3433,9 +3427,8 @@ pub async fn get_mca_from_profile_id(
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         profile_id,
         connector_name,
         merchant_connector_id,

@@ -28,13 +28,13 @@ pub async fn apple_pay_merchant_registration(
                 state.clone(),
                 body,
                 merchant_id.clone(),
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
@@ -71,8 +71,8 @@ pub async fn apple_pay_merchant_registration(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
@@ -108,8 +108,8 @@ pub async fn retrieve_apple_pay_verified_domains(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,

@@ -630,25 +630,61 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentCreate {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        request: Option<&CustomerDetails>,
+        processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
+    }
+
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        helpers::create_customer_if_not_exist(
-            state,
-            Box::new(self),
-            payment_data,
-            request,
-            &key_store.merchant_id,
-            key_store,
-            storage_scheme,
-        )
-        .await
+        match provider.get_account().merchant_account_type {
+            common_enums::MerchantAccountType::Standard => {
+                helpers::create_customer_if_not_exist(
+                    state,
+                    Box::new(self),
+                    payment_data,
+                    request,
+                    provider,
+                )
+                .await
+            }
+            common_enums::MerchantAccountType::Platform => {
+                let customer = helpers::get_customer_if_exists(
+                    state,
+                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
+                    payment_data.payment_intent.customer_id.as_ref(),
+                    provider,
+                )
+                .await?
+                .inspect(|cust| {
+                    payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
+                    payment_data.email = payment_data
+                        .email
+                        .clone()
+                        .or_else(|| cust.email.clone().map(Into::into));
+                });
+
+                Ok((Box::new(self), customer))
+            }
+            common_enums::MerchantAccountType::Connected => {
+                Err(errors::StorageError::ValueNotFound(
+                    "Connected merchant cannot be a provider".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     async fn payments_dynamic_tax_calculation<'a>(
@@ -753,7 +789,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
@@ -766,7 +802,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Box::new(self),
             state,
             payment_data,
-            merchant_key_store,
+            platform,
             customer,
             storage_scheme,
             business_profile,
@@ -800,7 +836,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -1405,6 +1441,7 @@ impl PaymentCreate {
                 debit_routing_savings: None,
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
+                error_details: None,
             },
             additional_pm_data,
 
@@ -1655,6 +1692,7 @@ impl PaymentCreate {
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
+            state_metadata: None,
         })
     }
 }

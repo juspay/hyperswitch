@@ -2426,15 +2426,15 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
 pub struct RoutableConnectors(Vec<routing_types::RoutableConnectorChoice>);
 
 impl RoutableConnectors {
-    pub fn filter_network_transaction_id_flow_supported_connectors(
+    pub fn filter_proxy_flow_supported_connectors(
         self,
-        nit_connectors: HashSet<String>,
+        proxy_connector_filters: HashSet<String>,
     ) -> Self {
         let connectors = self
             .0
             .into_iter()
             .filter(|routable_connector_choice| {
-                nit_connectors.contains(&routable_connector_choice.connector.to_string())
+                proxy_connector_filters.contains(&routable_connector_choice.connector.to_string())
             })
             .collect();
         Self(connectors)

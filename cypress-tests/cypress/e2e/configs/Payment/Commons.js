@@ -222,6 +222,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking_uk",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
@@ -234,6 +245,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "sofort",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "interac",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -432,6 +454,22 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "crypto",
+    payment_method_types: [
+      {
+        payment_method_type: "crypto_currency",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
@@ -590,6 +628,21 @@ export const connectorDetails = {
         },
       },
     }),
+    OpenBankingUk: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "citi",
+              country: "GB",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -725,6 +778,26 @@ export const connectorDetails = {
             country: "PL",
             first_name: "john",
             last_name: "doe",
+          },
+        },
+      },
+    }),
+    Interac: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "CA",
           },
         },
       },
@@ -1954,6 +2027,47 @@ export const connectorDetails = {
         payment_method: "reward",
         payment_method_type: "classic",
         payment_method_data: "reward",
+        billing: standardBillingAddress,
+      },
+    }),
+  },
+  crypto_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    CryptoCurrency: getCustomExchange({
+      Request: {
+        payment_method: "crypto",
+        payment_method_type: "crypto_currency",
+        payment_method_data: {
+          crypto: {
+            network: "bitcoin",
+            pay_currency: "BTC",
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    CryptoCurrencyManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "crypto",
+        payment_method_type: "crypto_currency",
+        payment_method_data: {
+          crypto: {
+            network: "bitcoin",
+            pay_currency: "BTC",
+          },
+        },
         billing: standardBillingAddress,
       },
     }),

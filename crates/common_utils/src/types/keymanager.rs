@@ -50,16 +50,12 @@ pub struct KeyManagerState {
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
     pub infra_values: Option<serde_json::Value>,
-}
-
-impl Default for KeyManagerState {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub use_legacy_key_store_decryption: bool,
 }
 
 impl KeyManagerState {
-    pub fn new() -> Self {
+    /// Creates a mock KeyManagerState with default values for testing.
+    pub fn mock() -> Self {
         Self {
             tenant_id: id_type::TenantId::get_default_tenant_id(),
             global_tenant_id: id_type::TenantId::get_default_global_tenant_id(),
@@ -73,8 +69,10 @@ impl KeyManagerState {
             #[cfg(feature = "keymanager_mtls")]
             cert: Default::default(),
             infra_values: Default::default(),
+            use_legacy_key_store_decryption: false,
         }
     }
+
     pub fn add_confirm_value_in_infra_values(
         &self,
         is_confirm_operation: bool,
