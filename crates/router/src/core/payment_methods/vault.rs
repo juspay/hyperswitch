@@ -1825,17 +1825,16 @@ pub async fn insert_cvc_using_payment_token(
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
-    let payload = payload_to_be_encrypted
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
     // Encrypt the CVC and store it in Redis
-    let encrypted_payload: Encryption =
-        pm_cards::create_encrypted_data(&(state.into()), key_store, payload.clone())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
-            .into();
+    let encrypted_payload: Encryption = pm_cards::create_encrypted_data(
+        &(state.into()),
+        key_store,
+        payload_to_be_encrypted.clone(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
+    .into();
 
     redis_conn
         .serialize_and_set_key_with_expiry(
@@ -1976,14 +1975,13 @@ pub async fn retrieve_payment_method_data_from_storage(
     let card_cvc = retrieve_and_delete_cvc_from_payment_token(
         state,
         &pm.id.get_string_repr().to_string(),
-        platform.get_processor().get_key_store().key.get_inner(),
+        platform.get_processor().get_key_store(),
     )
     .await
     .map_err(|err| {
         logger::warn!(
-            "Failed to retrieve CVC for payment method {}: {:?}",
-            pm.id.get_string_repr(),
-            err
+            "Failed to retrieve CVC for payment method {}",
+            pm.id.get_string_repr()
         );
         err
     });

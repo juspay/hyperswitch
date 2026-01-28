@@ -3492,12 +3492,14 @@ pub async fn retrieve_payment_method(
     .await
     .unwrap_or_default();
 
-    let card_cvc_expiry =
-        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(&state, pm_id.to_owned())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve cvc from redis")
-            .ok();
+    let card_cvc_expiry = vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+        &state,
+        payment_method.id.to_owned(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to retrieve cvc from redis")
+    .ok();
 
     let raw_payment_method_data = raw_payment_method_fetch_access
         .get_raw_payment_method_data(&state, &platform, &profile, &payment_method, storage_type)
@@ -4610,7 +4612,13 @@ pub async fn payment_methods_session_confirm(
 
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-    let token_data = get_pm_list_token_data(request.payment_method_type, &payment_method)?;
+    let token_data = get_pm_list_token_data(
+        request.payment_method_type,
+        &payment_method,
+        create_payment_method_request
+            .storage_type
+            .unwrap_or(enums::StorageType::Persistent),
+    )?;
 
     // insert the token data into redis
     if let Some(token_data) = token_data {
