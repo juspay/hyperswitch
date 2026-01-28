@@ -151,7 +151,7 @@ jobs:
           retention-days: 1
   
   build-hyperswitch-runners:
-    name: Build hyperswitch server
+    name: Build hyperswitch server(hyperswitch-runners)
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
@@ -409,7 +409,7 @@ jobs:
           gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
 
   runner-hyperswitch-runners:
-    name: Run mandatory Cypress tests
+    name: Run mandatory Cypress tests (hyperswitch-runners)
     needs: build-hyperswitch-runners
     if: |
       github.event_name == 'merge_group' ||
@@ -473,7 +473,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: hyperswitch-server
+          name: hyperswitch-server-hyperswitch-runners
           path: target/debug
 
       - name: Make server executable
