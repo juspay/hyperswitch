@@ -10603,14 +10603,12 @@
       "CustomerDetails": {
         "type": "object",
         "description": "Passing this object creates a new customer or attaches an existing customer to the payment",
-        "required": [
-          "id"
-        ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The identifier for the customer.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },
@@ -10648,12 +10646,13 @@
             "nullable": true,
             "maxLength": 255
           },
-          "document_number": {
-            "type": "string",
-            "description": "Customer’s country-specific identification number used for regulatory or tax purposes",
-            "example": "doc_123456789",
-            "nullable": true,
-            "maxLength": 255
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -10688,6 +10687,26 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          }
+        }
+      },
+      "CustomerDocumentDetails": {
+        "type": "object",
+        "properties": {
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "document_number": {
+            "type": "string",
+            "description": "The customer's document number",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -10868,12 +10887,13 @@
             "nullable": true,
             "maxLength": 255
           },
-          "document_number": {
-            "type": "string",
-            "description": "Customer’s country-specific identification number used for regulatory or tax purposes",
-            "example": "doc_123456789",
-            "nullable": true,
-            "maxLength": 255
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10981,12 +11001,13 @@
             "nullable": true,
             "maxLength": 255
           },
-          "document_number": {
-            "type": "string",
-            "description": "Customer’s country-specific identification number used for regulatory or tax purposes",
-            "example": "doc_123456789",
-            "nullable": true,
-            "maxLength": 255
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11064,12 +11085,13 @@
             "nullable": true,
             "maxLength": 255
           },
-          "document_number": {
-            "type": "string",
-            "description": "Customer’s country-specific identification number used for regulatory or tax purposes",
-            "example": "doc_123456789",
-            "nullable": true,
-            "maxLength": 255
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
