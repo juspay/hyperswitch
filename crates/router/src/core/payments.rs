@@ -995,6 +995,15 @@ where
                         )
                         .await?;
 
+                    operation
+                        .to_post_update_tracker()?
+                        .update_payment_method_connector_mandate_details(
+                            state,
+                            platform.get_provider(),
+                            &payment_data,
+                        )
+                        .await?;
+
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
                             state,
@@ -1186,6 +1195,15 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                        )
+                        .await?;
+
+                    operation
+                        .to_post_update_tracker()?
+                        .update_payment_method_connector_mandate_details(
+                            state,
+                            platform.get_provider(),
+                            &payment_data,
                         )
                         .await?;
 
@@ -1541,6 +1559,15 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+        )
+        .await?;
+
+    operation
+        .to_post_update_tracker()?
+        .update_payment_method_connector_mandate_details(
+            state,
+            platform.get_provider(),
+            &payment_data,
         )
         .await?;
 
