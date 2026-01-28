@@ -540,7 +540,6 @@ impl
             continue_redirection_url: None,
             redirection_response: None,
             threeds_completion_indicator: None,
-            locale: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -1268,7 +1267,6 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -1623,7 +1621,6 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
             tokenization_strategy: None,
         })
     }
