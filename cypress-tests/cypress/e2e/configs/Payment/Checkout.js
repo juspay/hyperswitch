@@ -53,7 +53,7 @@ export const connectorDetails = {
         billing_descriptor: {
           name: "abc",
           email: "abc@gmail.com",
-          city: "purnea",
+          city: "delhi",
           statement_descriptor: "order123",
         },
       },
