@@ -437,6 +437,30 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
+#[cfg(feature = "v1")]
+pub fn mk_add_bank_debit_response_hs(
+    bank_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id.to_owned(),
+        payment_method_id: bank_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     _bank: api::BankPayout,
@@ -540,6 +564,7 @@ pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
     storage_type: Option<common_enums::StorageType>,
+    card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     customer_id: Option<id_type::GlobalCustomerId>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
@@ -603,6 +628,11 @@ pub fn generate_payment_method_response(
         connector_tokens,
         network_token,
         storage_type,
+        card_cvc_token_storage,
+        network_transaction_id: payment_method
+            .network_transaction_id
+            .clone()
+            .map(Secret::new),
     };
 
     Ok(resp)
@@ -838,7 +868,6 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         let recurring_enabled = true;
 
         Ok(Self {
-            id: item.id,
             customer_id: item
                 .customer_id
                 .get_required_value("GlobalCustomerId")
@@ -855,7 +884,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
-            payment_token,
+            payment_method_token: payment_token,
         })
     }
 }
@@ -959,6 +988,8 @@ pub fn generate_payment_method_session_response(
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
+    card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
+    payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -994,6 +1025,8 @@ pub fn generate_payment_method_session_response(
         authentication_details,
         associated_token_id: token_id,
         storage_type,
+        card_cvc_token_storage,
+        payment_method_data,
     }
 }
 

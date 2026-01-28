@@ -16,7 +16,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
-    payment_method_data::PaymentMethodData,
+    payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -156,6 +156,7 @@ impl ConnectorCommon for Adyen {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -347,6 +348,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::InstantBankTransferFinland
                 | PaymentMethodType::InstantBankTransferPoland
                 | PaymentMethodType::IndonesianBankTransfer
+                | PaymentMethodType::Qris
                 | PaymentMethodType::SepaBankTransfer
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
@@ -371,7 +373,7 @@ impl ConnectorValidation for Adyen {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
+        pm_data: payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
@@ -1027,12 +1029,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                 field_name: "currency",
             })?,
         };
-        let amount = match data.request.minor_amount {
-            Some(amount) => amount,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?,
-        };
+        let amount = data.request.minor_amount;
 
         let amount = convert_amount(self.amount_converter, amount, currency)?;
 
@@ -1045,6 +1042,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1274,6 +1272,7 @@ impl
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -3332,6 +3331,19 @@ static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[enums::EventClass] = &[
 ];
 
 impl ConnectorSpecifications for Adyen {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { request_data, .. } => {
+                matches!(&request_data.payment_method_data, payment_method_data::PaymentMethodData::GiftCard(giftcard_data) if giftcard_data.is_givex())
+            }
+            api::CurrentFlowInfo::SetupMandate { request_data, .. } => {
+                matches!(&request_data.payment_method_data, payment_method_data::PaymentMethodData::GiftCard(giftcard_data) if giftcard_data.is_givex())
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
+                matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
+            }
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ADYEN_CONNECTOR_INFO)
     }
@@ -3344,7 +3356,6 @@ impl ConnectorSpecifications for Adyen {
         Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    #[cfg(feature = "v1")]
     fn generate_connector_customer_id(
         &self,
         customer_id: &Option<common_utils::id_type::CustomerId>,

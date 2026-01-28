@@ -21,6 +21,7 @@ use crate::{
         unified_connector_service::handle_unified_connector_service_response_for_create_connector_customer,
     },
     routes::SessionState,
+    services::logger,
     types::{self, transformers::ForeignTryFrom},
 };
 
@@ -68,7 +69,7 @@ where
         let _connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let unified_connector_service_execution_mode = context.execution_mode;
 
@@ -90,7 +91,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -122,6 +123,17 @@ where
                         create_connector_customer_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
+
+                let connector_customer_result = match connector_customer_result {
+                    Ok(response) => Ok(response),
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
 
                 router_data.response = connector_customer_result;
                 router_data.connector_http_status_code = Some(status_code);

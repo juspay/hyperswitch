@@ -719,6 +719,11 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+pub struct BalanceCheckResult {
+    pub balance_check_result: Result<Option<PaymentMethodBalance>, ErrorResponse>,
+    pub should_continue_payment: bool,
+}
+
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,
@@ -1245,10 +1250,10 @@ impl ForeignFrom<&ExternalVaultProxyPaymentsRouterData> for AuthorizeSessionToke
 impl<'a> ForeignFrom<&'a SetupMandateRouterData> for AuthorizeSessionTokenData {
     fn foreign_from(data: &'a SetupMandateRouterData) -> Self {
         Self {
-            amount_to_capture: data.request.amount,
+            amount_to_capture: Some(data.request.amount),
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }

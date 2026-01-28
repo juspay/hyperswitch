@@ -55,8 +55,8 @@ use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
     payment_method_data::{
-        self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
-        NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
+        self, Card, CardDetailsForNetworkTransactionId, CardWithLimitedDetails,
+        GooglePayPaymentMethodInfo, NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
     },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
@@ -372,6 +372,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1549,6 +1550,29 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = 
     },
 );
 
+pub trait CardWithLimitedData {
+    fn get_card_expiry_year_2_digit(
+        &self,
+    ) -> Result<Option<Secret<String>>, errors::ConnectorError>;
+}
+
+impl CardWithLimitedData for CardWithLimitedDetails {
+    fn get_card_expiry_year_2_digit(
+        &self,
+    ) -> Result<Option<Secret<String>>, errors::ConnectorError> {
+        self.card_exp_year
+            .clone()
+            .map(|card_exp_year| {
+                let year = card_exp_year.peek();
+
+                year.get(year.len() - 2..)
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                    .map(|value| Secret::new(value.to_string()))
+            })
+            .transpose()
+    }
+}
+
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
@@ -2120,6 +2144,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_optional_webhook_url(&self) -> Option<String>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
@@ -2205,8 +2230,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -2222,6 +2248,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.webhook_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_optional_webhook_url(&self) -> Option<String> {
+        self.webhook_url.clone()
     }
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
@@ -2257,8 +2286,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     Some(connector_mandate_ids.clone())
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
             })
     }
 
@@ -2363,6 +2393,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2381,6 +2412,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2760,6 +2792,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2787,6 +2820,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2836,7 +2870,7 @@ pub trait PaymentsPreAuthenticateRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
 }
 impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
@@ -2859,8 +2893,8 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
         Ok(self.payment_method_data.clone())
     }
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        Ok(self.minor_amount)
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
@@ -2871,8 +2905,8 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_amount(&self) -> i64;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -2901,13 +2935,13 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
@@ -2964,6 +2998,7 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -6385,6 +6420,7 @@ pub enum PaymentMethodDataType {
     Benefit,
     MomoAtm,
     CardRedirect,
+    CardWithLimitedDetails,
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
@@ -6493,6 +6529,7 @@ pub enum PaymentMethodDataType {
     Fps,
     PromptPay,
     VietQr,
+    Qris,
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
@@ -6513,6 +6550,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails
             }
+            PaymentMethodData::CardWithLimitedDetails(_) => Self::CardWithLimitedDetails,
             PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndNetworkTokenDetails
             }
@@ -6704,6 +6742,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     payment_method_data::RealTimePaymentData::Fps {} => Self::Fps,
                     payment_method_data::RealTimePaymentData::PromptPay {} => Self::PromptPay,
                     payment_method_data::RealTimePaymentData::VietQr {} => Self::VietQr,
+                    payment_method_data::RealTimePaymentData::Qris {} => Self::Qris,
                 }
             }
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
@@ -6832,6 +6871,16 @@ pub fn is_html_response(response: &str) -> bool {
     response.starts_with("<html>")
         || response.starts_with("<!DOCTYPE html>")
         || response.starts_with("<!doctype html>")
+}
+
+pub fn is_html_response_from_headers(headers: Option<&http::HeaderMap>) -> bool {
+    headers
+        .and_then(|headers| headers.get(http::header::CONTENT_TYPE))
+        .and_then(|content_type| content_type.to_str().ok())
+        .map(|content_type| {
+            content_type.contains("text/html") || content_type.contains("application/xhtml+xml")
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "payouts")]
@@ -7328,7 +7377,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         session_token: data.session_token.clone(),
         reference_id: data.reference_id.clone(),
         customer_id: data.customer_id.clone(),
-        payment_method_token: None,
+        payment_method_token: data.payment_method_token.clone(),
         preprocessing_id: None,
         connector_customer: data.connector_customer.clone(),
         recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),

@@ -391,6 +391,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::CardToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("redsys"),
@@ -751,6 +752,7 @@ fn handle_redsys_response(
                 status_code: http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -860,6 +862,7 @@ fn build_threeds_invoke_response(
         network_txn_id: None,
         connector_response_reference_id: Some(response_data.ds_order.clone()),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     });
 
@@ -897,6 +900,7 @@ fn build_threeds_invoke_exempt_response(
         network_txn_id: None,
         connector_response_reference_id: Some(response_data.ds_order.clone()),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     });
 
@@ -1139,6 +1143,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1302,6 +1307,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1398,6 +1404,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(response_data.ds_order.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1414,6 +1421,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                         network_txn_id: None,
                         connector_response_reference_id: Some(response_data.ds_order.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1427,6 +1435,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1502,6 +1511,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(response_data.ds_order.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1518,6 +1528,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                         network_txn_id: None,
                         connector_response_reference_id: Some(response_data.ds_order.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1531,6 +1542,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1584,6 +1596,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1603,6 +1616,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1639,6 +1653,7 @@ fn get_payments_response(
                 status_code: http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(redsys_payments_response.ds_order.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1655,6 +1670,7 @@ fn get_payments_response(
                 network_txn_id: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1675,6 +1691,7 @@ fn get_payments_response(
             network_txn_id: None,
             connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         });
 
@@ -1924,6 +1941,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             reason: Some(ds_response.0.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1941,6 +1959,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             network_txn_id: None,
                             connector_response_reference_id: Some(response.ds_order.clone()),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         });
                         (status, payment_response)
@@ -1955,6 +1974,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.ds_order.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     });
 
@@ -1970,6 +1990,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -2020,6 +2041,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -2038,6 +2060,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
                             reason: Some(ds_response.0.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,

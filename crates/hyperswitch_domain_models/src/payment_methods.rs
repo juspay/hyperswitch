@@ -20,9 +20,7 @@ use common_utils::{
 };
 pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 #[cfg(feature = "v2")]
@@ -563,7 +561,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
             customer_acceptance: self.customer_acceptance,
             status: self.status,
-            network_transaction_id: self.network_transaction_id,
+            network_transaction_id: self.network_transaction_id.map(Secret::new),
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -676,7 +674,9 @@ impl super::behaviour::Conversion for PaymentMethod {
                 connector_mandate_details: storage_model.connector_mandate_details.map(From::from),
                 customer_acceptance: storage_model.customer_acceptance,
                 status: storage_model.status,
-                network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_id: storage_model
+                    .network_transaction_id
+                    .map(ExposeInterface::expose),
                 client_secret: storage_model.client_secret,
                 payment_method_billing_address,
                 updated_by: storage_model.updated_by,
@@ -753,7 +753,8 @@ pub struct PaymentMethodSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods:
+        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
@@ -994,7 +995,8 @@ pub enum PaymentMethodsSessionUpdateEnum {
         tokenization_data: Option<pii::SecretSerdeValue>,
     },
     UpdateAssociatedPaymentMethods {
-        associated_payment_methods: Option<Vec<String>>,
+        associated_payment_methods:
+            Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     },
 }
 
@@ -1067,7 +1069,8 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods:
+        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

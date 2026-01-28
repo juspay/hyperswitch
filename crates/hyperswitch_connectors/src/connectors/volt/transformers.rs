@@ -228,6 +228,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Volt"),
@@ -411,6 +412,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -481,6 +483,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(payment_response.id),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -499,6 +502,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         })
                     },
@@ -526,6 +530,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(webhook_response.payment.clone()),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -544,6 +549,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         })
                     },
@@ -579,6 +585,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<VoltCancelResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

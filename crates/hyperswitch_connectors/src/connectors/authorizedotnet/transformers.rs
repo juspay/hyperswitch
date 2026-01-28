@@ -558,6 +558,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
@@ -660,6 +661,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -709,6 +711,7 @@ impl<F, T>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -733,6 +736,7 @@ impl<F, T>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -812,7 +816,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
-            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -840,6 +845,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
@@ -903,6 +909,7 @@ impl
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
@@ -1508,6 +1515,7 @@ fn convert_to_additional_payment_method_connector_response(
                 payment_checks: Some(payment_checks),
                 card_network: None,
                 domestic_network: None,
+                auth_code: None,
             })
         }
     }
@@ -1540,6 +1548,7 @@ impl<F, T>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1608,6 +1617,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                     },
@@ -1644,6 +1654,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1682,6 +1693,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                     },
@@ -1823,6 +1835,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -2033,6 +2046,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     status: payment_status,
@@ -2127,6 +2141,7 @@ fn get_err_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,

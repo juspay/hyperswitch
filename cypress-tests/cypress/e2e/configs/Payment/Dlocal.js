@@ -38,10 +38,10 @@ const failedCardDetails = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -49,16 +49,17 @@ const payment_method_data_no3ds = {
     card_holder_name: "Thiago Gabriel",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
 const payment_method_data_no3ds_address = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -66,16 +67,17 @@ const payment_method_data_no3ds_address = {
     card_holder_name: "Thiago Gabriel",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: mockBillingDetails,
 };
 const payment_method_data_3ds_address = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -83,6 +85,7 @@ const payment_method_data_3ds_address = {
     card_holder_name: "Thiago Gabriel",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: mockBillingDetails,
 };
