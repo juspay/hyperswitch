@@ -97,7 +97,7 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
