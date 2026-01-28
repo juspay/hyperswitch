@@ -386,33 +386,35 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 );
 
             // Call UCS for Authenticate flow and store authentication result for next step
-            let (authenticate_router_data, authentication_data) =
-                Box::pin(payments_gateway::handle_gateway_call::<
-                    _,
-                    _,
-                    _,
-                    PaymentFlowData,
-                    _,
-                >(
-                    state,
-                    authenticate_router_data,
-                    connector,
-                    gateway_context,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                ))
-                .await?;
+            let authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                authenticate_router_data,
+                connector,
+                gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            ))
+            .await?;
 
             // Convert back to CompleteAuthorize router data while preserving authentication response data
             let authenticate_response = authenticate_router_data.response.clone();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
+                connector_metadata,
+                authentication_data,
+                ..
             }) = &authenticate_router_data.response
             {
                 connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+                complete_authorize_request_data.authentication_data =
+                    authentication_data.clone().map(|data| *data);
             };
-            complete_authorize_request_data.authentication_data = authentication_data;
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     authenticate_router_data,
@@ -471,32 +473,34 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     post_authenticate_response_data,
                 );
 
-            let (post_authenticate_router_data, authentication_data) =
-                Box::pin(payments_gateway::handle_gateway_call::<
-                    _,
-                    _,
-                    _,
-                    PaymentFlowData,
-                    _,
-                >(
-                    state,
-                    post_authenticate_router_data,
-                    connector,
-                    gateway_context,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                ))
-                .await?;
-            // Convert back to CompleteAuthorize router data while preserving post authentication response data
+            let post_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                post_authenticate_router_data,
+                connector,
+                gateway_context,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            ))
+            .await?;
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
+                connector_metadata,
+                authentication_data,
+                ..
             }) = &post_authenticate_router_data.response
             {
                 connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+                complete_authorize_request_data.authentication_data =
+                    authentication_data.clone().map(|data| *data);
             };
-            complete_authorize_request_data.authentication_data = authentication_data;
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     post_authenticate_router_data,
@@ -623,14 +627,11 @@ pub async fn call_unified_connector_service_authenticate(
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
-    (
-        types::RouterData<
-            api::Authenticate,
-            types::PaymentsAuthenticateData,
-            types::PaymentsResponseData,
-        >,
-        Option<router_request_types::UcsAuthenticationData>,
-    ),
+    types::RouterData<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    >,
     interface_errors::ConnectorError,
 > {
     let client = state
@@ -667,7 +668,7 @@ pub async fn call_unified_connector_service_authenticate(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    Box::pin(ucs_core::ucs_logging_wrapper_granular(
+    let (router_data, _) = Box::pin(ucs_core::ucs_logging_wrapper_granular(
         router_data.clone(),
         state,
         payment_authenticate_request,
@@ -707,26 +708,13 @@ pub async fn call_unified_connector_service_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            let domain_authentication_data = payment_authenticate_response
-                .authentication_data
-                .clone()
-                .map(|grpc_authentication_data| {
-                    router_request_types::UcsAuthenticationData::foreign_try_from(
-                        grpc_authentication_data,
-                    )
-                })
-                .transpose()
-                .attach_printable("Failed to Convert to domain AuthenticationData")?;
-
-            Ok((
-                router_data,
-                domain_authentication_data,
-                payment_authenticate_response,
-            ))
+            Ok((router_data, (), payment_authenticate_response))
         },
     ))
     .await
-    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
+    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
+
+    Ok(router_data)
 }
 
 #[allow(dead_code, clippy::too_many_arguments)]
@@ -745,14 +733,11 @@ pub async fn call_unified_connector_service_post_authenticate(
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
-    (
-        types::RouterData<
-            api::PostAuthenticate,
-            types::PaymentsPostAuthenticateData,
-            types::PaymentsResponseData,
-        >,
-        Option<router_request_types::UcsAuthenticationData>,
-    ),
+    types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
     interface_errors::ConnectorError,
 > {
     let client = state
@@ -789,7 +774,7 @@ pub async fn call_unified_connector_service_post_authenticate(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    Box::pin(ucs_core::ucs_logging_wrapper_granular(
+    let (router_data, _) = Box::pin(ucs_core::ucs_logging_wrapper_granular(
         router_data.clone(),
         state,
         payment_post_authenticate_request,
@@ -823,26 +808,13 @@ pub async fn call_unified_connector_service_post_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            let domain_authentication_data = payment_post_authenticate_response
-                .authentication_data
-                .clone()
-                .map(|grpc_authentication_data| {
-                    router_request_types::UcsAuthenticationData::foreign_try_from(
-                        grpc_authentication_data,
-                    )
-                })
-                .transpose()
-                .attach_printable("Failed to Convert to domain AuthenticationData")?;
-
-            Ok((
-                router_data,
-                domain_authentication_data,
-                payment_post_authenticate_response,
-            ))
+            Ok((router_data, (), payment_post_authenticate_response))
         },
     ))
     .await
-    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
+    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
+
+    Ok(router_data)
 }
 
 impl<F>

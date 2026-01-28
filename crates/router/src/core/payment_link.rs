@@ -77,15 +77,15 @@ pub async fn form_payment_link_data(
 pub async fn form_payment_link_data(
     state: &SessionState,
     platform: domain::Platform,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -211,9 +211,9 @@ pub async fn form_payment_link_data(
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
@@ -245,9 +245,9 @@ pub async fn form_payment_link_data(
 
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                &merchant_id,
+                &processor_merchant_id,
                 &attempt_id.clone(),
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -792,15 +792,15 @@ pub async fn get_payment_link_status(
 pub async fn get_payment_link_status(
     state: SessionState,
     platform: domain::Platform,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -809,9 +809,9 @@ pub async fn get_payment_link_status(
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),

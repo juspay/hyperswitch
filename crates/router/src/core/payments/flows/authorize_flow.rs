@@ -95,7 +95,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -108,7 +108,7 @@ impl
         if *is_open_banking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                platform,
+                processor,
                 connector,
                 state,
             )
@@ -116,6 +116,21 @@ impl
         } else {
             Ok(None)
         }
+    }
+
+    fn add_guest_customer(
+        &self,
+        router_data: &mut types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+        guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
+    ) -> RouterResult<()> {
+        if let Some(guest_customer_data) = guest_customer {
+            router_data.request.guest_customer = Some(guest_customer_data.clone());
+        }
+        Ok(())
     }
 }
 
@@ -167,7 +182,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -183,7 +198,7 @@ impl
                 Ok(if *is_open_banking {
                     payments::get_merchant_bank_data_for_open_banking_connectors(
                         merchant_connector_account,
-                        platform,
+                        processor,
                         connector,
                         state,
                     )
