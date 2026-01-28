@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1
+
+### Features
+
+- **payment_method_data:** [adyen] Auth code in payment response ([#10985](https://github.com/juspay/hyperswitch/pull/10985)) ([`4ea0ed2`](https://github.com/juspay/hyperswitch/commit/4ea0ed247fe795d204f4951ecde10733312729d6))
+
+**Full Changelog:** [`2026.01.28.0...2026.01.28.1`](https://github.com/juspay/hyperswitch/compare/2026.01.28.0...2026.01.28.1)
+
+- - -
+
 ## 2026.01.28.0
 
 ### Features
