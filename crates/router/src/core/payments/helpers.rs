@@ -1831,7 +1831,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
     let db = &*state.store;
-    let master_key = db.get_master_key();
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
@@ -1872,22 +1871,28 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .change_context(errors::StorageError::SerializationFailed)
                     .attach_printable("Failed while encrypting Customer while Update")?;
 
-            let document_details = request_customer_details
-                .document_details
-                .clone()
-                .async_lift(|inner| async {
-                    types::crypto_operation(
-                        key_manager_state,
-                        type_name!(domain::Customer),
-                        CryptoOperation::EncryptOptional(inner),
-                        Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
-                        master_key,
-                    )
-                    .await
-                    .and_then(|val| val.try_into_optionaloperation())
-                    .change_context(storage_impl::StorageError::EncryptionError)
-                })
-                .await?;
+            let document_details = if request_customer_details.document_details.is_some() {
+                request_customer_details
+                    .document_details
+                    .clone()
+                    .async_lift(|inner| async {
+                        types::crypto_operation(
+                            key_manager_state,
+                            type_name!(domain::Customer),
+                            CryptoOperation::EncryptOptional(inner),
+                            Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
+                            key,
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                        .change_context(storage_impl::StorageError::EncryptionError)
+                    })
+                    .await?
+            } else {
+                customer_data
+                    .as_ref()
+                    .and_then(|c| c.document_details.clone())
+            };
 
             Some(match customer_data {
                 Some(c) => {
@@ -1960,7 +1965,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
-                        document_details: customer_data.and_then(|doc| doc.document_details),
+                        document_details,
                         // TODO: Populate created_by from authentication context once it is integrated in auth data
                         created_by: None,
                         last_modified_by: None, // Same as created_by on creation

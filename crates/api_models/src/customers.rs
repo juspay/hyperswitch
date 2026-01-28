@@ -529,21 +529,40 @@ impl CustomerDocumentDetails {
                     .collect();
 
                 match doc_type {
-                    DocumentKind::Cpf if digits_only.len() != 11 => Err(Report::new(
-                        common_utils::errors::ValidationError::IncorrectValueProvided {
-                            field_name: "document_number",
-                        },
-                    )
-                    .attach_printable("CPF document number must contain exactly 11 digits")),
-
-                    DocumentKind::Cnpj if digits_only.len() != 14 => Err(Report::new(
-                        common_utils::errors::ValidationError::IncorrectValueProvided {
-                            field_name: "document_number",
-                        },
-                    )
-                    .attach_printable("CNPJ document number must contain exactly 14 digits")),
-
-                    _ => Ok(()),
+                    DocumentKind::Cpf => {
+                        if digits_only.len() != 11 {
+                            tracing::error!(
+                                validation_error = "CPF length mismatch",
+                                expected = 11,
+                                actual = digits_only.len(),
+                                field = "document_number"
+                            );
+                            Err(Report::new(
+                                common_utils::errors::ValidationError::IncorrectValueProvided {
+                                    field_name: "document_number",
+                                },
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    DocumentKind::Cnpj => {
+                        if digits_only.len() != 14 {
+                            tracing::error!(
+                                validation_error = "CNPJ length mismatch",
+                                expected = 14,
+                                actual = digits_only.len(),
+                                field = "document_number"
+                            );
+                            Err(Report::new(
+                                common_utils::errors::ValidationError::IncorrectValueProvided {
+                                    field_name: "document_number",
+                                },
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    }
                 }
             }
 
