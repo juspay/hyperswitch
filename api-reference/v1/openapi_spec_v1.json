@@ -9644,7 +9644,12 @@
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25",
+            "example": "003925",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
             "nullable": true
           }
         }
@@ -14177,6 +14182,10 @@
             "nullable": true
           },
           "authentication_data": {
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -26393,6 +26402,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code for the payment",
+            "example": "003225",
             "nullable": true
           }
         }
@@ -38756,6 +38771,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
+            "example": "009825",
             "nullable": true
           }
         }

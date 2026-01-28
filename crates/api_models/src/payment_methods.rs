@@ -1363,6 +1363,9 @@ pub struct PaymentMethodDataWalletInfo {
     /// The card's expiry year
     #[schema(value_type = Option<String>,example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
+    /// Unique authorisation code for the payment
+    #[schema(value_type = Option<String>,example = "003225")]
+    pub auth_code: Option<String>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1373,6 +1376,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }
     }
 }
@@ -1385,6 +1389,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }
     }
 }
@@ -1405,6 +1410,7 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
             card_type: Some(item.pm_type),
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }
     }
 }
@@ -1418,6 +1424,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             pm_type: item.card_type.get_required_value("card_type")?,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }))
     }
 }
@@ -1601,6 +1608,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
@@ -1627,6 +1635,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }

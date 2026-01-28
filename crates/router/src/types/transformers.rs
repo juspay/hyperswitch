@@ -2447,6 +2447,7 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
