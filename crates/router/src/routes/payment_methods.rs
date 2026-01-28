@@ -106,7 +106,7 @@ pub async fn create_payment_method_api(
 pub async fn get_pm_nt_eligibility_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_methods::NetworkTokenEligibilityRequest>,
+    query: web::Query<payment_methods::NetworkTokenEligibilityRequest>,
 ) -> HttpResponse {
     let flow = Flow::NetworkTokenEligibilityCheck;
 
@@ -114,7 +114,7 @@ pub async fn get_pm_nt_eligibility_api(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        query.into_inner(),
         |state, auth: auth::AuthenticationData, req, _req_state| async move {
             Box::pin(payment_methods_routes::get_card_nt_eligibility(
                 &state,

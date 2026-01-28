@@ -72,7 +72,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn get_merchant_recipient_data<'a>(
         &self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -203,19 +203,6 @@ pub trait Feature<F, T> {
         Self: Sized,
     {
         Ok((self, true))
-    }
-
-    async fn preprocessing_steps<'a>(
-        self,
-        _state: &SessionState,
-        _connector_data: &api::ConnectorData,
-    ) -> RouterResult<Self>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        Ok(self)
     }
 
     async fn postprocessing_steps<'a>(
