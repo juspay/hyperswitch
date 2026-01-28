@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
-# Hardened Cypress Parallel Execution Script
+# Hardened Cypress Parallel Execution Script for CI
 set -euo pipefail
 
 # -----------------------------
 # Global Variables & Cleanup
 # -----------------------------
-tmp_file=$(mktemp)        # failure-only tracking
+# Using absolute paths ensures files are found regardless of 'cd' calls
+WORKSPACE_ROOT=$(pwd)
+tmp_file=$(mktemp)        # failure tracking
 job_log=$(mktemp)         # GNU parallel job log
 results_log=$(mktemp)     # unified results log
 lock_file="/tmp/cypress_results.lock"
 
+# Export memory limits globally for all Node/Cypress processes
+export NODE_OPTIONS="--max-old-space-size=4096"
+
 cleanup() {
   local exit_code=$?
-  print_color yellow "Cleaning up temporary files and stray processes..."
   
-  # Kill Cypress, Chrome, and Xvfb specifically to prevent memory zombies
-  pkill -9 -f "cypress" 2>/dev/null || true
+  # Only kill background processes, avoid killing the script itself
+  # pkill -f is safer here to target the actual binary names
+  pkill -9 -f "Cypress" 2>/dev/null || true
   pkill -9 -f "chrome" 2>/dev/null || true
-  pkill -9 -f "Xvfb" 2>/dev/null || true
   
+  # Clean up temp files
   [[ -f "$tmp_file" ]] && rm -f "$tmp_file"
   [[ -f "$job_log" ]] && rm -f "$job_log"
   [[ -f "$results_log" ]] && rm -f "$results_log"
@@ -62,7 +67,7 @@ check_dependencies() {
   local dependencies=("parallel" "npm" "xvfb-run")
   for cmd in "${dependencies[@]}"; do
     if ! command_exists "$cmd"; then
-      print_color red "ERROR: ${cmd} is not installed! (Run: sudo apt-get install parallel xvfb)"
+      print_color red "ERROR: ${cmd} is not installed! Run: sudo apt-get install parallel xvfb"
       exit 1
     fi
   done
@@ -73,7 +78,8 @@ check_dependencies() {
   fi
 
   print_color blue "Verifying Cypress binary..."
-  xvfb-run --auto-servernum npm exec cypress verify
+  # Unset DISPLAY to let xvfb-run manage it cleanly during verification
+  ( unset DISPLAY && xvfb-run --auto-servernum npm exec cypress verify )
   print_color green "Cypress verified."
 }
 
@@ -89,22 +95,19 @@ execute_test() {
   local job_slot="${6:-1}"
 
   local start_ts=$(date +%s)
-  local start_fmt=$(date '+%H:%M:%S')
-
-  echo "----------------------------------------------------"
-  print_color blue "[START] $service:$connector (Slot: $job_slot) at $start_fmt"
-  echo "----------------------------------------------------"
-
-  # Set specific environment variables
+  
   export CYPRESS_CONNECTOR="$connector"
   export REPORT_NAME="${service}_${connector}_report"
 
-  # Execute Cypress via xvfb-run
-  # --auto-servernum: Prevents "Display already in use" race conditions
-  # --server-args: Ensures a standard screen size for snapshots
+  echo "----------------------------------------------------"
+  print_color blue "[START] $service:$connector (Slot: $job_slot)"
+  echo "----------------------------------------------------"
+
+  # We unset DISPLAY here so xvfb-run can create a fresh one per job
+  # This prevents the 'chromewebdata' and display-busy errors
   local exit_code=0
-  if ! xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" \
-       npm run "cypress:${service}"; then
+  if ! ( unset DISPLAY && xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" \
+       npm run "cypress:${service}" ); then
     exit_code=1
   fi
 
@@ -112,7 +115,7 @@ execute_test() {
   local status="PASS"
   [[ $exit_code -ne 0 ]] && status="FAIL"
 
-  # Atomically record result using flock to prevent interleaved lines
+  # Atomically record results
   (
     flock -x 200
     echo "${service}:${connector}:${status}:${duration}" >> "$res_log"
@@ -126,7 +129,6 @@ execute_test() {
 
   return $exit_code
 }
-
 export -f execute_test
 
 # -----------------------------
@@ -135,7 +137,6 @@ export -f execute_test
 run_tests() {
   local jobs="${1:-1}"
 
-  # Build arrays from environment variables
   read -r -a payments <<< "${PAYMENTS_CONNECTORS:-}"
   read -r -a payouts <<< "${PAYOUTS_CONNECTORS:-}"
   read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST:-}"
@@ -155,8 +156,9 @@ run_tests() {
     if [[ ${#connectors[@]} -gt 0 ]]; then
       print_color yellow ">>> Starting Parallel Execution for '$service' (Workers: $jobs)"
 
-      # Run parallel: Passing all logs as arguments to ensure subshell visibility
+      # --delay 2 prevents multiple browsers from spiking CPU at the same microsecond
       parallel --jobs "$jobs" \
+               --delay 2 \
                --group \
                --joblog "$job_log" \
                execute_test {} "$service" "$tmp_file" "$results_log" "$lock_file" {%} \
@@ -164,34 +166,17 @@ run_tests() {
     fi
   done
 
-  # -----------------------------
-  # Final Summary Reporting
-  # -----------------------------
+  # Final Summary
   if [[ -s "$results_log" ]]; then
     echo -e "\n"
     print_color blue "================ EXECUTION SUMMARY ================"
-    
-    # PASS List
     awk -F: '$3=="PASS" { printf "\033[0;32m  ✔ %-30s | %4ss\033[0m\n", $1 ":" $2, $4 }' "$results_log"
-    
-    # FAIL List
     awk -F: '$3=="FAIL" { printf "\033[0;31m  ✖ %-30s | %4ss\033[0m\n", $1 ":" $2, $4 }' "$results_log"
-
     print_color blue "---------------------------------------------------"
-    awk -F: '
-    {
-      count++; total += $4
-      if ($3=="PASS") pass++
-      if ($3=="FAIL") fail++
-    }
-    END {
-      printf "  TOTAL: %d | SUCCESS: %d | FAILED: %d | AVG: %ds\n", count, pass, fail, (count?total/count:0)
-    }' "$results_log"
+    awk -F: '{ count++; total += $4; if ($3=="PASS") pass++; if ($3=="FAIL") fail++ } 
+    END { printf "  TOTAL: %d | SUCCESS: %d | FAILED: %d | AVG: %ds\n", count, pass, fail, (count?total/count:0) }' "$results_log"
     print_color blue "==================================================="
   fi
-
-  # Exit 1 if the failure log has content
-  [[ -s "$tmp_file" ]] && return 1 || return 0
 }
 
 # -----------------------------
@@ -202,7 +187,6 @@ main() {
   local jobs="${2:-3}"
   local test_dir="${3:-cypress-tests}"
 
-  # Navigate to the correct test directory
   if [[ "$(basename "$PWD")" != "$(basename "$test_dir")" && -d "$test_dir" ]]; then
     cd "$test_dir"
   fi
@@ -213,6 +197,15 @@ main() {
     --parallel|-p) run_tests "$jobs" ;;
     *) run_tests 1 ;;
   esac
+
+  # EXPLICIT EXIT FOR RUNNER
+  if [[ -s "$tmp_file" ]]; then
+    print_color red "One or more tests failed."
+    exit 1
+  else
+    print_color green "All tests passed successfully."
+    exit 0
+  fi
 }
 
 main "$@"
