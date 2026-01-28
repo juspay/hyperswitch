@@ -97,7 +97,7 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -303,12 +303,14 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
+          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
           # Start the server in the background
           target/debug/router &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
+          echo "SERVER_LOG_PATH=${SERVER_LOG_PATH}" >> $GITHUB_ENV
 
           # Wait for the server to start in port 8080
           COUNT=0
@@ -333,6 +335,18 @@ jobs:
           scripts/execute_cypress.sh --parallel 2
 
           kill "${{ env.PID }}"
+
+      - name: Compress server logs
+        if: env.RUN_TESTS == 'true'
+        run: gzip -9 "${{ env.SERVER_LOG_PATH }}"
+
+      - name: Upload server logs on failure
+        if: env.RUN_TESTS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: ${{ env.SERVER_LOG_PATH }}.gz
+          retention-days: 1
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
