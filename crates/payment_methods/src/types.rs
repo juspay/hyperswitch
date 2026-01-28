@@ -89,5 +89,3 @@ pub struct CardCVCTokenStorageDetails {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<PrimitiveDateTime>,
 }
-
-
