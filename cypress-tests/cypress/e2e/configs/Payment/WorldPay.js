@@ -67,6 +67,7 @@ const paymentMethodDataNoThreeDsResponse = {
     card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -85,6 +86,7 @@ const paymentMethodDataThreeDsResponse = {
     card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };

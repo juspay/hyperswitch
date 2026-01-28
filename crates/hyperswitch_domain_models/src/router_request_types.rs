@@ -72,6 +72,9 @@ pub struct PaymentsAuthorizeData {
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
+    // Guest customer fields
+    pub guest_customer: Option<payments::GuestCustomer>,
+
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 

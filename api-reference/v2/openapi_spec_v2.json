@@ -1633,9 +1633,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       },
@@ -2018,7 +2015,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2206,7 +2203,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2257,7 +2254,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2646,7 +2643,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -5286,7 +5283,12 @@
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25",
+            "example": "003925",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
             "nullable": true
           }
         }
@@ -8737,6 +8739,10 @@
             "nullable": true
           },
           "authentication_data": {
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -19641,7 +19647,8 @@
           "id",
           "merchant_id",
           "customer_id",
-          "payment_method_type"
+          "payment_method_type",
+          "network_transaction_id"
         ],
         "properties": {
           "id": {
@@ -19731,6 +19738,10 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },
@@ -20052,6 +20063,14 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponseData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20246,6 +20265,9 @@
       },
       "PaymentMethodUpdate": {
         "type": "object",
+        "required": [
+          "network_transaction_id"
+        ],
         "properties": {
           "payment_method_data": {
             "allOf": [
@@ -20262,6 +20284,10 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         },
         "additionalProperties": false
@@ -28600,6 +28626,12 @@
             "description": "The card's expiry year",
             "example": "25",
             "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
+            "example": "009825",
+            "nullable": true
           }
         }
       },
@@ -29359,26 +29391,25 @@
       "admin_api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account."
+        "name": "Authorization",
+        "description": "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account. This is only used during development."
       },
       "api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
+        "name": "Authorization",
+        "description": "Format: `api-key=<api_key>`\n\nUse the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
       },
-      "ephemeral_key": {
+      "jwt_key": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "publishable_key__client_secret": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
-      },
-      "publishable_key": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "api-key",
-        "description": "Publishable keys are a type of keys that can be public and have limited scope of usage."
+        "name": "Authorization",
+        "description": "Format: `publishable-key=<publishable-key>,client-secret=<client-secret>`\n\nPublishable keys are a type of keys that can be public and have limited scope of usage. Client Secret provide temporary access to singular data, such as access to a single customer object for a short period of time. This authentication scheme is used by the SDK."
       }
     }
   },
