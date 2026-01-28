@@ -1978,12 +1978,11 @@ pub async fn retrieve_payment_method_data_from_storage(
         platform.get_processor().get_key_store(),
     )
     .await
-    .map_err(|err| {
+    .inspect_err(|err| {
         logger::warn!(
             "Failed to retrieve CVC for payment method {}",
             pm.id.get_string_repr()
         );
-        err
     });
 
     if let Ok(card_cvc) = card_cvc {
@@ -2006,10 +2005,7 @@ pub async fn retrieve_volatile_payment_method_from_redis(
         .attach_printable("Failed to get redis connection")?;
 
     let response = redis_conn
-        .get_and_deserialize_key::<common_utils::encryption::Encryption>(
-            &pm_id.to_string().into(),
-            "Vec<u8>",
-        )
+        .get_and_deserialize_key::<Encryption>(&pm_id.to_string().into(), "Vec<u8>")
         .await;
 
     match response {

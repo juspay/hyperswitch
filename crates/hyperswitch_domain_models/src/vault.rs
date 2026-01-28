@@ -1,7 +1,6 @@
 use api_models::payment_methods;
 #[cfg(feature = "v2")]
 use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
-use diesel_models::schema::payment_attempt::card_discovery;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
