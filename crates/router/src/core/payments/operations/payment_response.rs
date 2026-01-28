@@ -419,47 +419,62 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         state: &SessionState,
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
+        router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        let payment_attempt = payment_data.get_payment_attempt();
-        let payment_intent = payment_data.get_payment_intent();
+        // Check router_data preconditions: response must be Ok(TransactionResponse) and integrity check must pass
+        let is_valid_response = matches!(
+            router_data.response.as_ref(),
+            Ok(types::PaymentsResponseData::TransactionResponse { .. })
+        );
+        let is_integrity_ok = router_data.integrity_check.is_ok();
 
-        if let Some(payment_method) = payment_data.get_payment_method_info().cloned() {
-            // Parse value to check for mandates' existence
+        // Check payment status from payment_data (which has the final processed status)
+        let payment_attempt = payment_data.get_payment_attempt();
+        let is_payment_successful = matches!(
+            payment_attempt.status,
+            enums::AttemptStatus::Charged
+                | enums::AttemptStatus::Authorized
+                | enums::AttemptStatus::PartiallyAuthorized
+        );
+
+        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+
+        // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
+        if let (true, Some(payment_method), Some(mca_id)) = (
+            is_eligible_for_mandate_update,
+            payment_data.get_payment_method_info().cloned(),
+            payment_attempt.merchant_connector_id.clone(),
+        ) {
+            let payment_intent = payment_data.get_payment_intent();
+
             let mandate_details = payment_method
                 .get_common_mandate_reference()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
-            if let Some(mca_id) = payment_attempt.merchant_connector_id.clone() {
-                // check if the mandate has not already been set to active
-                let is_active_mandate = mandate_details
-                    .payments
-                    .as_ref()
-                    .and_then(|payments| payments.0.get(&mca_id))
-                    .is_some_and(|record| {
-                        record.connector_mandate_status
-                            == Some(common_enums::ConnectorMandateStatus::Active)
-                    });
+            let is_active_mandate = mandate_details
+                .payments
+                .as_ref()
+                .and_then(|payments| payments.0.get(&mca_id))
+                .is_some_and(|record| {
+                    record.connector_mandate_status
+                        == Some(common_enums::ConnectorMandateStatus::Active)
+                });
 
-                let is_off_session = payment_intent.setup_future_usage
-                    == Some(common_enums::FutureUsage::OffSession);
+            let is_off_session = matches!(
+                payment_intent.setup_future_usage,
+                Some(common_enums::FutureUsage::OffSession)
+            );
 
-                let is_payment_successful = matches!(
-                    payment_attempt.status,
-                    enums::AttemptStatus::Charged
-                        | enums::AttemptStatus::Authorized
-                        | enums::AttemptStatus::PartiallyAuthorized
-                );
+            // Combine business logic conditions: not active mandate AND off_session
+            if !is_active_mandate && is_off_session {
+                let payment_attempt = payment_data.get_payment_attempt();
 
-                if !is_active_mandate && is_off_session && is_payment_successful {
-                    let (
-                        connector_mandate_id,
-                        mandate_metadata,
-                        connector_mandate_request_reference_id,
-                    ) = payment_attempt
+                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
+                    payment_attempt
                         .connector_mandate_detail
                         .clone()
                         .map(|cmr| {
@@ -470,34 +485,33 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             )
                         })
                         .unwrap_or((None, None, None));
-                    // Update the connector mandate details with the payment attempt connector mandate id
-                    let connector_mandate_details = tokenization::update_connector_mandate_details(
-                        Some(mandate_details),
-                        payment_attempt.payment_method_type,
-                        Some(
-                            payment_attempt
-                                .net_amount
-                                .get_total_amount()
-                                .get_amount_as_i64(),
-                        ),
-                        payment_attempt.currency,
-                        payment_attempt.merchant_connector_id.clone(),
-                        connector_mandate_id,
-                        mandate_metadata,
-                        connector_mandate_request_reference_id,
-                    )?;
-                    // Update the payment method table with the active mandate record
-                    payment_methods::cards::update_payment_method_connector_mandate_details(
-                        provider.get_key_store(),
-                        &*state.store,
-                        payment_method,
-                        connector_mandate_details,
-                        provider.get_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method in db")?;
-                }
+
+                let connector_mandate_details = tokenization::update_connector_mandate_details(
+                    Some(mandate_details),
+                    payment_attempt.payment_method_type,
+                    Some(
+                        payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
+                    payment_attempt.currency,
+                    payment_attempt.merchant_connector_id.clone(),
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                )?;
+
+                payment_methods::cards::update_payment_method_connector_mandate_details(
+                    provider.get_key_store(),
+                    &*state.store,
+                    payment_method,
+                    connector_mandate_details,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
             }
         }
         Ok(())
@@ -762,47 +776,60 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         state: &SessionState,
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
+        router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        let payment_attempt = payment_data.get_payment_attempt();
-        let payment_intent = payment_data.get_payment_intent();
+        // Check router_data preconditions: response must be Ok(TransactionResponse) and integrity check must pass
+        let is_valid_response = matches!(
+            router_data.response.as_ref(),
+            Ok(types::PaymentsResponseData::TransactionResponse { .. })
+        );
+        let is_integrity_ok = router_data.integrity_check.is_ok();
 
-        if let Some(payment_method) = payment_data.get_payment_method_info().cloned() {
-            // Parse value to check for mandates' existence
+        // Check payment status from payment_data (which has the final processed status)
+        let payment_attempt = payment_data.get_payment_attempt();
+        let is_payment_successful = matches!(
+            payment_attempt.status,
+            enums::AttemptStatus::Charged
+                | enums::AttemptStatus::Authorized
+                | enums::AttemptStatus::PartiallyAuthorized
+        );
+
+        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+
+        // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
+        if let (true, Some(payment_method), Some(mca_id)) = (
+            is_eligible_for_mandate_update,
+            payment_data.get_payment_method_info().cloned(),
+            payment_attempt.merchant_connector_id.clone(),
+        ) {
+            let payment_intent = payment_data.get_payment_intent();
+
             let mandate_details = payment_method
                 .get_common_mandate_reference()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
-            if let Some(mca_id) = payment_attempt.merchant_connector_id.clone() {
-                // check if the mandate has not already been set to active
-                let is_active_mandate = mandate_details
-                    .payments
-                    .as_ref()
-                    .and_then(|payments| payments.0.get(&mca_id))
-                    .is_some_and(|record| {
-                        record.connector_mandate_status
-                            == Some(common_enums::ConnectorMandateStatus::Active)
-                    });
+            let is_active_mandate = mandate_details
+                .payments
+                .as_ref()
+                .and_then(|payments| payments.0.get(&mca_id))
+                .is_some_and(|record| {
+                    record.connector_mandate_status
+                        == Some(common_enums::ConnectorMandateStatus::Active)
+                });
 
-                let is_off_session = payment_intent.setup_future_usage
-                    == Some(common_enums::FutureUsage::OffSession);
+            let is_off_session = matches!(
+                payment_intent.setup_future_usage,
+                Some(common_enums::FutureUsage::OffSession)
+            );
 
-                let is_payment_successful = matches!(
-                    payment_attempt.status,
-                    enums::AttemptStatus::Charged
-                        | enums::AttemptStatus::Authorized
-                        | enums::AttemptStatus::PartiallyAuthorized
-                );
-
-                if !is_active_mandate && is_off_session && is_payment_successful {
-                    let (
-                        connector_mandate_id,
-                        mandate_metadata,
-                        connector_mandate_request_reference_id,
-                    ) = payment_attempt
+            // Combine business logic conditions: not active mandate AND off_session
+            if !is_active_mandate && is_off_session {
+                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
+                    payment_attempt
                         .connector_mandate_detail
                         .clone()
                         .map(|cmr| {
@@ -813,34 +840,33 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                             )
                         })
                         .unwrap_or((None, None, None));
-                    // Update the connector mandate details with the payment attempt connector mandate id
-                    let connector_mandate_details = tokenization::update_connector_mandate_details(
-                        Some(mandate_details),
-                        payment_attempt.payment_method_type,
-                        Some(
-                            payment_attempt
-                                .net_amount
-                                .get_total_amount()
-                                .get_amount_as_i64(),
-                        ),
-                        payment_attempt.currency,
-                        payment_attempt.merchant_connector_id.clone(),
-                        connector_mandate_id,
-                        mandate_metadata,
-                        connector_mandate_request_reference_id,
-                    )?;
-                    // Update the payment method table with the active mandate record
-                    payment_methods::cards::update_payment_method_connector_mandate_details(
-                        provider.get_key_store(),
-                        &*state.store,
-                        payment_method,
-                        connector_mandate_details,
-                        provider.get_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method in db")?;
-                }
+
+                let connector_mandate_details = tokenization::update_connector_mandate_details(
+                    Some(mandate_details),
+                    payment_attempt.payment_method_type,
+                    Some(
+                        payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
+                    payment_attempt.currency,
+                    payment_attempt.merchant_connector_id.clone(),
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                )?;
+
+                payment_methods::cards::update_payment_method_connector_mandate_details(
+                    provider.get_key_store(),
+                    &*state.store,
+                    payment_method,
+                    connector_mandate_details,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
             }
         }
         Ok(())
@@ -1537,6 +1563,108 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         });
         Ok(())
     }
+
+    #[cfg(feature = "v1")]
+    async fn update_payment_method_connector_mandate_details<'b>(
+        &self,
+        state: &SessionState,
+        provider: &domain::Provider,
+        payment_data: &PaymentData<F>,
+        router_data: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
+    ) -> RouterResult<()>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        // Check router_data preconditions: response must be Ok(TransactionResponse) and integrity check must pass
+        let is_valid_response = matches!(
+            router_data.response.as_ref(),
+            Ok(types::PaymentsResponseData::TransactionResponse { .. })
+        );
+        let is_integrity_ok = router_data.integrity_check.is_ok();
+
+        // Check payment status from payment_data (which has the final processed status)
+        let payment_attempt = payment_data.get_payment_attempt();
+        let is_payment_successful = matches!(
+            payment_attempt.status,
+            enums::AttemptStatus::Charged
+                | enums::AttemptStatus::Authorized
+                | enums::AttemptStatus::PartiallyAuthorized
+        );
+
+        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+
+        // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
+        if let (true, Some(payment_method), Some(mca_id)) = (
+            is_eligible_for_mandate_update,
+            payment_data.get_payment_method_info().cloned(),
+            payment_attempt.merchant_connector_id.clone(),
+        ) {
+            let payment_intent = payment_data.get_payment_intent();
+
+            let mandate_details = payment_method
+                .get_common_mandate_reference()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+
+            let is_active_mandate = mandate_details
+                .payments
+                .as_ref()
+                .and_then(|payments| payments.0.get(&mca_id))
+                .is_some_and(|record| {
+                    record.connector_mandate_status
+                        == Some(common_enums::ConnectorMandateStatus::Active)
+                });
+
+            let is_off_session = matches!(
+                payment_intent.setup_future_usage,
+                Some(common_enums::FutureUsage::OffSession)
+            );
+
+            // Combine business logic conditions: not active mandate AND off_session
+            if !is_active_mandate && is_off_session {
+                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
+                    payment_attempt
+                        .connector_mandate_detail
+                        .clone()
+                        .map(|cmr| {
+                            (
+                                cmr.connector_mandate_id,
+                                cmr.mandate_metadata,
+                                cmr.connector_mandate_request_reference_id,
+                            )
+                        })
+                        .unwrap_or((None, None, None));
+
+                let connector_mandate_details = tokenization::update_connector_mandate_details(
+                    Some(mandate_details),
+                    payment_attempt.payment_method_type,
+                    Some(
+                        payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
+                    payment_attempt.currency,
+                    payment_attempt.merchant_connector_id.clone(),
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                )?;
+
+                payment_methods::cards::update_payment_method_connector_mandate_details(
+                    provider.get_key_store(),
+                    &*state.store,
+                    payment_method,
+                    connector_mandate_details,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1621,6 +1749,108 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             platform.get_provider().get_account().storage_scheme,
         )
         .await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn update_payment_method_connector_mandate_details<'b>(
+        &self,
+        state: &SessionState,
+        provider: &domain::Provider,
+        payment_data: &PaymentData<F>,
+        router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+    ) -> RouterResult<()>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        // Check router_data preconditions: response must be Ok(TransactionResponse) and integrity check must pass
+        let is_valid_response = matches!(
+            router_data.response.as_ref(),
+            Ok(types::PaymentsResponseData::TransactionResponse { .. })
+        );
+        let is_integrity_ok = router_data.integrity_check.is_ok();
+
+        // Check payment status from payment_data (which has the final processed status)
+        let payment_attempt = payment_data.get_payment_attempt();
+        let is_payment_successful = matches!(
+            payment_attempt.status,
+            enums::AttemptStatus::Charged
+                | enums::AttemptStatus::Authorized
+                | enums::AttemptStatus::PartiallyAuthorized
+        );
+
+        let is_eligible_for_mandate_update = is_valid_response && is_integrity_ok && is_payment_successful;
+
+        // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
+        if let (true, Some(payment_method), Some(mca_id)) = (
+            is_eligible_for_mandate_update,
+            payment_data.get_payment_method_info().cloned(),
+            payment_attempt.merchant_connector_id.clone(),
+        ) {
+            let payment_intent = payment_data.get_payment_intent();
+
+            let mandate_details = payment_method
+                .get_common_mandate_reference()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+
+            let is_active_mandate = mandate_details
+                .payments
+                .as_ref()
+                .and_then(|payments| payments.0.get(&mca_id))
+                .is_some_and(|record| {
+                    record.connector_mandate_status
+                        == Some(common_enums::ConnectorMandateStatus::Active)
+                });
+
+            let is_off_session = matches!(
+                payment_intent.setup_future_usage,
+                Some(common_enums::FutureUsage::OffSession)
+            );
+
+            // Combine business logic conditions: not active mandate AND off_session
+            if !is_active_mandate && is_off_session {
+                let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
+                    payment_attempt
+                        .connector_mandate_detail
+                        .clone()
+                        .map(|cmr| {
+                            (
+                                cmr.connector_mandate_id,
+                                cmr.mandate_metadata,
+                                cmr.connector_mandate_request_reference_id,
+                            )
+                        })
+                        .unwrap_or((None, None, None));
+
+                let connector_mandate_details = tokenization::update_connector_mandate_details(
+                    Some(mandate_details),
+                    payment_attempt.payment_method_type,
+                    Some(
+                        payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
+                    payment_attempt.currency,
+                    payment_attempt.merchant_connector_id.clone(),
+                    connector_mandate_id,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                )?;
+
+                payment_methods::cards::update_payment_method_connector_mandate_details(
+                    provider.get_key_store(),
+                    &*state.store,
+                    payment_method,
+                    connector_mandate_details,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
+            }
+        }
         Ok(())
     }
 }

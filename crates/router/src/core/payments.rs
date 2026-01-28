@@ -994,6 +994,7 @@ where
                         )
                         .await?;
 
+                    let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -1015,6 +1016,7 @@ where
                             state,
                             platform.get_provider(),
                             &payment_data,
+                            &router_data_for_pm_mandate,
                         )
                         .await?;
 
@@ -1197,6 +1199,7 @@ where
                         )
                         .await?;
 
+                    let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -1218,6 +1221,7 @@ where
                             state,
                             platform.get_provider(),
                             &payment_data,
+                            &router_data_for_pm_mandate,
                         )
                         .await?;
 
@@ -1561,6 +1565,7 @@ where
             .map_err(|e| logger::error!(routable_connector_error=?e))
             .unwrap_or_default();
 
+    let router_data_for_pm_mandate = router_data.clone();
     let mut payment_data = operation
         .to_post_update_tracker()?
         .update_tracker(
@@ -1582,6 +1587,7 @@ where
             state,
             platform.get_provider(),
             &payment_data,
+            &router_data_for_pm_mandate,
         )
         .await?;
 

@@ -589,13 +589,14 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     }
 
     /// Updates payment method connector mandate details after a successful payment.
-    /// This should be called with the appropriate provider that owns the payment method.    |
+    /// This should be called with the appropriate provider that owns the payment method.
     #[cfg(feature = "v1")]
     async fn update_payment_method_connector_mandate_details<'b>(
         &self,
         _state: &SessionState,
         _provider: &domain::Provider,
         _payment_data: &D,
+        _router_data: &types::RouterData<F, R, PaymentsResponseData>,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
