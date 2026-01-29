@@ -1,11 +1,11 @@
 pub mod dimension_config;
 pub mod dimension_state;
 
+use std::future::Future;
+
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use external_services::superposition::ConfigContext;
-use external_services::superposition::GetValue;
-use std::future::Future;
+use external_services::superposition::{ConfigContext, GetValue};
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
@@ -156,7 +156,7 @@ pub trait Config {
     ) -> impl Future<Output = Self::Output>
     where
         Self: Sized,
-        open_feature::Client : GetValue<<Self as Config>::Output>,
+        open_feature::Client: GetValue<<Self as Config>::Output>,
     {
         async move {
             let superposition_key = Self::SUPERPOSITION_KEY;

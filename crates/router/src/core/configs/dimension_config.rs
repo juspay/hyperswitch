@@ -1,9 +1,8 @@
-use super::{Config, dimension_state::{Dimensions, HasMerchantId}};
-use crate::{
-    consts::superposition as superposition_consts,
-    routes::SessionState,
+use super::{
+    dimension_state::{Dimensions, HasMerchantId},
+    Config,
 };
-
+use crate::{consts::superposition as superposition_consts, routes::SessionState};
 
 /// Config definition for requiring CVV
 pub struct RequiresCvv;
@@ -22,18 +21,16 @@ impl RequiresCvv {
     /// Generate the database key for this config from dimensions
     /// Returns Some(db_key) if merchant_id is available, None otherwise
     pub fn db_key<O, P>(dimensions: &Dimensions<HasMerchantId, O, P>) -> Option<String> {
-        dimensions.merchant_id().ok().map(|merchant_id| {
-            format!("{}_{}", merchant_id.get_string_repr(), Self::KEY)
-        })
+        dimensions
+            .merchant_id()
+            .ok()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
     }
 }
 
 /// Get requires_cvv config
 impl<O, P> Dimensions<HasMerchantId, O, P> {
-    pub async fn get_requires_cvv(
-        &self,
-        state: &SessionState,
-    ) -> bool {
+    pub async fn get_requires_cvv(&self, state: &SessionState) -> bool {
         // Generate db_key, return default if merchant_id unavailable
         let db_key = match RequiresCvv::db_key(self) {
             Some(key) => key,
