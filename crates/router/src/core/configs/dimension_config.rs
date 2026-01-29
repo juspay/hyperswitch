@@ -1,40 +1,46 @@
-use common_utils::errors::CustomResult;
-use router_env::tracing;
+use super::{Config, dimension_state::{Dimensions, HasMerchantId}};
+use crate::{
+    consts::superposition as superposition_consts,
+    routes::SessionState,
+};
 
-use super::dimension_state::{Dimensions, HasMerchantId};
-use crate::{consts::superposition as superposition_consts, core::errors, routes::SessionState};
+
+/// Config definition for requiring CVV
+pub struct RequiresCvv;
+
+impl Config for RequiresCvv {
+    type Output = bool;
+
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::REQUIRES_CVV;
+
+    const KEY: &'static str = "requires_cvv";
+
+    const DEFAULT_VALUE: bool = true;
+}
+
+impl RequiresCvv {
+    /// Generate the database key for this config from dimensions
+    /// Returns Some(db_key) if merchant_id is available, None otherwise
+    pub fn db_key<O, P>(dimensions: &Dimensions<HasMerchantId, O, P>) -> Option<String> {
+        dimensions.merchant_id().ok().map(|merchant_id| {
+            format!("{}_{}", merchant_id.get_string_repr(), Self::KEY)
+        })
+    }
+}
 
 /// Get requires_cvv config
 impl<O, P> Dimensions<HasMerchantId, O, P> {
     pub async fn get_requires_cvv(
         &self,
         state: &SessionState,
-    ) -> CustomResult<bool, errors::StorageError> {
-        // Try to get merchant_id from dimension state first
-        let merchant_id = match self.merchant_id() {
-            Ok(mid) => mid.clone(),
-            Err(e) => {
-                tracing::warn!(
-                    error = ?e,
-                    "Failed to get merchant_id from dimension_state"
-                );
-                // Return default value of requires_cvv since we can't construct the DB key without merchant_id
-                return Ok(true);
-            }
+    ) -> bool {
+        // Generate db_key, return default if merchant_id unavailable
+        let db_key = match RequiresCvv::db_key(self) {
+            Some(key) => key,
+            None => return RequiresCvv::DEFAULT_VALUE,
         };
 
-        // DB key format: {merchant_id}_requires_cvv
-        let key = format!("{}_requires_cvv", merchant_id.get_string_repr());
-
-        // Try Superposition first, fall back to DB, then default
-        let result = crate::core::configs::get_config_bool(
-            state,
-            superposition_consts::REQUIRES_CVV,
-            &key,
-            self.to_superposition_context(),
-            true, // default value
-        )
-        .await;
-        result
+        // Fetch the value using the db_key
+        RequiresCvv::fetch(state, &db_key, self.to_superposition_context()).await
     }
 }

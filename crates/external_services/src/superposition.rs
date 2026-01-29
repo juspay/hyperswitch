@@ -29,6 +29,69 @@ fn convert_open_feature_value(value: open_feature::Value) -> Result<serde_json::
     }
 }
 
+/// Trait abstracting the different type-specific client methods
+pub trait GetValue<T> {
+    /// Get a typed value from the OpenFeature client
+    fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> impl std::future::Future<Output = Result<T, open_feature::EvaluationError>> + Send;
+}
+
+impl GetValue<bool> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<bool, open_feature::EvaluationError> {
+        self.get_bool_value(key, Some(context), None).await
+    }
+}
+
+impl GetValue<String> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<String, open_feature::EvaluationError> {
+        self.get_string_value(key, Some(context), None).await
+    }
+}
+
+impl GetValue<i64> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<i64, open_feature::EvaluationError> {
+        self.get_int_value(key, Some(context), None).await
+    }
+}
+
+impl GetValue<f64> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<f64, open_feature::EvaluationError> {
+        self.get_float_value(key, Some(context), None).await
+    }
+}
+
+impl GetValue<serde_json::Value> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<serde_json::Value, open_feature::EvaluationError> {
+        let json_result = self
+            .get_struct_value::<types::JsonValue>(key, Some(context), None)
+            .await?;
+        Ok(json_result.into_inner())
+    }
+}
+
 /// Superposition client wrapper
 // Debug trait cannot be derived because open_feature::Client doesn't implement Debug
 #[allow(missing_debug_implementations)]
@@ -91,96 +154,35 @@ impl SuperpositionClient {
         }
     }
 
-    /// Get a boolean configuration value from Superposition
-    pub async fn get_bool_value(
+    /// Generic method to get a typed configuration value from Superposition
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of value to retrieve. Supported types: `bool`, `String`, `i64`, `f64`, `serde_json::Value`
+    ///
+    /// # Arguments
+    /// * `key` - The configuration key
+    /// * `context` - Optional evaluation context
+    ///
+    /// # Returns
+    /// * `CustomResult<T, SuperpositionError>` - The configuration value or error
+    pub async fn get_config_value<T>(
         &self,
         key: &str,
         context: Option<&ConfigContext>,
-    ) -> CustomResult<bool, SuperpositionError> {
+    ) -> CustomResult<T, SuperpositionError>
+    where
+        open_feature::Client: GetValue<T>,
+    {
         let evaluation_context = self.build_evaluation_context(context);
+        let type_name = std::any::type_name::<T>();
 
         self.client
-            .get_bool_value(key, Some(&evaluation_context), None)
+            .get_value(key, &evaluation_context)
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
-                    "Failed to get bool value for key '{key}': {e:?}"
+                    "Failed to get {type_name} value for key '{key}': {e:?}"
                 )))
             })
-    }
-
-    /// Get a string configuration value from Superposition
-    pub async fn get_string_value(
-        &self,
-        key: &str,
-        context: Option<&ConfigContext>,
-    ) -> CustomResult<String, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
-
-        self.client
-            .get_string_value(key, Some(&evaluation_context), None)
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to get string value for key '{key}': {e:?}"
-                )))
-            })
-    }
-
-    /// Get an integer configuration value from Superposition
-    pub async fn get_int_value(
-        &self,
-        key: &str,
-        context: Option<&ConfigContext>,
-    ) -> CustomResult<i64, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
-
-        self.client
-            .get_int_value(key, Some(&evaluation_context), None)
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to get int value for key '{key}': {e:?}"
-                )))
-            })
-    }
-
-    /// Get a float configuration value from Superposition
-    pub async fn get_float_value(
-        &self,
-        key: &str,
-        context: Option<&ConfigContext>,
-    ) -> CustomResult<f64, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
-
-        self.client
-            .get_float_value(key, Some(&evaluation_context), None)
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to get float value for key '{key}': {e:?}"
-                )))
-            })
-    }
-
-    /// Get an object configuration value from Superposition
-    pub async fn get_object_value(
-        &self,
-        key: &str,
-        context: Option<&ConfigContext>,
-    ) -> CustomResult<serde_json::Value, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
-
-        let json_result = self
-            .client
-            .get_struct_value::<types::JsonValue>(key, Some(&evaluation_context), None)
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to get object value for key '{key}': {e:?}"
-                )))
-            })?;
-
-        Ok(json_result.into_inner())
     }
 }

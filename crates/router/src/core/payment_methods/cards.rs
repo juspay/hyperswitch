@@ -4274,9 +4274,7 @@ pub async fn list_customer_payment_method(
     // Get requires_cvv using type-safe dimensions config
     let requires_cvv = dimensions
         .get_requires_cvv(state)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
+        .await;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
