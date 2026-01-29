@@ -202,9 +202,11 @@ jobs:
             echo "S-test-ready label not found"
           fi
 
-      - name: Skip Cypress
+      - name: Fail if S-test-ready label is missing
         if: github.event_name == 'pull_request' && env.RUN_CYPRESS == 'false'
-        run: echo "Skipping Cypress — add S-test-ready label and re-run jobs"
+        run: |
+          echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+          exit 1
 
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_CYPRESS == 'false' }}
