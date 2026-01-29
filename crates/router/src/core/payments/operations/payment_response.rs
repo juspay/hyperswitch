@@ -61,16 +61,21 @@ use crate::{
 /// Helper function to update payment method connector mandate details.
 /// This is called after a successful payment to activate/update the connector mandate.
 #[cfg(feature = "v1")]
-async fn update_pm_connector_mandate_details_helper<F>(
+async fn update_pm_connector_mandate_details<F, Req>(
     state: &SessionState,
     provider: &domain::Provider,
     payment_data: &PaymentData<F>,
-    is_valid_response: bool,
-    is_integrity_ok: bool,
+    router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
 ) -> RouterResult<()>
 where
     F: Clone + Send + Sync,
 {
+    let is_valid_response = matches!(
+        router_data.response.as_ref(),
+        Ok(types::PaymentsResponseData::TransactionResponse { .. })
+    );
+    let is_integrity_ok = router_data.integrity_check.is_ok();
+
     // Check payment status from payment_data (which has the final processed status)
     let payment_attempt = payment_data.get_payment_attempt();
     let is_payment_successful = matches!(
@@ -512,7 +517,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     }
 
     #[cfg(feature = "v1")]
-    async fn update_payment_method_connector_mandate_details<'b>(
+    async fn update_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         provider: &domain::Provider,
@@ -526,20 +531,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        let is_valid_response = matches!(
-            router_data.response.as_ref(),
-            Ok(types::PaymentsResponseData::TransactionResponse { .. })
-        );
-        let is_integrity_ok = router_data.integrity_check.is_ok();
-
-        update_pm_connector_mandate_details_helper(
-            state,
-            provider,
-            payment_data,
-            is_valid_response,
-            is_integrity_ok,
-        )
-        .await
+        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 }
 
@@ -796,7 +788,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     }
 
     #[cfg(feature = "v1")]
-    async fn update_payment_method_connector_mandate_details<'b>(
+    async fn update_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         provider: &domain::Provider,
@@ -806,20 +798,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        let is_valid_response = matches!(
-            router_data.response.as_ref(),
-            Ok(types::PaymentsResponseData::TransactionResponse { .. })
-        );
-        let is_integrity_ok = router_data.integrity_check.is_ok();
-
-        update_pm_connector_mandate_details_helper(
-            state,
-            provider,
-            payment_data,
-            is_valid_response,
-            is_integrity_ok,
-        )
-        .await
+        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 }
 
@@ -1515,7 +1494,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     }
 
     #[cfg(feature = "v1")]
-    async fn update_payment_method_connector_mandate_details<'b>(
+    async fn update_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         provider: &domain::Provider,
@@ -1529,20 +1508,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        let is_valid_response = matches!(
-            router_data.response.as_ref(),
-            Ok(types::PaymentsResponseData::TransactionResponse { .. })
-        );
-        let is_integrity_ok = router_data.integrity_check.is_ok();
-
-        update_pm_connector_mandate_details_helper(
-            state,
-            provider,
-            payment_data,
-            is_valid_response,
-            is_integrity_ok,
-        )
-        .await
+        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 }
 
@@ -1632,7 +1598,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 
     #[cfg(feature = "v1")]
-    async fn update_payment_method_connector_mandate_details<'b>(
+    async fn update_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         provider: &domain::Provider,
@@ -1646,20 +1612,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        let is_valid_response = matches!(
-            router_data.response.as_ref(),
-            Ok(types::PaymentsResponseData::TransactionResponse { .. })
-        );
-        let is_integrity_ok = router_data.integrity_check.is_ok();
-
-        update_pm_connector_mandate_details_helper(
-            state,
-            provider,
-            payment_data,
-            is_valid_response,
-            is_integrity_ok,
-        )
-        .await
+        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 }
 

@@ -588,10 +588,10 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         Ok(())
     }
 
-    /// Updates payment method connector mandate details after a successful payment.
+    /// Updates payment method mandate details after a successful payment.
     /// This should be called with the appropriate provider that owns the payment method.
     #[cfg(feature = "v1")]
-    async fn update_payment_method_connector_mandate_details<'b>(
+    async fn update_pm_and_mandate<'b>(
         &self,
         _state: &SessionState,
         _provider: &domain::Provider,
