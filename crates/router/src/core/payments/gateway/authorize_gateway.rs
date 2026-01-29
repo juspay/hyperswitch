@@ -139,6 +139,11 @@ where
 
                     let payment_repeat_response = response.into_inner();
 
+                    logger::debug!(
+                        "Hyperswitch status before handling UCS repeat_payment response is {:?}",
+                        router_data.status
+                    );
+
                     let ucs_data = handle_unified_connector_service_response_for_payment_repeat(
                         payment_repeat_response.clone(),
                     )
@@ -151,12 +156,22 @@ where
                         }
                         Err(err) => {
                             logger::debug!("Error in UCS router data response");
+                            logger::debug!(
+                                "Status received from UCS repeat_payment in error case is {:?}",
+                                err.attempt_status
+                            );
                             if let Some(attempt_status) = err.attempt_status {
                                 router_data.status = attempt_status;
                             }
                             Err(err)
                         }
                     };
+
+                    logger::debug!(
+                        "Hyperswitch status after handling UCS repeat_payment response is {:?}",
+                        router_data.status
+                    );
+
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_repeat_response.captured_amount;
@@ -209,6 +224,11 @@ where
 
                     let payment_authorize_response = response.into_inner();
 
+                    logger::debug!(
+                        "Hyperswitch status before handling UCS authorize response is {:?}",
+                        router_data.status
+                    );
+
                     let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
                         payment_authorize_response.clone(),
                     )
@@ -221,12 +241,20 @@ where
                         }
                         Err(err) => {
                             logger::debug!("Error in UCS router data response");
+                            logger::debug!(
+                                "Status received from UCS authorize in error case is {:?}",
+                                err.attempt_status
+                            );
                             if let Some(attempt_status) = err.attempt_status {
                                 router_data.status = attempt_status;
                             }
                             Err(err)
                         }
                     };
+                    logger::debug!(
+                        "Hyperswitch status after handling UCS authorize response is {:?}",
+                        router_data.status
+                    );
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;

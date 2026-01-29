@@ -51,8 +51,8 @@ where
     let sub_flow_name = api_client::get_flow_name::<F>().ok();
 
     let [hyperswitch_data, unified_connector_service_data] = [
-        (hyperswitch_router_data, "hyperswitch"),
-        (unified_connector_service_router_data, "ucs"),
+        (hyperswitch_router_data.clone(), "hyperswitch"),
+        (unified_connector_service_router_data.clone(), "ucs"),
     ]
     .map(|(data, source)| {
         serde_json::to_value(data)
@@ -64,6 +64,14 @@ where
                 }))
             })
     });
+
+    logger::debug!(
+    "Hyperswitch router data status: {:?}, UCS router data status: {:?}, request_id: {:?}, flow: {:?}",
+    hyperswitch_router_data.status,
+    unified_connector_service_router_data.status,
+    request_id,
+    sub_flow_name
+);
 
     let comparison_data = ComparisonData {
         hyperswitch_data,
