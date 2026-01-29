@@ -13,7 +13,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
-            PaymentAddress,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress,
         },
     },
     routes::{app::ReqState, SessionState},
@@ -332,10 +332,10 @@ impl<F: Clone + Send + Sync>
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
+        state: &SessionState,
+        payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
-        _provider: &domain::Provider,
+        provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<
@@ -348,7 +348,28 @@ impl<F: Clone + Send + Sync>
         ),
         errors::StorageError,
     > {
-        Ok((Box::new(self), None))
+        let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
+        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
+            None => None,
+            Some(customer_id) => {
+                // If the customer is deleted, we should block incremental authorization
+                db.find_customer_optional_by_customer_id_merchant_id(
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await?
+            }
+        };
+
+        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
+            payment_data.set_email_if_not_present(email.into());
+        }
+
+        Ok((Box::new(self), customer))
     }
 
     #[instrument(skip_all)]
