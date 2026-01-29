@@ -1227,7 +1227,6 @@ impl
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,
-    #[serde(alias = "three_d_s_server_trans_i_d")]
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<SemanticVersion>,
     pub ds_trans_id: Option<String>,
