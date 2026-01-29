@@ -300,6 +300,12 @@ host = "127.0.0.1"
 shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
+# Keep-alive timeout in seconds
+keep_alive = 5              
+# Client request timeout in seconds
+client_request_timeout = 5
+# Client disconnect timeout in seconds
+client_disconnect_timeout = 1
 
 # HTTPS Server Configuration
 # Self-signed Private Key and Certificate can be generated with mkcert for local development
