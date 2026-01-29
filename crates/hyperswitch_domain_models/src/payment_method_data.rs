@@ -928,6 +928,7 @@ pub struct UpiCollectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UpiIntentData {
     pub upi_source: Option<UpiSource>,
+    pub app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1863,6 +1864,7 @@ impl From<api_models::payments::UpiData> for UpiData {
             }),
             api_models::payments::UpiData::UpiIntent(upi) => Self::UpiIntent(UpiIntentData {
                 upi_source: upi.upi_source.map(UpiSource::from),
+                app_name: upi.app_name,
             }),
             api_models::payments::UpiData::UpiQr(upi) => Self::UpiQr(UpiQrData {
                 upi_source: upi.upi_source.map(UpiSource::from),
@@ -1883,6 +1885,7 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiIntent(upi) => {
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {
                     upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+                    app_name: upi.app_name,
                 }))
             }
             UpiData::UpiQr(upi) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {
