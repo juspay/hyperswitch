@@ -457,7 +457,7 @@ async fn get_tracker_for_sync<
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             match db
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
                     storage_scheme,
                 )
