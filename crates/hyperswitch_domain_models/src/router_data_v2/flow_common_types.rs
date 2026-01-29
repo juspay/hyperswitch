@@ -1,3 +1,4 @@
+use common_enums;
 use common_utils::{pii, types::MinorUnit};
 
 use crate::{
@@ -218,6 +219,7 @@ pub struct ExternalVaultProxyFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
+    pub connector: common_enums::connector_enums::Connector,
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,

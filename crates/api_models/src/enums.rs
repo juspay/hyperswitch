@@ -212,6 +212,18 @@ impl From<VaultConnectors> for Connector {
     }
 }
 
+impl TryFrom<Connector> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: Connector) -> Result<Self, Self::Error> {
+        match value {
+            Connector::Vgs => Ok(Self::Vgs),
+            Connector::HyperswitchVault => Ok(Self::HyperswitchVault),
+            Connector::Tokenex => Ok(Self::Tokenex),
+            _ => Err(format!("Connector {value} is not a valid vault connector")),
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]

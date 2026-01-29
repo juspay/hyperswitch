@@ -1352,15 +1352,13 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         .ok_or(UnifiedConnectorServiceError::ParsingFailed)
         .attach_printable("Failed to obtain ConnectorMetadata")?;
 
-    let connector_name = external_vault_merchant_connector_account
-        .get_connector_name()
-        .map(|connector| connector.to_string())
-        .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-        .attach_printable("Missing connector name")?; // always get the connector name from this call
+    let connector = external_vault_merchant_connector_account.get_connector_name();
 
-    let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
-        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
-        .attach_printable("Failed to parse Vault connector")?;
+    let external_vault_connector =
+        api_enums::VaultConnectors::try_from(connector).map_err(|err| {
+            error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
+                .attach_printable(format!("Failed to parse Vault connector: {err}"))
+        })?;
 
     let unified_service_vault_metdata = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {
