@@ -1133,6 +1133,7 @@ impl PaymentAttemptUpdateInternal {
             amount_captured: amount_captured.or(source.amount_captured),
             encrypted_payment_method_data: source.encrypted_payment_method_data,
             error_details: source.error_details,
+            retry_type: source.retry_type,
         }
     }
 }
