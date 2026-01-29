@@ -50,7 +50,16 @@ pub mod routes {
     impl Analytics {
         #[cfg(feature = "v2")]
         pub fn server(state: AppState) -> Scope {
-            web::scope("/analytics").app_data(web::Data::new(state))
+            web::scope("/analytics")
+                .app_data(web::Data::new(state))
+                .service(
+                    web::resource("generate-payments-report")
+                        .route(web::post().to(generate_generalized_report)),
+                )
+                .service(
+                    web::resource("org/generate-generalized-report")
+                        .route(web::post().to(generate_org_generalized_report)),
+                )
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -2551,6 +2560,132 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_generalized_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::analytics::GenerateGeneralizedReportApiRequest>,
+    ) -> impl Responder {
+        use analytics::AnalyticsFlow;
+        use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput, ReportType};
+
+        let flow = AnalyticsFlow::GeneratePaymentReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, user_from_token: auth::UserFromToken, payload, _| async move {
+                // Get user email from user_id
+                let user =
+                    UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                // Build AuthInfo directly from UserFromToken
+                let auth_info = AuthInfo::ProfileLevel {
+                    org_id: user_from_token.org_id.clone(),
+                    merchant_id: user_from_token.merchant_id.clone(),
+                    profile_ids: vec![user_from_token.profile_id.clone()],
+                };
+
+                let lambda_req = LambdaReportInput {
+                    report_type: payload.report_type.clone(),
+                    request: LambdaReportDataRequest {
+                        time_range: payload.time_range.clone(),
+                        emails: payload.emails.clone(),
+                    },
+                    auth: auth_info,
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state
+                        .conf
+                        .report_download_config
+                        .generalized_report_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_org_generalized_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::analytics::GenerateGeneralizedReportApiRequest>,
+    ) -> impl Responder {
+        use analytics::AnalyticsFlow;
+        use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput, ReportType};
+
+        let flow = AnalyticsFlow::GeneratePaymentReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, user_from_token: auth::UserFromToken, payload, _| async move {
+                // Get user email from user_id
+                let user =
+                    UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                // Build AuthInfo for org-level (only org_id, no merchant_id)
+                let auth_info = AuthInfo::OrgLevel {
+                    org_id: user_from_token.org_id.clone(),
+                };
+
+                let lambda_req = LambdaReportInput {
+                    report_type: payload.report_type.clone(),
+                    request: LambdaReportDataRequest {
+                        time_range: payload.time_range.clone(),
+                        emails: payload.emails.clone(),
+                    },
+                    auth: auth_info,
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state
+                        .conf
+                        .report_download_config
+                        .generalized_report_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))

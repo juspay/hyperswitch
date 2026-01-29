@@ -254,6 +254,7 @@ payment_function = "report_download_config_payment_function" # Config to downloa
 refund_function = "report_download_config_refund_function"   # Config to download refund report
 payout_function = "report_download_config_payout_function"   # Config to download payout report
 region = "report_download_config_region"                     # Region of the bucket
+generalized_report_lambda_name = "report_download_generalized_config_function" # Config to download payments,v2_payments,revenue_recovery_payments report
 
 [opensearch]
 host = "https://localhost:9200"
