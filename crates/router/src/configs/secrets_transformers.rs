@@ -627,6 +627,7 @@ pub(crate) async fn fetch_raw_secrets(
         open_router: conf.open_router,
         #[cfg(feature = "v2")]
         revenue_recovery: conf.revenue_recovery,
+        merchant_advice_codes: conf.merchant_advice_codes,
         debit_routing_config: conf.debit_routing_config,
         clone_connector_allowlist: conf.clone_connector_allowlist,
         merchant_id_auth: conf.merchant_id_auth,

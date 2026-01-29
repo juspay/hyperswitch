@@ -1,16 +1,17 @@
 //! Create payment method flow types and dummy models.
 
 use api_models::payments;
+use cards::CardNumber;
 use common_utils::{
     id_type, pii,
     request::{Method, RequestContent},
     types::MinorUnit,
 };
+use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -22,7 +23,7 @@ pub struct CreatePaymentMethodV1Request {
     pub payment_method_type: common_enums::PaymentMethodType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
-    pub payment_method_data: payments::PaymentMethodData,
+    pub payment_method_data: PaymentMethodData,
     pub billing: Option<payments::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
@@ -41,13 +42,30 @@ pub struct ModularPMCreateRequest {
     pub storage_type: Option<common_enums::StorageType>,
 }
 
+//This struct will be deprecated when we fully migrate to Modular PMs
+//cannot reuse CardDetail since CardDetail under v2 does not have card_issuing_country code.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CardDetail {
+    pub card_number: CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_issuing_country: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_issuer: Option<String>,
+    pub card_type: Option<common_enums::CardType>,
+    pub card_cvc: Option<Secret<String>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
-    Card(api_models::payment_methods::CardDetail),
+    Card(CardDetail),
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct ModularPaymentMethodResponse {
+pub struct ModularPMCreateResponse {
     //payment method id
     pub id: String,
     pub merchant_id: id_type::MerchantId,
@@ -55,7 +73,9 @@ pub struct ModularPaymentMethodResponse {
     pub payment_method_type: Option<common_enums::PaymentMethod>,
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<PrimitiveDateTime>,
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
@@ -64,6 +84,7 @@ pub struct ModularPaymentMethodResponse {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(api_models::payment_methods::CardDetailFromLocker),
 }
@@ -96,13 +117,13 @@ pub struct ConnectorTokenDetails {
     pub token: Secret<String>,
 }
 
-impl TryFrom<payments::PaymentMethodData> for PaymentMethodCreateData {
+impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
     type Error = MicroserviceClientError;
 
-    fn try_from(value: payments::PaymentMethodData) -> Result<Self, Self::Error> {
+    fn try_from(value: PaymentMethodData) -> Result<Self, Self::Error> {
         match value {
-            payments::PaymentMethodData::Card(card) => {
-                let card_detail = api_models::payment_methods::CardDetail {
+            PaymentMethodData::Card(card) => {
+                let card_detail = CardDetail {
                     card_number: card.card_number,
                     card_exp_month: card.card_exp_month,
                     card_exp_year: card.card_exp_year,
@@ -113,7 +134,6 @@ impl TryFrom<payments::PaymentMethodData> for PaymentMethodCreateData {
                     card_issuer: card.card_issuer,
                     card_type: None,
                     card_cvc: Some(card.card_cvc),
-                    card_issuing_country_code: card.card_issuing_country_code,
                 };
                 Ok(Self::Card(card_detail))
             }
@@ -147,10 +167,10 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
     }
 }
 
-impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
+impl TryFrom<ModularPMCreateResponse> for CreatePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
-    fn try_from(response: ModularPaymentMethodResponse) -> Result<Self, Self::Error> {
+    fn try_from(response: ModularPMCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: response.id,
             merchant_id: response.merchant_id,
@@ -179,7 +199,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     path = "/v2/payment-methods",
     v1_request = CreatePaymentMethodV1Request,
     v2_request = ModularPMCreateRequest,
-    v2_response = ModularPaymentMethodResponse,
+    v2_response = ModularPMCreateResponse,
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
     body = CreatePaymentMethod::build_body

@@ -69,8 +69,11 @@ impl TryFrom<ModularPaymentMethodResponse> for UpdatePaymentMethodResponse {
 }
 
 impl UpdatePaymentMethod {
-    fn build_path_params(&self, request: &ModularPMUpdateRequest) -> Vec<(&'static str, String)> {
-        vec![("id", request.payment_method_id.clone())]
+    fn build_path_params(
+        &self,
+        request: &UpdatePaymentMethodV2Request,
+    ) -> Vec<(&'static str, String)> {
+        vec![("id", request.payment_method_id.payment_method_id.clone())]
     }
 
     fn build_body(&self, request: ModularPMUpdateRequest) -> Option<RequestContent> {
