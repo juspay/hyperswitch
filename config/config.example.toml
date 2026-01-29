@@ -18,8 +18,8 @@ shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
 keep_alive = 5                               # Keep-alive timeout in seconds
-client_request_timeout = 5000                # Client request timeout in seconds
-client_disconnect_timeout = 1000             # Client disconnect timeout in seconds
+client_request_timeout = 5000                # Client request timeout in milliseconds
+client_disconnect_timeout = 1000             # Client disconnect timeout in milliseconds
 
 # HTTPS Server Configuration
 # Self-signed Private Key and Certificate can be generated with mkcert for local development
