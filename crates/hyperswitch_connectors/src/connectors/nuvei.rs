@@ -71,7 +71,10 @@ use crate::{
     connectors::nuvei::transformers::{NuveiPaymentsResponse, NuveiTransactionSyncResponse},
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData as _},
+    utils::{
+        self, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+        PaymentsSetupMandateRequestData, RouterData as _,
+    },
 };
 
 #[derive(Clone)]
@@ -1695,12 +1698,13 @@ impl ConnectorSpecifications for Nuvei {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
-                request_data: _,
-            } => *auth_type == enums::AuthenticationType::ThreeDs,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
-                *auth_type == enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::SetupMandate {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
         }
     }
 

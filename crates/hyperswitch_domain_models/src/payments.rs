@@ -1480,3 +1480,9 @@ impl VaultData {
         }
     }
 }
+
+/// Guest customer details for connectors
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+pub struct GuestCustomer {
+    pub customer_id: String,
+}

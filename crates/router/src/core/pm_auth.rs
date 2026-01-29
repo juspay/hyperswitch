@@ -768,7 +768,6 @@ pub async fn retrieve_payment_method_from_auth_service(
     processor: &domain::Processor,
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,
-    _customer: &Option<domain::Customer>,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 

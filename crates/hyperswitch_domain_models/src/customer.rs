@@ -17,7 +17,7 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::{ExposeOptionInterface, PeekInterface, Secret, SwitchStrategy};
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -788,12 +788,11 @@ where
 #[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
-    customer: Option<&Customer>,
+    connector_customer_map: Option<&pii::SecretSerdeValue>,
     connector_customer_id: Option<String>,
 ) -> Option<CustomerUpdate> {
-    let mut connector_customer_map = customer
-        .and_then(|customer| customer.connector_customer.clone().expose_option())
-        .and_then(|connector_customer| connector_customer.as_object().cloned())
+    let mut connector_customer_map = connector_customer_map
+        .and_then(|connector_customer| connector_customer.clone().expose().as_object().cloned())
         .unwrap_or_default();
 
     let updated_connector_customer_map = connector_customer_id.map(|connector_customer_id| {
