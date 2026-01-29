@@ -22,14 +22,67 @@ use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::PaymentsAuthorizeRequestData;
+
 use super::{requests::*, response::*};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        self, AddressData, ApplePay, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        self, AddressData, ApplePay, CardData, ForeignTryFrom,
         PaymentsSetupMandateRequestData, RouterData as RouterDataTrait,
     },
 };
+
+/// Helper function to extract 3DS authentication data from WorldPay response
+fn extract_authentication_data_from_worldpay(
+    response: &WorldpayPaymentsResponse,
+) -> Option<hyperswitch_domain_models::router_request_types::UcsAuthenticationData> {
+    match &response.other_fields {
+        Some(WorldpayPaymentResponseFields::ThreeDsChallenged(res)) => {
+            // Extract from ThreeDsChallengedResponse
+            let version = res.authentication.version.parse::<common_utils::types::SemanticVersion>().ok();
+            Some(hyperswitch_domain_models::router_request_types::UcsAuthenticationData {
+                trans_status: Some(common_enums::TransactionStatus::ChallengeRequired),
+                eci: None, // ECI will be available after final authentication
+                cavv: None, // CAVV will be available after final authentication
+                ucaf_collection_indicator: None,
+                threeds_server_transaction_id: Some(res.challenge.reference.clone()),
+                message_version: version,
+                ds_trans_id: None,
+                acs_trans_id: None,
+                transaction_id: Some(res.challenge.reference.clone()),
+            })
+        }
+        Some(WorldpayPaymentResponseFields::RefusedResponse(res)) => {
+            // Extract from RefusedResponse with 3DS data
+            if let Some(three_ds) = &res.three_ds {
+                let trans_status = match three_ds.outcome.as_str() {
+                    "authenticated" | "frictionless" => Some(common_enums::TransactionStatus::Success),
+                    "challenged" => Some(common_enums::TransactionStatus::ChallengeRequired),
+                    _ => Some(common_enums::TransactionStatus::Failure),
+                };
+                Some(hyperswitch_domain_models::router_request_types::UcsAuthenticationData {
+                    trans_status,
+                    eci: None,
+                    cavv: None,
+                    ucaf_collection_indicator: None,
+                    threeds_server_transaction_id: None,
+                    message_version: None,
+                    ds_trans_id: None,
+                    acs_trans_id: None,
+                    transaction_id: None,
+                })
+            } else {
+                None
+            }
+        }
+        Some(WorldpayPaymentResponseFields::DDCResponse(_)) => {
+            // DDC doesn't return authentication data yet
+            None
+        }
+        _ => None,
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct WorldpayRouterData<T> {
@@ -260,6 +313,9 @@ trait WorldpayPaymentsRequestData {
     fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType>;
     fn get_connector_request_reference_id(&self) -> String;
     fn get_is_mandate_payment(&self) -> bool;
+    fn get_authentication_data(&self) -> Option<&hyperswitch_domain_models::router_request_types::AuthenticationData> {
+        None
+    }
     fn get_settlement_info(&self, _amount: i64) -> Option<AutoSettlement> {
         None
     }
@@ -382,6 +438,12 @@ impl WorldpayPaymentsRequestData
 
     fn get_is_mandate_payment(&self) -> bool {
         self.request.is_mandate_payment()
+    }
+
+    fn get_authentication_data(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::AuthenticationData> {
+        self.request.authentication_data.as_ref()
     }
 
     fn get_settlement_info(&self, amount: i64) -> Option<AutoSettlement> {
@@ -532,6 +594,20 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
         let is_mandate_payment = item.router_data.get_is_mandate_payment();
         let three_ds = create_three_ds_request(item.router_data, is_mandate_payment)?;
 
+        // Extract 3DS authentication data if present (for re-authorize after 3DS)
+        let customer_authentication = item.router_data.get_authentication_data().map(|auth_data| {
+            CustomerAuthentication::ThreeDS(ThreeDS {
+                authentication_value: Some(auth_data.cavv.peek().to_string().into()),
+                version: auth_data.message_version.as_ref()
+                    .map(|_| ThreeDSVersion::Two)
+                    .unwrap_or_default(),
+                transaction_id: auth_data.threeds_server_transaction_id.clone()
+                    .or_else(|| auth_data.acs_trans_id.clone()),
+                eci: auth_data.eci.clone().unwrap_or_default(),
+                auth_type: CustomerAuthType::Variant3Ds,
+            })
+        });
+
         let (token_creation, customer_agreement) = get_token_and_agreement(
             item.router_data.get_payment_method_data(),
             item.router_data.get_setup_future_usage(),
@@ -559,7 +635,7 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
                     currency: item.router_data.get_currency(),
                 },
                 debt_repayment: None,
-                three_ds,
+                three_ds: if customer_authentication.is_some() { None } else { three_ds },
                 token_creation,
                 customer_agreement,
             },
@@ -568,7 +644,10 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
                 ..Default::default()
             },
             transaction_reference: item.router_data.get_connector_request_reference_id(),
-            customer: None,
+            customer: customer_authentication.map(|auth| Customer {
+                risk_profile: None,
+                authentication: Some(auth),
+            }),
         })
     }
 }
@@ -782,6 +861,7 @@ impl<F, T>
         } else {
             enums::AttemptStatus::from(worldpay_status.clone())
         };
+        let authentication_data = extract_authentication_data_from_worldpay(&router_data.response);
         let response = match (optional_error_message, error) {
             (None, None) => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::foreign_try_from((
@@ -794,7 +874,7 @@ impl<F, T>
                 network_txn_id: network_txn_id.map(|id| id.expose()),
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
+                authentication_data: authentication_data.map(Box::new),
                 charges: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
