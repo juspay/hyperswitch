@@ -865,16 +865,22 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let payment_ip = item.router_data.request.get_ip_address_as_optional();
 
-        let billing_descriptor =
-            item.router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(|descriptor| CheckoutBillingDescriptor {
-                    name: descriptor.name.clone(),
-                    city: descriptor.city.clone(),
-                    reference: descriptor.reference.clone(),
-                });
+        let billing_descriptor = item
+            .router_data
+            .request
+            .billing_descriptor
+            .as_ref()
+            .and_then(|descriptor| {
+                descriptor
+                    .name
+                    .as_ref()
+                    .zip(descriptor.city.as_ref())
+                    .map(|(_, _)| CheckoutBillingDescriptor {
+                        name: descriptor.name.clone(),
+                        city: descriptor.city.clone(),
+                        reference: descriptor.reference.clone(),
+                    })
+            });
 
         let request = Self {
             source: source_var,
