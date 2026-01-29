@@ -173,6 +173,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 payment_method: Some(self.payment_method),
                 request_data: &self.request,
             },
@@ -358,6 +359,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 request_data: &self.request,
                 payment_method: Some(self.payment_method),
             },
@@ -444,6 +446,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 request_data: &self.request,
                 payment_method: Some(self.payment_method),
             },
