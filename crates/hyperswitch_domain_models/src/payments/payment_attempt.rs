@@ -3210,6 +3210,7 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_captured,
             encrypted_payment_method_data: None,
             error_details: None,
+            retry_type: None,
         })
     }
 
@@ -3501,6 +3502,7 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_captured: amount_details.amount_captured,
             encrypted_payment_method_data: None,
             error_details: None,
+            retry_type: None,
         })
     }
 }
