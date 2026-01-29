@@ -15,6 +15,7 @@ import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.j
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
+import { connectorDetails as capitecvrpConnectorDetails } from "./Capitecvrp.js";
 import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js";
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
@@ -87,6 +88,7 @@ const connectorDetails = {
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
+  capitecvrp: capitecvrpConnectorDetails,
   cashtocode: cashtocodeConnectorDetails,
   celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -271,7 +273,9 @@ export function defaultErrorHandler(response, response_data) {
   }
 
   if (response_data.status === 200) {
-    throw new Error("Expecting valid response but got an error response");
+    // Include error details in the exception message
+    const errorDetails = `Status: ${response.status}, Body: ${JSON.stringify(response.body)}`;
+    throw new Error(`Expecting valid response but got an error: ${errorDetails}`);
   }
 
   expect(response.body).to.have.property("error");

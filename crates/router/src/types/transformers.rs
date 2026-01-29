@@ -389,6 +389,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Qris => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
+            api_enums::PaymentMethodType::OpenBankingCapitec => Self::OpenBanking,
         }
     }
 }

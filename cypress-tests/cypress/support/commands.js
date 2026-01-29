@@ -1022,6 +1022,12 @@ Cypress.Commands.add(
           };
         }
 
+        
+        if (authDetails && authDetails.additional_merchant_data) {
+          createConnectorBody.additional_merchant_data =
+            authDetails.additional_merchant_data;
+        } 
+
         cy.request({
           method: "POST",
           url: url,
@@ -2262,6 +2268,98 @@ Cypress.Commands.add(
                   `Invalid authentication type ${response.body.authentication_type}`
                 );
             }
+          }
+        } else {
+          // Debug logging for Capitec VRP tests
+          cy.task("cli_log", `ERROR Response Status: ${response.status}`);
+          cy.task("cli_log", `ERROR Response Body: ${JSON.stringify(response.body, null, 2)}`);
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+// Capitec VRP Consent Confirmation Test
+// This handles Capitec's push notification flow which doesn't use browser redirects
+Cypress.Commands.add(
+  "confirmCapitecVrpConsentTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentId = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profile_id;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
+          );
+
+          // Validate expected status
+          if (resData.body.status) {
+            expect(response.body.status).to.equal(resData.body.status);
+          }
+
+          // Store connector transaction ID (consent ID) for later use
+          if (response.body.connector_transaction_id) {
+            globalState.set(
+              "connectorTransactionId",
+              response.body.connector_transaction_id
+            );
+          }
+
+          // Store mandate ID if present
+          if (response.body.mandate_id) {
+            globalState.set("mandateId", response.body.mandate_id);
+          }
+
+          // Store connector mandate ID if present
+          if (response.body.connector_mandate_id) {
+            globalState.set(
+              "connectorMandateId",
+              response.body.connector_mandate_id
+            );
+          }
+
+          globalState.set("paymentID", paymentIntentId);
+          globalState.set("connectorId", response.body.connector);
+          globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+          // Capitec VRP uses push notifications, not redirects
+          // The response should have status "requires_customer_action"
+          // and NO redirect URL (customer approves via banking app)
+          if (response.body.status === "requires_customer_action") {
+            // This is the expected state for Capitec VRP
+            // Customer will approve via push notification to their banking app
+            cy.task(
+              "cli_log",
+              `Capitec VRP consent created successfully. Status: ${response.body.status}`
+            );
           }
         } else {
           defaultErrorHandler(response, resData);

@@ -70,6 +70,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Calida => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Calida::new())))
                 }
+                enums::Connector::Capitecvrp => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Capitecvrp::new())))
+                }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))

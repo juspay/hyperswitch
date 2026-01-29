@@ -208,6 +208,7 @@ impl From<enums::OpenBankingType> for global_enums::PaymentMethodType {
     fn from(value: enums::OpenBankingType) -> Self {
         match value {
             enums::OpenBankingType::OpenBankingPIS => Self::OpenBankingPIS,
+            enums::OpenBankingType::OpenBankingCapitec => Self::OpenBankingCapitec,
         }
     }
 }

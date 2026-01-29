@@ -870,6 +870,28 @@ pub enum BankRedirectData {
 #[serde(rename_all = "snake_case")]
 pub enum OpenBankingData {
     OpenBankingPIS {},
+    OpenBankingCapitec {
+        client_identifier: CapitecClientIdentifier,
+        minimum_amount: Option<common_utils::types::MinorUnit>,
+        maximum_amount: Option<common_utils::types::MinorUnit>,
+        product_description: Option<String>,
+        beneficiary_statement_description: Option<String>,
+        client_statement_description: Option<String>,
+        recurrence: Option<CapitecRecurrence>,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CapitecClientIdentifier {
+    pub identifier_key: String,
+    pub identifier_value: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CapitecRecurrence {
+    pub first_payment_date: Option<String>,
+    pub interval: Option<String>,
+    pub occurrences: Option<i32>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2338,6 +2360,30 @@ impl From<api_models::payments::OpenBankingData> for OpenBankingData {
     fn from(value: api_models::payments::OpenBankingData) -> Self {
         match value {
             api_models::payments::OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
+            api_models::payments::OpenBankingData::OpenBankingCapitec {
+                client_identifier,
+                minimum_amount,
+                maximum_amount,
+                product_description,
+                beneficiary_statement_description,
+                client_statement_description,
+                recurrence,
+            } => Self::OpenBankingCapitec {
+                client_identifier: CapitecClientIdentifier {
+                    identifier_key: client_identifier.identifier_key,
+                    identifier_value: client_identifier.identifier_value,
+                },
+                minimum_amount,
+                maximum_amount,
+                product_description,
+                beneficiary_statement_description,
+                client_statement_description,
+                recurrence: recurrence.map(|r| CapitecRecurrence {
+                    first_payment_date: r.first_payment_date,
+                    interval: r.interval,
+                    occurrences: r.occurrences,
+                }),
+            },
         }
     }
 }
@@ -2346,6 +2392,30 @@ impl From<OpenBankingData> for api_models::payments::OpenBankingData {
     fn from(value: OpenBankingData) -> Self {
         match value {
             OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
+            OpenBankingData::OpenBankingCapitec {
+                client_identifier,
+                minimum_amount,
+                maximum_amount,
+                product_description,
+                beneficiary_statement_description,
+                client_statement_description,
+                recurrence,
+            } => Self::OpenBankingCapitec {
+                client_identifier: api_models::payments::CapitecClientIdentifier {
+                    identifier_key: client_identifier.identifier_key,
+                    identifier_value: client_identifier.identifier_value,
+                },
+                minimum_amount,
+                maximum_amount,
+                product_description,
+                beneficiary_statement_description,
+                client_statement_description,
+                recurrence: recurrence.map(|r| api_models::payments::CapitecRecurrence {
+                    first_payment_date: r.first_payment_date,
+                    interval: r.interval,
+                    occurrences: r.occurrences,
+                }),
+            },
         }
     }
 }
@@ -2688,6 +2758,7 @@ impl GetPaymentMethodType for OpenBankingData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
+            Self::OpenBankingCapitec { .. } => api_enums::PaymentMethodType::OpenBankingCapitec,
         }
     }
 }
