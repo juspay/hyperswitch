@@ -2322,10 +2322,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
+            router_env::logger::debug!(
+                "Attempt status received in UCS authorize error response: {:?}",
+                response.status()
+            );
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from(response.status())?),
             };
+            router_env::logger::debug!(
+                "Attempt status in UCS authorize response: {:?}",
+                attempt_status
+            );
 
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2681,10 +2689,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         });
 
         let response = if response.error_code.is_some() {
+            router_env::logger::debug!(
+                "Attempt status received in UCS repeat everything error response: {:?}",
+                response.status()
+            );
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from(response.status())?),
             };
+            router_env::logger::debug!(
+                "Attempt status in UCS repeat everything response: {:?}",
+                attempt_status
+            );
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
