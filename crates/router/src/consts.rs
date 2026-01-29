@@ -363,6 +363,8 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 pub mod superposition {
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "requires_cvv";
+    /// implicit customer update configuration key
+    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
 }
 
 #[cfg(test)]

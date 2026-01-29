@@ -1165,7 +1165,6 @@ pub async fn trigger_payments_webhook<F, Op, D>(
     initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
     payment_data: D,
-    customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
 ) -> RouterResult<()>
@@ -1196,7 +1195,6 @@ where
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
-            customer,
             services::AuthFlow::Merchant,
             &state.base_url,
             &operation,
