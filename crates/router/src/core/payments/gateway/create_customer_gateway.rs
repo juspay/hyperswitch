@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
-use common_utils::{errors::CustomResult, request::Request};
+use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::RouterData, router_flow_types as domain,
@@ -71,6 +71,7 @@ where
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
+        let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
 
         let client = state
@@ -97,10 +98,34 @@ where
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
 
+        let merchant_order_reference_id = header_payload.x_reference_id.clone();
+        let merchant_reference_id = merchant_order_reference_id
+            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
+            .transpose()
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+            .ok()
+            .flatten()
+            .or_else(|| {
+                id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+                    .inspect_err(
+                        |err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"),
+                    )
+                    .ok()
+            })
+            .map(ucs_types::UcsReferenceId::Payment);
+
+        let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
+            .inspect_err(
+                |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+            )
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+
         let grpc_headers = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
-            .merchant_reference_id(None)
+            .merchant_reference_id(merchant_reference_id)
+            .resource_id(resource_id)
             .lineage_ids(lineage_ids);
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),

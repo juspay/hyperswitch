@@ -1164,7 +1164,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
         types::PaymentsResponseData,
     >,
     state: &SessionState,
-    header_payload: &domain_payments::HeaderPayload,
+    _header_payload: &domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
@@ -1202,20 +1202,31 @@ pub async fn call_unified_connector_service_pre_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .clone()
-        .or(merchant_order_reference_id)
+    let merchant_reference_id = merchant_order_reference_id
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
         .ok()
         .flatten()
+        .or_else(|| {
+            id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"),
+                )
+                .ok()
+        })
+        .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
+        .ok()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id)
         .lineage_ids(lineage_ids);
     Box::pin(ucs_logging_wrapper_granular(
         router_data.clone(),

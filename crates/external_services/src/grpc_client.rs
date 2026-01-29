@@ -164,19 +164,22 @@ pub struct GrpcHeadersUcs {
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+    /// Resource id
+    resource_id: Option<ucs_types::UcsReferenceId>,
 
     shadow_mode: Option<bool>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
 pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (Option<bool>,))>;
+    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (), (Option<bool>,))>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
     (Option<RequestId>,),
     (LineageIds,),
     (Option<String>,),
+    (Option<ucs_types::UcsReferenceId>,),
     (Option<ucs_types::UcsReferenceId>,),
     (Option<bool>,),
 )>;

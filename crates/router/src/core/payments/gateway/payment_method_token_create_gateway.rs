@@ -98,20 +98,33 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .or(merchant_order_reference_id)
+        let merchant_reference_id = merchant_order_reference_id
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
             .ok()
             .flatten()
+            .or_else(|| {
+                id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+                    .inspect_err(
+                        |err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"),
+                    )
+                    .ok()
+            })
             .map(ucs_types::UcsReferenceId::Payment);
+
+        let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
+            .inspect_err(
+                |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+            )
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+
         let header_payload = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
+            .resource_id(resource_id)
             .lineage_ids(lineage_ids);
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),

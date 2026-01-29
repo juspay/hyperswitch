@@ -879,6 +879,13 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     };
 
+    if let Some(resource_id) = grpc_headers.resource_id {
+        metadata.append(
+            consts::UCS_HEADER_RESOURCE_ID,
+            parse(consts::UCS_HEADER_RESOURCE_ID, resource_id.get_string_repr())?,
+        );
+    };
+
     if let Some(ref request_id) = grpc_headers.request_id {
         metadata.append(
             common_utils_consts::X_REQUEST_ID,
