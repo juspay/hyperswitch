@@ -1456,7 +1456,6 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
-            tokenization_strategy: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
