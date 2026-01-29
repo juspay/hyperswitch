@@ -19,7 +19,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    mandates::MandateData,
+    mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
@@ -367,6 +367,9 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -534,6 +537,9 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -863,6 +869,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1036,6 +1043,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1792,7 +1800,6 @@ impl
             .map(|pm_type| pm_type.into());
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-
         let mandate_reference_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
@@ -3661,6 +3668,18 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
                 )
                 .into(),
             ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Braintree form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Mifinity form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
@@ -4846,9 +4865,48 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
             .clone()
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
+
+        // Map the mandate_type from domain type to grpc type
+        let mandate_type = mandate_data
+            .mandate_type
+            .as_ref()
+            .map(|domain_mandate_type| match domain_mandate_type {
+                MandateDataType::SingleUse(amount_data) => payments_grpc::MandateType {
+                    mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
+                        payments_grpc::MandateAmountData {
+                            amount: amount_data.amount.get_amount_as_i64(),
+                            currency: amount_data.currency.to_string(),
+                            start_date: amount_data.start_date.map(
+                                |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                            ),
+                            end_date: amount_data.end_date.map(|dt: time::PrimitiveDateTime| {
+                                dt.assume_utc().unix_timestamp()
+                            }),
+                        },
+                    )),
+                },
+                MandateDataType::MultiUse(amount_data_opt) => payments_grpc::MandateType {
+                    mandate_type: amount_data_opt.as_ref().map(|amount_data| {
+                        payments_grpc::mandate_type::MandateType::MultiUse(
+                            payments_grpc::MandateAmountData {
+                                amount: amount_data.amount.get_amount_as_i64(),
+                                currency: amount_data.currency.to_string(),
+                                start_date: amount_data.start_date.map(
+                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                                ),
+                                end_date: amount_data.end_date.map(
+                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                                ),
+                            },
+                        )
+                    }),
+                },
+            });
+
         Ok(Self {
             update_mandate_id: mandate_data.update_mandate_id.clone(),
             customer_acceptance,
+            mandate_type,
         })
     }
 }
