@@ -95,8 +95,7 @@ jobs:
   build-hyperswitch:
     name: Build hyperswitch server
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      github.event_name == 'merge_group' || github.event_name == 'pull_request'
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -154,8 +153,7 @@ jobs:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      github.event_name == 'merge_group' || github.event_name == 'pull_request'
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -188,42 +186,62 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Check S-test-ready label
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh pr view ${{ github.event.pull_request.number }} \
+              --json labels \
+              --jq '.labels[].name' | grep -q '^S-test-ready$'; then
+            echo "RUN_CYPRESS=true" >> $GITHUB_ENV
+            echo "S-test-ready label found"
+          else
+            echo "RUN_CYPRESS=false" >> $GITHUB_ENV
+            echo "S-test-ready label not found"
+          fi
+
+      - name: Skip Cypress
+        if: github.event_name == 'pull_request' && env.RUN_CYPRESS == 'false'
+        run: echo "Skipping Cypress — add S-test-ready label and re-run jobs"
+
       - name: Skip tests for PRs from forks
-        if: ${{ env.RUN_TESTS == 'false' }}
+        if: ${{ env.RUN_CYPRESS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: actions/checkout@v5
 
       - name: Install Rust
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
       
       - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Download hyperswitch server artifact
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -240,13 +258,13 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_TRUN_CYPRESSESTS == 'true' }}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -254,7 +272,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
@@ -262,42 +280,42 @@ jobs:
           args: --no-default-features
 
       - name: Install Just
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
       - name: Install Cypress and dependencies
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Insert GSM info into the database
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Setup Local Server
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -324,7 +342,7 @@ jobs:
           done
 
       - name: Run Cypress tests
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_CYPRESS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -344,7 +362,7 @@ jobs:
           retention-days: 1
 
       - name: Remove S-test-ready label on failure of mandatory Cypress tests 
-        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
+        if: failure() && env.RUN_CYPRESS == 'true' && github.event_name != 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
