@@ -54,7 +54,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
     > {
         let db = &*state.store;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (payment_intent, mut payment_attempt, currency, amount);
 
@@ -63,9 +63,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                merchant_id,
+                processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -73,9 +73,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                merchant_id,
+                processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -156,7 +156,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -166,7 +166,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -176,7 +176,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -295,7 +295,6 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>

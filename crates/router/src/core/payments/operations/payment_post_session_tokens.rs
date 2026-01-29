@@ -56,12 +56,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                merchant_id,
+                processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -72,9 +72,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
         helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 
         let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                merchant_id,
+                processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -106,7 +106,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -116,7 +116,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            merchant_id,
+            processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -193,17 +193,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
     for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut PaymentData<F>,
-        _request: Option<&payments::CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> errors::CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _state: &SessionState,
@@ -226,8 +215,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         _state: &'a SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -252,7 +240,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -270,7 +258,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionT
         _req_state: ReqState,
         _processor: &domain::Processor,
         payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentPostSessionTokensOperation<'b, F>, PaymentData<F>)>
