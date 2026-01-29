@@ -48,15 +48,15 @@ pub struct ModularPMCreateRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CardDetail {
     pub card_number: CardNumber,
-    pub card_exp_month: masking::Secret<String>,
-    pub card_exp_year: masking::Secret<String>,
-    pub card_holder_name: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<Secret<String>>,
     pub card_issuing_country: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_type: Option<common_enums::CardType>,
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
