@@ -3929,7 +3929,7 @@ where
                 | domain::Initiator::EmbeddedToken { .. } => None,
             }),
             client_secret: payment_intent.client_secret.clone(),
-            customer_id: customer.as_ref().map(|cus| cus.customer_id.clone()),
+            customer_id: payment_intent.customer_id.clone(),
         };
 
         let sdk_authorization = sdk_auth_data
