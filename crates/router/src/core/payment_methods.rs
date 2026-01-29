@@ -2422,6 +2422,7 @@ pub async fn create_payment_method_for_intent(
                 vault_type: None,
                 created_by: None,
                 last_modified_by: None,
+                payment_method_customer_details: None,
             },
             storage_scheme,
         )
@@ -2507,6 +2508,7 @@ pub async fn construct_payment_method_object(
         vault_type: None,
         created_by: None,
         last_modified_by: None,
+        payment_method_customer_details: None,
     })
 }
 
@@ -2566,6 +2568,7 @@ pub async fn create_payment_method_for_confirm(
                 vault_type,
                 created_by: None,
                 last_modified_by: None,
+                payment_method_customer_details: None,
             },
             storage_scheme,
         )
@@ -4658,6 +4661,7 @@ async fn create_single_use_tokenization_flow(
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(

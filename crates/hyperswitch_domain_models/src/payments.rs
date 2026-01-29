@@ -40,8 +40,9 @@ pub mod split_payments;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use masking::ExposeInterface;
 
-use self::payment_attempt::PaymentAttempt;
+use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -376,6 +377,28 @@ impl PaymentIntent {
             )
         } else {
             Ok(())
+        }
+    }
+
+    pub fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<Secret<Value>>, common_utils::errors::ParsingError> {
+        match &self.customer_details {
+            Some(details) => {
+                let decrypted_value = details.clone().into_inner().expose();
+
+                let customer_data: CustomerData =
+                    serde_json::from_value(decrypted_value).map_err(|err| {
+                        router_env::logger::error!(
+                            "Failed to parse CustomerData while extracting customer_document_details: {:?}",
+                            err
+                        );
+                        common_utils::errors::ParsingError::StructParseFailure("CustomerData")
+                    })?;
+
+                Ok(customer_data.customer_document_details)
+            }
+            None => Ok(None),
         }
     }
 }

@@ -1,6 +1,6 @@
 use common_types::primitive_wrappers::CustomerListLimit;
-use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
-use masking::Secret;
+use common_utils::{crypto, custom_serde, ext_traits::Encode, id_type, pii, types::Description};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
@@ -54,6 +54,10 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema, SmithyModel)]
@@ -100,6 +104,25 @@ impl CustomerRequest {
     pub fn get_optional_email(&self) -> Option<pii::Email> {
         self.email.clone()
     }
+    pub fn get_document_details_as_secret(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        self.document_details
+            .as_ref()
+            .map(|document_details| document_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), common_utils::errors::ValidationError> {
+        self.document_details
+            .as_ref()
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
+    }
 }
 
 /// The customer details
@@ -139,6 +162,9 @@ pub struct CustomerRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -211,6 +237,10 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: crypto::OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -273,6 +303,9 @@ pub struct CustomerResponse {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: crypto::OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -372,6 +405,10 @@ pub struct CustomerUpdateRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -417,6 +454,9 @@ pub struct CustomerUpdateRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -450,4 +490,91 @@ pub struct CustomerListResponse {
     pub data: Vec<CustomerResponse>,
     /// Total count of customers
     pub total_count: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+pub struct CustomerDocumentDetails {
+    /// The customer's document type
+    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
+    pub document_type: Option<common_enums::enums::DocumentKind>,
+    /// The customer's document number
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub document_number: Option<Secret<String>>,
+}
+
+impl CustomerDocumentDetails {
+    pub fn from(value: &Option<Secret<serde_json::Value>>) -> Option<Self> {
+        value
+            .as_ref()
+            .and_then(|v| serde_json::from_value(v.peek().clone()).ok())
+    }
+
+    pub fn to(value: &Option<Self>) -> Option<Secret<serde_json::Value>> {
+        value
+            .as_ref()
+            .and_then(|details| serde_json::to_value(details).ok().map(Secret::new))
+    }
+    pub fn validate(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), common_utils::errors::ValidationError> {
+        use common_enums::enums::DocumentKind;
+        use error_stack::Report;
+
+        match (&self.document_type, &self.document_number) {
+            (Some(doc_type), Some(doc_number)) => {
+                let digits_only: String = doc_number
+                    .peek()
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect();
+
+                match doc_type {
+                    DocumentKind::Cpf => {
+                        if digits_only.len() != 11 {
+                            tracing::error!(
+                                validation_error = "CPF length mismatch",
+                                expected = 11,
+                                actual = digits_only.len(),
+                                field = "document_number"
+                            );
+                            Err(Report::new(
+                                common_utils::errors::ValidationError::IncorrectValueProvided {
+                                    field_name: "document_number",
+                                },
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    DocumentKind::Cnpj => {
+                        if digits_only.len() != 14 {
+                            tracing::error!(
+                                validation_error = "CNPJ length mismatch",
+                                expected = 14,
+                                actual = digits_only.len(),
+                                field = "document_number"
+                            );
+                            Err(Report::new(
+                                common_utils::errors::ValidationError::IncorrectValueProvided {
+                                    field_name: "document_number",
+                                },
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    }
+                }
+            }
+
+            (Some(_), None) | (None, Some(_)) => Err(Report::new(
+                common_utils::errors::ValidationError::InvalidValue {
+                    message: "Both document_type and document_number must be provided together"
+                        .to_string(),
+                },
+            )
+            .attach_printable("Both document_type and document_number must be provided together")),
+
+            (None, None) => Ok(()),
+        }
+    }
 }

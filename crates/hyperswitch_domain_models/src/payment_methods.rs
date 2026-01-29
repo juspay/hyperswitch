@@ -93,6 +93,7 @@ pub struct PaymentMethod {
     pub vault_source_details: PaymentMethodVaultSourceDetails,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
+    pub payment_method_customer_details: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -138,6 +139,8 @@ pub struct PaymentMethod {
     pub vault_type: Option<storage_enums::VaultType>,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
+    #[encrypt(ty = Value)]
+    pub payment_method_customer_details: Option<Encryptable<customers::CustomerDocumentDetails>>,
 }
 
 impl PaymentMethod {
@@ -365,6 +368,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            payment_method_customer_details: self
+                .payment_method_customer_details
+                .map(|val| val.into()),
         })
     }
 
@@ -382,6 +388,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_data,
             payment_method_billing_address,
             network_token_payment_method_data,
+            payment_method_customer_details,
         ) = async {
             let payment_method_data = item
                 .payment_method_data
@@ -428,10 +435,26 @@ impl super::behaviour::Conversion for PaymentMethod {
                 })
                 .await?;
 
+            let payment_method_customer_details = item
+                .payment_method_customer_details
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>((
                 payment_method_data,
                 payment_method_billing_address,
                 network_token_payment_method_data,
+                payment_method_customer_details,
             ))
         }
         .await
@@ -487,6 +510,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            payment_method_customer_details,
         })
     }
 
@@ -537,6 +561,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            payment_method_customer_details: self
+                .payment_method_customer_details
+                .map(|val| val.into()),
         })
     }
 }
@@ -581,6 +608,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            payment_method_customer_details: self
+                .payment_method_customer_details
+                .map(|val| val.into()),
         })
     }
 
@@ -607,6 +637,8 @@ impl super::behaviour::Conversion for PaymentMethod {
                         network_token_payment_method_data: storage_model
                             .network_token_payment_method_data,
                         external_vault_token_data: storage_model.external_vault_token_data,
+                        payment_method_customer_details: storage_model
+                            .payment_method_customer_details,
                     },
                 )),
                 key_manager_identifier,
@@ -648,6 +680,17 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Network token Payment Method Data")?;
+
+            let payment_method_customer_details = data
+                .payment_method_customer_details
+                .map(|payment_method_customer_details| {
+                    payment_method_customer_details.deserialize_inner_value(|value| {
+                        value.parse_value("Payment Method Customer Details")
+                    })
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Payment Method Customer Details")?;
 
             let external_vault_token_data = data
                 .external_vault_token_data
@@ -695,6 +738,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 last_modified_by: storage_model
                     .last_modified_by
                     .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+                payment_method_customer_details,
             })
         }
         .await
@@ -737,6 +781,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            payment_method_customer_details: self
+                .payment_method_customer_details
+                .map(|val| val.into()),
         })
     }
 }
@@ -1165,6 +1212,7 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                 }),
                 metadata: None,
                 tax_registration_id: None,
+                document_details: None,
             },
             connector_customer_details,
         })
@@ -1377,6 +1425,7 @@ mod tests {
             vault_source_details: Default::default(),
             created_by: None,
             last_modified_by: None,
+            payment_method_customer_details: None,
         };
         payment_method.clone()
     }

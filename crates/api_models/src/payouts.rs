@@ -204,9 +204,10 @@ pub struct PayoutCreateRequest {
 
 impl PayoutCreateRequest {
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id
+        self.customer_id.as_ref().or(self
+            .customer
             .as_ref()
-            .or(self.customer.as_ref().map(|customer| &customer.id))
+            .and_then(|customer| customer.id.as_ref()))
     }
 }
 
