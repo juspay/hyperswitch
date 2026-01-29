@@ -188,8 +188,6 @@ pub struct PaymentAttempt {
     pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// Amount captured for this payment attempt
     pub amount_captured: Option<MinorUnit>,
-    /// Indicates the type of retry for this payment attempt (None for initial attempt)
-    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 #[cfg(feature = "v1")]
@@ -446,8 +444,6 @@ pub struct PaymentAttemptNew {
     pub amount_captured: Option<MinorUnit>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
-    /// Indicates the type of retry for this payment attempt (None for initial attempt)
-    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 #[cfg(feature = "v1")]

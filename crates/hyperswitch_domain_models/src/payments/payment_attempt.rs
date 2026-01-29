@@ -821,8 +821,6 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
-    /// Indicates the type of retry for this payment attempt (None for initial attempt)
-    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 impl PaymentAttempt {
@@ -3105,7 +3103,6 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id,
             network_transaction_id,
             authorized_amount,
-            retry_type,
         } = self;
 
         let AttemptAmountDetails {
@@ -3213,7 +3210,6 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_captured,
             encrypted_payment_method_data: None,
             error_details: None,
-            retry_type,
         })
     }
 
@@ -3341,7 +3337,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
                 authorized_amount: storage_model.authorized_amount,
-                retry_type: storage_model.retry_type,
             })
         }
         .await
@@ -3404,7 +3399,6 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id,
             network_transaction_id,
             authorized_amount,
-            retry_type,
         } = self;
 
         let card_network = payment_method_data
@@ -3507,7 +3501,6 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_captured: amount_details.amount_captured,
             encrypted_payment_method_data: None,
             error_details: None,
-            retry_type,
         })
     }
 }
