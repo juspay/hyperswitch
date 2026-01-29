@@ -316,7 +316,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         &'a self,
         _state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {

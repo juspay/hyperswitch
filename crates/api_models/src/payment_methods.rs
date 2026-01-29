@@ -506,6 +506,30 @@ pub struct PaymentMethodUpdate {
 
     /// The connector token details to be updated for the payment_method
     pub connector_token_details: Option<ConnectorTokenDetails>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Option<masking::Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodUpdate {
+    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
+        match &self.payment_method_data {
+            Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn is_payment_method_metadata_update(&self) -> bool {
+        match &self.payment_method_data {
+            Some(PaymentMethodUpdateData::Card(card_update)) => {
+                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
+            }
+            _ => false,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -525,6 +549,16 @@ pub enum PaymentMethodUpdateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodCreateData {
+    pub fn get_card(&self) -> Option<CardDetail> {
+        match self {
+            Self::Card(card_detail) => Some(card_detail.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1138,6 +1172,11 @@ pub struct PaymentMethodResponse {
 
     /// Card CVC token storage details
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

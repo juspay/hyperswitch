@@ -21177,7 +21177,7 @@
           "merchant_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantAccountRequestType"
+                "$ref": "#/components/schemas/MerchantAccountType"
               }
             ],
             "nullable": true
@@ -34774,6 +34774,31 @@
           "schedule_refund"
         ]
       },
+      "RelayCaptureRequestData": {
+        "type": "object",
+        "required": [
+          "authorized_amount",
+          "amount_to_capture",
+          "currency"
+        ],
+        "properties": {
+          "authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is authorized for capture",
+            "example": 6540
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being captured",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -34784,6 +34809,17 @@
             "properties": {
               "refund": {
                 "$ref": "#/components/schemas/RelayRefundRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capture"
+            ],
+            "properties": {
+              "capture": {
+                "$ref": "#/components/schemas/RelayCaptureRequestData"
               }
             }
           }
@@ -34935,7 +34971,8 @@
       "RelayType": {
         "type": "string",
         "enum": [
-          "refund"
+          "refund",
+          "capture"
         ]
       },
       "RequestPaymentMethodTypes": {
