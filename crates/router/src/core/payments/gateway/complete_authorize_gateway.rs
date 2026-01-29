@@ -125,6 +125,7 @@ where
 
                 let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
                     payment_authorize_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
