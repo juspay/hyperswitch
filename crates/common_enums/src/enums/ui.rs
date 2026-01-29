@@ -188,10 +188,10 @@ impl Serialize for ElementSize {
         match self {
             Self::Variants(variant) => serializer.serialize_str(variant.as_ref()),
             Self::Pixels(pixel_count) => {
-                serializer.serialize_str(format!("{pixel_count}px").as_str())
+                serializer.collect_str(&format_args!("{pixel_count}px"))
             }
             Self::Percentage(pixel_count) => {
-                serializer.serialize_str(format!("{pixel_count}%").as_str())
+                serializer.collect_str(&format_args!("{pixel_count}%"))
             }
         }
     }
