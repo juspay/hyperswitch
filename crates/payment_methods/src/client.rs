@@ -9,6 +9,7 @@ pub mod delete;
 /// Retrieve payment method flow.
 pub mod retrieve;
 /// Update payment method flow.
+#[cfg(feature = "v1")]
 pub mod update;
 
 use common_utils::request::Headers;

@@ -20,15 +20,13 @@ pub struct UpdatePaymentMethodV1Request {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ModularPMUpdateRequest {
-    //Adding this field to satisfy path param requirement
-    //Currently, the unknown fields will be denied by service, hence not read by the service.
-    pub payment_method_id: String,
     pub payment_method_data: Option<PaymentMethodUpdateData>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub network_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
 }
@@ -50,7 +48,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
 
     fn try_from(value: &UpdatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_id: value.payment_method_id.clone(),
+            // payment_method_id: value.payment_method_id.clone(),
             payment_method_data: value.payment_method_data.clone(),
             connector_token_details: value.connector_token_details.clone(),
             network_transaction_id: value.network_transaction_id.clone(),
@@ -71,9 +69,9 @@ impl TryFrom<ModularPaymentMethodResponse> for UpdatePaymentMethodResponse {
 impl UpdatePaymentMethod {
     fn build_path_params(
         &self,
-        request: &UpdatePaymentMethodV2Request,
+        request: &UpdatePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![("id", request.payment_method_id.payment_method_id.clone())]
+        vec![("id", request.payment_method_id.clone())]
     }
 
     fn build_body(&self, request: ModularPMUpdateRequest) -> Option<RequestContent> {
@@ -83,7 +81,7 @@ impl UpdatePaymentMethod {
 
 hyperswitch_interfaces::impl_microservice_flow!(
     UpdatePaymentMethod,
-    method = Method::Patch,
+    method = Method::Put,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
     v1_request = UpdatePaymentMethodV1Request,
     v2_request = ModularPMUpdateRequest,
