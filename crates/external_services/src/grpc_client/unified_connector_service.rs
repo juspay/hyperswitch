@@ -896,6 +896,13 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
 
+    if let Some(config_override) = grpc_headers.config_override {
+        metadata.append(
+            common_utils_consts::X_CONFIG_OVERRIDE,
+            parse(common_utils_consts::X_CONFIG_OVERRIDE, &config_override)?,
+        );
+    }
+
     if let Err(err) = grpc_headers
         .tenant_id
         .parse()

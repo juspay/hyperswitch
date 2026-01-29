@@ -298,6 +298,7 @@ where
                         req.dispute_id.clone(),
                         req.payout_id.clone(),
                         status_code,
+                        common_enums::GatewaySystem::Direct,
                     );
 
                     match response {
