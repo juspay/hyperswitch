@@ -299,7 +299,7 @@ where
                         req.payout_id.clone(),
                         status_code,
                         EVENT_ORIGIN_ROUTER.to_string(),
-                        common_enums::ServiceCall::Internal,
+                        common_enums::ServiceCall::External,
                     );
 
                     match response {
