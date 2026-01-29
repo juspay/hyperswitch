@@ -1822,6 +1822,12 @@ pub fn get_connector_request_reference_id(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_name: &str,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
+    // If there's already a connector_request_reference_id stored in the payment_attempt,
+    // reuse it to maintain consistency across multiple connector calls
+    if let Some(existing_reference_id) = &payment_attempt.connector_request_reference_id {
+        return Ok(existing_reference_id.clone());
+    }
+
     let is_config_enabled_to_send_payment_id_as_connector_request_id =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, processor);
 
