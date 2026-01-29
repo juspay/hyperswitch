@@ -2379,13 +2379,8 @@ where
             merchant_account_type: merchant.merchant_account_type,
         });
 
-        let platform = domain::Platform::new(
-            merchant.clone(),
-            key_store.clone(),
-            merchant,
-            key_store,
-            initiator,
-        );
+        let platform =
+            resolve_platform(state, request_headers, merchant, key_store, initiator).await?;
 
         let auth = AuthenticationData {
             platform,

@@ -140,19 +140,17 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_type
-            .map(|payment_method_type| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    router_data.request.payment_method_data.clone(),
-                    Some(payment_method_type),
-                )
-            })
-            .transpose()?;
+        // Always build payment_method using payment_method_data (which is non-optional).
+        // payment_method_type is passed as optional, but payment_method must always be present
+        // for UCS to process the tokenization request.
+        let payment_method = Some(
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+            )?,
+        );
 
-        // TODO: Fix the type of address field in UCS request and pass address
-        // let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         let amount = router_data.request.amount.ok_or(report!(
             UnifiedConnectorServiceError::MissingRequiredField {
@@ -170,10 +168,11 @@ impl
             customer_name: None,
             email: None,
             customer_id: None,
-            address: None,
+            address: Some(address),
             metadata: None,
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -312,9 +311,16 @@ impl
             }),
             customer_id: router_data
                 .request
-                .customer_id
+                .guest_customer
                 .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
+                .map(|guest| guest.customer_id.clone())
+                .or_else(|| {
+                    router_data
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string())
+                }),
             metadata,
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
@@ -361,6 +367,14 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -476,6 +490,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
 
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
@@ -522,7 +537,14 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
-            locale: None,
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -847,6 +869,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1020,6 +1043,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1197,6 +1221,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: None,
             customer_name: None,
@@ -1242,7 +1267,11 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -1375,9 +1404,16 @@ impl
             }),
             customer_id: router_data
                 .request
-                .customer_id
+                .guest_customer
                 .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
+                .map(|guest| guest.customer_id.clone())
+                .or_else(|| {
+                    router_data
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string())
+                }),
             metadata,
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
@@ -1420,6 +1456,11 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: router_data.request.locale.clone(),
+            tokenization_strategy: router_data
+                .request
+                .tokenization
+                .map(payments_grpc::Tokenization::foreign_from)
+                .map(Into::into),
         })
     }
 }
@@ -1503,6 +1544,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1579,7 +1621,7 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
+            tokenization_strategy: None,
         })
     }
 }
@@ -1845,6 +1887,12 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let recurring_mandate_payment_data = router_data
+            .recurring_mandate_payment_data
+            .as_ref()
+            .map(payments_grpc::RecurringMandatePaymentData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -1888,7 +1936,7 @@ impl
             connector_customer_id: router_data.connector_customer.clone(),
             address: Some(address),
             off_session: router_data.request.off_session,
-            recurring_mandate_payment_data: None,
+            recurring_mandate_payment_data,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -1923,6 +1971,27 @@ impl
             merchant_configured_currency: router_data
                 .request
                 .merchant_config_currency
+                .map(payments_grpc::Currency::foreign_try_from)
+                .transpose()?
+                .map(|currency| currency.into()),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
+    > for payments_grpc::RecurringMandatePaymentData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        data: &hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            original_payment_authorized_amount: data.original_payment_authorized_amount,
+            original_payment_authorized_currency: data
+                .original_payment_authorized_currency
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
@@ -3600,6 +3669,18 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
                 )
                 .into(),
             ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Braintree form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Mifinity form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
@@ -3705,6 +3786,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             None => (None, None),
         };
 
+        let authentication_data = response
+            .authentication_data
+            .clone()
+            .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+            .transpose()?
+            .map(Box::new);
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
@@ -3738,7 +3826,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,
@@ -4639,6 +4727,12 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                         payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
                     })
             });
+        let authentication_data = response
+            .authentication_data
+            .clone()
+            .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+            .transpose()?
+            .map(Box::new);
 
         let resource_id: router_request_types::ResponseId = match response
             .transaction_id
@@ -4718,7 +4812,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,
@@ -4795,6 +4889,15 @@ impl ForeignFrom<&SyncRequestType> for payments_grpc::SyncRequestType {
         match sync_type {
             SyncRequestType::MultipleCaptureSync(_) => Self::MultipleCaptureSync,
             SyncRequestType::SinglePaymentSync => Self::SinglePaymentSync,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::Tokenization> for payments_grpc::Tokenization {
+    fn foreign_from(tokenization: common_enums::Tokenization) -> Self {
+        match tokenization {
+            common_enums::Tokenization::TokenizeAtPsp => Self::TokenizeAtPsp,
+            common_enums::Tokenization::SkipPsp => Self::SkipPsp,
         }
     }
 }
