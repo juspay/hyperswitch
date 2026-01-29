@@ -1,6 +1,7 @@
 //! Payment method microservice flows and lightweight client context.
 
 /// Create payment method flow.
+#[cfg(feature = "v1")]
 pub mod create;
 /// Delete payment method flow.
 pub mod delete;
@@ -11,6 +12,7 @@ pub mod retrieve;
 pub mod update;
 
 use common_utils::request::Headers;
+#[cfg(feature = "v1")]
 pub use create::{CreatePaymentMethod, CreatePaymentMethodV1Request};
 pub use delete::{DeletePaymentMethod, DeletePaymentMethodV1Request};
 use hyperswitch_interfaces::micro_service::MicroserviceClient;
