@@ -1175,9 +1175,12 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
+
+    // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_payment_webhook_statuses()
-        .contains(&status);
+        .get_configured_payment_webhook_statuses()
+        .map(|statuses| statuses.contains(&status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let captures = payment_data
@@ -1277,9 +1280,11 @@ pub async fn trigger_refund_outgoing_webhook(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    // Trigger an outgoing webhook regardless of the current refund status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_refund_webhook_statuses()
-        .contains(&refund_status);
+        .get_configured_refund_webhook_statuses()
+        .map(|statuses| statuses.contains(&refund_status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let event_type = refund_status.into();
@@ -1348,9 +1353,12 @@ pub async fn trigger_payouts_webhook(
         })?;
 
     let status = &payout_response.status;
+
+    // Trigger an outgoing webhook regardless of the current payout status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_payout_webhook_statuses()
-        .contains(status);
+        .get_configured_payout_webhook_statuses()
+        .map(|statuses| statuses.contains(status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let event_type = (*status).into();
