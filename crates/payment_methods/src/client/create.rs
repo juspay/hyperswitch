@@ -1,17 +1,17 @@
 //! Create payment method flow types and dummy models.
 
 use api_models::payments;
+use cards::CardNumber;
 use common_utils::{
     id_type, pii,
     request::{Method, RequestContent},
     types::MinorUnit,
 };
+use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
-use cards::CardNumber;
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -41,7 +41,6 @@ pub struct ModularPMCreateRequest {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
 }
-
 
 //This struct will be deprecated when we fully migrate to Modular PMs
 //cannot reuse CardDetail since CardDetail under v2 does not have card_issuing_country code.
