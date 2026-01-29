@@ -73,6 +73,7 @@ const payment_method_data_visa = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -91,6 +92,7 @@ const payment_method_data_amex = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -109,6 +111,7 @@ const payment_method_data_failed = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };

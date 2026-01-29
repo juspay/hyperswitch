@@ -56,6 +56,7 @@ impl VerifyConnectorData {
             ucs_authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
+            guest_customer: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,

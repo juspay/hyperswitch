@@ -115,6 +115,21 @@ impl
             Ok(None)
         }
     }
+
+    fn add_guest_customer(
+        &self,
+        router_data: &mut types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+        guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
+    ) -> RouterResult<()> {
+        if let Some(guest_customer_data) = guest_customer {
+            router_data.request.guest_customer = Some(guest_customer_data.clone());
+        }
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]

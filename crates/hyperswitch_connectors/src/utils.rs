@@ -7365,6 +7365,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         ucs_authentication_data: None,
         customer_acceptance: data.request.customer_acceptance.clone(),
         split_payments: None, // TODO: allow charges on mandates?
+        guest_customer: None,
         merchant_order_reference_id: None,
         integrity_object: None,
         additional_payment_method_data: None,

@@ -56,7 +56,9 @@ use transformers as redsys;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self as connector_utils, PaymentsPreAuthenticateRequestData},
+    utils::{
+        self as connector_utils, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -1069,7 +1071,10 @@ static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 impl ConnectorSpecifications for Redsys {
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
-            api::CurrentFlowInfo::Authorize { auth_type, .. } => auth_type.is_three_ds(),
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
