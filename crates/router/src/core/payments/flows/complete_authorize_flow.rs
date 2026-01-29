@@ -51,7 +51,6 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -72,7 +71,6 @@ impl
             self.clone(),
             connector_id,
             processor,
-            customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -175,6 +173,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 payment_method: Some(self.payment_method),
                 request_data: &self.request,
             },
@@ -360,6 +359,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 request_data: &self.request,
                 payment_method: Some(self.payment_method),
             },
@@ -446,6 +446,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 request_data: &self.request,
                 payment_method: Some(self.payment_method),
             },
