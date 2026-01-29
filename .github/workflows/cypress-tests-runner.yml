@@ -193,6 +193,7 @@ jobs:
         shell: bash
         run: |
           if gh pr view ${{ github.event.pull_request.number }} \
+              --repo ${{ github.repository }} \
               --json labels \
               --jq '.labels[].name' | grep -q '^S-test-ready$'; then
             echo "RUN_CYPRESS=true" >> $GITHUB_ENV
