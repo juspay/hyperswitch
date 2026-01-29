@@ -72,6 +72,9 @@ pub struct PaymentsAuthorizeData {
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
+    // Guest customer fields
+    pub guest_customer: Option<payments::GuestCustomer>,
+
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 
@@ -257,6 +260,7 @@ pub struct PaymentsCaptureData {
     pub minor_amount_to_capture: MinorUnit,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -643,6 +647,44 @@ pub struct GiftCardBalanceCheckRequestData {
     pub minor_amount: Option<MinorUnit>,
 }
 
+impl TryFrom<SetupMandateRequestData> for GiftCardBalanceCheckRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            currency: Some(data.currency),
+            minor_amount: Some(data.minor_amount),
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for GiftCardBalanceCheckRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data
+                .payment_method_data
+                .get_required_value("payment_method_data")
+                .change_context(ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_data",
+                })?,
+            currency: Some(data.currency),
+            minor_amount: Some(data.minor_amount),
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for GiftCardBalanceCheckRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            currency: Some(data.currency),
+            minor_amount: Some(data.minor_amount),
+        })
+    }
+}
+
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
@@ -911,6 +953,7 @@ pub struct CompleteAuthorizeData {
     pub is_stored_credential: Option<bool>,
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -961,6 +1004,7 @@ pub struct PaymentsCancelData {
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

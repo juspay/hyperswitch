@@ -175,7 +175,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     let db = &*state.store;
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -185,7 +185,7 @@ pub async fn find_payment_intent_from_payment_id_type(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
-                .find_payment_attempt_by_merchant_id_connector_txn_id(
+                .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                     platform.get_processor().get_account().get_id(),
                     &connector_transaction_id,
                     platform.get_processor().get_account().storage_scheme,
@@ -193,7 +193,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -204,7 +204,7 @@ pub async fn find_payment_intent_from_payment_id_type(
         }
         payments::PaymentIdType::PaymentAttemptId(attempt_id) => {
             let attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
@@ -212,7 +212,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -255,7 +255,7 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &refund.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -263,7 +263,7 @@ pub async fn find_payment_intent_from_refund_id_type(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    db.find_payment_intent_by_payment_id_merchant_id(
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
         platform.get_processor().get_account().get_id(),
         platform.get_processor().get_key_store(),
@@ -298,7 +298,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
     };
-    db.find_payment_intent_by_payment_id_merchant_id(
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -378,7 +378,7 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -1175,9 +1175,12 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
+
+    // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_payment_webhook_statuses()
-        .contains(&status);
+        .get_configured_payment_webhook_statuses()
+        .map(|statuses| statuses.contains(&status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let captures = payment_data
@@ -1277,9 +1280,11 @@ pub async fn trigger_refund_outgoing_webhook(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    // Trigger an outgoing webhook regardless of the current refund status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_refund_webhook_statuses()
-        .contains(&refund_status);
+        .get_configured_refund_webhook_statuses()
+        .map(|statuses| statuses.contains(&refund_status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let event_type = refund_status.into();
@@ -1348,9 +1353,12 @@ pub async fn trigger_payouts_webhook(
         })?;
 
     let status = &payout_response.status;
+
+    // Trigger an outgoing webhook regardless of the current payout status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_payout_webhook_statuses()
-        .contains(status);
+        .get_configured_payout_webhook_statuses()
+        .map(|statuses| statuses.contains(status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let event_type = (*status).into();

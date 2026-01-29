@@ -227,6 +227,7 @@ pub struct ConnectorTomlConfig {
     pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
+    pub network_token: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]

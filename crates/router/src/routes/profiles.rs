@@ -482,8 +482,8 @@ pub async fn toggle_connector_agnostic_mit(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,

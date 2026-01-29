@@ -247,6 +247,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -374,6 +375,8 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             }),
             card_network: card_data.card_network,
             domestic_network: card_data.domestic_network,
+            // needs to be updated
+            auth_code: None,
         })
     }
 }

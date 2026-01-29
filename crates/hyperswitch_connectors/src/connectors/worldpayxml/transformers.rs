@@ -632,7 +632,7 @@ enum Action {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayxmlSyncResponse {
-    Webhook(Box<WorldpayXmlWebhookBody>),
+    Webhook(Box<WorldpayFormWebhookBody>),
     Payment(Box<PaymentService>),
 }
 
@@ -1269,6 +1269,7 @@ impl<F>
                                     order_status.order_code.clone(),
                                 ),
                                 incremental_authorization_allowed: None,
+                                authentication_data: None,
                                 charges: None,
                             }),
                             ..item.data
@@ -1286,6 +1287,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1294,24 +1296,26 @@ impl<F>
             }
             WorldpayxmlSyncResponse::Webhook(data) => {
                 let is_auto_capture = item.data.request.is_auto_capture()?;
-                let order_status_event = data.notify.order_status_event;
 
                 let status = get_attempt_status(
                     is_auto_capture,
-                    order_status_event.payment.last_event,
+                    data.payment_status,
                     Some(&item.data.status),
                 )?;
-                let response = process_payment_response(
-                    status,
-                    &order_status_event.payment,
-                    item.http_code,
-                    order_status_event.order_code.clone(),
-                )
-                .map_err(|err| *err);
 
                 Ok(Self {
                     status,
-                    response,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(data.order_code.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(data.order_code.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                        authentication_data: None,
+                    }),
                     ..item.data
                 })
             }
@@ -1570,6 +1574,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 });
 
@@ -1789,6 +1794,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     network_txn_id: None,
                     connector_response_reference_id: Some(capture_received.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1850,6 +1856,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     network_txn_id: None,
                     connector_response_reference_id: Some(cancel_received.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1977,18 +1984,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                 }
             }
             WorldpayxmlSyncResponse::Webhook(data) => {
-                let payment_data = data.notify.order_status_event.payment;
-
-                let status = get_refund_status(payment_data.last_event)?;
+                let status = get_refund_status(data.payment_status)?;
                 let response = if connector_utils::is_refund_failure(status) {
-                    let error_code = payment_data
-                        .return_code
-                        .as_ref()
-                        .map(|code| code.code.clone());
-                    let error_message = payment_data
-                        .return_code
-                        .as_ref()
-                        .map(|code| code.description.clone());
+                    let error_code = data.return_code;
+                    let error_message = data.return_message;
 
                     Err(ErrorResponse {
                         code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -2007,7 +2006,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                     })
                 } else {
                     Ok(RefundsResponseData {
-                        connector_refund_id: data.notify.order_status_event.order_code,
+                        connector_refund_id: data.order_code,
                         refund_status: status,
                     })
                 };
@@ -2554,6 +2553,7 @@ fn process_payment_response(
             network_txn_id: None,
             connector_response_reference_id: Some(order_code.clone()),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     }
@@ -2648,19 +2648,24 @@ pub fn map_purpose_code(value: Option<String>) -> Option<String> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "paymentService")]
-pub struct WorldpayXmlWebhookBody {
-    #[serde(rename = "@version")]
-    pub version: String,
-    #[serde(rename = "@merchantCode")]
-    pub merchant_code: Secret<String>,
-    pub notify: Notify,
-}
+pub struct WorldpayFormWebhookBody {
+    #[serde(rename = "PaymentAmount")]
+    pub payment_amount: Option<StringMinorUnit>,
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Notify {
-    pub order_status_event: OrderStatusEvent,
+    #[serde(rename = "PaymentId")]
+    pub payment_id: Option<String>,
+
+    #[serde(rename = "OrderCode")]
+    pub order_code: String,
+
+    #[serde(rename = "PaymentStatus")]
+    pub payment_status: LastEvent,
+
+    #[serde(rename = "ReturnCode")]
+    pub return_code: Option<String>,
+
+    #[serde(rename = "ReturnMessage")]
+    pub return_message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

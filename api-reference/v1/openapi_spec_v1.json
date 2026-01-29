@@ -9644,7 +9644,12 @@
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25",
+            "example": "003925",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
             "nullable": true
           }
         }
@@ -11387,6 +11392,33 @@
                     "type": "string",
                     "description": "holder name for bank debit",
                     "example": "A. Schneider"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
                   }
                 }
               }
@@ -14151,6 +14183,10 @@
           },
           "authentication_data": {
             "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -14279,6 +14315,42 @@
           "credit",
           "debit"
         ]
+      },
+      "CardWithLimitedData": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
       },
       "CartesBancairesParams": {
         "type": "object",
@@ -21115,7 +21187,7 @@
           "merchant_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantAccountRequestType"
+                "$ref": "#/components/schemas/MerchantAccountType"
               }
             ],
             "nullable": true
@@ -24691,6 +24763,14 @@
             "type": "string",
             "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25816,6 +25896,17 @@
                 "$ref": "#/components/schemas/CardDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
           }
         ]
       },
@@ -26312,6 +26403,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code for the payment",
+            "example": "003225",
             "nullable": true
           }
         }
@@ -27017,6 +27114,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
               }
             ],
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -34185,13 +34287,13 @@
         "type": "string",
         "enum": [
           "do_not_retry",
-          "retry_after10_days",
-          "retry_after1_hour",
-          "retry_after24_hours",
-          "retry_after2_days",
-          "retry_after4_days",
-          "retry_after6_days",
-          "retry_after8_days",
+          "retry_after_10_days",
+          "retry_after_1_hour",
+          "retry_after_24_hours",
+          "retry_after_2_days",
+          "retry_after_4_days",
+          "retry_after_6_days",
+          "retry_after_8_days",
           "retry_after_instrument_update",
           "retry_later",
           "retry_with_different_payment_method_data",
@@ -34296,6 +34398,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_with_limited_data"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/CardWithLimitedData"
               }
             }
           }
@@ -34678,6 +34798,31 @@
           "schedule_refund"
         ]
       },
+      "RelayCaptureRequestData": {
+        "type": "object",
+        "required": [
+          "authorized_amount",
+          "amount_to_capture",
+          "currency"
+        ],
+        "properties": {
+          "authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is authorized for capture",
+            "example": 6540
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being captured",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -34688,6 +34833,17 @@
             "properties": {
               "refund": {
                 "$ref": "#/components/schemas/RelayRefundRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capture"
+            ],
+            "properties": {
+              "capture": {
+                "$ref": "#/components/schemas/RelayCaptureRequestData"
               }
             }
           }
@@ -34839,7 +34995,8 @@
       "RelayType": {
         "type": "string",
         "enum": [
-          "refund"
+          "refund",
+          "capture"
         ]
       },
       "RequestPaymentMethodTypes": {
@@ -38616,6 +38773,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
+            "example": "009825",
             "nullable": true
           }
         }
