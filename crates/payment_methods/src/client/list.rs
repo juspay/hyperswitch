@@ -1,6 +1,7 @@
 use api_models::payment_methods::{
     CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response,
+    PaymentMethodListRequest,
 };
 use common_utils::{id_type, request::Method};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
@@ -18,7 +19,7 @@ pub struct ListCustomerPaymentMethods;
 #[derive(Debug)]
 pub struct ListCustomerPaymentMethodsV1Request {
     pub customer_id: id_type::CustomerId,
-    pub query_params: api_models::payment_methods::PaymentMethodListRequest,
+    pub query_params: PaymentMethodListRequest,
 }
 
 impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymentMethodsRequest {
@@ -146,7 +147,7 @@ impl ListCustomerPaymentMethods {
 hyperswitch_interfaces::impl_microservice_flow!(
     ListCustomerPaymentMethods,
     method = Method::Get,
-    path = "/{customer_id}/payment_methods",
+    path = "/v2/customers/{customer_id}/saved-payment-methods",
     v1_request = ListCustomerPaymentMethodsV1Request,
     v2_request = ModularListCustomerPaymentMethodsRequest,
     v2_response = ModularListCustomerPaymentMethodsResponse,

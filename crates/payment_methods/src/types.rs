@@ -23,8 +23,10 @@ pub struct PaymentMethodResponseItem {
     pub recurring_enabled: Option<bool>,
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub bank: Option<api_models::payment_methods::MaskedBankDetails>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub requires_cvv: bool,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_used_at: PrimitiveDateTime,
     pub is_default: bool,
     pub billing: Option<api_models::payments::Address>,
@@ -33,6 +35,9 @@ pub struct PaymentMethodResponseItem {
 }
 /// V2 PaymentMethodResponseData enum
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
 }
