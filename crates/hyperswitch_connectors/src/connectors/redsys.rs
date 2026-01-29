@@ -1090,9 +1090,7 @@ impl ConnectorSpecifications for Redsys {
                 // (controlled by should_continue_after_preauthenticate in pre_authentication_step),
                 // we should proceed with UCS authenticate call for 3DS flows.
                 // This handles the 3DS exempt scenario where no redirect is needed after preauthenticate.
-                auth_type.is_three_ds()
-                    && request_data.payment_method_data.get_payment_method()
-                        == Some(common_enums::PaymentMethod::Card)
+                auth_type.is_three_ds() && request_data.is_card()
             }
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
