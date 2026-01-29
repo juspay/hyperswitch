@@ -44,7 +44,7 @@ use crate::{
             },
             tokenization,
             types::MultipleCaptureData,
-            PaymentData, PaymentMethodChecker,
+            PaymentData, PaymentIntentStateMetadataExt, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -2168,6 +2168,49 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             None => (None, None, None),
                         },
                         types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
+                            (None, None, None)
+                        }
+                        types::PaymentsResponseData::PostCaptureVoidResponse {
+                            post_capture_void_status,
+                            connector_reference_id,
+                            description,
+                        } => {
+                            let post_capture_void_response =
+                                common_types::domain::PostCaptureVoidData {
+                                    status: post_capture_void_status,
+                                    connector_reference_id,
+                                    description,
+                                };
+
+                            tokio::spawn({
+                                let m_state = state.clone();
+                                let state_metadata = payment_data
+                                    .payment_intent
+                                    .state_metadata
+                                    .clone()
+                                    .unwrap_or_default();
+                                let m_processor = processor.clone();
+                                let m_payment_intent = payment_data.payment_intent.clone();
+
+                                async move {
+                                    if let Err(err) =
+                                        PaymentIntentStateMetadataExt::from(state_metadata)
+                                            .update_intent_state_metadata_for_post_capture_void(
+                                                &m_state,
+                                                &m_processor,
+                                                &m_payment_intent,
+                                                post_capture_void_response,
+                                            )
+                                            .await
+                                    {
+                                        logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata after dispute lost"
+                        );
+                                    }
+                                }
+                            });
+
                             (None, None, None)
                         }
                     }
