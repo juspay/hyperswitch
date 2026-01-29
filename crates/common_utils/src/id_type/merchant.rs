@@ -110,6 +110,11 @@ impl MerchantId {
         format!("{}_requires_cvv", self.get_string_repr())
     }
 
+    /// get_implicit_customer_update_key
+    pub fn get_implicit_customer_update_key(&self) -> String {
+        format!("{}_implicit_customer_update", self.get_string_repr())
+    }
+
     /// get_pm_filters_cgraph_key
     pub fn get_pm_filters_cgraph_key(&self) -> String {
         format!("pm_filters_cgraph_{}", self.get_string_repr())

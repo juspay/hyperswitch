@@ -539,7 +539,6 @@ pub async fn retrieve_payment_method_with_token(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     card_token_data: Option<&domain::CardToken>,
-    customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
@@ -674,7 +673,6 @@ pub async fn retrieve_payment_method_with_token(
                 platform.get_processor(),
                 auth_token,
                 payment_intent,
-                customer,
             )
             .await?
             .map(
@@ -693,12 +691,11 @@ pub async fn retrieve_payment_method_with_token(
             payment_method_id: None,
         },
         storage::PaymentTokenData::BankDebit(bank_debit) => {
-            let customer =
-                customer
-                    .as_ref()
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "customer",
-                    })?;
+            let customer_id = payment_intent.customer_id.as_ref().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer",
+                },
+            )?;
 
             let locker_id = bank_debit.locker_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
@@ -709,7 +706,7 @@ pub async fn retrieve_payment_method_with_token(
             let bank_debit_detail = cards::get_bank_debit_from_hs_locker(
                 state,
                 platform.get_provider(),
-                &customer.customer_id,
+                customer_id,
                 locker_id,
             )
             .await?;

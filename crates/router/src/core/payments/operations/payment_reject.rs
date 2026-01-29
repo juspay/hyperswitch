@@ -224,7 +224,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentRejectOperation<'b, F>, PaymentData<F>)>

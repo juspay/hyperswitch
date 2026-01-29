@@ -51,7 +51,6 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -69,7 +68,7 @@ impl
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = self.payment_intent.customer_id.clone();
 
         let payment_method = self.payment_attempt.payment_method;
         let currency = self.payment_attempt.currency;

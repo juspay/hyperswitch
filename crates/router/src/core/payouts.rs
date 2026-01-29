@@ -1241,7 +1241,7 @@ pub async fn create_recipient(
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
                             &connector_label,
-                            Some(&customer),
+                            customer.connector_customer.as_ref(),
                             recipient_create_data.connector_payout_id.clone(),
                         )
                         .await

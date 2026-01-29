@@ -168,7 +168,6 @@ where
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }
@@ -182,14 +181,12 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
-            customer,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
@@ -218,14 +215,12 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
-            customer,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::CheckoutOrSale;

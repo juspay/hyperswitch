@@ -405,13 +405,16 @@ where
             connector.clone(),
             operation,
             payment_data,
-            customer,
             validate_result,
             business_profile,
             should_retry_with_pan,
             routing_decision,
         )
         .await?;
+
+    let connector_customer_map = customer
+        .as_ref()
+        .and_then(|customer| customer.connector_customer.as_ref());
 
     let (updated_customer, call_connector_service_response, updated_state) =
         payments::decide_unified_connector_service_call(
@@ -420,7 +423,7 @@ where
             connector.clone(),
             operation,
             payment_data,
-            customer,
+            connector_customer_map,
             payments::CallConnectorAction::Trigger,
             None,
             validate_result,
@@ -449,7 +452,6 @@ where
         platform.get_processor(),
         operation,
         payment_data,
-        customer,
         business_profile,
         None,
         connector,

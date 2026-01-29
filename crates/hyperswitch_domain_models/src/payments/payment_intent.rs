@@ -162,6 +162,22 @@ pub struct CustomerData {
     pub tax_registration_id: Option<Secret<String>>,
 }
 
+impl CustomerData {
+    pub fn fill_missing_fields(&mut self, other: &Self) {
+        self.name = self.name.clone().or_else(|| other.name.clone());
+        self.email = self.email.clone().or_else(|| other.email.clone());
+        self.phone = self.phone.clone().or_else(|| other.phone.clone());
+        self.phone_country_code = self
+            .phone_country_code
+            .clone()
+            .or_else(|| other.phone_country_code.clone());
+        self.tax_registration_id = self
+            .tax_registration_id
+            .clone()
+            .or_else(|| other.tax_registration_id.clone());
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {

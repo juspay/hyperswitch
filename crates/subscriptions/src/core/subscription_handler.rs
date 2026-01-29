@@ -116,7 +116,7 @@ impl<'a> SubscriptionHandler<'a> {
             Some(customer_response) => {
                 match customer::update_connector_customer_in_customers(
                     merchant_connector_id.get_string_repr(),
-                    Some(customer),
+                    customer.connector_customer.as_ref(),
                     Some(customer_response.connector_customer_id),
                 )
                 .await
