@@ -465,7 +465,7 @@ pub struct ApplePayPredecryptDataInternal {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
-    pub Pcator: Option<String>,
+    pub eci_indicator: Option<String>,
 }
 
 impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayPredecryptData {
