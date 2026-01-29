@@ -50,12 +50,6 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing_descriptor: {
-          name: "abc",
-          email: "abc@gmail.com",
-          city: "delhi",
-          statement_descriptor: "order123",
-        },
       },
       Response: {
         status: 200,

@@ -16,7 +16,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "cybersource stripe checkout"
+  PAYMENTS_CONNECTORS: "checkout"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
