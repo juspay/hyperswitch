@@ -76,6 +76,29 @@ pub struct AuthenticationData {
     pub profile: domain::Profile,
 }
 
+#[cfg(feature = "v1")]
+impl AuthenticationData {
+    pub fn construct_authentication_data_for_internal_merchant_id_profile_id_auth(
+        platform: domain::Platform,
+        profile: domain::Profile,
+    ) -> Self {
+        Self {
+            platform,
+            profile: Some(profile),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl AuthenticationData {
+    pub fn construct_authentication_data_for_internal_merchant_id_profile_id_auth(
+        platform: domain::Platform,
+        profile: domain::Profile,
+    ) -> Self {
+        Self { platform, profile }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PlatformAccountWithKeyStore {
     account: domain::MerchantAccount,
@@ -438,6 +461,13 @@ impl GetAuthType for ApiKeyAuth {
     }
 }
 
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
+impl GetAuthType for V2ApiKeyAuth {
+    fn get_auth_type(&self) -> detached::PayloadType {
+        detached::PayloadType::ApiKey
+    }
+}
+
 #[cfg(feature = "partial-auth")]
 pub trait GetMerchantAccessFlags {
     fn is_connected_scope_operation_allowed(&self) -> bool;
@@ -446,6 +476,16 @@ pub trait GetMerchantAccessFlags {
 
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for ApiKeyAuth {
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
+    }
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
+    }
+}
+
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
+impl GetMerchantAccessFlags for V2ApiKeyAuth {
     fn is_connected_scope_operation_allowed(&self) -> bool {
         self.allow_connected_scope_operation
     }
@@ -2465,10 +2505,28 @@ where
 /// InternalMerchantIdProfileIdAuth authentication which first tries to authenticate using `X-Internal-API-Key`,
 /// `X-Merchant-Id` and `X-Profile-Id` headers. If any of these headers are missing,
 /// it falls back to the provided authentication mechanism.
-#[cfg(feature = "v1")]
 pub struct InternalMerchantIdProfileIdAuth<F>(pub F);
 
-#[cfg(feature = "v1")]
+pub fn is_internal_merchant_id_profile_id_auth(
+    request_headers: &HeaderMap,
+) -> common_enums::ApiKeyType {
+    let merchant_id = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
+        .ok();
+    let internal_api_key = HeaderMapStruct::new(request_headers)
+        .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+        .map(|internal_api_key| internal_api_key.to_string());
+    let profile_id = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
+        .ok();
+
+    if merchant_id.is_some() && profile_id.is_some() && internal_api_key.is_some() {
+        common_enums::ApiKeyType::Internal
+    } else {
+        common_enums::ApiKeyType::External
+    }
+}
+
 #[async_trait]
 impl<A, F> AuthenticateAndFetch<AuthenticationData, A> for InternalMerchantIdProfileIdAuth<F>
 where
@@ -2543,10 +2601,8 @@ where
                 initiator,
             );
 
-            let auth = AuthenticationData {
-                platform,
-                profile: Some(profile),
-            };
+            let auth = AuthenticationData::construct_authentication_data_for_internal_merchant_id_profile_id_auth(platform, profile);
+
             Ok((
                 auth.clone(),
                 AuthenticationType::InternalMerchantIdProfileId {
@@ -4986,6 +5042,33 @@ where
     } else {
         let (auth, auth_flow) = get_auth_type_and_flow(headers, api_auth)?;
         Ok((auth, auth_flow))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn check_internal_api_key_auth_no_client_secret<T>(
+    headers: &HeaderMap,
+    api_auth: V2ApiKeyAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    common_enums::ApiKeyType,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            common_enums::ApiKeyType::Internal,
+        ))
+    } else {
+        Ok((
+            Box::new(HeaderAuth(api_auth)),
+            common_enums::ApiKeyType::External,
+        ))
     }
 }
 
