@@ -5,12 +5,12 @@ use api_models::admin;
 use base64::Engine;
 use common_enums::{
     connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
-    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, UcsAvailability,
+    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, ServiceCall, UcsAvailability,
 };
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
+    consts::{EVENT_ORIGIN_ROUTER, X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
     errors::CustomResult,
     ext_traits::ValueExt,
     id_type,
@@ -1933,7 +1933,8 @@ where
             dispute_id,
             payout_id,
             status_code,
-            GatewaySystem::UnifiedConnectorService,
+            EVENT_ORIGIN_ROUTER.to_string(),
+            ServiceCall::Internal,
         );
 
         // Set response body based on status code
@@ -2077,7 +2078,8 @@ where
             dispute_id,
             payout_id,
             status_code,
-            GatewaySystem::UnifiedConnectorService,
+            EVENT_ORIGIN_ROUTER.to_string(),
+            ServiceCall::Internal,
         );
 
         // Set response body based on status code
