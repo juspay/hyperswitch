@@ -140,16 +140,15 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_type
-            .map(|payment_method_type| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    router_data.request.payment_method_data.clone(),
-                    Some(payment_method_type),
-                )
-            })
-            .transpose()?;
+        // Always build payment_method using payment_method_data (which is non-optional).
+        // payment_method_type is passed as optional, but payment_method must always be present
+        // for UCS to process the tokenization request.
+        let payment_method = Some(
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+            )?,
+        );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -173,6 +172,7 @@ impl
             metadata: None,
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -367,6 +367,9 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -487,6 +490,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
 
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
@@ -533,7 +537,9 @@ impl
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
-            locale: None,
+            continue_redirection_url: None,
+            redirection_response: None,
+            threeds_completion_indicator: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -863,6 +869,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1036,6 +1043,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1213,6 +1221,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: None,
             customer_name: None,
@@ -1258,7 +1267,6 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -1537,6 +1545,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1613,7 +1622,6 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
             tokenization_strategy: None,
         })
     }
@@ -3659,6 +3667,18 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Braintree form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Mifinity form type is not implemented".to_string(),
                 )
                 .into(),
             ),
