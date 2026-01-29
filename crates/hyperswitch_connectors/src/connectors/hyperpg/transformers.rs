@@ -132,6 +132,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, HyperpgPaymentsResponse, T, PaymentsRes
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
+                authentication_data: None,
             }),
             ..item.data
         })
