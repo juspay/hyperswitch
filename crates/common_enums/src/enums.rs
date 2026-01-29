@@ -10529,6 +10529,30 @@ pub enum StorageType {
     Persistent,
 }
 
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    /// Manual retry initiated by user/merchant
+    ManualRetry,
+    /// Automatic retry triggered by the system (GSM-based)
+    AutoRetry,
+}
+
 #[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]

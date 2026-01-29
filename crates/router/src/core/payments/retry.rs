@@ -847,6 +847,7 @@ pub fn make_new_payment_attempt(
         debit_routing_savings: Default::default(),
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
+        retry_type: Some(storage_enums::RetryType::AutoRetry),
     }
 }
 

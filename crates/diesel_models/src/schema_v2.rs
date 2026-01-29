@@ -1105,6 +1105,8 @@ diesel::table! {
         #[max_length = 64]
         attempts_group_id -> Nullable<Varchar>,
         amount_captured -> Nullable<Int8>,
+        #[max_length = 64]
+        retry_type -> Nullable<Varchar>,
     }
 }
 

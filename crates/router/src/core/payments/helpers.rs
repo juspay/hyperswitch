@@ -5059,6 +5059,7 @@ impl AttemptType {
             debit_routing_savings: None,
             is_overcapture_enabled: None,
             error_details: None,
+            retry_type: Some(enums::RetryType::ManualRetry),
         }
     }
 
