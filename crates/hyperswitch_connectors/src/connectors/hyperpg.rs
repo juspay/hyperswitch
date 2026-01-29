@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -24,7 +22,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -42,6 +41,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use transformers as hyperpg;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -590,17 +590,75 @@ impl webhooks::IncomingWebhook for Hyperpg {
     }
 }
 
-static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+lazy_static! {
+    static ref HYPERPG_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-static HYPERPG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Hyperpg",
-    description: "Hyperpg connector",
-    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Live,
-};
+        let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Maestro,
+    ];
 
-static HYPERPG_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+        let mut hyperpg_supported_payment_methods = SupportedPaymentMethods::new();
+        hyperpg_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+        );
+
+        hyperpg_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network,
+                    }
+                }),
+            ),
+        },
+        );
+
+        hyperpg_supported_payment_methods
+    };
+
+    static ref HYPERPG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Hyperpg",
+        description: "Hyperpg is your trusted payment gateway solution. Seamlessly manage transactions, enhance security, and empower your business to thrive in the digital age.",
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
+    };
+
+    static ref HYPERPG_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
 
 impl ConnectorSpecifications for Hyperpg {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
