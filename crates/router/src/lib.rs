@@ -297,7 +297,7 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
             .client_request_timeout(std::time::Duration::from_secs(
                 server.client_request_timeout,
             ))
-            .client_disconnect_timeout(std::time::Duration::from_secs(
+            .client_disconnect_timeout(std::time::Duration::from_millis(
                 server.client_disconnect_timeout,
             ));
 

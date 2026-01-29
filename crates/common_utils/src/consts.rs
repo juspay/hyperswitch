@@ -223,27 +223,3 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
-
-/// Default keep-alive timeout for HTTP server (in seconds)
-pub const DEFAULT_KEEP_ALIVE: u64 = 5;
-
-/// Default client request timeout for HTTP server (in seconds)
-pub const DEFAULT_CLIENT_REQUEST_TIMEOUT: u64 = 5;
-
-/// Default client disconnect timeout for HTTP server (in seconds)
-pub const DEFAULT_CLIENT_DISCONNECT_TIMEOUT: u64 = 1;
-
-/// Returns the default keep-alive timeout for HTTP server (in seconds)
-pub fn default_keep_alive() -> u64 {
-    DEFAULT_KEEP_ALIVE
-}
-
-/// Returns the default client request timeout for HTTP server (in seconds)
-pub fn default_client_request_timeout() -> u64 {
-    DEFAULT_CLIENT_REQUEST_TIMEOUT
-}
-
-/// Returns the default client disconnect timeout for HTTP server (in seconds)
-pub fn default_client_disconnect_timeout() -> u64 {
-    DEFAULT_CLIENT_DISCONNECT_TIMEOUT
-}
