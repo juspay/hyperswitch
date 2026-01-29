@@ -498,7 +498,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         state: &'a SessionState,
         payment_data: &mut PaymentConfirmData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        _platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
