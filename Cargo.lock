@@ -7335,6 +7335,7 @@ dependencies = [
  "num-traits",
  "num_cpus",
  "once_cell",
+ "open-feature",
  "openidconnect",
  "openssl",
  "payment_link",
