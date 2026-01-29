@@ -88,7 +88,6 @@ where
     let is_eligible_for_mandate_update =
         is_valid_response && is_integrity_ok && is_payment_successful;
 
-    // Use if let with tuple to combine payment_method and mca_id checks, combined with precondition
     if let (true, Some(payment_method), Some(mca_id)) = (
         is_eligible_for_mandate_update,
         payment_data.get_payment_method_info().cloned(),
