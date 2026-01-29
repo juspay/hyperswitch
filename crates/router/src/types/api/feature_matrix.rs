@@ -289,6 +289,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Peachpayments => Ok(ConnectorEnum::Old(Box::new(
                     connector::Peachpayments::new(),
                 ))),
+                enums::Connector::Peachpaymentsapm => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Peachpaymentsapm::new(),
+                ))),
                 enums::Connector::Placetopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
