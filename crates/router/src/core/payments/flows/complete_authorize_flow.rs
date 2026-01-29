@@ -658,12 +658,16 @@ pub async fn call_unified_connector_service_authenticate(
         .flatten()
         .or_else(|| {
             id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-                .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"),
+                )
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"))
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
@@ -771,12 +775,16 @@ pub async fn call_unified_connector_service_post_authenticate(
         .flatten()
         .or_else(|| {
             id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-                .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"),
+                )
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"))
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
