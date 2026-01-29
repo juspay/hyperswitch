@@ -55,6 +55,7 @@ pub mod gocardless;
 pub mod gpayments;
 pub mod helcim;
 pub mod hipay;
+pub mod hyperpg;
 pub mod hyperswitch_vault;
 pub mod hyperwallet;
 pub mod iatapay;
@@ -153,7 +154,7 @@ pub use self::{
     ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
     fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti, forte::Forte,
     getnet::Getnet, gigadat::Gigadat, globalpay::Globalpay, globepay::Globepay,
-    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
     hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
     inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,

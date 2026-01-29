@@ -117,6 +117,7 @@ pub enum Connector {
     Gpayments,
     Hipay,
     Helcim,
+    Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
     Inespay,
@@ -332,6 +333,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
+            | Self::Hyperpg
             | Self::HyperswitchVault
             | Self::Iatapay
 			| Self::Inespay
