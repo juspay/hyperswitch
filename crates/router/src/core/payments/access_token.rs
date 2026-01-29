@@ -2,7 +2,10 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::{gateway, ConnectorAccessTokenSuffix, ConnectorSpecifications};
+use hyperswitch_interfaces::{
+    api::{gateway, ConnectorAccessTokenSuffix, ConnectorSpecifications},
+    consts as interfaces_consts,
+};
 
 use crate::{
     consts,
@@ -302,9 +305,9 @@ pub async fn refresh_connector_auth(
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -395,9 +398,9 @@ pub async fn execute_authentication_token<
             // Handle timeout errors
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
