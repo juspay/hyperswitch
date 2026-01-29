@@ -649,8 +649,15 @@ pub struct ApplePayData {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DecryptedDataIndicator {
+    #[serde(rename = "1")]
+    Decrypted,
+}
+
+#[derive(Debug, Serialize)]
 pub struct ApplePayDecryptedData {
-    decrypted_applepay_data: String,
+    decrypted_applepay_data: DecryptedDataIndicator,
     ccnumber: CardNumber,
     ccexp: Secret<String>,
     cavv: Secret<String>,
@@ -659,7 +666,7 @@ pub struct ApplePayDecryptedData {
 
 #[derive(Debug, Serialize)]
 pub struct GooglePayDecryptedData {
-    decrypted_googlepay_data: String,
+    decrypted_googlepay_data: DecryptedDataIndicator,
     ccnumber: CardNumber,
     ccexp: Secret<String>,
     cavv: Option<Secret<String>>,
@@ -903,7 +910,7 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for GooglePayPa
             Some(payment_method_token) => match payment_method_token {
                 PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt_data) => {
                     Ok(Self::GooglePayDecrypt(Box::new(GooglePayDecryptedData {
-                        decrypted_googlepay_data: "1".to_string(), // Set to "1" to indicate decrypted data is being sent
+                        decrypted_googlepay_data: DecryptedDataIndicator::Decrypted,
                         ccnumber: google_pay_decrypt_data
                             .application_primary_account_number
                             .clone(),
@@ -971,7 +978,7 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for ApplePayPaym
             Some(payment_method_token) => match payment_method_token {
                 PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data) => {
                     Ok(Self::ApplePayDecrypt(Box::new(ApplePayDecryptedData {
-                        decrypted_applepay_data: "1".to_string(), // Set to "1" to indicate decrypted data is being sent
+                        decrypted_applepay_data: DecryptedDataIndicator::Decrypted,
                         ccnumber: apple_pay_decrypt_data
                             .application_primary_account_number
                             .clone(),
