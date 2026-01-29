@@ -303,9 +303,9 @@ request_body_limit = 32_768
 # Keep-alive timeout in seconds
 keep_alive = 5              
 # Client request timeout in seconds
-client_request_timeout = 5
+client_request_timeout = 5000
 # Client disconnect timeout in seconds
-client_disconnect_timeout = 1
+client_disconnect_timeout = 1000
 
 # HTTPS Server Configuration
 # Self-signed Private Key and Certificate can be generated with mkcert for local development
