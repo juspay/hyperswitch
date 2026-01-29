@@ -73,7 +73,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        RouterData as _,
+        PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -1701,9 +1701,10 @@ impl ConnectorSpecifications for Nuvei {
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
-                *auth_type == enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::SetupMandate {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
         }
     }
 
