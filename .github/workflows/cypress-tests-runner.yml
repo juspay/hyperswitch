@@ -822,7 +822,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
         run: |
           # Start the server in the background
-          target/debug/router > "${SERVER_LOG_PATH}" 2>&1 &
+          target/debug/router &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
@@ -865,7 +865,7 @@ jobs:
     needs: build-hyperswitch
     if: |
       github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -907,7 +907,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: hyperswitch-server
+          name: hyperswitch-server-hyperswitch-runners
           path: target/debug
 
       - name: Make server executable
