@@ -10,7 +10,10 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            helpers, operations, CustomerDetails, OperationSessionGetters, OperationSessionSetters,
+            PaymentAddress, PaymentData,
+        },
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -300,47 +303,35 @@ where
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        request: Option<CustomerDetails>,
+        _request: Option<CustomerDetails>,
         provider: &domain::Provider,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        match provider.get_account().merchant_account_type {
-            common_enums::MerchantAccountType::Standard => {
-                helpers::create_customer_if_not_exist(
-                    state,
-                    Box::new(self),
-                    payment_data,
-                    request,
-                    provider,
-                )
-                .await
-            }
-            common_enums::MerchantAccountType::Platform => {
-                let customer = helpers::get_customer_if_exists(
-                    state,
-                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
-                    payment_data.payment_intent.customer_id.as_ref(),
-                    provider,
+        let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
+
+        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
+            None => None,
+            Some(customer_id) => {
+                // Using this function because we should not fail PaymentsStart if customer is redacted
+                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
                 )
                 .await?
-                .inspect(|cust| {
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
-                });
+            }
+        };
 
-                Ok((Box::new(self), customer))
-            }
-            common_enums::MerchantAccountType::Connected => {
-                Err(errors::StorageError::ValueNotFound(
-                    "Connected merchant cannot be a provider".to_string(),
-                )
-                .into())
-            }
+        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
+            payment_data.set_email_if_not_present(email.into());
         }
+
+        Ok((Box::new(self), customer))
     }
 
     #[instrument(skip_all)]
