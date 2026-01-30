@@ -401,7 +401,7 @@ jobs:
             cypress-tests/cypress/reports/
           retention-days: 1
 
-      - name: Remove S-test-ready label on failure of mandatory Cypress tests
+      - name: Remove S-test-ready label on failure of mandatory Cypress tests 
         if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -628,7 +628,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Set matrix for optional connectors batches
+      - name : Set matrix for optional connectors batches
         id: set-matrix
         shell: bash
         run: |
@@ -734,7 +734,7 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
-
+      
       - name: Install sccache
         uses: taiki-e/install-action@v2
         with:
@@ -855,7 +855,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.batch.report_artifact_name }}
+          name:  ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
@@ -927,7 +927,7 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
-
+      
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
