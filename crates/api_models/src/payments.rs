@@ -9318,6 +9318,11 @@ pub struct PaymentsUpdateMetadataRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     pub feature_metadata: Option<FeatureMetadata>,
+    /// The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize_option")]
+    // Makes the field mandatory in PaymentsCreateRequest
+    pub amount: Option<Amount>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -9334,6 +9339,9 @@ pub struct PaymentsUpdateMetadataResponse {
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<serde_json::Value>,
+    /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -11112,7 +11120,21 @@ impl FeatureMetadata {
             .as_ref()
             .map(|metadata| metadata.total_retry_count)
     }
-
+    /// Helper to extract the optional pix_key from nested PIX details
+    pub fn get_optional_pix_key(&self) -> Option<Secret<String>> {
+        self.pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(details) => details.pix_key.clone(),
+                PixAdditionalDetails::Scheduled(details) => details.pix_key.clone(),
+            })
+    }
+    /// Helper to extract the optional covenant_code from boleto details
+    pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
+        self.boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.covenant_code.clone())
+    }
     pub fn set_payment_revenue_recovery_metadata_using_api(
         self,
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
@@ -11149,9 +11171,23 @@ pub struct FeatureMetadata {
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
-
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
+    /// Helper to extract the optional pix_key from nested PIX details
+    pub fn get_optional_pix_key(&self) -> Option<Secret<String>> {
+        self.pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(details) => details.pix_key.clone(),
+                PixAdditionalDetails::Scheduled(details) => details.pix_key.clone(),
+            })
+    }
+    /// Helper to extract the optional covenant_code from boleto details
+    pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
+        self.boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.covenant_code.clone())
+    }
     pub fn merge(self, other: Option<Self>) -> Self {
         if let Some(other) = other {
             Self {
@@ -11188,6 +11224,8 @@ pub struct BoletoAdditionalDetails {
     pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
     // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
     pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
+    // It is a number which shows a contract between merchant and bank
+    pub covenant_code: Option<Secret<String>>,
 }
 
 impl BoletoAdditionalDetails {
@@ -11196,6 +11234,7 @@ impl BoletoAdditionalDetails {
             due_date: self.due_date.or(other.due_date),
             document_kind: self.document_kind.or(other.document_kind),
             payment_type: self.payment_type.or(other.payment_type),
+            covenant_code: self.covenant_code.or(other.covenant_code),
         }
     }
 }
@@ -11211,6 +11250,9 @@ pub enum PixAdditionalDetails {
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: i32,
+    /// Unique key for pix transfer
+    #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
+    pub pix_key: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -11219,6 +11261,9 @@ pub struct ScheduledExpirationTime {
     pub date: String,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<i32>,
+    /// Unique key for pix transfer
+    #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
+    pub pix_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]

@@ -88,7 +88,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let currency = payment_intent.currency.get_required_value("currency")?;
-        let amount = payment_attempt.get_total_amount().into();
+        let amount = request
+            .amount
+            .unwrap_or(payment_attempt.get_total_amount().into());
+        payment_intent.amount = amount.into();
         let profile_id = payment_intent
             .profile_id
             .as_ref()

@@ -400,6 +400,17 @@ impl
             )
         };
 
+        let covenant_code = value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .clone()
+            .and_then(|data| {
+                data.get_optional_boleto_covenant_code()
+                    .or(Some(boleto_mca_metadata.covenant_code.clone()))
+            });
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
             nsu_code,
@@ -409,7 +420,7 @@ impl
                     .format(&time::macros::format_description!("[year]-[month]-[day]"))
                     .change_context(errors::ConnectorError::DateFormattingFailed)?,
             ),
-            covenant_code: Some(boleto_mca_metadata.covenant_code.clone()),
+            covenant_code,
             bank_number,
             client_number: value
                 .0
@@ -502,19 +513,21 @@ impl
         let pix_mca_metadata = santander_mca_metadata
             .pix
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-        
-        let customer_document_details = value.0.router_data.customer_document_details.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "customer.document_details" })?;
-let (cpf, cnpj) =
-    match customer_document_details.document_type {
-        enums::DocumentKind::Cpf => (
-            Some(customer_document_details.document_number),
-            None,
-        ),
-        enums::DocumentKind::Cnpj => (
-            None,
-            Some(customer_document_details.document_number),
-        ),
-    };
+
+        // let customer_document_details = value
+        //     .0
+        //     .router_data
+        //     .customer_document_details
+        //     .clone()
+        //     .ok_or(errors::ConnectorError::MissingRequiredField {
+        //         field_name: "customer.document_details",
+        //     })?;
+        // let (cpf, cnpj) = match customer_document_details.document_type {
+        //     enums::DocumentKind::Cpf => (Some(customer_document_details.document_number), None),
+        //     enums::DocumentKind::Cnpj => (None, Some(customer_document_details.document_number)),
+        // };
+
+        let (cpf, cnpj) = (None, None);
 
         let (calendar, debtor) = match &value
             .0
@@ -530,13 +543,13 @@ let (cpf, cnpj) =
                         expiracao: val.time,
                     });
                 let debt = Some(SantanderDebtor {
-                    cnpj: pix_data.2.clone(),
+                    cnpj,
                     nome: value.0.router_data.get_billing_full_name()?,
                     logradouro: None,
                     cidade: None,
                     uf: None,
                     cep: None,
-                    cpf: pix_data.1.clone(),
+                    cpf,
                 });
 
                 (Some(cal), debt)
@@ -549,13 +562,13 @@ let (cpf, cnpj) =
                     });
 
                 let debt = Some(SantanderDebtor {
-                    cpf: pix_data.1.clone(),
+                    cpf,
                     nome: value.0.router_data.get_billing_full_name()?,
                     logradouro: None,
                     cidade: None,
                     uf: None,
                     cep: None,
-                    cnpj: pix_data.2.clone(),
+                    cnpj,
                 });
 
                 (Some(cal), debt)
@@ -567,18 +580,27 @@ let (cpf, cnpj) =
                     });
 
                 let debt = Some(SantanderDebtor {
-                    cnpj: pix_data.2.clone(),
+                    cnpj,
                     nome: value.0.router_data.get_billing_full_name()?,
                     logradouro: None,
                     cidade: None,
                     uf: None,
                     cep: None,
-                    cpf: pix_data.1.clone(),
+                    cpf,
                 });
 
                 (Some(cal), debt)
             }
         };
+
+        let chave = value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .clone()
+            .and_then(|data| data.get_optional_pix_key())
+            .or(Some(pix_mca_metadata.pix_key.clone()));
 
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calendario: calendar,
@@ -586,7 +608,7 @@ let (cpf, cnpj) =
             valor: Some(SantanderValue {
                 original: value.0.amount.to_owned(),
             }),
-            chave: Some(pix_mca_metadata.pix_key.clone()),
+            chave,
             solicitacao_pagador: value
                 .0
                 .router_data
@@ -832,8 +854,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
     }
 }
 
-use crate::connectors::santander::SantanderVoidResponse::{Boleto, Pix};
-
 impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -843,7 +863,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
         item: ResponseRouterData<F, SantanderVoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
-            Pix(res) => Ok(Self {
+            SantanderVoidResponse::Pix(res) => Ok(Self {
                 status: AttemptStatus::from(res.status),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(res.txid.clone()),
@@ -857,7 +877,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
                 }),
                 ..item.data
             }),
-            Boleto(_) => Ok(Self {
+            SantanderVoidResponse::Boleto(_) => Ok(Self {
                 status: AttemptStatus::Voided,
                 response: item.data.response,
                 ..item.data
@@ -1114,16 +1134,26 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
         let boleto_components =
             extract_boleto_components(&value.router_data.request.connector_transaction_id)?;
 
+        let covenant_code = value
+            .router_data
+            .request
+            .feature_metadata
+            .clone()
+            .and_then(|data| {
+                data.get_optional_boleto_covenant_code()
+                    .or(Some(boleto_mca_metadata.covenant_code.clone()))
+            });
+
         Ok(Self {
             bank_number: Some(boleto_components.bank_number),
-            covenant_code: Some(boleto_mca_metadata.covenant_code.clone()),
+            covenant_code,
             environment: None,
             due_date,
             nsu_code: None,
             nsu_date: None,
             client_number: None,
             issue_date: None,
-            nominal_value: None,
+            nominal_value: Some(value.amount.to_owned()),
             participant_code: None,
             payer: None,
             beneficiary: None,
@@ -1160,6 +1190,11 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
     ) -> Result<Self, Self::Error> {
         match value.router_data.request.payment_method_type {
             Some(common_enums::PaymentMethodType::Pix) => {
+                let santander_mca_metadata =
+                    SantanderMetadataObject::try_from(&value.router_data.connector_meta_data)?;
+                let pix_mca_metadata = santander_mca_metadata
+                    .pix
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 let calendar = match &value
                     .router_data
                     .request
@@ -1193,12 +1228,23 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
                     }
                 };
 
-                // for now we are just updating the expiry, if asked we need to include amount, address in Update Metadata PaymentsRequest and consume from PaymentsUpdateMetadataData
+                let valor = Some(SantanderValue {
+                    original: value.amount.to_owned(),
+                });
+
+                let chave = value
+                    .router_data
+                    .request
+                    .feature_metadata
+                    .clone()
+                    .and_then(|data| data.get_optional_pix_key())
+                    .or(Some(pix_mca_metadata.pix_key.clone()));
+
                 Ok(Self {
                     calendario: calendar,
                     devedor: None,
-                    valor: None,
-                    chave: None,
+                    valor,
+                    chave,
                     solicitacao_pagador: None,
                     info_adicionais: None,
                 })

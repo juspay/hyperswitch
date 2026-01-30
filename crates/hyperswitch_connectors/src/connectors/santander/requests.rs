@@ -242,7 +242,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub nsu_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nsu_date: Option<String>,
-    // It is a number which shows a contract between merchant and bank => static for all txn's
+    // It is a number which shows a contract between merchant and bank
     #[serde(skip_serializing_if = "Option::is_none")]
     pub covenant_code: Option<Secret<String>>,
     // It is a unique ID which the merchant makes to identify each txn and the bank uses this to identify unique txn's

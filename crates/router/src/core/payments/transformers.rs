@@ -3250,6 +3250,7 @@ where
                     .map(Secret::new),
                 feature_metadata: payment_data.get_payment_intent().feature_metadata.clone(),
                 status: payment_data.get_payment_intent().status,
+                amount: payment_data.get_payment_intent().amount,
             },
             vec![],
         )))
@@ -5625,6 +5626,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             payment_method_data: None,
             currency: payment_data.currency,
             feature_metadata,
+            amount: payment_data
+                .payment_attempt
+                .get_total_amount()
+                .get_amount_as_i64(),
         })
     }
 }

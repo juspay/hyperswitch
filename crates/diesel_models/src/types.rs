@@ -86,6 +86,8 @@ pub struct BoletoAdditionalDetails {
     pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
     // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
     pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
+    // It is a number which shows a contract between merchant and bank
+    pub covenant_code: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -145,6 +147,8 @@ pub enum PixAdditionalDetails {
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: i32,
+    /// Unique key for pix transfer
+    pub pix_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -154,6 +158,8 @@ pub struct ScheduledExpirationTime {
     pub date: String,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<i32>,
+    /// Unique key for pix transfer
+    pub pix_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

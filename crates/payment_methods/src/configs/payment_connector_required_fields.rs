@@ -687,12 +687,9 @@ impl RequiredField {
                 },
             ),
             Self::PixDocumentNumber => (
-                "customer.document_details.document_number"
-                    .to_string(),
+                "customer.document_details.document_number".to_string(),
                 RequiredFieldInfo {
-                    required_field:
-                        "customer.document_details.document_number"
-                            .to_string(),
+                    required_field: "customer.document_details.document_number".to_string(),
                     display_name: "document_number".to_string(),
                     field_type: FieldType::UserSocialSecurityNumber,
                     value: None,
@@ -712,9 +709,7 @@ impl RequiredField {
             Self::PixDocumentType(document_type) => (
                 "customer.document_details.document_type".to_string(),
                 RequiredFieldInfo {
-                    required_field:
-                        "customer.document_details.document_type"
-                            .to_string(),
+                    required_field: "customer.document_details.document_type".to_string(),
                     display_name: "document_type".to_string(),
                     field_type: FieldType::UserDocumentType {
                         options: document_type.iter().map(|d| d.to_string()).collect(),

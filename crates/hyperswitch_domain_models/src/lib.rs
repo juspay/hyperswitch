@@ -167,6 +167,7 @@ impl ToDieselBoletoAdditionalDetails for api_models::payments::BoletoAdditionalD
             due_date: self.due_date.clone(),
             document_kind: self.document_kind,
             payment_type: self.payment_type,
+            covenant_code: self.covenant_code.clone(),
         }
     }
 }
@@ -177,6 +178,7 @@ impl ToApiBoletiAdditionalDetails for diesel_models::types::BoletoAdditionalDeta
             due_date: self.due_date.clone(),
             document_kind: self.document_kind,
             payment_type: self.payment_type,
+            covenant_code: self.covenant_code.clone(),
         }
     }
 }
@@ -193,12 +195,16 @@ impl ToDieselPixQR for api_models::payments::PixAdditionalDetails {
     fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails {
         match self {
             Self::Immediate(v) => diesel_models::types::PixAdditionalDetails::Immediate(
-                diesel_models::types::ImmediateExpirationTime { time: v.time },
+                diesel_models::types::ImmediateExpirationTime {
+                    time: v.time,
+                    pix_key: v.pix_key.clone(),
+                },
             ),
             Self::Scheduled(v) => diesel_models::types::PixAdditionalDetails::Scheduled(
                 diesel_models::types::ScheduledExpirationTime {
                     date: v.date.clone(),
                     validity_after_expiration: v.validity_after_expiration,
+                    pix_key: v.pix_key.clone(),
                 },
             ),
         }
@@ -209,12 +215,16 @@ impl ToApiPixQR for diesel_models::types::PixAdditionalDetails {
     fn to_api(&self) -> api_models::payments::PixAdditionalDetails {
         match self {
             Self::Immediate(v) => api_models::payments::PixAdditionalDetails::Immediate(
-                api_models::payments::ImmediateExpirationTime { time: v.time },
+                api_models::payments::ImmediateExpirationTime {
+                    time: v.time,
+                    pix_key: v.pix_key.clone(),
+                },
             ),
             Self::Scheduled(v) => api_models::payments::PixAdditionalDetails::Scheduled(
                 api_models::payments::ScheduledExpirationTime {
                     date: v.date.clone(),
                     validity_after_expiration: v.validity_after_expiration,
+                    pix_key: v.pix_key.clone(),
                 },
             ),
         }

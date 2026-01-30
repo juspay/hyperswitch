@@ -226,6 +226,7 @@ pub struct PaymentsUpdateMetadataData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
