@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 use std::collections::HashMap;
