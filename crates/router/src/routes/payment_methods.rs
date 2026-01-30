@@ -90,10 +90,10 @@ pub async fn create_payment_method_api(
             api_auth,
             jwt_auth,
             state.conf.internal_merchant_id_profile_id_auth.clone(),
-    ) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-    };
+        ) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+        };
 
     Box::pin(api::server_wrap(
         flow,
