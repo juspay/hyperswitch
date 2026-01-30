@@ -106,9 +106,9 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             document: item
                 .router_data
                 .get_customer_document_details()?
-                .and_then(|details| Some(details.document_number))
+                .map(|details| details.document_number)
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer.document_number",
+                    field_name: "customer.document_details.document_number",
                 })?,
         };
         let order_id = item.router_data.connector_request_reference_id.clone();
