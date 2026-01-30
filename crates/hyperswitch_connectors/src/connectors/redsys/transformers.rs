@@ -1897,29 +1897,28 @@ pub struct SyncErrorCode {
     ds_errorcode: String,
 }
 
-/// Estado de la transacción (Ds_State)
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DsState {
-    /// Solicitada (Requested)
+    /// Requested
     S,
-    /// En proceso de autorizar (Authorizing)
+    /// Authorizing
     P,
-    /// Autenticando (Authenticating)
+    /// Authenticating
     A,
-    /// Finalizada (Completed)
+    /// Completed
     F,
-    /// Sin respuesta / Error Técnico (No response / Technical Error)
+    /// No response / Technical Error
     T,
-    /// Transferencia, domiciliación o Paypal en proceso
+    /// Transfer, direct debit, or PayPal in progress
     E,
-    /// Domiciliación descargada
+    /// Direct debit downloaded.
     D,
-    /// Transferencia Línea Abierta
+    /// Online transfer
     L,
-    /// Redirigida a un Wallet
+    /// Redirected to a wallet
     W,
-    /// Redirigida a Iupay
+    /// Redirected to Iupay
     O,
 }
 
