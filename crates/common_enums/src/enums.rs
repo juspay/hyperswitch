@@ -10547,9 +10547,7 @@ pub enum StorageType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RetryType {
-    /// Manual retry initiated by user/merchant
     ManualRetry,
-    /// Automatic retry triggered by the system (GSM-based)
     AutoRetry,
 }
 
