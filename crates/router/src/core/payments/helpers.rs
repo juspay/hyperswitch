@@ -1538,11 +1538,11 @@ pub fn validate_customer_information(
             ),
         })?
     }
-    if let Err(err) = request.validate_document_details() {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
+    request.validate_document_details().map_err(|err| {
+        errors::ApiErrorResponse::PreconditionFailed {
             message: err.to_string(),
-        })?;
-    }
+        }
+    })?;
     Ok(())
 }
 
@@ -1676,7 +1676,7 @@ pub fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
-        document_details: api_models::customers::CustomerDocumentDetails::to(&document_details),
+        document_details,
     }
 }
 
@@ -1920,11 +1920,13 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 request_customer_details
                     .document_details
                     .clone()
-                    .async_lift(|inner| async {
+                    .async_lift(|inner| async move {
                         types::crypto_operation(
                             key_manager_state,
                             type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(inner),
+                            CryptoOperation::EncryptOptional(
+                                api_models::customers::CustomerDocumentDetails::to(&inner),
+                            ),
                             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
                             key,
                         )
@@ -2056,10 +2058,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .tax_registration_id
                         .clone()
                         .map(|val| val.into_inner()),
-                    customer_document_details: customer
-                        .document_details
-                        .clone()
-                        .map(|encryptable| encryptable.into_inner()),
+                    customer_document_details: customer.document_details.clone().and_then(
+                        |encryptable| {
+                            encryptable
+                                .into_inner()
+                                .expose()
+                                .parse_value::<api_models::customers::CustomerDocumentDetails>(
+                                    "CustomerDocumentDetails",
+                                )
+                                .ok()
+                        },
+                    ),
                 };
 
                 // Merge with existing payment intent customer details if present

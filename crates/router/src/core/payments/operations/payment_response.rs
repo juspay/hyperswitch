@@ -197,9 +197,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             &payment_data
                 .payment_intent
                 .get_customer_document_details()
-                .map_err(|_| {
-                    error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
-                })?,
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
         );
 
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
@@ -1296,9 +1297,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             &payment_data
                 .payment_intent
                 .get_customer_document_details()
-                .map_err(|_| {
-                    error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
-                })?,
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
         );
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,

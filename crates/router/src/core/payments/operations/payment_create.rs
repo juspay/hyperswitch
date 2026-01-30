@@ -1478,25 +1478,8 @@ impl PaymentCreate {
 
         let split_payments = request.split_payments.clone();
 
-        let customer_id_from_request = match (&request.customer_id, &request.customer) {
-            (Some(req_id), Some(customer)) => match customer.id.as_ref() {
-                Some(cust_id) if cust_id == req_id => Some(req_id),
-                Some(_) => {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "customer_id mismatch between customer_id and customer.id"
-                            .to_string(),
-                    }
-                    .into());
-                }
-                None => Some(req_id),
-            },
-            (Some(req_id), None) => Some(req_id),
-            (None, Some(customer)) => customer.id.as_ref(),
-            (None, None) => None,
-        };
-
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if let Some(customer_id) = customer_id_from_request {
+        let raw_customer_details = if let Some(customer_id) = request.get_customer_id() {
             let existing_customer_data = state
                 .store
                 .find_customer_optional_by_customer_id_merchant_id(
@@ -1506,9 +1489,13 @@ impl PaymentCreate {
                     platform.get_provider().get_account().storage_scheme,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!(
+                    "Failed while fetching customer data for customer_id: {:?}",
+                    customer_id
+                ))?;
 
-            let customer_document_details = if let Some(pm) = payment_method.as_ref() {
+            let document_details = if let Some(pm) = payment_method.as_ref() {
                 pm.payment_method_customer_details
                     .clone()
                     .map(|encryptable| encryptable.into_inner())
@@ -1517,6 +1504,16 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|cust| cust.document_details.clone().map(|doc| doc.into_inner()))
             };
+
+            let customer_document_details = document_details.as_ref().and_then(|secret| {
+                secret
+                    .clone()
+                    .expose()
+                    .parse_value::<api_models::customers::CustomerDocumentDetails>(
+                        std::any::type_name::<api_models::customers::CustomerDocumentDetails>(),
+                    )
+                    .ok()
+            });
 
             Some(
                 hyperswitch_domain_models::payments::payment_intent::CustomerData {

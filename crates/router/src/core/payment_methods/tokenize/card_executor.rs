@@ -465,9 +465,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             phone: self.customer.phone.clone(),
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
-            document_details: api_models::customers::CustomerDocumentDetails::from(
-                &self.customer.document_details.clone(),
-            ),
+            document_details: self.customer.document_details.clone(),
         })
     }
 

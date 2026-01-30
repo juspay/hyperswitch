@@ -1092,9 +1092,11 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
             tax_registration_id: value
                 .tax_registration_id
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
-            customer_document_details: value
-                .document_details
-                .map(|customer_document_details| customer_document_details.into_inner()),
+            customer_document_details: api_models::customers::CustomerDocumentDetails::from(
+                &value
+                    .document_details
+                    .map(|customer_document_details| customer_document_details.into_inner()),
+            ),
         })
     }
 }

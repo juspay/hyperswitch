@@ -106,7 +106,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             document: item
                 .router_data
                 .get_customer_document_details()?
-                .and_then(|details| details.document_number)
+                .and_then(|details| Some(details.document_number))
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "customer.document_number",
                 })?,

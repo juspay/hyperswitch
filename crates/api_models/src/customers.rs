@@ -1,5 +1,13 @@
+use common_enums::enums::DocumentKind;
 use common_types::primitive_wrappers::CustomerListLimit;
-use common_utils::{crypto, custom_serde, ext_traits::Encode, id_type, pii, types::Description};
+use common_utils::{
+    crypto, custom_serde,
+    errors::ValidationError,
+    ext_traits::{Encode, ValueExt},
+    id_type, pii,
+    types::Description,
+};
+use error_stack::Report;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -104,20 +112,9 @@ impl CustomerRequest {
     pub fn get_optional_email(&self) -> Option<pii::Email> {
         self.email.clone()
     }
-    pub fn get_document_details_as_secret(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Option<pii::SecretSerdeValue>,
-        common_utils::errors::ParsingError,
-    > {
-        self.document_details
-            .as_ref()
-            .map(|document_details| document_details.encode_to_value().map(Secret::new))
-            .transpose()
-    }
     pub fn validate_document_details(
         &self,
-    ) -> common_utils::errors::CustomResult<(), common_utils::errors::ValidationError> {
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
         self.document_details
             .as_ref()
             .map(|doc| doc.validate())
@@ -496,17 +493,20 @@ pub struct CustomerListResponse {
 pub struct CustomerDocumentDetails {
     /// The customer's document type
     #[schema(value_type = Option<DocumentKind>, example = "cpf")]
-    pub document_type: Option<common_enums::enums::DocumentKind>,
+    pub document_type: DocumentKind,
     /// The customer's document number
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
-    pub document_number: Option<Secret<String>>,
+    pub document_number: Secret<String>,
 }
 
 impl CustomerDocumentDetails {
     pub fn from(value: &Option<Secret<serde_json::Value>>) -> Option<Self> {
         value
-            .as_ref()
-            .and_then(|v| serde_json::from_value(v.peek().clone()).ok())
+            .as_ref()?
+            .peek()
+            .clone()
+            .parse_value("CustomerDocumentDetails")
+            .ok()
     }
 
     pub fn to(value: &Option<Self>) -> Option<Secret<serde_json::Value>> {
@@ -514,67 +514,51 @@ impl CustomerDocumentDetails {
             .as_ref()
             .and_then(|details| serde_json::to_value(details).ok().map(Secret::new))
     }
-    pub fn validate(
+
+    pub fn encode_to_secret(
         &self,
-    ) -> common_utils::errors::CustomResult<(), common_utils::errors::ValidationError> {
-        use common_enums::enums::DocumentKind;
-        use error_stack::Report;
+    ) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, common_utils::errors::ParsingError>
+    {
+        self.encode_to_value().map(Secret::new)
+    }
 
-        match (&self.document_type, &self.document_number) {
-            (Some(doc_type), Some(doc_number)) => {
-                let digits_only: String = doc_number
-                    .peek()
-                    .chars()
-                    .filter(|c| c.is_ascii_digit())
-                    .collect();
-
-                match doc_type {
-                    DocumentKind::Cpf => {
-                        if digits_only.len() != 11 {
-                            tracing::error!(
-                                validation_error = "CPF length mismatch",
-                                expected = 11,
-                                actual = digits_only.len(),
-                                field = "document_number"
-                            );
-                            Err(Report::new(
-                                common_utils::errors::ValidationError::IncorrectValueProvided {
-                                    field_name: "document_number",
-                                },
-                            ))
-                        } else {
-                            Ok(())
-                        }
-                    }
-                    DocumentKind::Cnpj => {
-                        if digits_only.len() != 14 {
-                            tracing::error!(
-                                validation_error = "CNPJ length mismatch",
-                                expected = 14,
-                                actual = digits_only.len(),
-                                field = "document_number"
-                            );
-                            Err(Report::new(
-                                common_utils::errors::ValidationError::IncorrectValueProvided {
-                                    field_name: "document_number",
-                                },
-                            ))
-                        } else {
-                            Ok(())
-                        }
-                    }
-                }
-            }
-
-            (Some(_), None) | (None, Some(_)) => Err(Report::new(
-                common_utils::errors::ValidationError::InvalidValue {
-                    message: "Both document_type and document_number must be provided together"
-                        .to_string(),
-                },
-            )
-            .attach_printable("Both document_type and document_number must be provided together")),
-
-            (None, None) => Ok(()),
+    pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let doc_type = &self.document_type;
+        let doc_number = &self.document_number;
+        let raw_number = doc_number.peek();
+        if !raw_number.chars().all(|c| c.is_ascii_digit()) {
+            tracing::error!(?doc_type, "Document number contains non-digit characters");
+            return Err(Report::new(ValidationError::InvalidValue {
+                message: format!("{:?} must contain only digits", doc_type),
+            }));
         }
+
+        // Length check for CPF and CNPJ
+        let expected_len = if matches!(doc_type, DocumentKind::Cpf) {
+            11
+        } else {
+            14
+        };
+
+        if raw_number.len() != expected_len {
+            tracing::error!(
+                ?doc_type,
+                actual_len = raw_number.len(),
+                expected_len,
+                "Document length mismatch"
+            );
+            return Err(Report::new(ValidationError::IncorrectValueProvided {
+                field_name: Box::leak(
+                    format!(
+                        "document_number (expected {} chars, got {})",
+                        expected_len,
+                        raw_number.len()
+                    )
+                    .into_boxed_str(),
+                ),
+            }));
+        }
+
+        Ok(())
     }
 }

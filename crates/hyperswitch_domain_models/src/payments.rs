@@ -387,16 +387,20 @@ impl PaymentIntent {
             Some(details) => {
                 let decrypted_value = details.clone().into_inner().expose();
 
-                let customer_data: CustomerData =
-                    serde_json::from_value(decrypted_value).map_err(|err| {
-                        router_env::logger::error!(
-                            "Failed to parse CustomerData while extracting customer_document_details: {:?}",
-                            err
-                        );
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+                    .map_err(|_| {
                         common_utils::errors::ParsingError::StructParseFailure("CustomerData")
-                    })?;
-
-                Ok(customer_data.customer_document_details)
+                    })
+                    .and_then(|customer_data| {
+                        customer_data
+                            .customer_document_details
+                            .map(|details| {
+                                serde_json::to_value(details)
+                                    .map(Secret::new)
+                                    .map_err(|_| common_utils::errors::ParsingError::UnknownError)
+                            })
+                            .transpose()
+                    })
             }
             None => Ok(None),
         }

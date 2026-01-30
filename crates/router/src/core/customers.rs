@@ -50,13 +50,14 @@ pub async fn create_customer(
     customer_data: customers::CustomerRequest,
     connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
-    if let Some(doc_details) = customer_data.document_details.as_ref() {
-        if let Err(err) = doc_details.validate() {
-            Err(errors::CustomersErrorResponse::InvalidRequestData {
-                message: err.to_string(),
-            })?;
-        }
-    }
+    customer_data
+        .document_details
+        .as_ref()
+        .map(|doc_details| doc_details.validate())
+        .transpose()
+        .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
 
     let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -154,20 +155,16 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             state,
         };
 
-        let document_details = Some(
-            self.get_document_details_as_secret()
-                .change_context(errors::CustomersErrorResponse::InternalServerError)?
-                .ok_or(errors::CustomersErrorResponse::InternalServerError)
-                .attach_printable("document_details not found")?,
-        );
-
-        let document_details_encrypted = document_details
+        let document_details_encrypted = self
+            .document_details
             .clone()
-            .async_lift(|inner| async {
+            .async_lift(|inner| async move {
                 types::crypto_operation(
                     &state.into(),
                     common_utils::type_name!(domain::Customer),
-                    CryptoOperation::EncryptOptional(inner),
+                    CryptoOperation::EncryptOptional(
+                        api_models::customers::CustomerDocumentDetails::to(&inner),
+                    ),
                     Identifier::Merchant(merchant_id.clone()),
                     provider.get_key_store().key.peek(),
                 )

@@ -215,7 +215,7 @@ impl behaviour::Conversion for Customer {
         )?;
         let document_details = match item.document_details {
             Some(inner) => {
-                match types::crypto_operation(
+                let output = types::crypto_operation(
                     state,
                     common_utils::type_name!(Self),
                     types::CryptoOperation::Decrypt(inner),
@@ -223,12 +223,13 @@ impl behaviour::Conversion for Customer {
                     key.peek(),
                 )
                 .await
-                {
-                    Ok(output) => match output {
-                        types::CryptoOutput::Operation(encryptable) => Some(encryptable),
-                        _ => None,
-                    },
-                    Err(_) => None,
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed to decrypt document details".to_string(),
+                })?;
+
+                match output {
+                    types::CryptoOutput::Operation(encryptable) => Some(encryptable),
+                    _ => None,
                 }
             }
             None => None,

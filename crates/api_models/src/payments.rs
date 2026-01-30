@@ -28,6 +28,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
+use crate::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
@@ -156,7 +157,7 @@ pub struct CustomerDetails {
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
-    pub document_details: Option<crate::customers::CustomerDocumentDetails>,
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -200,9 +201,9 @@ pub struct CustomerDetailsResponse {
     pub phone_country_code: Option<String>,
 
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
-    #[schema(value_type = Option<Value>)]
-    #[smithy(value_type = "Option<Object>")]
-    pub customer_document_details: Option<Secret<serde_json::Value>>,
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1673,8 +1674,7 @@ impl PaymentsRequest {
         self.customer
             .as_ref()
             .and_then(|data| data.document_details.as_ref())
-            .map(|doc| doc.validate())
-            .unwrap_or(Ok(()))
+            .map_or(Ok(()), |doc| doc.validate())
     }
 
     pub fn get_feature_metadata_as_value(

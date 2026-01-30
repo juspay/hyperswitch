@@ -847,11 +847,13 @@ pub(super) async fn get_or_create_customer_details(
                 let document_details = customer_details
                     .document_details
                     .clone()
-                    .async_lift(|inner| async {
+                    .async_lift(|inner| async move {
                         crypto_operation(
                             &state.into(),
                             common_utils::type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(inner),
+                            CryptoOperation::EncryptOptional(
+                                api_models::customers::CustomerDocumentDetails::to(&inner),
+                            ),
                             Identifier::Merchant(
                                 platform.get_processor().get_key_store().merchant_id.clone(),
                             ),
@@ -1439,7 +1441,7 @@ pub(super) fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let customer_document_details = request
+    let document_details = request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.document_details.clone());
@@ -1451,9 +1453,7 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
-        document_details: api_models::customers::CustomerDocumentDetails::to(
-            &customer_document_details,
-        ),
+        document_details,
     }
 }
 

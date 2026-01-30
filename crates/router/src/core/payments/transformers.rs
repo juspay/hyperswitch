@@ -2186,15 +2186,17 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: api_models::customers::CustomerDocumentDetails::from(
-            &payment_data
-                .payment_intent
-                .get_customer_document_details()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "failed while fetching customer_document_details from payment_intent",
-                )?,
-        ),
+        customer_document_details: match payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .attach_printable("Failed to parse customer_document_details from payment_intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+        {
+            Some(details) => {
+                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
+            }
+            None => None,
+        },
     };
 
     Ok(router_data)
@@ -6338,9 +6340,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
-            document_details: api_models::customers::CustomerDocumentDetails::to(
-                &customer.document_details,
-            ),
+            document_details: customer.document_details,
         }
     }
 }

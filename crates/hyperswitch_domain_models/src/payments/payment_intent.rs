@@ -160,7 +160,7 @@ pub struct CustomerData {
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
-    pub customer_document_details: Option<Secret<serde_json::Value>>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
 impl CustomerData {

@@ -153,13 +153,17 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            customer_document_details: api_models::customers::CustomerDocumentDetails::from(
-                &self
-                    .payment_intent
-                    .get_customer_document_details()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("customer_document_details not found in payment_intent")?,
-            ),
+            customer_document_details: match self
+                .payment_intent
+                .get_customer_document_details()
+                .attach_printable("Failed to parse customer_document_details from payment_intent")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+            {
+                Some(details) => {
+                    api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
+                }
+                None => None,
+            },
         };
 
         Ok(router_data)
