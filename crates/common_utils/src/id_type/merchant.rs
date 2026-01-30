@@ -110,6 +110,11 @@ impl MerchantId {
         format!("{}_requires_cvv", self.get_string_repr())
     }
 
+    /// get_implicit_customer_update_key
+    pub fn get_implicit_customer_update_key(&self) -> String {
+        format!("{}_implicit_customer_update", self.get_string_repr())
+    }
+
     /// get_pm_filters_cgraph_key
     pub fn get_pm_filters_cgraph_key(&self) -> String {
         format!("pm_filters_cgraph_{}", self.get_string_repr())
@@ -199,6 +204,14 @@ impl MerchantId {
     pub fn get_should_disable_auth_tokenization(&self) -> String {
         format!(
             "should_disable_auth_tokenization_{}",
+            self.get_string_repr()
+        )
+    }
+
+    /// get should enable MIT with limited card data
+    pub fn get_should_enable_mit_with_limited_card_data(&self) -> String {
+        format!(
+            "should_enable_mit_with_limited_card_data_{}",
             self.get_string_repr()
         )
     }

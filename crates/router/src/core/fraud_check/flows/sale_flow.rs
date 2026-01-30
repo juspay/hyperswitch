@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_intent;
 use masking::ExposeInterface;
 
 use crate::{
@@ -29,7 +30,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -43,8 +44,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -60,11 +60,26 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = self.payment_intent.customer_id.clone();
+
+        let customer_details = self
+            .payment_intent
+            .customer_details
+            .clone()
+            .map(|customer_details_encrypted| {
+                customer_details_encrypted
+                    .into_inner()
+                    .expose()
+                    .parse_value::<payment_intent::CustomerData>("CustomerData")
+            })
+            .transpose()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to parse customer data from payment intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: platform.get_processor().get_account().get_id().clone(),
+            merchant_id: processor.get_account().get_id().clone(),
             customer_id,
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
@@ -92,17 +107,9 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                     .get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
-                email: customer
-                    .clone()
-                    .and_then(|customer_data| {
-                        customer_data
-                            .email
-                            .map(|email| Email::try_from(email.into_inner().expose()))
-                    })
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "customer.customer_data.email",
-                    })?,
+                email: customer_details
+                    .as_ref()
+                    .and_then(|customer_data| customer_data.email.clone()),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),

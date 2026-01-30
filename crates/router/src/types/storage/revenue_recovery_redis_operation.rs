@@ -74,6 +74,7 @@ impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCar
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }

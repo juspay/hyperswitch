@@ -31,7 +31,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
     ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
 };
 use hyperswitch_domain_models::{
-    platform::Platform,
+    platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
@@ -73,7 +73,7 @@ pub mod transformers;
 
 pub async fn get_access_token_from_ucs_response(
     session_state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
@@ -83,7 +83,7 @@ pub async fn get_access_token_from_ucs_response(
         .and_then(|state| state.access_token.as_ref())
         .map(AccessToken::foreign_from)?;
 
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
@@ -106,13 +106,13 @@ pub async fn get_access_token_from_ucs_response(
 
 pub async fn set_access_token_for_ucs(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     access_token: AccessToken,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
 ) -> Result<(), errors::StorageError> {
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
@@ -230,7 +230,7 @@ async fn determine_connector_integration_type(
 
 pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: &RouterData<F, T, R>,
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
@@ -240,11 +240,7 @@ where
     R: Send + Sync + Clone,
 {
     // Extract context information
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
@@ -553,15 +549,11 @@ where
 
 pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
 ) -> RouterResult<ExecutionPath> {
     // Extract context information
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
@@ -659,6 +651,30 @@ pub fn build_unified_connector_service_payment_method(
 
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::Card(card_details)),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
+            card_redirect_data,
+        ) => {
+            let card_redirect_type = match card_redirect_data {
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Knet
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Benefit {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Benefit
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::MomoAtm {} => {
+                    payments_grpc::card_redirect::CardRedirectType::MomoAtm
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::CardRedirect {} => {
+                    payments_grpc::card_redirect::CardRedirectType::CardRedirect
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardRedirect(payments_grpc::CardRedirect {
+                    r#type: card_redirect_type.into(),
+                })),
             })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
@@ -1244,7 +1260,7 @@ fn get_ucs_client(
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: String,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
@@ -1260,11 +1276,7 @@ pub fn build_unified_connector_service_auth_metadata(
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
 
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     match &auth_type {
         ConnectorAuthType::SignatureKey {
@@ -1686,7 +1698,7 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
 /// This provides a clean interface similar to payment flow UCS calls
 pub async fn call_unified_connector_service_for_webhook(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     body: &actix_web::web::Bytes,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1733,11 +1745,7 @@ pub async fn call_unified_connector_service_for_webhook(
         body,
         request_details,
         webhook_secrets,
-        platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_string_repr(),
+        processor.get_account().get_id().get_string_repr(),
         connector_name,
     )?;
 
@@ -1753,7 +1761,7 @@ pub async fn call_unified_connector_service_for_webhook(
 
             build_unified_connector_service_auth_metadata(
                 mca_type,
-                platform,
+                processor,
                 connector_name.to_string(),
             )
         })
@@ -1773,7 +1781,7 @@ pub async fn call_unified_connector_service_for_webhook(
     let grpc_headers = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
         .lineage_ids(LineageIds::new(
-            platform.get_processor().get_account().get_id().clone(),
+            processor.get_account().get_id().clone(),
             profile_id,
         ))
         .external_vault_proxy_metadata(None)
@@ -2190,7 +2198,7 @@ pub async fn send_comparison_data(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_execute(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
@@ -2202,7 +2210,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     // Build auth metadata using standard UCS function
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2216,7 +2224,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
@@ -2264,7 +2272,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_sync(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
@@ -2276,7 +2284,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     // Build auth metadata using standard UCS function
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2290,7 +2298,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;

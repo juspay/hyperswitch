@@ -408,6 +408,7 @@ where
                             authentication_data: None,
                             payment_checks: Some(payment_checks),
                             card_network: None,
+                            auth_code: None,
                             domestic_network: None,
                         }
                     })
@@ -443,6 +444,7 @@ where
                         network_txn_id: None,
                         connector_response_reference_id: response.ref_number,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
