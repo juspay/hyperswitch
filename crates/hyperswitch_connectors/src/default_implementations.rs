@@ -2200,7 +2200,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Multisafepay,
     connectors::Netcetera,
     connectors::Nexinets,
-    connectors::Nexixpay,
     connectors::Nomupay,
     connectors::Noon,
     connectors::Nordea,
