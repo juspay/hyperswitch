@@ -77,6 +77,188 @@ use crate::{
     utils,
 };
 
+#[cfg(feature = "v1")]
+async fn call_modular_payment_method_update<F>(
+    state: &SessionState,
+    payment_data: &PaymentData<F>,
+    payment_method_id: &PaymentMethodId,
+    payload: UpdatePaymentMethodV1Payload,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+{
+    if payload.payment_method_data.is_none()
+        && payload.connector_token_details.is_none()
+        && payload.network_transaction_id.is_none()
+    {
+        return Ok(());
+    }
+
+    let mut parent_headers = Headers::new();
+    if let Some(profile_id) = payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .or(Some(payment_data.payment_attempt.profile_id.clone()))
+    {
+        parent_headers.insert((
+            headers::X_PROFILE_ID.to_string(),
+            profile_id.get_string_repr().to_string().into(),
+        ));
+    }
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        payment_data
+            .payment_intent
+            .merchant_id
+            .get_string_repr()
+            .to_string()
+            .into(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        Maskable::Normal(
+            state
+                .conf
+                .internal_merchant_id_profile_id_auth
+                .internal_api_key
+                .peek()
+                .to_string(),
+        ),
+    ));
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+    let client = PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    UpdatePaymentMethod::call(
+        state,
+        &client,
+        UpdatePaymentMethodV1Request {
+            payment_method_id: payment_method_id.clone(),
+            payload,
+        },
+    )
+    .await
+    .map_err(|err| {
+        logger::error!(error=?err, "modular payment method update failed");
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+async fn update_modular_pm_and_mandate_impl<F, T>(
+    state: &SessionState,
+    resp: &types::RouterData<F, T, types::PaymentsResponseData>,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone + Send + Sync,
+{
+    // #0 - Skip unsupported payment methods.
+    if !matches!(
+        payment_data.payment_attempt.payment_method,
+        Some(enums::PaymentMethod::Card)
+    ) {
+        return Ok(());
+    }
+
+    // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
+    let payment_method_id = payment_data
+        .payment_attempt
+        .payment_method_id
+        .clone()
+        .or_else(|| {
+            payment_data
+                .payment_method_info
+                .as_ref()
+                .map(|info| info.get_id().clone())
+        })
+        .ok_or_else(|| {
+            logger::error!("Missing required Param payment_method_id");
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_id",
+            }
+        })?;
+
+    // #2 - Derive network transaction ID from the connector response.
+    let network_transaction_id = resp
+        .response
+        .as_ref()
+        .ok()
+        .and_then(types::PaymentsResponseData::get_network_transaction_id);
+
+    // #3 - Build connector token details only when a mandate reference is available.
+    let connector_token_details = match resp
+        .response
+        .as_ref()
+        .ok()
+        .and_then(types::PaymentsResponseData::get_mandate_reference)
+    {
+        Some(mandate_reference) => {
+            let connector_id = payment_data
+                .payment_attempt
+                .merchant_connector_id
+                .clone()
+                .ok_or_else(|| {
+                    logger::error!("Missing required Param merchant_connector_id");
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "merchant_connector_id",
+                    }
+                })?;
+            update_connector_mandate_details_for_the_flow(
+                mandate_reference.connector_mandate_id.clone(),
+                mandate_reference.mandate_metadata.clone(),
+                mandate_reference
+                    .connector_mandate_request_reference_id
+                    .clone(),
+                payment_data,
+            )?;
+            mandate_reference
+                .connector_mandate_id
+                .map(
+                    |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
+                        connector_id,
+                        token_type: TokenizationType::MultiUse,
+                        status: ConnectorTokenStatus::Active,
+                        connector_token_request_reference_id: mandate_reference
+                            .connector_mandate_request_reference_id,
+                        original_payment_authorized_amount: Some(
+                            payment_data.payment_attempt.net_amount.get_total_amount(),
+                        ),
+                        original_payment_authorized_currency: payment_data.payment_attempt.currency,
+                        metadata: mandate_reference.mandate_metadata,
+                        token: masking::Secret::new(connector_mandate_id),
+                    },
+                )
+        }
+        None => None,
+    };
+
+    let payload = UpdatePaymentMethodV1Payload {
+        payment_method_data: None,
+        connector_token_details,
+        network_transaction_id: network_transaction_id.map(masking::Secret::new),
+    };
+
+    // #5 - Execute the modular payment-method update call.
+    call_modular_payment_method_update(
+        state,
+        payment_data,
+        &PaymentMethodId {
+            payment_method_id: payment_method_id.clone(),
+        },
+        payload,
+    )
+    .await?;
+    payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
+    Ok(())
+}
+
 /// Helper function to update payment method connector mandate details.
 /// This is called after a successful payment to activate/update the connector mandate.
 #[cfg(feature = "v1")]
@@ -564,155 +746,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment methods.
-        if !matches!(
-            payment_data.payment_attempt.payment_method,
-            Some(enums::PaymentMethod::Card)
-        ) {
-            return Ok(());
-        }
-
-        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
-        let payment_method_id = payment_data
-            .payment_attempt
-            .payment_method_id
-            .clone()
-            .or_else(|| {
-                payment_data
-                    .payment_method_info
-                    .as_ref()
-                    .map(|info| info.get_id().clone())
-            })
-            .ok_or_else(|| {
-                logger::error!("Missing required param - payment_method_id");
-                errors::ApiErrorResponse::InternalServerError
-            })?;
-
-        // #2 - Derive network transaction ID only for off-session payments.
-        let network_transaction_id = (payment_data.payment_intent.setup_future_usage
-            == Some(enums::FutureUsage::OffSession))
-        .then(|| {
-            resp.response
-                .as_ref()
-                .ok()
-                .and_then(types::PaymentsResponseData::get_network_transaction_id)
-        })
-        .flatten();
-
-        // #3 - Build connector token details only when a mandate reference is available.
-        let connector_token_details = match resp
-            .response
-            .as_ref()
-            .ok()
-            .and_then(types::PaymentsResponseData::get_mandate_reference)
-        {
-            Some(mandate_reference) => {
-                let connector_id = payment_data
-                    .payment_attempt
-                    .merchant_connector_id
-                    .clone()
-                    .ok_or_else(|| {
-                        logger::error!("Missing required Param merchant_connector_id");
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "merchant_connector_id",
-                        }
-                    })?;
-                update_connector_mandate_details_for_the_flow(
-                    mandate_reference.connector_mandate_id.clone(),
-                    mandate_reference.mandate_metadata.clone(),
-                    mandate_reference
-                        .connector_mandate_request_reference_id
-                        .clone(),
-                    payment_data,
-                )?;
-                mandate_reference
-                    .connector_mandate_id
-                    .map(
-                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
-                            connector_id,
-                            token_type: TokenizationType::MultiUse,
-                            status: ConnectorTokenStatus::Active,
-                            connector_token_request_reference_id: mandate_reference
-                                .connector_mandate_request_reference_id,
-                            original_payment_authorized_amount: Some(
-                                payment_data.payment_attempt.net_amount.get_total_amount(),
-                            ),
-                            original_payment_authorized_currency: payment_data
-                                .payment_attempt
-                                .currency,
-                            metadata: mandate_reference.mandate_metadata,
-                            token: masking::Secret::new(connector_mandate_id),
-                        },
-                    )
-            }
-            None => None,
-        };
-
-        let payload = UpdatePaymentMethodV1Payload {
-            payment_method_data: None,
-            connector_token_details,
-            network_transaction_id: network_transaction_id.map(masking::Secret::new),
-        };
-
-        // #5 - Assemble headers for the modular payment-method service call.
-        let mut parent_headers = Headers::new();
-        if let Some(profile_id) = payment_data
-            .payment_intent
-            .profile_id
-            .clone()
-            .or(Some(payment_data.payment_attempt.profile_id.clone()))
-        {
-            parent_headers.insert((
-                headers::X_PROFILE_ID.to_string(),
-                profile_id.get_string_repr().to_string().into(),
-            ));
-        }
-        parent_headers.insert((
-            headers::X_MERCHANT_ID.to_string(),
-            payment_data
-                .payment_intent
-                .merchant_id
-                .get_string_repr()
-                .to_string()
-                .into(),
-        ));
-        parent_headers.insert((
-            headers::X_INTERNAL_API_KEY.to_string(),
-            Maskable::Normal(
-                state
-                    .conf
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
-                    .to_string(),
-            ),
-        ));
-        let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-            .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-        let client = PaymentMethodClient::new(
-            &state.conf.micro_services.payment_methods_base_url,
-            &parent_headers,
-            &trace,
-        );
-
-        // #6 - Execute the modular payment-method update call.
-        UpdatePaymentMethod::call(
-            state,
-            &client,
-            UpdatePaymentMethodV1Request {
-                payment_method_id: PaymentMethodId {
-                    payment_method_id: payment_method_id.clone(),
-                },
-                payload,
-            },
-        )
-        .await
-        .map_err(|err| {
-            logger::error!(error=?err, "modular payment method update failed");
-            errors::ApiErrorResponse::InternalServerError
-        })?;
-        payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        Ok(())
+        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
     }
 }
 
@@ -994,156 +1028,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment methods.
-        if !matches!(
-            payment_data.payment_attempt.payment_method,
-            Some(enums::PaymentMethod::Card)
-        ) {
-            return Ok(());
-        }
-
-        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
-        let payment_method_id = payment_data
-            .payment_attempt
-            .payment_method_id
-            .clone()
-            .or_else(|| {
-                payment_data
-                    .payment_method_info
-                    .as_ref()
-                    .map(|info| info.get_id().clone())
-            })
-            .ok_or_else(|| {
-                logger::error!("Missing required Param payment_method_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_id",
-                }
-            })?;
-
-        // #2 - Derive network transaction ID only for off-session payments.
-        let network_transaction_id = (payment_data.payment_intent.setup_future_usage
-            == Some(enums::FutureUsage::OffSession))
-        .then(|| {
-            resp.response
-                .as_ref()
-                .ok()
-                .and_then(types::PaymentsResponseData::get_network_transaction_id)
-        })
-        .flatten();
-
-        // #3 - Build connector token details only when a mandate reference is available.
-        let connector_token_details = match resp
-            .response
-            .as_ref()
-            .ok()
-            .and_then(types::PaymentsResponseData::get_mandate_reference)
-        {
-            Some(mandate_reference) => {
-                let connector_id = payment_data
-                    .payment_attempt
-                    .merchant_connector_id
-                    .clone()
-                    .ok_or_else(|| {
-                        logger::error!("Missing required Param merchant_connector_id");
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "merchant_connector_id",
-                        }
-                    })?;
-                update_connector_mandate_details_for_the_flow(
-                    mandate_reference.connector_mandate_id.clone(),
-                    mandate_reference.mandate_metadata.clone(),
-                    mandate_reference
-                        .connector_mandate_request_reference_id
-                        .clone(),
-                    payment_data,
-                )?;
-                mandate_reference
-                    .connector_mandate_id
-                    .map(
-                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
-                            connector_id,
-                            token_type: TokenizationType::MultiUse,
-                            status: ConnectorTokenStatus::Active,
-                            connector_token_request_reference_id: mandate_reference
-                                .connector_mandate_request_reference_id,
-                            original_payment_authorized_amount: Some(
-                                payment_data.payment_attempt.net_amount.get_total_amount(),
-                            ),
-                            original_payment_authorized_currency: payment_data
-                                .payment_attempt
-                                .currency,
-                            metadata: mandate_reference.mandate_metadata,
-                            token: masking::Secret::new(connector_mandate_id),
-                        },
-                    )
-            }
-            None => None,
-        };
-        let payload = UpdatePaymentMethodV1Payload {
-            payment_method_data: None,
-            connector_token_details,
-            network_transaction_id: network_transaction_id.map(masking::Secret::new),
-        };
-
-        // #5 - Assemble headers for the modular payment-method service call.
-        let mut parent_headers = Headers::new();
-        if let Some(profile_id) = payment_data
-            .payment_intent
-            .profile_id
-            .clone()
-            .or(Some(payment_data.payment_attempt.profile_id.clone()))
-        {
-            parent_headers.insert((
-                headers::X_PROFILE_ID.to_string(),
-                profile_id.get_string_repr().to_string().into(),
-            ));
-        }
-        parent_headers.insert((
-            headers::X_MERCHANT_ID.to_string(),
-            payment_data
-                .payment_intent
-                .merchant_id
-                .get_string_repr()
-                .to_string()
-                .into(),
-        ));
-        parent_headers.insert((
-            headers::X_INTERNAL_API_KEY.to_string(),
-            Maskable::Normal(
-                state
-                    .conf
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
-                    .to_string(),
-            ),
-        ));
-        let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-            .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-        let client = PaymentMethodClient::new(
-            &state.conf.micro_services.payment_methods_base_url,
-            &parent_headers,
-            &trace,
-        );
-
-        // #6 - Execute the modular payment-method update call.
-        UpdatePaymentMethod::call(
-            state,
-            &client,
-            UpdatePaymentMethodV1Request {
-                payment_method_id: PaymentMethodId {
-                    payment_method_id: payment_method_id.clone(),
-                },
-                payload,
-            },
-        )
-        .await
-        .map_err(|err| {
-            logger::error!(error=?err, "modular payment method update failed");
-            errors::ApiErrorResponse::InternalServerError
-        })?;
-        payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        Ok(())
+        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
     }
 }
 
@@ -1867,148 +1752,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment methods.
-        if !matches!(
-            payment_data.payment_attempt.payment_method,
-            Some(enums::PaymentMethod::Card)
-        ) {
-            return Ok(());
-        }
-
-        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
-        let payment_method_id = payment_data
-            .payment_attempt
-            .payment_method_id
-            .clone()
-            .or_else(|| {
-                payment_data
-                    .payment_method_info
-                    .as_ref()
-                    .map(|info| info.get_id().clone())
-            })
-            .ok_or_else(|| {
-                logger::error!("Missing required Param payment_method_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_id",
-                }
-            })?;
-
-        // #2 - Derive network transaction ID for the update payload.
-        let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
-
-        // #3 - Build connector token details only when a mandate reference is available.
-        let connector_token_details = match resp
-            .response
-            .as_ref()
-            .ok()
-            .and_then(types::PaymentsResponseData::get_mandate_reference)
-        {
-            Some(mandate_reference) => {
-                let connector_id = payment_data
-                    .payment_attempt
-                    .merchant_connector_id
-                    .clone()
-                    .ok_or_else(|| {
-                        logger::error!("Missing required Param merchant_connector_id");
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "merchant_connector_id",
-                        }
-                    })?;
-                update_connector_mandate_details_for_the_flow(
-                    mandate_reference.connector_mandate_id.clone(),
-                    mandate_reference.mandate_metadata.clone(),
-                    mandate_reference
-                        .connector_mandate_request_reference_id
-                        .clone(),
-                    payment_data,
-                )?;
-                mandate_reference
-                    .connector_mandate_id
-                    .map(
-                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
-                            connector_id,
-                            token_type: TokenizationType::MultiUse,
-                            status: ConnectorTokenStatus::Active,
-                            connector_token_request_reference_id: mandate_reference
-                                .connector_mandate_request_reference_id,
-                            original_payment_authorized_amount: Some(
-                                payment_data.payment_attempt.net_amount.get_total_amount(),
-                            ),
-                            original_payment_authorized_currency: payment_data
-                                .payment_attempt
-                                .currency,
-                            metadata: mandate_reference.mandate_metadata,
-                            token: masking::Secret::new(connector_mandate_id),
-                        },
-                    )
-            }
-            None => None,
-        };
-        let payload = UpdatePaymentMethodV1Payload {
-            payment_method_data: None,
-            connector_token_details,
-            network_transaction_id: network_transaction_id.map(masking::Secret::new),
-        };
-
-        // #5 - Assemble headers for the modular payment-method service call.
-        let mut parent_headers = Headers::new();
-        if let Some(profile_id) = payment_data
-            .payment_intent
-            .profile_id
-            .clone()
-            .or(Some(payment_data.payment_attempt.profile_id.clone()))
-        {
-            parent_headers.insert((
-                headers::X_PROFILE_ID.to_string(),
-                profile_id.get_string_repr().to_string().into(),
-            ));
-        }
-        parent_headers.insert((
-            headers::X_MERCHANT_ID.to_string(),
-            payment_data
-                .payment_intent
-                .merchant_id
-                .get_string_repr()
-                .to_string()
-                .into(),
-        ));
-        parent_headers.insert((
-            headers::X_INTERNAL_API_KEY.to_string(),
-            Maskable::Normal(
-                state
-                    .conf
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
-                    .to_string(),
-            ),
-        ));
-        let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-            .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-        let client = PaymentMethodClient::new(
-            &state.conf.micro_services.payment_methods_base_url,
-            &parent_headers,
-            &trace,
-        );
-
-        // #6 - Execute the modular payment-method update call.
-        UpdatePaymentMethod::call(
-            state,
-            &client,
-            UpdatePaymentMethodV1Request {
-                payment_method_id: PaymentMethodId {
-                    payment_method_id: payment_method_id.clone(),
-                },
-                payload,
-            },
-        )
-        .await
-        .map_err(|err| {
-            logger::error!(error=?err, "modular payment method update failed");
-            errors::ApiErrorResponse::InternalServerError
-        })?;
-        payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        Ok(())
+        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
     }
 }
 
@@ -2127,156 +1871,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment methods.
-        if !matches!(
-            payment_data.payment_attempt.payment_method,
-            Some(enums::PaymentMethod::Card)
-        ) {
-            return Ok(());
-        }
-
-        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
-        let payment_method_id = payment_data
-            .payment_attempt
-            .payment_method_id
-            .clone()
-            .or_else(|| {
-                payment_data
-                    .payment_method_info
-                    .as_ref()
-                    .map(|info| info.get_id().clone())
-            })
-            .ok_or_else(|| {
-                logger::error!("Missing required Param payment_method_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_id",
-                }
-            })?;
-
-        // #2 - Derive network transaction ID only for off-session payments.
-        let network_transaction_id = (payment_data.payment_intent.setup_future_usage
-            == Some(enums::FutureUsage::OffSession))
-        .then(|| {
-            resp.response
-                .as_ref()
-                .ok()
-                .and_then(types::PaymentsResponseData::get_network_transaction_id)
-        })
-        .flatten();
-
-        // #3 - Build connector token details only when a mandate reference is available.
-        let connector_token_details = match resp
-            .response
-            .as_ref()
-            .ok()
-            .and_then(types::PaymentsResponseData::get_mandate_reference)
-        {
-            Some(mandate_reference) => {
-                let connector_id = payment_data
-                    .payment_attempt
-                    .merchant_connector_id
-                    .clone()
-                    .ok_or_else(|| {
-                        logger::error!("Missing required Param merchant_connector_id");
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "merchant_connector_id",
-                        }
-                    })?;
-                update_connector_mandate_details_for_the_flow(
-                    mandate_reference.connector_mandate_id.clone(),
-                    mandate_reference.mandate_metadata.clone(),
-                    mandate_reference
-                        .connector_mandate_request_reference_id
-                        .clone(),
-                    payment_data,
-                )?;
-                mandate_reference
-                    .connector_mandate_id
-                    .map(
-                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
-                            connector_id,
-                            token_type: TokenizationType::MultiUse,
-                            status: ConnectorTokenStatus::Active,
-                            connector_token_request_reference_id: mandate_reference
-                                .connector_mandate_request_reference_id,
-                            original_payment_authorized_amount: Some(
-                                payment_data.payment_attempt.net_amount.get_total_amount(),
-                            ),
-                            original_payment_authorized_currency: payment_data
-                                .payment_attempt
-                                .currency,
-                            metadata: mandate_reference.mandate_metadata,
-                            token: masking::Secret::new(connector_mandate_id),
-                        },
-                    )
-            }
-            None => None,
-        };
-        let payload = UpdatePaymentMethodV1Payload {
-            payment_method_data: None,
-            connector_token_details,
-            network_transaction_id: network_transaction_id.map(masking::Secret::new),
-        };
-
-        // #5 - Assemble headers for the modular payment-method service call.
-        let mut parent_headers = Headers::new();
-        if let Some(profile_id) = payment_data
-            .payment_intent
-            .profile_id
-            .clone()
-            .or(Some(payment_data.payment_attempt.profile_id.clone()))
-        {
-            parent_headers.insert((
-                headers::X_PROFILE_ID.to_string(),
-                profile_id.get_string_repr().to_string().into(),
-            ));
-        }
-        parent_headers.insert((
-            headers::X_MERCHANT_ID.to_string(),
-            payment_data
-                .payment_intent
-                .merchant_id
-                .get_string_repr()
-                .to_string()
-                .into(),
-        ));
-        parent_headers.insert((
-            headers::X_INTERNAL_API_KEY.to_string(),
-            Maskable::Normal(
-                state
-                    .conf
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
-                    .to_string(),
-            ),
-        ));
-        let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-            .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-        let client = PaymentMethodClient::new(
-            &state.conf.micro_services.payment_methods_base_url,
-            &parent_headers,
-            &trace,
-        );
-
-        // #6 - Execute the modular payment-method update call.
-        UpdatePaymentMethod::call(
-            state,
-            &client,
-            UpdatePaymentMethodV1Request {
-                payment_method_id: PaymentMethodId {
-                    payment_method_id: payment_method_id.clone(),
-                },
-                payload,
-            },
-        )
-        .await
-        .map_err(|err| {
-            logger::error!(error=?err, "modular payment method update failed");
-            errors::ApiErrorResponse::InternalServerError
-        })?;
-        payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        Ok(())
+        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
     }
 }
 
