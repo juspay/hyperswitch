@@ -5,6 +5,9 @@
 pub mod create;
 /// Delete payment method flow.
 pub mod delete;
+/// List customer payment methods flow.
+#[cfg(feature = "v1")]
+pub mod list;
 #[cfg(feature = "v1")]
 /// Retrieve payment method flow.
 pub mod retrieve;
