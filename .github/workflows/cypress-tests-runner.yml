@@ -199,7 +199,7 @@ jobs:
 
   mandatory-cypress-tests:
     name: Run mandatory Cypress tests
-    needs: [build-hyperswitch-runners, prepare-mandatory-matrix]
+    needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
       (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
