@@ -1394,13 +1394,24 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                         .set_three_d_s_cres(payload.cres)
                         .set_billing_data(billing_data)?
                         .set_shipping_data(shipping_data)?
-                } else if let Some(ref authentication_data) =
-                    item.router_data.request.authentication_data
+                } else if let Some(authentication_data) = item
+                    .router_data
+                    .request
+                    .connector_meta
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("authentication_data"))
+                    .map(|value| {
+                        serde_json::from_value::<router_request_types::UcsAuthenticationData>(
+                            value.clone(),
+                        )
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)
+                        .attach_printable("Failed to parse authentication_data from connector_meta")
+                    })
+                    .transpose()?
                 {
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(
                             authentication_data
-                                .clone()
                                 .message_version
                                 .ok_or_else(missing_field_err("protocol_version"))?
                                 .to_string(),
