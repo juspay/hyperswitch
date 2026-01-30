@@ -52,6 +52,11 @@ use crate::{
     utils::{self, RefundsRequestData},
 };
 
+/// Helper function to check if payment is APM based on payment method data
+fn is_apm_payment(req: &PaymentsAuthorizeRouterData) -> bool {
+    peachpayments::is_apm_payment_method(&req.request.payment_method_data)
+}
+
 #[derive(Clone)]
 pub struct Peachpayments {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -197,10 +202,20 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        if is_apm_payment(req) {
+            // APM uses form-encoded content-type with auth in body, not headers
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            )])
+        } else {
+            // Card payments use JSON with auth headers
+            self.build_headers(req, connectors)
+        }
     }
 
     fn get_content_type(&self) -> &'static str {
+        // Note: For APM, content-type is overridden in get_headers
         self.common_get_content_type()
     }
 
@@ -209,19 +224,28 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.request.capture_method.unwrap_or_default() {
-            CaptureMethod::Automatic => Ok(format!(
-                "{}/transactions/create-and-confirm",
-                self.base_url(connectors)
-            )),
-            CaptureMethod::Manual => Ok(format!(
-                "{}/transactions/authorization",
-                self.base_url(connectors)
-            )),
-            CaptureMethod::ManualMultiple
-            | CaptureMethod::Scheduled
-            | CaptureMethod::SequentialAutomatic => {
-                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+        if is_apm_payment(req) {
+            // APM uses secondary_base_url (Payments API v2)
+            Ok(format!(
+                "{}/payments",
+                connectors.peachpayments.secondary_base_url
+            ))
+        } else {
+            // Card payments use primary base_url (Card Gateway API)
+            match req.request.capture_method.unwrap_or_default() {
+                CaptureMethod::Automatic => Ok(format!(
+                    "{}/transactions/create-and-confirm",
+                    self.base_url(connectors)
+                )),
+                CaptureMethod::Manual => Ok(format!(
+                    "{}/transactions/authorization",
+                    self.base_url(connectors)
+                )),
+                CaptureMethod::ManualMultiple
+                | CaptureMethod::Scheduled
+                | CaptureMethod::SequentialAutomatic => {
+                    Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+                }
             }
         }
     }
@@ -237,10 +261,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = peachpayments::PeachpaymentsRouterData::from((amount, req));
-        let connector_req =
-            peachpayments::PeachpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        if is_apm_payment(req) {
+            // APM uses form-encoded request
+            let connector_router_data =
+                peachpayments::PeachpaymentsRouterData::from((amount, req));
+            let connector_req =
+                peachpayments::PeachpaymentsApmPaymentsRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        } else {
+            // Card payments use JSON
+            let connector_router_data =
+                peachpayments::PeachpaymentsRouterData::from((amount, req));
+            let connector_req =
+                peachpayments::PeachpaymentsPaymentsRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        }
     }
 
     fn build_request(
@@ -271,17 +306,33 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsPaymentsResponse = res
-            .response
-            .parse_struct("Peachpayments PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        if is_apm_payment(data) {
+            // Parse APM response
+            let response: peachpayments::PeachpaymentsApmPaymentsResponse = res
+                .response
+                .parse_struct("Peachpayments APM PaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            // Parse card response
+            let response: peachpayments::PeachpaymentsPaymentsResponse = res
+                .response
+                .parse_struct("Peachpayments PaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(
@@ -848,7 +899,20 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        // APM: Bank Transfer (LocalBankTransfer for PayShap, Capitec Pay, Peach EFT)
+        let apm_supported_capture_methods = vec![CaptureMethod::Automatic];
+        peachpayments_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::LocalBankTransfer,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: apm_supported_capture_methods,
                 specific_features: None,
             },
         );

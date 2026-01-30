@@ -7444,9 +7444,16 @@ options=["Connector","Hyperswitch"]
   payment_method_type = "Visa"
 [[peachpayments.debit]]
   payment_method_type = "AmericanExpress"
-[peachpayments.connector_auth.BodyKey]
-api_key="API Key"
-key1="Tenant ID"
+[[peachpayments.bank_transfer]]
+  payment_method_type = "LocalBankTransfer"
+# SignatureKey for combined card + APM support:
+# - api_key: x-api-key header (cards) / authentication.entityId (APM)
+# - key1: x-tenant-id header (cards) / authentication.userId (APM)
+# - api_secret: authentication.password (APM only, not used for cards)
+[peachpayments.connector_auth.SignatureKey]
+api_key="API Key / Entity ID"
+key1="Tenant ID / Username"
+api_secret="APM Password"
 [peachpayments.connector_webhook_details]
 merchant_secret="Webhook Secret"
 

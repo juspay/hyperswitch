@@ -5,7 +5,7 @@ use common_enums::enums as storage_enums;
 use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, NetworkTokenData, PaymentMethodData},
+    payment_method_data::{BankTransferData, Card, NetworkTokenData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{RefundsData, ResponseId},
@@ -566,7 +566,85 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
         }))
     }
 }
+
+// TryFrom for APM (Bank Transfer) requests
+impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
+    for PeachpaymentsApmPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = PeachpaymentsApmAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        // Convert amount from minor units to decimal string (e.g., 10000 -> "100.00")
+        let amount_decimal = item.amount.get_amount_as_i64() as f64 / 100.0;
+        let amount = format!("{:.2}", amount_decimal);
+
+        let return_url = item.router_data.request.router_return_url.clone();
+
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::BankTransfer(bank_transfer) => match *bank_transfer {
+                BankTransferData::LocalBankTransfer { bank_code } => {
+                    let bank_code_str = bank_code.unwrap_or_default();
+                    let (payment_brand, bank) = extract_payment_brand_and_bank(&bank_code_str);
+
+                    Ok(Self {
+                        entity_id: auth.entity_id,
+                        username: auth.username,
+                        password: auth.password,
+                        amount,
+                        currency: item.router_data.request.currency,
+                        payment_type: "DB".to_string(),
+                        payment_brand,
+                        merchant_transaction_id: item
+                            .router_data
+                            .connector_request_reference_id
+                            .clone(),
+                        shopper_result_url: return_url,
+                        virtual_account_id: None,
+                        virtual_account_type: None,
+                        virtual_account_bank: bank,
+                    })
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Bank transfer type not supported".to_string(),
+                )
+                .into()),
+            },
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported for APM".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
+// TryFrom for APM refund requests
+impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsApmRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefundsRouterData<Execute>) -> Result<Self, Self::Error> {
+        let auth = PeachpaymentsApmAuthType::try_from(&item.connector_auth_type)?;
+
+        // Convert amount from minor units to decimal string
+        let amount_decimal = item.request.minor_refund_amount.get_amount_as_i64() as f64 / 100.0;
+        let amount = format!("{:.2}", amount_decimal);
+
+        Ok(Self {
+            entity_id: auth.entity_id,
+            username: auth.username,
+            password: auth.password,
+            amount,
+            currency: item.request.currency,
+            payment_type: "RF".to_string(),
+        })
+    }
+}
+
 // Auth Struct for Card Gateway API
+// Note: Can accept either BodyKey (card-only) or SignatureKey (card + APM)
+// When SignatureKey is used: api_key=x-api-key header, key1=x-tenant-id header
+// The api_secret is only used for APM and ignored for card payments
 pub struct PeachpaymentsAuthType {
     pub(crate) api_key: Secret<String>,
     pub(crate) tenant_id: Secret<String>,
@@ -575,13 +653,17 @@ pub struct PeachpaymentsAuthType {
 impl TryFrom<&ConnectorAuthType> for PeachpaymentsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            Ok(Self {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.clone(),
                 tenant_id: key1.clone(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
+            }),
+            // Also accept SignatureKey for combined card + APM setup
+            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+                api_key: api_key.clone(),
+                tenant_id: key1.clone(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -1078,6 +1160,309 @@ impl TryFrom<ErrorResponse> for PeachpaymentsErrorResponse {
         Ok(Self {
             error_ref: error_response.code,
             message: error_response.message,
+        })
+    }
+}
+
+// ============================================================================
+// APM (Payments API v2) Types - Form-encoded requests with different auth
+// ============================================================================
+
+/// Auth for APM Payments API - uses SignatureKey with entityId, userId, password
+pub struct PeachpaymentsApmAuthType {
+    pub entity_id: Secret<String>,
+    pub username: Secret<String>,
+    pub password: Secret<String>,
+}
+
+impl TryFrom<&ConnectorAuthType> for PeachpaymentsApmAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } = auth_type
+        {
+            Ok(Self {
+                entity_id: api_key.clone(),
+                username: key1.clone(),
+                password: api_secret.clone(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        }
+    }
+}
+
+/// APM payment request - form-encoded
+#[derive(Debug, Serialize)]
+pub struct PeachpaymentsApmPaymentsRequest {
+    #[serde(rename = "authentication.entityId")]
+    pub entity_id: Secret<String>,
+    #[serde(rename = "authentication.userId")]
+    pub username: Secret<String>,
+    #[serde(rename = "authentication.password")]
+    pub password: Secret<String>,
+    pub amount: String,
+    pub currency: common_enums::Currency,
+    #[serde(rename = "paymentType")]
+    pub payment_type: String,
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: String,
+    #[serde(rename = "merchantTransactionId")]
+    pub merchant_transaction_id: String,
+    #[serde(rename = "shopperResultUrl")]
+    pub shopper_result_url: Option<String>,
+    #[serde(rename = "virtualAccount.accountId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub virtual_account_id: Option<Secret<String>>,
+    #[serde(rename = "virtualAccount.type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub virtual_account_type: Option<String>,
+    #[serde(rename = "virtualAccount.bank")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub virtual_account_bank: Option<String>,
+}
+
+/// APM refund request - form-encoded
+#[derive(Debug, Serialize)]
+pub struct PeachpaymentsApmRefundRequest {
+    #[serde(rename = "authentication.entityId")]
+    pub entity_id: Secret<String>,
+    #[serde(rename = "authentication.userId")]
+    pub username: Secret<String>,
+    #[serde(rename = "authentication.password")]
+    pub password: Secret<String>,
+    pub amount: String,
+    pub currency: common_enums::Currency,
+    #[serde(rename = "paymentType")]
+    pub payment_type: String,
+}
+
+/// APM response with result code and optional redirect
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PeachpaymentsApmPaymentsResponse {
+    pub id: String,
+    pub result: ApmResultCode,
+    #[serde(default)]
+    pub redirect: Option<ApmRedirect>,
+    #[serde(rename = "merchantTransactionId")]
+    pub merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ApmResultCode {
+    pub code: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ApmRedirect {
+    pub url: String,
+    #[serde(default)]
+    pub method: Option<String>,
+}
+
+/// APM Sync response
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PeachpaymentsApmSyncResponse {
+    pub id: String,
+    pub result: ApmResultCode,
+    #[serde(rename = "paymentType")]
+    pub payment_type: Option<String>,
+    pub amount: Option<String>,
+    pub currency: Option<common_enums::Currency>,
+}
+
+/// APM webhook body
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PeachpaymentsApmWebhookBody {
+    pub id: String,
+    pub result: ApmResultCode,
+    #[serde(rename = "paymentType")]
+    pub payment_type: Option<String>,
+    #[serde(rename = "merchantTransactionId")]
+    pub merchant_transaction_id: Option<String>,
+}
+
+/// APM error response
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PeachpaymentsApmErrorResponse {
+    pub result: ApmResultCode,
+}
+
+/// Helper function to map APM result codes to AttemptStatus
+pub fn map_apm_result_code_to_status(code: &str) -> common_enums::AttemptStatus {
+    match code {
+        // Success codes
+        c if c.starts_with("000.000") => common_enums::AttemptStatus::Charged,
+        c if c.starts_with("000.100") => common_enums::AttemptStatus::Charged,
+        c if c.starts_with("000.300") => common_enums::AttemptStatus::Charged,
+        // Pending/redirect codes
+        c if c.starts_with("000.200") => common_enums::AttemptStatus::AuthenticationPending,
+        // 3DS success
+        c if c.starts_with("000.400.1") => common_enums::AttemptStatus::Charged,
+        // Failure codes
+        c if c.starts_with("100.") => common_enums::AttemptStatus::Failure,
+        c if c.starts_with("200.") => common_enums::AttemptStatus::Failure,
+        c if c.starts_with("800.") => common_enums::AttemptStatus::Failure,
+        c if c.starts_with("900.") => common_enums::AttemptStatus::Failure,
+        // Default to pending for unknown codes
+        _ => common_enums::AttemptStatus::Pending,
+    }
+}
+
+/// Helper function to check if result code indicates success
+pub fn is_apm_success(code: &str) -> bool {
+    code.starts_with("000.000")
+        || code.starts_with("000.100")
+        || code.starts_with("000.300")
+        || code.starts_with("000.400.1")
+}
+
+/// Helper function to check if result code indicates pending (redirect)
+pub fn is_apm_pending(code: &str) -> bool {
+    code.starts_with("000.200")
+}
+
+/// Helper function to extract payment brand from bank_code
+/// Format: "BRAND:BANK" (e.g., "PAYSHAP:NEDBANK")
+pub fn extract_payment_brand_and_bank(bank_code: &str) -> (String, Option<String>) {
+    if let Some((brand, bank)) = bank_code.split_once(':') {
+        (brand.to_string(), Some(bank.to_string()))
+    } else {
+        (bank_code.to_string(), None)
+    }
+}
+
+/// Helper function to check if payment method data is APM (bank transfer)
+pub fn is_apm_payment_method(payment_method_data: &PaymentMethodData) -> bool {
+    matches!(
+        payment_method_data,
+        PaymentMethodData::BankTransfer(bank_transfer) if matches!(
+            **bank_transfer,
+            BankTransferData::LocalBankTransfer { .. }
+        )
+    )
+}
+
+// TryFrom implementation for APM authorize response
+impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsApmPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PeachpaymentsApmPaymentsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = map_apm_result_code_to_status(&item.response.result.code);
+
+        let response = if is_apm_success(&item.response.result.code) {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.merchant_transaction_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        } else if is_apm_pending(&item.response.result.code) {
+            // Redirect flow - return redirect URL
+            let redirect_data = item.response.redirect.map(|r| {
+                hyperswitch_domain_models::router_response_types::RedirectForm::Form {
+                    endpoint: r.url,
+                    method: common_utils::request::Method::Get,
+                    form_fields: std::collections::HashMap::new(),
+                }
+            });
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(redirect_data),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.merchant_transaction_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+// TryFrom implementation for APM sync response
+impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsApmSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PeachpaymentsApmSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = map_apm_result_code_to_status(&item.response.result.code);
+
+        let response = if is_apm_success(&item.response.result.code) {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        } else if is_apm_pending(&item.response.result.code) {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            ..item.data
         })
     }
 }
