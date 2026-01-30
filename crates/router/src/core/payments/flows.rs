@@ -49,7 +49,6 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -72,11 +71,20 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn get_merchant_recipient_data<'a>(
         &self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
+    }
+
+    #[cfg(feature = "v2")]
+    fn add_guest_customer(
+        &self,
+        _router_data: &mut types::RouterData<F, Req, Res>,
+        _guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
+    ) -> RouterResult<()> {
+        Ok(())
     }
 }
 

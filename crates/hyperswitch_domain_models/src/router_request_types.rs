@@ -73,6 +73,9 @@ pub struct PaymentsAuthorizeData {
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
+    // Guest customer fields
+    pub guest_customer: Option<payments::GuestCustomer>,
+
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 
@@ -1512,6 +1515,27 @@ pub struct CustomerDetails {
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, masking::WithType>>,
+}
+
+impl CustomerDetails {
+    pub fn get_customer_data(&self) -> Option<payments::payment_intent::CustomerData> {
+        if self.name.is_some()
+            || self.email.is_some()
+            || self.phone.is_some()
+            || self.phone_country_code.is_some()
+            || self.tax_registration_id.is_some()
+        {
+            Some(payments::payment_intent::CustomerData {
+                name: self.name.clone(),
+                email: self.email.clone(),
+                phone: self.phone.clone(),
+                phone_country_code: self.phone_country_code.clone(),
+                tax_registration_id: self.tax_registration_id.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

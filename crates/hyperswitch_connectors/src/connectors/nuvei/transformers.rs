@@ -600,9 +600,30 @@ impl TransactionType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NuveiRedirectionResponse {
+#[serde(untagged)]
+pub enum NuveiRedirectionResponse {
+    Redirection(NuveiCresRedirectResponse),
+    Error(NuveiErrorRedirectResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiCresRedirectResponse {
     pub cres: Secret<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiErrorRedirectResponse {
+    pub error: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiErrorResponse {
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub error_detail: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiACSResponse {
@@ -3237,6 +3258,7 @@ fn convert_to_additional_payment_method_connector_response(
             payment_checks: Some(payment_checks),
             card_network,
             domestic_network: None,
+            auth_code: None,
         }),
         Err(_) => None,
     }

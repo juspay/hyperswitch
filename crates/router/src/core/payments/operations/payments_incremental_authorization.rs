@@ -57,16 +57,16 @@ impl<F: Send + Clone + Sync>
     > {
         let db = &*state.store;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                merchant_id,
+                processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -88,9 +88,9 @@ impl<F: Send + Clone + Sync>
 
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                merchant_id,
+                processor_merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -207,7 +207,6 @@ impl<F: Clone + Sync>
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -319,17 +318,6 @@ impl<F: Clone + Send + Sync>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _state: &SessionState,
@@ -357,8 +345,7 @@ impl<F: Clone + Send + Sync>
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -383,7 +370,7 @@ impl<F: Clone + Send + Sync>
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut payments::PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

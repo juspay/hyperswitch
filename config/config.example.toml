@@ -11,11 +11,15 @@ application_source = "main"
 [server]
 port = 8080
 host = "127.0.0.1"
+workers = 10                                 # Number of worker threads to handle requests (defaults to physical CPU count)
 # This is the grace time (in seconds) given to the actix-server to stop the execution
 # For more details: https://actix.rs/docs/server/#graceful-shutdown
 shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
+keep_alive = 5                                # Keep-alive timeout in seconds
+client_request_timeout = 5000                 # Client request timeout in milliseconds
+client_disconnect_timeout = 1000              # Client disconnect timeout in milliseconds
 
 # HTTPS Server Configuration
 # Self-signed Private Key and Certificate can be generated with mkcert for local development
@@ -1365,3 +1369,8 @@ org_id = "your_org_id"                          # Organization ID in Superpositi
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[micro_services]
+# Base URLs for modular microservices
+# (e.g., payment-methods, customers, routing, etc.)
+payment_methods_base_url = "http://localhost:8082"

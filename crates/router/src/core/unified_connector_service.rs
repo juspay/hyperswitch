@@ -653,6 +653,30 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::Card(card_details)),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
+            card_redirect_data,
+        ) => {
+            let card_redirect_type = match card_redirect_data {
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Knet
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Benefit {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Benefit
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::MomoAtm {} => {
+                    payments_grpc::card_redirect::CardRedirectType::MomoAtm
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::CardRedirect {} => {
+                    payments_grpc::card_redirect::CardRedirectType::CardRedirect
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardRedirect(payments_grpc::CardRedirect {
+                    r#type: card_redirect_type.into(),
+                })),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
             let upi_type = match upi_data {
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
@@ -1328,15 +1352,13 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         .ok_or(UnifiedConnectorServiceError::ParsingFailed)
         .attach_printable("Failed to obtain ConnectorMetadata")?;
 
-    let connector_name = external_vault_merchant_connector_account
-        .get_connector_name()
-        .map(|connector| connector.to_string())
-        .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-        .attach_printable("Missing connector name")?; // always get the connector name from this call
+    let connector = external_vault_merchant_connector_account.get_connector_name();
 
-    let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
-        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
-        .attach_printable("Failed to parse Vault connector")?;
+    let external_vault_connector =
+        api_enums::VaultConnectors::try_from(connector).map_err(|err| {
+            error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
+                .attach_printable(format!("Failed to parse Vault connector: {err}"))
+        })?;
 
     let unified_service_vault_metdata = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {
@@ -1373,13 +1395,15 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<UcsAuthorizeResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
             response.clone(),
-        )?;
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1420,11 +1444,15 @@ pub fn handle_unified_connector_service_response_for_create_order(
 
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     response: payments_grpc::PaymentServicePostAuthenticateResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1467,46 +1495,60 @@ pub fn handle_unified_connector_service_response_for_incremental_authorization(
 
 pub fn handle_unified_connector_service_response_for_payment_authenticate(
     response: payments_grpc::PaymentServiceAuthenticateResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
     response: payments_grpc::PaymentServicePreAuthenticateResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_capture(
     response: payments_grpc::PaymentServiceCaptureResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
             response.clone(),
-        )?;
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1535,13 +1577,15 @@ pub fn handle_unified_connector_service_response_for_session_token_create(
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
             response.clone(),
-        )?;
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1609,11 +1653,15 @@ pub fn handle_unified_connector_service_response_for_refund_sync(
 
 pub fn handle_unified_connector_service_response_for_payment_cancel(
     response: payments_grpc::PaymentServiceVoidResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
