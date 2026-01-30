@@ -117,6 +117,21 @@ impl
             Ok(None)
         }
     }
+
+    fn add_guest_customer(
+        &self,
+        router_data: &mut types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+        guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
+    ) -> RouterResult<()> {
+        if let Some(guest_customer_data) = guest_customer {
+            router_data.request.guest_customer = Some(guest_customer_data.clone());
+        }
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -133,7 +148,6 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -154,7 +168,6 @@ impl
             self.clone(),
             connector_id,
             processor,
-            customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,

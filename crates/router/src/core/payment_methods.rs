@@ -98,6 +98,8 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_core(
@@ -537,7 +539,6 @@ pub async fn retrieve_payment_method_with_token(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     card_token_data: Option<&domain::CardToken>,
-    customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
@@ -672,7 +673,6 @@ pub async fn retrieve_payment_method_with_token(
                 platform.get_processor(),
                 auth_token,
                 payment_intent,
-                customer,
             )
             .await?
             .map(
@@ -691,12 +691,11 @@ pub async fn retrieve_payment_method_with_token(
             payment_method_id: None,
         },
         storage::PaymentTokenData::BankDebit(bank_debit) => {
-            let customer =
-                customer
-                    .as_ref()
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "customer",
-                    })?;
+            let customer_id = payment_intent.customer_id.as_ref().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer",
+                },
+            )?;
 
             let locker_id = bank_debit.locker_id.as_ref().ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
@@ -707,7 +706,7 @@ pub async fn retrieve_payment_method_with_token(
             let bank_debit_detail = cards::get_bank_debit_from_hs_locker(
                 state,
                 platform.get_provider(),
-                &customer.customer_id,
+                customer_id,
                 locker_id,
             )
             .await?;
@@ -3737,9 +3736,10 @@ pub async fn delete_payment_method_core(
         .attach_printable("Customer not found for the payment method")?;
 
     // Soft delete
-    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+    let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
         last_modified_by: None,
+        locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
     };
 
     db.update_payment_method(
@@ -3964,6 +3964,7 @@ pub async fn payment_methods_session_create(
         None,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4030,6 +4031,7 @@ pub async fn payment_methods_session_update(
         None,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4087,6 +4089,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4152,13 +4155,11 @@ pub async fn payment_methods_session_update_payment_method(
             "Failed to update payment method session with associated payment methods",
         )?;
 
-    let payment_method_update_request = request.payment_method_update_request.clone();
-
     let update_response = Box::pin(update_payment_method_core(
         &state,
         &platform,
         &profile,
-        payment_method_update_request,
+        request.payment_method_update_request.clone(),
         &payment_method_id,
     ))
     .await
@@ -4171,6 +4172,7 @@ pub async fn payment_methods_session_update_payment_method(
         None,
         None,
         update_response.card_cvc_token_storage,
+        update_response.payment_method_data.clone(),
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4462,6 +4464,7 @@ pub async fn payment_methods_session_confirm(
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(
