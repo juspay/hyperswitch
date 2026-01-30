@@ -1235,6 +1235,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             let (router_data_response, status_code) =
                 unified_connector_service::handle_unified_connector_service_response_for_payment_pre_authenticate(
                     payment_pre_authenticate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 

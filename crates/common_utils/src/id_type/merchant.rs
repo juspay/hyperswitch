@@ -257,4 +257,12 @@ impl MerchantId {
     pub fn get_threeds_routing_region_uas_key(&self) -> String {
         format!("threeds_routing_region_uas_{}", self.get_string_repr())
     }
+
+    /// fetch should_return_raw_payment_method_details key for organization
+    pub fn should_return_raw_payment_method_details_key(&self) -> String {
+        format!(
+            "should_return_raw_payment_method_details_{}",
+            self.get_string_repr()
+        )
+    }
 }

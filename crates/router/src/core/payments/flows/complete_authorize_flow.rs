@@ -686,6 +686,7 @@ pub async fn call_unified_connector_service_authenticate(
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_authenticate(
                     payment_authenticate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
@@ -792,6 +793,7 @@ pub async fn call_unified_connector_service_post_authenticate(
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_post_authenticate(
                     payment_post_authenticate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
