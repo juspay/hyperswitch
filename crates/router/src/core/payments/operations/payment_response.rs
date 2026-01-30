@@ -565,11 +565,13 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         F: 'b + Clone + Send + Sync,
     {
         // #0 - Skip unsupported payment method types.
-        let is_card = matches!(resp.request.payment_method, Some(enums::PaymentMethod::Card))
-            || matches!(
-                resp.request.payment_method_type,
-                Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
-            );
+        let is_card = matches!(
+            resp.request.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) || matches!(
+            resp.request.payment_method_type,
+            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
+        );
         if !is_card {
             return Ok(());
         }
