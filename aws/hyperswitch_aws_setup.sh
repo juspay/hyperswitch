@@ -1,4 +1,65 @@
 #!/bin/bash
+#!/bin/bash
+
+# Function to check and install packages
+install_package() {
+    local package=$1
+    local mac_install_cmd=$2
+    local linux_install_cmd=$3
+    local post_install_cmd=$4
+
+    if ! command -v "$package" &>/dev/null; then
+        echo "Installing $package..."
+        if [ "$OS" == "Darwin" ]; then
+            eval "$mac_install_cmd"
+        elif [ "$OS" == "Linux" ]; then
+            eval "$linux_install_cmd"
+        fi
+        echo "$package installed."
+    else
+        echo "$package already installed."
+    fi
+    eval "$post_install_cmd"
+}
+
+# Main script
+OS=$(uname -s)
+
+if [ "$OS" == "Darwin" ]; then
+    echo "Operating System identified as MacOS"
+
+    # Install Homebrew if not present
+    install_package "brew" \
+                    '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' \
+                    '' \
+                    'brew --version'
+
+    # Install AWS CLI if not present
+    install_package "aws" \
+                    'curl "https://awscli.amazonaws.com/awscli-exe-macos-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install' \
+                    '' \
+                    'aws --version'
+
+    # Install PostgreSQL if not present
+    install_package "psql" \
+                    'brew install postgresql' \
+                    '' \
+                    'psql --version'
+
+    # Install jq if not present
+    install_package "jq" \
+                    'brew install jq' \
+                    '' \
+                    'jq --version'
+
+    # Install curl if not present
+    install_package "curl" \
+                    'brew install curl' \
+                    '' \
+                    'curl --version'
+else
+    echo "Please make sure you install the pre-requisites manually before running the script"
+fi
 
 command_discovery() {
   type $1 > /dev/null 2> /dev/null
@@ -261,7 +322,7 @@ echo "ROUTER__REPLICA_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__SERVER__HOST=0.0.0.0" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__USERNAME=hyperswitch" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__PASSWORD=$MASTER_DB_PASSWORD" >> user_data.sh
-echo "ROUTER__SERVER__BASE_URL=\$(curl ifconfig.me)" >> user_data.sh
+echo "ROUTER__SERVER__BASE_URL='http://\$(curl ifconfig.me)'" >> user_data.sh
 echo "ROUTER__SECRETS__ADMIN_API_KEY=$ADMIN_API_KEY" >> user_data.sh
 echo "EOF" >> user_data.sh
 
