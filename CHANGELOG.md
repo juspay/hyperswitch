@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.30.0
+
+### Features
+
+- **core:** Populate error_message for payments_list api ([#11054](https://github.com/juspay/hyperswitch/pull/11054)) ([`e3d45ba`](https://github.com/juspay/hyperswitch/commit/e3d45baa91f1057e0cbdedc486489b8af1f5b523))
+- **payment-methods:** Add modular payment method create api ([#11031](https://github.com/juspay/hyperswitch/pull/11031)) ([`a2de0e4`](https://github.com/juspay/hyperswitch/commit/a2de0e4f836094406c337bf5f9a4968e8abf13e8))
+- **platform:** Support save payment method for platform payments ([#11056](https://github.com/juspay/hyperswitch/pull/11056)) ([`7bce30d`](https://github.com/juspay/hyperswitch/commit/7bce30d18731b9ddce9ed85425fde638feb589c1))
+- **router:** Deprecate Implicit Customer Update in Payments ([#10982](https://github.com/juspay/hyperswitch/pull/10982)) ([`770b15d`](https://github.com/juspay/hyperswitch/commit/770b15ddea8b4191772108e32df1319c61f6a34a))
+
+### Bug Fixes
+
+- Payment method population in pyament_method_token ([#10843](https://github.com/juspay/hyperswitch/pull/10843)) ([`b12c98d`](https://github.com/juspay/hyperswitch/commit/b12c98d2d5763c49e2ab945ddd4269ae6110878d))
+
+### Miscellaneous Tasks
+
+- Fix for setupmandate and complete authorize for granular flows ([#11070](https://github.com/juspay/hyperswitch/pull/11070)) ([`7d35b64`](https://github.com/juspay/hyperswitch/commit/7d35b649fb722d2aba56db679a1696d73912b168))
+
+**Full Changelog:** [`2026.01.29.0...2026.01.30.0`](https://github.com/juspay/hyperswitch/compare/2026.01.29.0...2026.01.30.0)
+
+- - -
+
+## 2026.01.29.0
+
+### Features
+
+- **core:** Add support for Guest Customer in v2 tunnel ([#10973](https://github.com/juspay/hyperswitch/pull/10973)) ([`b2d1158`](https://github.com/juspay/hyperswitch/commit/b2d115873c29480281c94159110efd47b0841f02))
+- **interfaces:** Add query_params functionality in microservice client ([#11026](https://github.com/juspay/hyperswitch/pull/11026)) ([`c2630a4`](https://github.com/juspay/hyperswitch/commit/c2630a4a0c5ed015c56e7d12e38057ff1dc34eb6))
+- **payment-methods:** Add modular payment method retrieve transformer ([#10994](https://github.com/juspay/hyperswitch/pull/10994)) ([`d245778`](https://github.com/juspay/hyperswitch/commit/d2457784e333cfc4008d0bbb12af6f2f663c411b))
+
+### Bug Fixes
+
+- **connector:** Fix PreAuth Conditions in NMI, Nuvei and Redsys ([#11041](https://github.com/juspay/hyperswitch/pull/11041)) ([`bde0ba7`](https://github.com/juspay/hyperswitch/commit/bde0ba78cdfa50ab8406edc00d63c00c6cc68d80))
+
+### Refactors
+
+- **connector:** [Worldpayxml] webhook body from xml to url encoded ([#10991](https://github.com/juspay/hyperswitch/pull/10991)) ([`ccf676c`](https://github.com/juspay/hyperswitch/commit/ccf676c1db4ff5c08d55d577794f1f4b6849db5b))
+- **webhooks:** Default to triggering webhooks for all the states in payments, refunds and payouts flow ([#11028](https://github.com/juspay/hyperswitch/pull/11028)) ([`553ac7a`](https://github.com/juspay/hyperswitch/commit/553ac7aaca88bd59629ec09fb3054680ad17f938))
+
+**Full Changelog:** [`2026.01.28.1...2026.01.29.0`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1...2026.01.29.0)
+
+- - -
+
 ## 2026.01.28.1
 
 ### Features

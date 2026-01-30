@@ -110,6 +110,11 @@ impl MerchantId {
         format!("{}_requires_cvv", self.get_string_repr())
     }
 
+    /// get_implicit_customer_update_key
+    pub fn get_implicit_customer_update_key(&self) -> String {
+        format!("{}_implicit_customer_update", self.get_string_repr())
+    }
+
     /// get_pm_filters_cgraph_key
     pub fn get_pm_filters_cgraph_key(&self) -> String {
         format!("pm_filters_cgraph_{}", self.get_string_repr())
@@ -251,5 +256,13 @@ impl MerchantId {
     /// Get threeds_routing_region key for merchant
     pub fn get_threeds_routing_region_uas_key(&self) -> String {
         format!("threeds_routing_region_uas_{}", self.get_string_repr())
+    }
+
+    /// fetch should_return_raw_payment_method_details key for organization
+    pub fn should_return_raw_payment_method_details_key(&self) -> String {
+        format!(
+            "should_return_raw_payment_method_details_{}",
+            self.get_string_repr()
+        )
     }
 }
