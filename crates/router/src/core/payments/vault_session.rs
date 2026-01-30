@@ -81,7 +81,7 @@ where
             domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                 helpers::get_merchant_connector_account_v2(
                     state,
-                    platform.get_processor().get_key_store(),
+                    platform.get_processor(),
                     external_vault_source,
                 )
                 .await?,
