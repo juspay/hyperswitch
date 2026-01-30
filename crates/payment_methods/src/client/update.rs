@@ -6,8 +6,12 @@ use common_enums::{
     CardNetwork, ConnectorTokenStatus, CountryAlpha2, Currency, PaymentMethod, PaymentMethodType,
     StorageType, TokenizationType,
 };
-use common_utils::request::{Method, RequestContent};
-use common_utils::{id_type, pii::SecretSerdeValue, types::MinorUnit};
+use common_utils::{
+    id_type,
+    pii::SecretSerdeValue,
+    request::{Method, RequestContent},
+    types::MinorUnit,
+};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -241,10 +245,7 @@ where
     })
 }
 
-fn serialize_payment_method_id<S>(
-    value: &PaymentMethodId,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_payment_method_id<S>(value: &PaymentMethodId, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

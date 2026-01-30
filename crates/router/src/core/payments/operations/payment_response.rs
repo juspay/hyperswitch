@@ -1,8 +1,13 @@
 use std::{collections::HashMap, ops::Deref};
 
-use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
+#[cfg(feature = "v1")]
+use ::payment_methods::client::{
+    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethodV1Request,
+};
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodId;
+use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
@@ -11,12 +16,12 @@ use common_enums::AuthorizationStatus;
 use common_enums::{ConnectorTokenStatus, TokenizationType};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::ValueExt;
+#[cfg(feature = "v1")]
+use common_utils::request::Headers;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
-#[cfg(feature = "v1")]
-use common_utils::request::Headers;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(feature = "v2")]
@@ -24,25 +29,20 @@ use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
 use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
-#[cfg(feature = "v2")]
-use masking::PeekInterface;
-use router_derive;
-use router_env::{instrument, logger, tracing};
-#[cfg(feature = "v1")]
-use router_env::RequestIdentifier;
-#[cfg(feature = "v1")]
-use serde_json::json;
 #[cfg(feature = "v1")]
 use masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use masking::Maskable;
-#[cfg(feature = "v1")]
+#[cfg(feature = "v2")]
 use masking::PeekInterface;
 #[cfg(feature = "v1")]
-use ::payment_methods::client::{
-    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
-    UpdatePaymentMethodV1Request,
-};
+use masking::PeekInterface;
+use router_derive;
+#[cfg(feature = "v1")]
+use router_env::RequestIdentifier;
+use router_env::{instrument, logger, tracing};
+#[cfg(feature = "v1")]
+use serde_json::json;
 use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
@@ -69,8 +69,8 @@ use crate::{
         },
         utils as core_utils,
     },
-    routes::{metrics, SessionState},
     headers,
+    routes::{metrics, SessionState},
     types::{
         self, domain,
         storage::{self, enums},
@@ -80,7 +80,6 @@ use crate::{
     utils,
 };
 
-<<<<<<< HEAD
 /// Helper function to update payment method connector mandate details.
 /// This is called after a successful payment to activate/update the connector mandate.
 #[cfg(feature = "v1")]
@@ -182,8 +181,6 @@ where
     }
     Ok(())
 }
-=======
->>>>>>> fcc7719ca4 (feat(payment_methods): introduce modular pm service in v1 payments flow)
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -587,20 +584,15 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             return Ok(());
         }
 
-        let network_transaction_id = resp
-            .response
-            .clone()
-            .ok()
-            .and_then(|response| {
-                if let types::PaymentsResponseData::TransactionResponse {
-                    network_txn_id, ..
-                } = response
-                {
-                    network_txn_id
-                } else {
-                    None
-                }
-            });
+        let network_transaction_id = resp.response.clone().ok().and_then(|response| {
+            if let types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } =
+                response
+            {
+                network_txn_id
+            } else {
+                None
+            }
+        });
         let network_transaction_id = if payment_data.payment_intent.setup_future_usage
             == Some(enums::FutureUsage::OffSession)
         {
@@ -643,7 +635,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 }
             })?;
 
-        let connector_mandate_detail = payment_data.payment_attempt.connector_mandate_detail.clone();
+        let connector_mandate_detail = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .clone();
         let connector_mandate_id = connector_mandate_detail
             .as_ref()
             .and_then(|detail| detail.connector_mandate_id.clone())
@@ -681,23 +676,18 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(
-                ::payment_methods::client::ConnectorTokenDetails {
-                    connector_id: connector_id.clone(),
-                    token_type: TokenizationType::MultiUse,
-                    status: ConnectorTokenStatus::Active,
-                    connector_token_request_reference_id: connector_mandate_request_reference_id,
-                    original_payment_authorized_amount: Some(
-                        payment_data.payment_attempt.net_amount.get_total_amount(),
-                    ),
-                    original_payment_authorized_currency: payment_data
-                        .payment_attempt
-                        .currency
-                        .clone(),
-                    metadata: None,
-                    token: masking::Secret::new(connector_mandate_id),
-                },
-            ),
+            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
+                connector_id: connector_id.clone(),
+                token_type: TokenizationType::MultiUse,
+                status: ConnectorTokenStatus::Active,
+                connector_token_request_reference_id: connector_mandate_request_reference_id,
+                original_payment_authorized_amount: Some(
+                    payment_data.payment_attempt.net_amount.get_total_amount(),
+                ),
+                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
+                metadata: None,
+                token: masking::Secret::new(connector_mandate_id),
+            }),
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
@@ -1030,7 +1020,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         Ok(())
     }
 
-<<<<<<< HEAD
     #[cfg(feature = "v1")]
     async fn update_pm_and_mandate<'b>(
         &self,
@@ -1043,8 +1032,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         F: 'b + Clone + Send + Sync,
     {
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
-=======
-    async fn update_pm_and_mandate<'b>(
+    }
+
+    async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -1084,20 +1074,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data,
         )?;
 
-        let network_transaction_id = resp
-            .response
-            .clone()
-            .ok()
-            .and_then(|response| {
-                if let types::PaymentsResponseData::TransactionResponse {
-                    network_txn_id, ..
-                } = response
-                {
-                    network_txn_id
-                } else {
-                    None
-                }
-            });
+        let network_transaction_id = resp.response.clone().ok().and_then(|response| {
+            if let types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } =
+                response
+            {
+                network_txn_id
+            } else {
+                None
+            }
+        });
         let network_transaction_id = if payment_data.payment_intent.setup_future_usage
             == Some(enums::FutureUsage::OffSession)
         {
@@ -1134,7 +1119,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 }
             })?;
 
-        let connector_mandate_detail = payment_data.payment_attempt.connector_mandate_detail.clone();
+        let connector_mandate_detail = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .clone();
         let connector_mandate_id = connector_mandate_detail
             .as_ref()
             .and_then(|detail| detail.connector_mandate_id.clone())
@@ -1183,23 +1171,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(
-                ::payment_methods::client::ConnectorTokenDetails {
-                    connector_id: connector_id.clone(),
-                    token_type: TokenizationType::MultiUse,
-                    status: ConnectorTokenStatus::Active,
-                    connector_token_request_reference_id: connector_mandate_request_reference_id,
-                    original_payment_authorized_amount: Some(
-                        payment_data.payment_attempt.net_amount.get_total_amount(),
-                    ),
-                    original_payment_authorized_currency: payment_data
-                        .payment_attempt
-                        .currency
-                        .clone(),
-                    metadata,
-                    token: masking::Secret::new(connector_mandate_id),
-                },
-            ),
+            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
+                connector_id: connector_id.clone(),
+                token_type: TokenizationType::MultiUse,
+                status: ConnectorTokenStatus::Active,
+                connector_token_request_reference_id: connector_mandate_request_reference_id,
+                original_payment_authorized_amount: Some(
+                    payment_data.payment_attempt.net_amount.get_total_amount(),
+                ),
+                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
+                metadata,
+                token: masking::Secret::new(connector_mandate_id),
+            }),
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
@@ -1272,7 +1255,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             "update_pm_and_mandate completed"
         );
         Ok(())
->>>>>>> fcc7719ca4 (feat(payment_methods): introduce modular pm service in v1 payments flow)
     }
 }
 
@@ -1967,7 +1949,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         Ok(())
     }
 
-<<<<<<< HEAD
     #[cfg(feature = "v1")]
     async fn update_pm_and_mandate<'b>(
         &self,
@@ -1984,8 +1965,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         F: 'b + Clone + Send + Sync,
     {
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
-=======
-    async fn update_pm_and_mandate<'b>(
+    }
+    async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         _resp: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
@@ -2030,7 +2011,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             })?;
 
         let network_transaction_id: Option<String> = None;
-        let connector_mandate_detail = payment_data.payment_attempt.connector_mandate_detail.clone();
+        let connector_mandate_detail = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .clone();
         let connector_mandate_id = connector_mandate_detail
             .as_ref()
             .and_then(|detail| detail.connector_mandate_id.clone())
@@ -2079,23 +2063,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(
-                ::payment_methods::client::ConnectorTokenDetails {
-                    connector_id: connector_id.clone(),
-                    token_type: TokenizationType::MultiUse,
-                    status: ConnectorTokenStatus::Active,
-                    connector_token_request_reference_id: connector_mandate_request_reference_id,
-                    original_payment_authorized_amount: Some(
-                        payment_data.payment_attempt.net_amount.get_total_amount(),
-                    ),
-                    original_payment_authorized_currency: payment_data
-                        .payment_attempt
-                        .currency
-                        .clone(),
-                    metadata,
-                    token: masking::Secret::new(connector_mandate_id),
-                },
-            ),
+            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
+                connector_id: connector_id.clone(),
+                token_type: TokenizationType::MultiUse,
+                status: ConnectorTokenStatus::Active,
+                connector_token_request_reference_id: connector_mandate_request_reference_id,
+                original_payment_authorized_amount: Some(
+                    payment_data.payment_attempt.net_amount.get_total_amount(),
+                ),
+                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
+                metadata,
+                token: masking::Secret::new(connector_mandate_id),
+            }),
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
@@ -2168,7 +2147,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             "update_pm_and_mandate completed"
         );
         Ok(())
->>>>>>> fcc7719ca4 (feat(payment_methods): introduce modular pm service in v1 payments flow)
     }
 }
 
@@ -2262,7 +2240,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         Ok(())
     }
 
-<<<<<<< HEAD
     #[cfg(feature = "v1")]
     async fn update_pm_and_mandate<'b>(
         &self,
@@ -2279,8 +2256,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         F: 'b + Clone + Send + Sync,
     {
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
-=======
-    async fn update_pm_and_mandate<'b>(
+    }
+
+    async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
@@ -2319,20 +2297,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
         )?;
 
-        let network_transaction_id = resp
-            .response
-            .clone()
-            .ok()
-            .and_then(|response| {
-                if let types::PaymentsResponseData::TransactionResponse {
-                    network_txn_id, ..
-                } = response
-                {
-                    network_txn_id
-                } else {
-                    None
-                }
-            });
+        let network_transaction_id = resp.response.clone().ok().and_then(|response| {
+            if let types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } =
+                response
+            {
+                network_txn_id
+            } else {
+                None
+            }
+        });
         let network_transaction_id = if payment_data.payment_intent.setup_future_usage
             == Some(enums::FutureUsage::OffSession)
         {
@@ -2369,7 +2342,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 }
             })?;
 
-        let connector_mandate_detail = payment_data.payment_attempt.connector_mandate_detail.clone();
+        let connector_mandate_detail = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .clone();
         let connector_mandate_id = connector_mandate_detail
             .as_ref()
             .and_then(|detail| detail.connector_mandate_id.clone())
@@ -2418,23 +2394,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(
-                ::payment_methods::client::ConnectorTokenDetails {
-                    connector_id: connector_id.clone(),
-                    token_type: TokenizationType::MultiUse,
-                    status: ConnectorTokenStatus::Active,
-                    connector_token_request_reference_id: connector_mandate_request_reference_id,
-                    original_payment_authorized_amount: Some(
-                        payment_data.payment_attempt.net_amount.get_total_amount(),
-                    ),
-                    original_payment_authorized_currency: payment_data
-                        .payment_attempt
-                        .currency
-                        .clone(),
-                    metadata,
-                    token: masking::Secret::new(connector_mandate_id),
-                },
-            ),
+            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
+                connector_id: connector_id.clone(),
+                token_type: TokenizationType::MultiUse,
+                status: ConnectorTokenStatus::Active,
+                connector_token_request_reference_id: connector_mandate_request_reference_id,
+                original_payment_authorized_amount: Some(
+                    payment_data.payment_attempt.net_amount.get_total_amount(),
+                ),
+                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
+                metadata,
+                token: masking::Secret::new(connector_mandate_id),
+            }),
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
@@ -2507,7 +2478,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             "update_pm_and_mandate completed"
         );
         Ok(())
->>>>>>> fcc7719ca4 (feat(payment_methods): introduce modular pm service in v1 payments flow)
     }
 }
 
