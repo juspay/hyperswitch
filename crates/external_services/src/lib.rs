@@ -96,6 +96,9 @@ pub mod consts {
 
     /// Header key for sending the merchant reference id to UCS
     pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
+
+    /// Header key for sending the resource id to UCS
+    pub(crate) const UCS_HEADER_RESOURCE_ID: &str = "x-resource-id";
 }
 
 /// Metrics for interactions with external systems.
