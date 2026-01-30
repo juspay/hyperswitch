@@ -3549,11 +3549,15 @@ async fn fetch_payment_method_by_storage(
             // In S2S calls, id passed in the request could be payment method id as well
             // If a temporary token is passed after the redis expiration it will also be treated as
             // a persistent GlobalPaymentMethodId, but for temp tokens GlobalPaymentMethodId will fail
-            let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(
-                pm_incoming.payment_method_id.clone(),
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
+            let pm_id = match card_token_data_opt {
+                Some(data) => data.payment_method_id.clone(),
+                None => id_type::GlobalPaymentMethodId::generate_from_string(
+                    pm_incoming.payment_method_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to generate GlobalPaymentMethodId")?,
+            };
 
             fetch_payment_method(state, platform.get_provider(), &pm_id).await
         }
