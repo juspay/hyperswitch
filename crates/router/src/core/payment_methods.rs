@@ -3571,7 +3571,7 @@ async fn fetch_payment_method_by_storage(
 
 #[cfg(feature = "v2")]
 pub async fn fetch_payment_method_with_fallback(
-    state: &routes::SessionState,
+    state: &SessionState,
     platform: &domain::Platform,
     pm_id: &id_type::GlobalPaymentMethodId,
     storage_type: common_enums::StorageType,
@@ -3579,7 +3579,7 @@ pub async fn fetch_payment_method_with_fallback(
     let volatile_payment_method = fetch_volatile_payment_method_record(
         state,
         platform.get_provider().get_key_store(),
-        &pm_id.get_string_repr(),
+        pm_id.get_string_repr(),
     )
     .await
     .attach_printable("Failed to get volatile payment method record");
