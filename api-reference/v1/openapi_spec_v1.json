@@ -16720,7 +16720,11 @@
             "maxLength": 2
           },
           "customer_document_details": {
-            "description": "Customer’s country-specific identification number and type used for regulatory or tax purposes",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
             "nullable": true
           }
         }
