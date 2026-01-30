@@ -506,7 +506,7 @@ where
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
-    let new_payment_attempt = make_new_payment_attempt(
+    let new_payment_attempt = make_new_auto_retry_payment_attempt(
         connector,
         payment_data.get_payment_attempt().clone(),
         new_attempt_count,
@@ -753,7 +753,7 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub fn make_new_payment_attempt(
+pub fn make_new_auto_retry_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
@@ -847,6 +847,7 @@ pub fn make_new_payment_attempt(
         debit_routing_savings: Default::default(),
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
+        retry_type: Some(storage_enums::RetryType::AutoRetry),
     }
 }
 

@@ -1410,6 +1410,7 @@ impl PaymentCreate {
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                retry_type: None,
             },
             additional_pm_data,
 
