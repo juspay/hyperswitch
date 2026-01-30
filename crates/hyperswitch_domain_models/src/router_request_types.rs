@@ -14,7 +14,7 @@ use common_utils::{
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
@@ -68,6 +68,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
+    pub ucs_authentication_data: Option<UcsAuthenticationData>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
@@ -783,6 +784,28 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
     }
 }
 
+impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            payment_method_type: data.payment_method_type,
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            redirect_response: None,
+            capture_method: data.capture_method,
+            // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
+            // This is handled within authentication_step function in authorize_flow.rs
+            authentication_data: None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
@@ -794,6 +817,8 @@ pub struct PaymentsAuthenticateData {
     pub browser_info: Option<BrowserInformation>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub minor_amount: Option<MinorUnit>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub authentication_data: Option<UcsAuthenticationData>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -810,6 +835,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             redirect_response: data.redirect_response,
+            capture_method: data.capture_method,
+            authentication_data: data.authentication_data,
         })
     }
 }
@@ -828,6 +855,7 @@ pub struct PaymentsPostAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub complete_authorize_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -846,6 +874,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
+            complete_authorize_url: data.complete_authorize_url,
         })
     }
 }
@@ -1194,7 +1223,7 @@ impl
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,

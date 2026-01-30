@@ -458,8 +458,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             );
             // Convert CompleteAuthorize to PostAuthenticate for UCS call
             let mut complete_authorize_request_data = router_data.request.clone();
+
             let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
+
             let post_authenticate_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
@@ -700,6 +702,7 @@ pub async fn call_unified_connector_service_authenticate(
                 )?),
                 Err(err) => Err(err),
             };
+
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_authenticate_response
                 .raw_connector_response
