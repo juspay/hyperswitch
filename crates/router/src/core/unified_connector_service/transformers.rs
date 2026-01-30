@@ -4875,8 +4875,11 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                     mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
                         payments_grpc::MandateAmountData {
                             amount: amount_data.amount.get_amount_as_i64(),
-                            currency: payments_grpc::Currency::foreign_try_from(amount_data.currency)
-                                .unwrap_or(payments_grpc::Currency::Unspecified) as i32,
+                            currency: payments_grpc::Currency::foreign_try_from(
+                                amount_data.currency,
+                            )
+                            .unwrap_or(payments_grpc::Currency::Unspecified)
+                                as i32,
                             start_date: amount_data.start_date.map(
                                 |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
                             ),
@@ -4894,7 +4897,8 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                 currency: payments_grpc::Currency::foreign_try_from(
                                     amount_data.currency,
                                 )
-                                .unwrap_or(payments_grpc::Currency::Unspecified) as i32,
+                                .unwrap_or(payments_grpc::Currency::Unspecified)
+                                    as i32,
                                 start_date: amount_data.start_date.map(
                                     |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
                                 ),
