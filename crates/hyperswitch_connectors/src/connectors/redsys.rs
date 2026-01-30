@@ -1095,6 +1095,7 @@ impl ConnectorSpecifications for Redsys {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                auth_type,
             } => {
                 // For CompleteAuthorize flow:
                 // - If params is NOT empty: This is the first redirect return (from 3DS method/device data collection)
@@ -1107,7 +1108,7 @@ impl ConnectorSpecifications for Redsys {
                     .and_then(|redirect_response| redirect_response.params.as_ref());
 
                 match redirection_params {
-                    Some(param) if !param.peek().is_empty() => true,
+                    Some(param) if !param.peek().is_empty() && auth_type.is_three_ds() => true,
                     Some(_) | None => false,
                 }
             }
