@@ -24,12 +24,11 @@ use std::{
     vec::IntoIter,
 };
 
+// use unified_connector_service_cards::CardNumber;
+// use crate::core::payments::CardNumber;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
 pub mod payment_methods;
-
-#[cfg(feature = "v2")]
-use std::future;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
@@ -42,6 +41,8 @@ use api_models::{
 };
 pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_types::payments as common_payments_types;
+use common_utils::request::Headers;
+ use api_models::payments::PaymentMethodData;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
@@ -72,7 +73,14 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
+use payment_methods::client::create::CreatePaymentMethodResponse;
+use payment_methods::client::create::PaymentMethodCreateData;
+use payment_methods::client::update::{PaymentMethodUpdateData, CardDetailUpdate};
+use payment_methods::client::{CreatePaymentMethod, UpdatePaymentMethod};
+use payment_methods::client::{CreatePaymentMethodV1Request, UpdatePaymentMethodV1Request};
+use payment_methods::client::PaymentMethodClient;
 use redis_interface::errors::RedisError;
+use router_env::RequestIdentifier;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
@@ -80,6 +88,8 @@ use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
 pub use session_operation::payments_session_core;
+#[cfg(feature = "v2")]
+use std::future;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
@@ -686,6 +696,86 @@ where
     let connector_customer_map = customer
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
+
+    let mut parent_headers = Headers::new();
+    parent_headers.insert(("Authorization".to_string(), "api-key=dev_JxgkqXaS06Crlb9eJ6oezSLNc7WhemC2gyVcTpNjU0AroPznXu6LXM5RFXqYLWeX".to_string().into()));
+
+    parent_headers.insert(("x-profile-id".to_string(), "pro_1CSYcnoIWPHggTrBQM8q".to_string().into()));
+
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+
+    let client = PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    let pmd = payment_data.get_payment_method_data().clone().get_required_value("Payment Method Data")?.clone();
+
+    let v1_request = CreatePaymentMethodV1Request {
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        payment_method: common_enums::PaymentMethod::Card,
+        payment_method_type: common_enums::PaymentMethodType::Credit,
+        metadata: None,
+        customer_id: customer
+            .as_ref()
+            .map(|c| c.customer_id.clone())
+            .get_required_value("Customer ID")?,
+        payment_method_data: pmd,
+        billing: None,
+        network_tokenization: None,
+        storage_type: Some(common_enums::StorageType::Persistent),
+    };
+
+    let resp_pm =
+        CreatePaymentMethod::call(state, &client, v1_request)
+            .await
+            .map_err(|err| {
+                println!("Error in creating payment method: {:?}", err);
+                errors::ApiErrorResponse::InternalServerError
+            });
+    match resp_pm {
+        Err(ref e) => {
+            logger::error!("Error creating payment method: {:?}", e);
+        }
+        Ok(ref pm) => {
+            logger::info!("Payment method created successfully: {:?}", pm);
+        }
+    }
+
+    logger::info!("Created Payment Method Responseee: {:?}", resp_pm);
+
+    let update_req = UpdatePaymentMethodV1Request{
+        payment_method_id: resp_pm.clone().ok().unwrap().payment_method_id.clone(),
+        payment_method_data: Some(PaymentMethodUpdateData::Card(CardDetailUpdate{
+            card_holder_name: Some(Secret::new("Updated Name".to_string().into())),
+            nick_name: None,
+            card_cvc: Some(Secret::new("999".to_string().into())),
+        })),
+        connector_token_details: None,
+        network_transaction_id: None
+
+    };
+
+    let update_resp = UpdatePaymentMethod::call(state, &client, update_req)
+        .await
+        .map_err(|err| {
+            println!("Error in updating payment method: {:?}", err);
+            errors::ApiErrorResponse::InternalServerError
+        });
+    match update_resp {
+        Err(ref e) => {
+            logger::error!("Error updating payment method: {:?}", e);
+        }
+        Ok(ref pm) => {
+            logger::info!("Payment method updated successfully: {:?}", pm);
+        }
+    }
+
+    logger::info!("Updated Payment Method Responseee: {:?}", update_resp);
+
+
 
     let authentication_type =
         call_decision_manager(state, platform, &business_profile, &payment_data).await?;

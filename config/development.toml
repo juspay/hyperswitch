@@ -1505,4 +1505,4 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
 
 [micro_services]
-payment_methods_base_url = "http://localhost:8082"
+payment_methods_base_url = "http://localhost:9000"
