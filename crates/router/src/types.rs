@@ -757,6 +757,8 @@ pub struct UcsSetupMandateResponseData {
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
     pub connector_response: Option<ConnectorResponseData>,
+    pub amount_captured: Option<i64>,
+    pub minor_amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Copy)]

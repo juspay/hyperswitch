@@ -150,6 +150,9 @@ where
                     router_data.connector_response = Some(connector_response);
                 });
 
+                router_data.amount_captured = ucs_data.amount_captured;
+                router_data.minor_amount_captured = ucs_data.minor_amount_captured;
+
                 Ok((router_data, (), setup_mandate_response))
             },
         ))

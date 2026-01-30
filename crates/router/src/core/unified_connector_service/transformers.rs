@@ -3758,18 +3758,19 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
                 )
                 .into(),
             ),
-            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Braintree form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
-            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Mifinity form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(braintree)) => {
+                Ok(Self::Braintree {
+                    client_token: braintree.client_token,
+                    card_token: braintree.card_token,
+                    bin: braintree.bin,
+                    acs_url: braintree.acs_url,
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
+                Ok(Self::Mifinity {
+                    initialization_token: mifinity.initialization_token,
+                })
+            }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
