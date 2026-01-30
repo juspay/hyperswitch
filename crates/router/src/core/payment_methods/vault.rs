@@ -1966,7 +1966,7 @@ pub async fn retrieve_payment_method_data_from_storage(
             retrieve_volatile_payment_method_from_redis(
                 state,
                 platform.get_provider().get_key_store(),
-                pm.id.get_string_repr(),
+                pm,
             )
             .await?
         }
@@ -1996,8 +1996,17 @@ pub async fn retrieve_payment_method_data_from_storage(
 pub async fn retrieve_volatile_payment_method_from_redis(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
-    pm_id: &str,
+    pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let vault_id = pm
+        .locker_id
+        .clone()
+        .ok_or(errors::VaultError::MissingRequiredField {
+            field_name: "locker_id",
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
+
     let redis_conn = state
         .store
         .get_redis_conn()
@@ -2005,7 +2014,7 @@ pub async fn retrieve_volatile_payment_method_from_redis(
         .attach_printable("Failed to get redis connection")?;
 
     let response = redis_conn
-        .get_and_deserialize_key::<Encryption>(&pm_id.to_string().into(), "Vec<u8>")
+        .get_and_deserialize_key::<Encryption>(&vault_id.get_string_repr().into(), "Vec<u8>")
         .await;
 
     match response {

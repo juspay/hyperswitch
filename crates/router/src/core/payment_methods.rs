@@ -3470,7 +3470,7 @@ pub async fn retrieve_payment_method(
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
 
     // 2. Fetch payment method record based on resolved storage type
-    let payment_method =
+    let (storage_type, payment_method) =
         fetch_payment_method_by_storage(&state, &platform, &pm, storage_type, card_token_data_opt)
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -3528,28 +3528,31 @@ async fn fetch_payment_method_by_storage(
     pm_incoming: &api::PaymentMethodId,
     storage_type: common_enums::StorageType,
     card_token_data_opt: Option<storage::CardTokenData>,
-) -> RouterResult<domain::PaymentMethod> {
+) -> RouterResult<(common_enums::StorageType, domain::PaymentMethod)> {
     let db = state.store.as_ref();
     match storage_type {
         common_enums::StorageType::Volatile => {
+            logger::debug!("Fetching volatile payment method");
             // When it is Volatile storage payment token data will be always present in redis
             let token_data = card_token_data_opt
                 .as_ref()
                 .ok_or(report!(errors::ApiErrorResponse::PaymentMethodNotFound))
                 .attach_printable("Failed to get card token data for volatile storage")?;
 
-            fetch_volatile_payment_method_record(
+            let volatile_payment_method = fetch_volatile_payment_method_record(
                 state,
                 platform.get_provider().get_key_store(),
                 token_data.payment_method_id.get_string_repr(),
             )
             .await
+            .attach_printable("Failed to get volatile payment method record")?;
+            Ok((storage_type, volatile_payment_method))
         }
         common_enums::StorageType::Persistent => {
+            logger::debug!("Fetching persistent payment method with fallback");
             // In S2S calls, id passed in the request could be payment method id as well
             // If a temporary token is passed after the redis expiration it will also be treated as
             // a persistent GlobalPaymentMethodId, but for temp tokens GlobalPaymentMethodId will fail
-
             let pm_id = match card_token_data_opt {
                 Some(data) => data.payment_method_id.clone(),
                 None => id_type::GlobalPaymentMethodId::generate_from_string(
@@ -3559,7 +3562,49 @@ async fn fetch_payment_method_by_storage(
                 .attach_printable("Unable to generate GlobalPaymentMethodId")?,
             };
 
-            fetch_payment_method(state, platform.get_provider(), &pm_id).await
+            fetch_payment_method_with_fallback(state, platform, &pm_id, storage_type)
+                .await
+                .attach_printable("Failed to get payment method with fallback")
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn fetch_payment_method_with_fallback(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    pm_id: &id_type::GlobalPaymentMethodId,
+    storage_type: common_enums::StorageType,
+) -> RouterResult<(common_enums::StorageType, domain::PaymentMethod)> {
+    let volatile_payment_method = fetch_volatile_payment_method_record(
+        state,
+        platform.get_provider().get_key_store(),
+        &pm_id.get_string_repr(),
+    )
+    .await
+    .attach_printable("Failed to get volatile payment method record");
+
+    match volatile_payment_method {
+        Ok(payment_method) => Ok((common_enums::StorageType::Volatile, payment_method)),
+        Err(err) => {
+            logger::warn!("Volatile payment method not found, falling back to persistent storage",);
+
+            when(
+                !matches!(
+                    err.current_context(),
+                    errors::ApiErrorResponse::GenericNotFoundError { .. }
+                ),
+                || Err(err),
+            )?;
+
+            logger::debug!("Redis lookup failed, falling back to DB");
+
+            let persistent_payment_method =
+                fetch_payment_method(state, platform.get_provider(), pm_id)
+                    .await
+                    .attach_printable("Failed to get payment method record from DB")?;
+
+            Ok((storage_type, persistent_payment_method))
         }
     }
 }
@@ -3576,21 +3621,13 @@ async fn fetch_volatile_payment_method_record(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let response = redis_conn.get_key::<bytes::Bytes>(&pm_id.into()).await;
-
-    let resp = match response {
-        Ok(response) => response,
-        Err(err) => {
-            return Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Token is invalid or expired".into(),
-            })
-        }
-    };
-
-    let payment_method = resp
-        .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting PaymentMethod from redis")?;
+    let payment_method = redis_conn
+        .get_and_deserialize_key::<diesel_models::PaymentMethod>(&pm_id.into(), "PaymentMethod")
+        .await
+        .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Payment method token either expired or does not exist".to_string(),
+        })?;
 
     let keymanager_state = &state.into();
 
