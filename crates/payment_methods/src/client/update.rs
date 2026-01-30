@@ -1,119 +1,93 @@
-//! Update payment method flow types and dummy models.
-
-use api_models::payment_methods::PaymentMethodId;
 use common_utils::request::{Method, RequestContent};
-use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use serde::Deserialize;
-use serde_json::Value;
+use hyperswitch_interfaces::micro_service::MicroserviceClientError;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
 
-const DUMMY_PM_ID: &str = "pm_dummy";
+use crate::client::create::{ConnectorTokenDetails, ModularPaymentMethodResponse};
 
-/// V1-facing update flow type.
 #[derive(Debug)]
 pub struct UpdatePaymentMethod;
 
-/// V1-facing update request payload.
 #[derive(Debug)]
 pub struct UpdatePaymentMethodV1Request {
     /// Identifier for the payment method to update.
-    pub payment_method_id: PaymentMethodId,
-    /// Raw payload forwarded to the modular service.
-    pub payload: Value,
-}
-
-/// Dummy modular service request payload.
-#[derive(Clone, Debug)]
-// TODO: replace dummy request types with real v1/modular models.
-pub struct UpdatePaymentMethodV2Request {
-    /// Identifier for the payment method to update.
-    pub payment_method_id: PaymentMethodId,
-    /// Payload to send in the request body.
-    pub payload: Value,
-}
-
-/// Dummy modular service response payload.
-#[derive(Clone, Debug, Deserialize)]
-// TODO: replace dummy response types with real v1/modular models.
-pub struct UpdatePaymentMethodV2Response {
-    /// Dummy identifier returned by the modular service.
-    pub id: String,
-}
-
-/// V1-facing update response (dummy for now).
-#[derive(Clone, Debug)]
-// TODO: replace dummy response types with real v1/modular models.
-pub struct UpdatePaymentMethodResponse {
-    /// V1 payment method identifier.
+    /// Type String is used throughout v1 payment methods
     pub payment_method_id: String,
-    /// Dummy delete marker (unused).
-    pub deleted: Option<bool>,
+    pub payment_method_data: Option<PaymentMethodUpdateData>,
+    pub connector_token_details: Option<ConnectorTokenDetails>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
-impl TryFrom<&UpdatePaymentMethodV1Request> for UpdatePaymentMethodV2Request {
+#[derive(Debug, Clone, Serialize)]
+pub struct ModularPMUpdateRequest {
+    pub payment_method_data: Option<PaymentMethodUpdateData>,
+    pub connector_token_details: Option<ConnectorTokenDetails>,
+    pub network_transaction_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodUpdateData {
+    Card(CardDetailUpdate),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CardDetailUpdate {
+    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_cvc: Option<Secret<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct UpdatePaymentMethodResponse {
+    pub payment_method_id: String,
+}
+
+impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
     type Error = MicroserviceClientError;
 
     fn try_from(value: &UpdatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_id: value.payment_method_id.clone(),
-            payload: value.payload.clone(),
+            // payment_method_id: value.payment_method_id.clone(),
+            payment_method_data: value.payment_method_data.clone(),
+            connector_token_details: value.connector_token_details.clone(),
+            network_transaction_id: value.network_transaction_id.clone(),
         })
     }
 }
 
-impl TryFrom<UpdatePaymentMethodV2Response> for UpdatePaymentMethodResponse {
+impl TryFrom<ModularPaymentMethodResponse> for UpdatePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
-    fn try_from(_: UpdatePaymentMethodV2Response) -> Result<Self, Self::Error> {
+    fn try_from(resp: ModularPaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_id: DUMMY_PM_ID.to_string(),
-            deleted: None,
+            payment_method_id: resp.id,
         })
     }
 }
 
 impl UpdatePaymentMethod {
-    fn validate_request(
-        &self,
-        request: &UpdatePaymentMethodV1Request,
-    ) -> Result<(), MicroserviceClientError> {
-        if request
-            .payment_method_id
-            .payment_method_id
-            .trim()
-            .is_empty()
-        {
-            return Err(MicroserviceClientError {
-                operation: std::any::type_name::<Self>().to_string(),
-                kind: MicroserviceClientErrorKind::InvalidRequest(
-                    "Payment method ID cannot be empty".to_string(),
-                ),
-            });
-        }
-        Ok(())
-    }
-
     fn build_path_params(
         &self,
         request: &UpdatePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![("id", request.payment_method_id.payment_method_id.clone())]
+        vec![("id", request.payment_method_id.clone())]
     }
 
-    fn build_body(&self, request: UpdatePaymentMethodV2Request) -> Option<RequestContent> {
-        Some(RequestContent::Json(Box::new(request.payload)))
+    fn build_body(&self, request: ModularPMUpdateRequest) -> Option<RequestContent> {
+        Some(RequestContent::Json(Box::new(request)))
     }
 }
 
 hyperswitch_interfaces::impl_microservice_flow!(
     UpdatePaymentMethod,
-    method = Method::Patch,
+    method = Method::Put,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
     v1_request = UpdatePaymentMethodV1Request,
-    v2_request = UpdatePaymentMethodV2Request,
-    v2_response = UpdatePaymentMethodV2Response,
+    v2_request = ModularPMUpdateRequest,
+    v2_response = ModularPaymentMethodResponse,
     v1_response = UpdatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
     body = UpdatePaymentMethod::build_body,
-    path_params = UpdatePaymentMethod::build_path_params,
-    validate = UpdatePaymentMethod::validate_request
+    path_params = UpdatePaymentMethod::build_path_params
 );

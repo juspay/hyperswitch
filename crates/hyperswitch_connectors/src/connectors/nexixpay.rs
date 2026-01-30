@@ -1242,9 +1242,11 @@ impl ConnectorSpecifications for Nexixpay {
     fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
-            api::CurrentFlowInfo::CompleteAuthorize { payment_method, .. } => {
-                payment_method == Some(enums::PaymentMethod::Card)
-            }
+            api::CurrentFlowInfo::CompleteAuthorize {
+                payment_method,
+                auth_type,
+                ..
+            } => payment_method == Some(enums::PaymentMethod::Card) && auth_type.is_three_ds(),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }

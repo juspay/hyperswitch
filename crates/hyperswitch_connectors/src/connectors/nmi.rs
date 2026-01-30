@@ -56,7 +56,10 @@ use transformers as nmi;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, convert_amount, get_header_key_value, PaymentsAuthorizeRequestData},
+    utils::{
+        self, convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
+        PaymentsSetupMandateRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -1198,9 +1201,10 @@ impl ConnectorSpecifications for Nmi {
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
-                *auth_type == enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::SetupMandate {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
