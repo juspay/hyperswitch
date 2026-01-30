@@ -28318,6 +28318,12 @@
             ],
             "nullable": true
           },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Authorization token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -29904,6 +29910,12 @@
                 "$ref": "#/components/schemas/Initiator"
               }
             ],
+            "nullable": true
+          },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Authorization token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
           "connector": {

@@ -118,11 +118,11 @@ pub async fn list_blocked_payment_methods(
         allow_platform_self_operation: false,
     };
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth)
+    {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     Box::pin(api::server_wrap(
         flow,
