@@ -565,11 +565,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         F: 'b + Clone + Send + Sync,
     {
         // #0 - Skip unsupported payment method types.
-        let is_wallet = matches!(
-            resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
-        );
-        if is_wallet {
+        let is_card = matches!(resp.request.payment_method, Some(enums::PaymentMethod::Card))
+            || matches!(
+                resp.request.payment_method_type,
+                Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
+            );
+        if !is_card {
             return Ok(());
         }
 
@@ -921,11 +922,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         F: 'b + Clone + Send + Sync,
     {
         // #0 - Skip unsupported payment method types.
-        let is_wallet = matches!(
+        let is_card = matches!(
             resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
         );
-        if is_wallet {
+        if !is_card {
             return Ok(());
         }
 
@@ -997,11 +998,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         F: 'b + Clone + Send + Sync,
     {
         // #0 - Skip unsupported payment method types.
-        let is_wallet = matches!(
+        let is_card = matches!(
             resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
         );
-        if is_wallet {
+        if !is_card {
             return Ok(());
         }
 
@@ -1892,11 +1893,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         F: 'b + Clone + Send + Sync,
     {
         // #0 - Skip unsupported payment method types.
-        let is_wallet = matches!(
+        let is_card = matches!(
             resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
         );
-        if is_wallet {
+        if !is_card {
             return Ok(());
         }
 
