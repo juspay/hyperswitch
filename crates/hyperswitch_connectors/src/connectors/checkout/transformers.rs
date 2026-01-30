@@ -871,15 +871,13 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             .billing_descriptor
             .as_ref()
             .and_then(|descriptor| {
-                descriptor
-                    .name
-                    .as_ref()
-                    .zip(descriptor.city.as_ref())
-                    .map(|(_, _)| CheckoutBillingDescriptor {
+                (descriptor.name.is_some() || descriptor.city.is_some() || descriptor.reference.is_some()).then(|| {
+                    CheckoutBillingDescriptor {
                         name: descriptor.name.clone(),
                         city: descriptor.city.clone(),
                         reference: descriptor.reference.clone(),
-                    })
+                    }
+                })
             });
 
         let request = Self {
