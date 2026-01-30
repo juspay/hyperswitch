@@ -272,7 +272,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
                 .update_payment_intent(
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
+                        metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
                         feature_metadata,
                     },

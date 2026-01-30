@@ -4064,13 +4064,17 @@ impl TryFrom<&PaymentsCancelRouterData> for CancelRequest {
 #[derive(Debug, Serialize)]
 pub struct UpdateMetadataRequest {
     #[serde(flatten)]
-    pub metadata: HashMap<String, String>,
+    pub metadata: Option<HashMap<String, String>>,
 }
 
 impl TryFrom<&PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let metadata = format_metadata_for_request(item.request.metadata.clone());
+        let metadata = if let Some(data) = &item.request.metadata {
+            Some(format_metadata_for_request(data.clone()))
+        } else {
+            None
+        };
         Ok(Self { metadata })
     }
 }

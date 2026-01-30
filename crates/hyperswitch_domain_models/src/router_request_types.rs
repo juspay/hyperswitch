@@ -223,7 +223,7 @@ pub struct PaymentsPostSessionTokensData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsUpdateMetadataData {
-    pub metadata: pii::SecretSerdeValue,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_transaction_id: String,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub connector_meta: Option<serde_json::Value>,
