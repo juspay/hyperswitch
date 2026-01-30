@@ -2099,12 +2099,18 @@ impl
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServicePreAuthenticateResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        response: payments_grpc::PaymentServicePreAuthenticateResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServicePreAuthenticateResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2147,7 +2153,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -2164,7 +2173,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -2186,13 +2195,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceAuthorizeResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceAuthorizeResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceAuthorizeResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2320,7 +2335,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -2337,7 +2355,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -2367,13 +2385,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCaptureResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceCaptureResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2425,7 +2443,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2441,7 +2462,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -2511,13 +2532,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCu
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceRegisterResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceRegisterResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceRegisterResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2554,7 +2575,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2570,7 +2594,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             // Extract connector_metadata from response if present
             let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
@@ -2621,13 +2645,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceRepeatEverythingResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceRepeatEverythingResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2679,7 +2709,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2695,7 +2728,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -3649,12 +3682,18 @@ impl transformers::ForeignTryFrom<storage_enums::FutureUsage> for payments_grpc:
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServicePostAuthenticateResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        response: payments_grpc::PaymentServicePostAuthenticateResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServicePostAuthenticateResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -3727,7 +3766,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -3744,7 +3786,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -4636,12 +4678,18 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTransactionInfo> for GpayTr
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceAuthenticateResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceAuthenticateResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceAuthenticateResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -4713,7 +4761,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -4730,7 +4781,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -5362,13 +5413,13 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundStatus> for RefundStatus 
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceVoidResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceVoidResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -5420,7 +5471,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -5437,7 +5491,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
