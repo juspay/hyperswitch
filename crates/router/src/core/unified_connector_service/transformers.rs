@@ -12,7 +12,6 @@ use api_models::payments::{
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
     ext_traits::Encode,
-    request::Method,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums as storage_enums;
@@ -173,6 +172,7 @@ impl
             metadata: None,
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
+            test_mode: None,
         })
     }
 }
@@ -372,6 +372,9 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            continue_redirection_url: None,
+            threeds_completion_indicator: None,
+            redirection_response: None,
         })
     }
 }
@@ -539,6 +542,9 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            continue_redirection_url: None,
+            threeds_completion_indicator: None,
+            redirection_response: None,
         })
     }
 }
@@ -863,6 +869,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -1036,6 +1043,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
+            capture_method: None,
         })
     }
 }
@@ -3639,53 +3647,6 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             exemption_indicator: None,
             network_params: None,
         })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
-        match value.form_type {
-            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
-                endpoint: form.clone().endpoint,
-                method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
-            }),
-            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
-                html_data: html.html_data,
-            }),
-            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "URI form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
-            None => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Missing form type".to_string(),
-                )
-                .into(),
-            ),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::HttpMethod> for Method {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
-        tracing::debug!("Converting gRPC HttpMethod: {:?}", value);
-        match value {
-            payments_grpc::HttpMethod::Get => Ok(Self::Get),
-            payments_grpc::HttpMethod::Post => Ok(Self::Post),
-            payments_grpc::HttpMethod::Put => Ok(Self::Put),
-            payments_grpc::HttpMethod::Delete => Ok(Self::Delete),
-            payments_grpc::HttpMethod::Unspecified => {
-                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                    .attach_printable("Invalid Http Method")
-            }
-        }
     }
 }
 
