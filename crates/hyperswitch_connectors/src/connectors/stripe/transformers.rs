@@ -4070,12 +4070,13 @@ pub struct UpdateMetadataRequest {
 impl TryFrom<&PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let metadata = if let Some(data) = &item.request.metadata {
-            Some(format_metadata_for_request(data.clone()))
-        } else {
-            None
-        };
-        Ok(Self { metadata })
+        Ok(Self {
+            metadata: item
+                .request
+                .metadata
+                .as_ref()
+                .map(|data| format_metadata_for_request(data.clone())),
+        })
     }
 }
 

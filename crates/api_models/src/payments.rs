@@ -11359,7 +11359,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
-    /// Pix QR Code expiry time for Merchants
+    /// Extra information for Pix Payment Method Type like fine expiry, pix key etc
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,

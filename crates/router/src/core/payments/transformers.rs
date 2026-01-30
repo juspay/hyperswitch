@@ -5636,10 +5636,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             .transpose()?;
 
         Ok(Self {
-            metadata: payment_data
-                .payment_intent
-                .metadata
-                .map(Secret::new),
+            metadata: payment_data.payment_intent.metadata.map(Secret::new),
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(&payment_data.payment_attempt)?
