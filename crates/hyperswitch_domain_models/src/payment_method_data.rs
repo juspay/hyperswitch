@@ -31,6 +31,7 @@ use crate::{errors::api_error_response::ApiErrorResponse, router_data::PaymentMe
 pub enum PaymentMethodData {
     Card(Card),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
@@ -70,6 +71,8 @@ pub enum RecurringDetails {
     /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
     /// is not stored in the application
     NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+
+    CardWithLimitedData(Box<CardWithLimitedData>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -154,10 +157,32 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub network_transaction_id: Secret<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct CardWithLimitedData {
+    /// The card number
+    pub card_number: cards::CardNumber,
+
+    /// The card's expiry month
+    pub card_exp_month: Option<Secret<String>>,
+
+    /// The card's expiry year
+    pub card_exp_year: Option<Secret<String>>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
+    pub eci: Option<String>,
+}
+
+// Determines if decryption should be performed
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
-    Simplified(api_models::payments::PaymentProcessingDetails),
-    Manual,
+    // Either Merchant provided certificates i.e decryption by hyperswitch or Hyperswitch certificates i.e simplified flow
+    // decryption is performed in hyperswitch
+    DecryptAtApplication(api_models::payments::PaymentProcessingDetails),
+    // decryption by connector or predecrypted token
+    SkipDecryption,
 }
 
 impl PaymentMethodData {
@@ -166,9 +191,8 @@ impl PaymentMethodData {
             Self::Card(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
-            | Self::NetworkTokenDetailsForNetworkTransactionId(_) => {
-                Some(common_enums::PaymentMethod::Card)
-            }
+            | Self::NetworkTokenDetailsForNetworkTransactionId(_)
+            | Self::CardWithLimitedDetails(_) => Some(common_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(common_enums::PaymentMethod::PayLater),
@@ -315,20 +339,37 @@ pub struct CardDetail {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithLimitedDetails {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub eci: Option<String>,
+}
+
+impl CardWithLimitedDetails {
+    pub fn get_card_details_for_mit_flow(
+        card_with_limited_data: CardWithLimitedData,
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
+        (
+            api_models::payments::MandateReferenceId::CardWithLimitedData,
+            PaymentMethodData::CardWithLimitedDetails(card_with_limited_data.into()),
+        )
+    }
+}
+
 impl CardDetailsForNetworkTransactionId {
     pub fn get_nti_and_card_details_for_mit_flow(
-        recurring_details: RecurringDetails,
-    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
-        let network_transaction_id_and_card_details = match recurring_details {
-            RecurringDetails::NetworkTransactionIdAndCardDetails(
-                network_transaction_id_and_card_details,
-            ) => Some(network_transaction_id_and_card_details),
-            RecurringDetails::MandateId(_)
-            | RecurringDetails::PaymentMethodId(_)
-            | RecurringDetails::ProcessorPaymentToken(_)
-            | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => None,
-        }?;
-
+        network_transaction_id_and_card_details: NetworkTransactionIdAndCardDetails,
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
             network_transaction_id_and_card_details
                 .network_transaction_id
@@ -336,27 +377,19 @@ impl CardDetailsForNetworkTransactionId {
                 .to_string(),
         );
 
-        Some((
+        (
             mandate_reference_id,
-            (*network_transaction_id_and_card_details.clone()).into(),
-        ))
+            PaymentMethodData::CardDetailsForNetworkTransactionId(
+                network_transaction_id_and_card_details.into(),
+            ),
+        )
     }
 }
 
 impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
-        recurring_details: RecurringDetails,
-    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
-        let network_transaction_id_and_network_token_details = match recurring_details {
-            RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
-                network_transaction_id_and_card_details,
-            ) => Some(network_transaction_id_and_card_details),
-            RecurringDetails::MandateId(_)
-            | RecurringDetails::PaymentMethodId(_)
-            | RecurringDetails::ProcessorPaymentToken(_)
-            | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => None,
-        }?;
-
+        network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
             network_transaction_id_and_network_token_details
                 .network_transaction_id
@@ -364,10 +397,12 @@ impl NetworkTokenDetailsForNetworkTransactionId {
                 .to_string(),
         );
 
-        Some((
+        (
             mandate_reference_id,
-            (*network_transaction_id_and_network_token_details.clone()).into(),
-        ))
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                network_transaction_id_and_network_token_details.into(),
+            ),
+        )
     }
 }
 
@@ -386,6 +421,25 @@ impl From<&Card> for CardDetail {
             nick_name: item.nick_name.to_owned(),
             card_holder_name: item.card_holder_name.to_owned(),
             co_badged_card_data: item.co_badged_card_data.to_owned(),
+        }
+    }
+}
+
+impl From<CardWithLimitedData> for CardWithLimitedDetails {
+    fn from(card_with_limited_data: CardWithLimitedData) -> Self {
+        Self {
+            card_number: card_with_limited_data.card_number,
+            card_exp_month: card_with_limited_data.card_exp_month,
+            card_exp_year: card_with_limited_data.card_exp_year,
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: card_with_limited_data.card_holder_name,
+            eci: card_with_limited_data.eci,
         }
     }
 }
@@ -742,6 +796,7 @@ pub enum RealTimePaymentData {
     Fps {},
     PromptPay {},
     VietQr {},
+    Qris {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -833,16 +888,52 @@ pub enum UpiData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpiCollectData {
-    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UpiSource {
+    UpiCc,      // UPI Credit Card
+    UpiCl,      // UPI Credit Line
+    UpiAccount, // UPI Bank Account (Savings)
+    UpiCcCl,    // UPI Credit Card + Credit Line
+}
+
+impl From<api_models::payments::UpiSource> for UpiSource {
+    fn from(value: api_models::payments::UpiSource) -> Self {
+        match value {
+            api_models::payments::UpiSource::UpiCc => Self::UpiCc,
+            api_models::payments::UpiSource::UpiCl => Self::UpiCl,
+            api_models::payments::UpiSource::UpiAccount => Self::UpiAccount,
+            api_models::payments::UpiSource::UpiCcCl => Self::UpiCcCl,
+        }
+    }
+}
+
+impl From<UpiSource> for api_models::payments::UpiSource {
+    fn from(value: UpiSource) -> Self {
+        match value {
+            UpiSource::UpiCc => Self::UpiCc,
+            UpiSource::UpiCl => Self::UpiCl,
+            UpiSource::UpiAccount => Self::UpiAccount,
+            UpiSource::UpiCcCl => Self::UpiCcCl,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UpiIntentData {}
+#[serde(rename_all = "snake_case")]
+pub struct UpiCollectData {
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UpiQrData {}
+pub struct UpiIntentData {
+    pub upi_source: Option<UpiSource>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct UpiQrData {
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -903,6 +994,9 @@ pub enum GiftCardData {
 }
 
 impl GiftCardData {
+    pub fn is_givex(&self) -> bool {
+        matches!(self, Self::Givex(_))
+    }
     /// Returns a key that uniquely identifies the gift card. Used in
     /// Payment Method Balance Check Flow for storing the balance
     /// data in Redis.
@@ -1763,11 +1857,16 @@ impl From<CryptoData> for api_models::payments::CryptoData {
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
         match value {
-            api_models::payments::UpiData::UpiCollect(upi) => {
-                Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
-            }
-            api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
-            api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQrData {}),
+            api_models::payments::UpiData::UpiCollect(upi) => Self::UpiCollect(UpiCollectData {
+                vpa_id: upi.vpa_id,
+                upi_source: upi.upi_source.map(UpiSource::from),
+            }),
+            api_models::payments::UpiData::UpiIntent(upi) => Self::UpiIntent(UpiIntentData {
+                upi_source: upi.upi_source.map(UpiSource::from),
+            }),
+            api_models::payments::UpiData::UpiQr(upi) => Self::UpiQr(UpiQrData {
+                upi_source: upi.upi_source.map(UpiSource::from),
+            }),
         }
     }
 }
@@ -1778,12 +1877,17 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiCollect(upi) => Self::UpiCollect(Box::new(
                 payment_additional_types::UpiCollectAdditionalData {
                     vpa_id: upi.vpa_id.map(MaskedUpiVpaId::from),
+                    upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
                 },
             )),
-            UpiData::UpiIntent(_) => {
-                Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
+            UpiData::UpiIntent(upi) => {
+                Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                    upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+                }))
             }
-            UpiData::UpiQr(_) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {})),
+            UpiData::UpiQr(upi) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {
+                upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+            })),
         }
     }
 }
@@ -2226,6 +2330,7 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
             api_models::payments::RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             api_models::payments::RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             api_models::payments::RealTimePaymentData::VietQr {} => Self::VietQr {},
+            api_models::payments::RealTimePaymentData::Qris {} => Self::VietQr {},
         }
     }
 }
@@ -2237,6 +2342,7 @@ impl From<RealTimePaymentData> for api_models::payments::RealTimePaymentData {
             RealTimePaymentData::DuitNow {} => Self::DuitNow {},
             RealTimePaymentData::PromptPay {} => Self::PromptPay {},
             RealTimePaymentData::VietQr {} => Self::VietQr {},
+            RealTimePaymentData::Qris {} => Self::Qris {},
         }
     }
 }
@@ -2547,6 +2653,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris {},
         }
     }
 }
@@ -2649,6 +2756,8 @@ pub fn get_applepay_wallet_info(
         card_type: Some(item.payment_method.pm_type),
         card_exp_month,
         card_exp_year,
+        // To be populated after connector response
+        auth_code: None,
     }
 }
 
@@ -2669,6 +2778,8 @@ pub fn get_googlepay_wallet_info(
         card_type: Some(item.pm_type),
         card_exp_month,
         card_exp_year,
+        // to be populated after connector response
+        auth_code: None,
     }
 }
 
@@ -3232,6 +3343,9 @@ impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
             ) => Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
                 (*network_transaction_id_and_network_token_details).into(),
             ))),
+            mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => Ok(
+                Self::CardWithLimitedData(Box::new((*card_with_limited_data).into())),
+            ),
         }
     }
 }
@@ -3276,35 +3390,36 @@ impl From<mandates::NetworkTransactionIdAndNetworkTokenDetails>
     }
 }
 
+impl From<mandates::CardWithLimitedData> for CardWithLimitedData {
+    fn from(card_with_limited_data: mandates::CardWithLimitedData) -> Self {
+        Self {
+            card_number: card_with_limited_data.card_number,
+            card_exp_month: card_with_limited_data.card_exp_month,
+            card_exp_year: card_with_limited_data.card_exp_year,
+            card_holder_name: card_with_limited_data.card_holder_name,
+            eci: card_with_limited_data.eci,
+        }
+    }
+}
+
 impl RecurringDetails {
-    pub fn get_nti_and_payment_method_data_for_mit_flow(
+    pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
-    ) -> Option<(api_models::payments::MandateReferenceId, PaymentMethodData)> {
-        match self {
-            Self::NetworkTransactionIdAndCardDetails(_) => {
-                    CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(
-                        self.clone(),
-                    ).map(|(mandate_reference_id, card_details_for_network_transaction_id)| {
-                        (
-                            mandate_reference_id,
-                            PaymentMethodData::CardDetailsForNetworkTransactionId(
-                                card_details_for_network_transaction_id,
-                            ),
-                        )
-                    })
+    ) -> CustomResult<(api_models::payments::MandateReferenceId, PaymentMethodData), ApiErrorResponse>
+    {
+        match self.clone() {
+            Self::NetworkTransactionIdAndCardDetails(network_transaction_id_and_card_details) => {
+                Ok(CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(*network_transaction_id_and_card_details))
             }
-            Self::NetworkTransactionIdAndNetworkTokenDetails(_) => {
-                NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(self.clone())
-                .map(|(mandate_reference_id, network_token_details_for_network_transaction_id)| {
-                    (
-                        mandate_reference_id,
-                        PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
-                            network_token_details_for_network_transaction_id,
-                        ),
-                    )
-                })
+            Self::NetworkTransactionIdAndNetworkTokenDetails(network_transaction_id_and_network_token_details) => {
+                Ok(NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(*network_transaction_id_and_network_token_details))
             }
-            _ => None,
+            Self::CardWithLimitedData(card_with_limited_data) => {
+                Ok(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
+            }
+            Self::PaymentMethodId(_)
+            | Self::MandateId(_)
+            | Self::ProcessorPaymentToken(_) => Err(ApiErrorResponse::NotSupported { message: "Recurring Flow via Proxy not Supported".to_string() }.into()),
         }
     }
 }

@@ -162,12 +162,17 @@ pub async fn make_payout_method_data(
 
         // Create / Update operation
         (Some(payout_method), payout_token, Some(payout_data)) => {
+            #[cfg(feature = "v1")]
+            let intent_fulfillment_time = payout_data.business_profile.intent_fulfillment_time;
+            #[cfg(not(feature = "v1"))]
+            let intent_fulfillment_time = None;
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
                 payout_token.to_owned(),
                 payout_method,
                 Some(customer_id.to_owned()),
                 merchant_key_store,
+                intent_fulfillment_time,
             )
             .await?;
 
@@ -647,6 +652,7 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 Default::default(),
+                None,
             )
             .await?,
         );
@@ -838,6 +844,28 @@ pub(super) async fn get_or_create_customer_details(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to form EncryptableCustomer")?;
 
+                let document_details = customer_details
+                    .document_details
+                    .clone()
+                    .async_lift(|inner| async move {
+                        crypto_operation(
+                            &state.into(),
+                            common_utils::type_name!(domain::Customer),
+                            CryptoOperation::EncryptOptional(
+                                api_models::customers::CustomerDocumentDetails::to(&inner),
+                            ),
+                            Identifier::Merchant(
+                                platform.get_processor().get_key_store().merchant_id.clone(),
+                            ),
+                            platform.get_processor().get_key_store().key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt document_details")?;
+
                 let customer = domain::Customer {
                     customer_id: customer_id.clone(),
                     merchant_id: merchant_id.to_owned().clone(),
@@ -862,6 +890,7 @@ pub(super) async fn get_or_create_customer_details(
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
                     tax_registration_id: encryptable_customer.tax_registration_id,
+                    document_details,
                     // TODO: Populate created_by from authentication context once it is integrated in auth data
                     created_by: None,
                     last_modified_by: None, // Same as created_by on creation
@@ -1412,6 +1441,11 @@ pub(super) fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
+    let document_details = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.document_details.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
@@ -1419,6 +1453,7 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
+        document_details,
     }
 }
 

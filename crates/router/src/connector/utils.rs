@@ -781,8 +781,8 @@ pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_amount(&self) -> i64;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -804,13 +804,13 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
 
     fn is_auto_capture(&self) -> Result<bool, Error> {
@@ -866,6 +866,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1045,6 +1046,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1058,6 +1060,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     Some(network_transaction_id.clone())
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
@@ -1170,6 +1173,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1309,6 +1313,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2637,6 +2642,7 @@ pub enum PaymentMethodDataType {
     Mifinity,
     Fps,
     PromptPay,
+    Qris,
     VietQr,
     OpenBanking,
     NetworkToken,
@@ -2654,6 +2660,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
+            domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,
             domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Self::NetworkToken,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
@@ -2846,6 +2853,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Fps {  } => Self::Fps,
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::PromptPay {  } => Self::PromptPay,
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::VietQr {  } => Self::VietQr,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Qris {  } => Self::Qris,
             },
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {

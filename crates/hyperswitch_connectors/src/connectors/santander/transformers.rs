@@ -514,20 +514,18 @@ impl
             .pix
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        // let customer_document_details = value
-        //     .0
-        //     .router_data
-        //     .customer_document_details
-        //     .clone()
-        //     .ok_or(errors::ConnectorError::MissingRequiredField {
-        //         field_name: "customer.document_details",
-        //     })?;
-        // let (cpf, cnpj) = match customer_document_details.document_type {
-        //     enums::DocumentKind::Cpf => (Some(customer_document_details.document_number), None),
-        //     enums::DocumentKind::Cnpj => (None, Some(customer_document_details.document_number)),
-        // };
-
-        let (cpf, cnpj) = (None, None);
+        let customer_document_details = value
+            .0
+            .router_data
+            .customer_document_details
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer.document_details",
+            })?;
+        let (cpf, cnpj) = match customer_document_details.document_type {
+            enums::DocumentKind::Cpf => (Some(customer_document_details.document_number), None),
+            enums::DocumentKind::Cnpj => (None, Some(customer_document_details.document_number)),
+        };
 
         let (calendar, debtor) = match &value
             .0
@@ -718,6 +716,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
+                                authentication_data: None,
                                 charges: None,
                             }),
                             ..item.data
@@ -807,6 +806,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -845,6 +845,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..item.data
@@ -874,6 +875,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charges: None,
+                    authentication_data: None,
                 }),
                 ..item.data
             }),

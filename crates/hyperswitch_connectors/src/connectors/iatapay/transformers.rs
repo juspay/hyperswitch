@@ -194,6 +194,9 @@ impl
                         (common_enums::CountryAlpha2::TH, None, None)
                     }
                     RealTimePaymentData::VietQr {} => (common_enums::CountryAlpha2::VN, None, None),
+                    RealTimePaymentData::Qris {} => Err(errors::ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("iatapay"),
+                    ))?,
                 }
             }
             PaymentMethodData::Card(_)
@@ -212,6 +215,7 @@ impl
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("iatapay"),
@@ -397,6 +401,7 @@ fn get_iatpay_response(
                 network_txn_id: None,
                 connector_response_reference_id: connector_response_reference_id.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }
         }
@@ -408,6 +413,7 @@ fn get_iatpay_response(
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         },
     };

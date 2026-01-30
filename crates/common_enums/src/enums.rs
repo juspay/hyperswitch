@@ -360,12 +360,19 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum RecommendedAction {
     DoNotRetry,
+    #[serde(rename = "retry_after_10_days")]
     RetryAfter10Days,
+    #[serde(rename = "retry_after_1_hour")]
     RetryAfter1Hour,
+    #[serde(rename = "retry_after_24_hours")]
     RetryAfter24Hours,
+    #[serde(rename = "retry_after_2_days")]
     RetryAfter2Days,
+    #[serde(rename = "retry_after_4_days")]
     RetryAfter4Days,
+    #[serde(rename = "retry_after_6_days")]
     RetryAfter6Days,
+    #[serde(rename = "retry_after_8_days")]
     RetryAfter8Days,
     RetryAfterInstrumentUpdate,
     RetryLater,
@@ -2071,6 +2078,13 @@ impl FutureUsage {
             Self::OnSession => false,
         }
     }
+    /// Indicates whether to save the payment method for future use when a customer is present.
+    pub fn is_on_session(self) -> bool {
+        match self {
+            Self::OffSession => false,
+            Self::OnSession => true,
+        }
+    }
 }
 
 #[derive(
@@ -2321,6 +2335,7 @@ pub enum PaymentMethodType {
     Przelewy24,
     PromptPay,
     Pse,
+    Qris,
     RedCompra,
     RedPagos,
     SamsungPay,
@@ -2423,6 +2438,7 @@ impl PaymentMethodType {
             Self::InstantBankTransfer => "Instant Bank Transfer",
             Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
             Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
+            Self::Qris => "QRIS",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -2867,6 +2883,12 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
+impl RefundStatus {
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Success)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2912,6 +2934,7 @@ pub enum RelayStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
     Refund,
+    Capture,
 }
 
 #[derive(
@@ -3226,7 +3249,6 @@ impl MerchantCategoryCode {
     pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
         let code = self.get_code()?;
         match code {
-            // specific mapping needs to be depricated
             5411 => Ok("Grocery Stores, Supermarkets (5411)"),
             7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
             763 => Ok("Agricultural Cooperatives (0763)"),
@@ -3234,6 +3256,47 @@ impl MerchantCategoryCode {
             5021 => Ok("Office and Commercial Furniture (5021)"),
             4816 => Ok("Computer Network/Information Services (4816)"),
             5661 => Ok("Shoe Stores (5661)"),
+            743 => Ok("Wine producers"),
+            744 => Ok("Champagne producers"),
+            4011 => Ok("Railroads"),
+            4511 => Ok("Airlines and air carriers"),
+            4733 => Ok("Ticket Sales for Large Scenic Spots"),
+            4813 => Ok("Key-entry Telecom Merchant providing single local and long-distance phone calls using a central access number in a non-face-to-face environment using key entry"),
+            4815 => Ok("Monthly summary telephone charges"),
+            4829 => Ok("Wire transfers and money orders"),
+            5262 => Ok("Marketplaces"),
+            5552 => Ok("Electric Vehicle Charging"),
+            5715 => Ok("Alcoholic beverage wholesalers"),
+            6050 => Ok("Quasi Cash: Customer Financial Institution"),
+            6532 => Ok("Payment Transaction: Customer Financial Institution"),
+            6533 => Ok("Payment Transaction: Merchant"),
+            6536 => Ok("MoneySend Intracountry"),
+            6537 => Ok("MoneySend Intercountry"),
+            6538 => Ok("Funding Transactions for MoneySend"),
+            6540 => Ok("Non-Financial Institutions - Stored Value Card Purchase/Load"),
+            7013 => Ok("Real Estate Agent - Brokers"),
+            7280 => Ok("Private Hospital"),
+            7295 => Ok("Housekeeping Service (China)"),
+            7322 => Ok("Debt collection agencies"),
+            7512 => Ok("Automobile rentals"),
+            7523 => Ok("Parking lots and garages"),
+            7800 => Ok("Government-Owned Lotteries (US Region only)"),
+            7801 => Ok("Government Licensed On-Line Casinos (On-Line Gambling) (US Region only)"),
+            7802 => Ok("Government-Licensed Horse/Dog Racing (US Region only)"),
+            8912 => Ok("Fitments, Ornaments and Gardening"),
+            9211 => Ok("Court costs, including alimony and child support"),
+            9222 => Ok("Fines"),
+            9223 => Ok("Bail and bond payments"),
+            9311 => Ok("Tax payments"),
+            9399 => Ok("Government services -- not elsewhere classified"),
+            9400 => Ok("Embassy Fee Payments"),
+            9402 => Ok("Postal services -- government only"),
+            9405 => Ok("U.S. Federal Government Agencies or Departments"),
+            9406 => Ok("Government-Owned Lotteries (Non-U.S. region)"),
+            9700 => Ok("Automated Referral Service ( For Visa Only)"),
+            9701 => Ok("Visa Credential Service ( For Visa Only)"),
+            9702 => Ok("Emergency Services (GCAS) (Visa use only)"),
+            9950 => Ok("Intra-Company Purchases"),
 
             _ => Err(InvalidMccError {
                 message: format!("Category name not found for {}", code),
@@ -9561,6 +9624,41 @@ impl From<RelayStatus> for RefundStatus {
     }
 }
 
+impl From<AttemptStatus> for RelayStatus {
+    fn from(refund_status: AttemptStatus) -> Self {
+        match refund_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -9691,6 +9789,36 @@ impl ErrorCategory {
             | Self::SoftDecline => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[allow(non_camel_case_types)]
+pub enum UnifiedCode {
+    /// Customer Error - Issue with payment method details
+    UE_1000,
+    /// Connector Declines - Issue with Configurations
+    UE_2000,
+    /// Connector Error - Technical issue with PSP
+    UE_3000,
+    /// Integration Error - Issue in the integration
+    UE_4000,
+    /// Others - Something went wrong
+    UE_9000,
 }
 
 #[derive(
@@ -10399,6 +10527,14 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
 }
 
 #[derive(

@@ -36,6 +36,10 @@ bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of doma
 # Configuration for the Key Manager Service
 [key_manager]
 url = "http://localhost:5000" # URL of the encryption service
+# Enable / disable legacy key store decryption behavior.
+# Set to true if upgrading from previous versions of Hyperswitch.
+# Set to false for new deployments to use newer / correct decryption behavior.
+use_legacy_key_store_decryption = false
 
 # Main SQL data store credentials
 [master_database]
@@ -332,6 +336,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+worldpaymodular.base_url = "https://try.access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
@@ -484,7 +489,7 @@ two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should 
 totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
-force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
+force_cookies = false                # Whether to use only cookies for JWT extraction and authentication
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
@@ -1243,12 +1248,16 @@ key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
+check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv" # Supported connectors for network transaction id
+
+[card_only_mit_supported_connectors]
+connector_list = "peachpayments" # Supported connectors for card only mit
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
@@ -1356,3 +1365,8 @@ org_id = "your_org_id"                          # Organization ID in Superpositi
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[micro_services]
+# Base URLs for modular microservices
+# (e.g., payment-methods, customers, routing, etc.)
+payment_methods_base_url = "http://localhost:8082"

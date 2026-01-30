@@ -21,7 +21,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     _state: &'a SessionState,
     _payment_intent: &'a storage::PaymentIntent,
     _payment_attempt: &storage::PaymentAttempt,
-    _platform: &domain::Platform,
+    _processor: &domain::Processor,
     _connector: String,
     _fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
@@ -34,7 +34,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: String,
     fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
@@ -50,9 +50,8 @@ pub async fn construct_fulfillment_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        processor,
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         &connector,
         None,
@@ -69,7 +68,7 @@ pub async fn construct_fulfillment_router_data<'a>(
 
     let router_data = RouterData {
         flow: std::marker::PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         connector,
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
@@ -108,7 +107,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             &connector_id,
@@ -138,6 +137,16 @@ pub async fn construct_fulfillment_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: match payment_intent
+            .get_customer_document_details()
+            .attach_printable("Failed to parse customer_document_details from payment_intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+        {
+            Some(details) => {
+                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
+            }
+            None => None,
+        },
     };
     Ok(router_data)
 }

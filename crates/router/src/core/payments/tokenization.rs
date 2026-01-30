@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
-use common_types::callback_mapper::CallbackMapperData;
+use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -130,6 +130,7 @@ pub async fn save_payment_method<FData>(
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    payment_method_customer_details: Option<api_models::customers::CustomerDocumentDetails>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -371,6 +372,21 @@ where
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt payment method billing address")?;
 
+                let payment_method_customer_details_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = payment_method_customer_details
+                    .async_map(|customer_details| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_processor().get_key_store(),
+                            customer_details,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method customer details")?;
+
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
                 let (external_vault_details, vault_type) = match &business_profile.external_vault_details{
@@ -479,6 +495,7 @@ where
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
                                                 Some(vault_source_details),
+                                                payment_method_customer_details_encrypted,
                                             )
                                             .await
                                     } else {
@@ -597,6 +614,7 @@ where
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
                                                     Some(vault_source_details),
+                                                    payment_method_customer_details_encrypted,
                                                 )
                                                 .await
                                         } else {
@@ -790,7 +808,7 @@ where
                                 create_payment_method_metadata(None, connector_token)?;
 
                             locker_id = resp.payment_method.and_then(|pm| {
-                                if pm == PaymentMethod::Card {
+                                if pm == PaymentMethod::Card || pm == PaymentMethod::BankDebit {
                                     Some(resp.payment_method_id)
                                 } else {
                                     None
@@ -820,6 +838,7 @@ where
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
                                     Some(vault_source_details),
+                                    payment_method_customer_details_encrypted,
                                 )
                                 .await?;
 
@@ -1116,8 +1135,12 @@ pub async fn save_in_locker_internal(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    match (payment_method_request.card.clone(), card_detail) {
-        (_, Some(card)) | (Some(card), _) => Box::pin(
+    match (
+        payment_method_request.card.clone(),
+        card_detail,
+        payment_method_request.payment_method_data.clone(),
+    ) {
+        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
             PmCards {
                 state,
                 provider: platform.get_provider(),
@@ -1127,6 +1150,29 @@ pub async fn save_in_locker_internal(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
+
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
+                bank_debit_create_data,
+            )),
+        ) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                platform.get_processor().get_key_store(),
+                &customer_id,
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Bank Debit Failed"),
+
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {

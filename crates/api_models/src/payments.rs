@@ -28,6 +28,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
+use crate::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
@@ -124,9 +125,9 @@ pub struct BankCodeResponse {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    #[smithy(value_type = "String")]
-    pub id: id_type::CustomerId,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "Option<String>")]
+    pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
@@ -152,6 +153,11 @@ pub struct CustomerDetails {
     #[schema(value_type=Option<String>,max_length = 255)]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -193,6 +199,11 @@ pub struct CustomerDetailsResponse {
     #[schema(max_length = 2, example = "+1")]
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
+
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1596,9 +1607,11 @@ impl PaymentsRequest {
     /// First check the id for `customer.id`
     /// If not present, check for `customer_id` at the root level
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id
-            .as_ref()
-            .or(self.customer.as_ref().map(|customer| &customer.id))
+        self.customer_id.as_ref().or_else(|| {
+            self.customer
+                .as_ref()
+                .and_then(|customer| customer.id.as_ref())
+        })
     }
 
     pub fn validate_and_get_request_extended_authorization(
@@ -1627,7 +1640,7 @@ impl PaymentsRequest {
         }) = self.customer.as_ref()
         {
             let invalid_fields = [
-                are_optional_values_invalid(self.customer_id.as_ref(), Some(id))
+                are_optional_values_invalid(self.customer_id.as_ref(), id.as_ref())
                     .then_some("customer_id and customer.id"),
                 are_optional_values_invalid(self.email.as_ref(), email.as_ref())
                     .then_some("email and customer.email"),
@@ -1653,6 +1666,15 @@ impl PaymentsRequest {
         } else {
             None
         }
+    }
+
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.customer
+            .as_ref()
+            .and_then(|data| data.document_details.as_ref())
+            .map_or(Ok(()), |doc| doc.validate())
     }
 
     pub fn get_feature_metadata_as_value(
@@ -1764,12 +1786,13 @@ mod payments_request_test {
         let customer_id = generate_customer_id_of_default_length();
 
         let customer_object = CustomerDetails {
-            id: customer_id.clone(),
+            id: Some(customer_id.clone()),
             name: None,
             email: None,
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1789,12 +1812,13 @@ mod payments_request_test {
         let another_customer_id = generate_customer_id_of_default_length();
 
         let customer_object = CustomerDetails {
-            id: customer_id.clone(),
+            id: Some(customer_id.clone()),
             name: None,
             email: None,
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -2021,6 +2045,10 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     #[smithy(value_type = "Option<String>")]
     pub client_version: Option<String>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2332,6 +2360,7 @@ pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+    CardWithLimitedData, // indicates the recurring transaction is done by card data only
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
@@ -2389,6 +2418,7 @@ impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
@@ -3828,6 +3858,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris,
         }
     }
 }
@@ -4040,6 +4071,8 @@ pub struct AdditionalCardInfo {
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
     pub signature_network: Option<api_enums::CardNetwork>,
+    /// Unique authorisation code generated for the payment.
+    pub auth_code: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4628,25 +4661,57 @@ pub enum UpiData {
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.
+pub enum UpiSource {
+    /// UPI payment using a credit card
+    UpiCc,
+    /// UPI payment using a credit line
+    UpiCl,
+    /// UPI payment using a bank account (savings)
+    UpiAccount,
+    /// UPI payment using a combination of credit card and credit line
+    UpiCcCl,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
+    /// The Virtual Payment Address (VPA) for UPI collect payment
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiQrData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiIntentData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -4840,6 +4905,8 @@ pub enum RealTimePaymentData {
     PromptPay {},
     #[smithy(nested_value_type)]
     VietQr {},
+    #[smithy(nested_value_type)]
+    Qris {},
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -5630,8 +5697,10 @@ pub struct ApplepayPaymentMethod {
     #[schema(value_type = Option<String>, example = "12")]
     pub card_exp_month: Option<Secret<String>>,
     /// The card's expiry year
-    #[schema(value_type = Option<String>, example = "25")]
+    #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
+    /// Unique authorisation code generated for the payment
+    pub auth_code: Option<String>,
 }
 
 #[derive(
@@ -5667,6 +5736,8 @@ pub struct CardResponse {
     pub payment_checks: Option<serde_json::Value>,
     #[smithy(value_type = "Option<Object>")]
     pub authentication_data: Option<serde_json::Value>,
+    #[smithy(value_type = "Option<String>")]
+    pub auth_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6435,6 +6506,8 @@ pub struct PaymentsCaptureResponse {
 pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6529,7 +6602,7 @@ pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
     RedirectToUrl {
-        #[schema(value_type = String)]
+        #[schema(value_type = String, example = "https://example.com/redirect")]
         redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
@@ -7247,19 +7320,19 @@ pub struct PaymentsResponse {
     /// This field will be deprecated soon. Please refer to `customer.email` object
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub email: crypto::OptionalEncryptableEmail,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     /// This field will be deprecated soon. Please refer to `customer.name` object
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub name: crypto::OptionalEncryptableName,
+    pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub phone: Option<Secret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
@@ -7308,6 +7381,11 @@ pub struct PaymentsResponse {
     #[remove_in(PaymentsCreateResponseOpenApi)]
     #[smithy(value_type = "Option<String>")]
     pub unified_message: Option<String>,
+
+    /// Complete error details containing unified, issuer, and connector-level error information.
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 
     /// Describes the type of payment flow experienced by the customer (e.g., 'redirect_to_url', 'invoke_sdk', 'display_qr_code').
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
@@ -8223,29 +8301,107 @@ pub struct PaymentsStatusRequest {
     pub return_raw_connector_response: Option<bool>,
 }
 
+/// Complete error details for V1 PaymentsResponse containing unified, issuer, and connector-level error information.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PaymentErrorDetails {
+    /// Unified error details (standardized across connectors)
+    pub unified_details: Option<ApiUnifiedErrorDetails>,
+    /// Error details from the card issuer
+    pub issuer_details: Option<ApiIssuerErrorDetails>,
+    /// Error details from the payment connector
+    pub connector_details: Option<ApiConnectorErrorDetails>,
+}
+
+/// Unified error details standardized across all payment connectors
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiUnifiedErrorDetails {
+    /// Error category
+    #[schema(value_type = Option<UnifiedCode>)]
+    pub category: Option<String>,
+    /// Human-readable error message
+    pub message: Option<String>,
+    /// Standardised error code
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_code: Option<api_enums::StandardisedCode>,
+    /// Detailed description of the error
+    pub description: Option<String>,
+    /// User-friendly guidance message
+    pub user_guidance_message: Option<String>,
+    /// Recommended action (e.g., "do_not_retry", "retry_later")
+    #[schema(value_type = Option<RecommendedAction>)]
+    pub recommended_action: Option<api_enums::RecommendedAction>,
+}
+
+/// Error details from the card issuer
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiIssuerErrorDetails {
+    /// Error code from the issuer
+    pub code: Option<String>,
+    /// Error message from the issuer
+    pub message: Option<String>,
+    /// Network-specific error details
+    pub network_details: Option<ApiNetworkErrorDetails>,
+}
+
+/// Network-specific error details (e.g., Visa, Mastercard)
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiNetworkErrorDetails {
+    /// Card network (e.g., Visa, Mastercard)
+    #[schema(value_type = Option<CardNetwork>)]
+    pub name: Option<api_enums::CardNetwork>,
+    /// Network advice code
+    pub advice_code: Option<String>,
+    /// Network advice message
+    pub advice_message: Option<String>,
+}
+
+/// Error details from the payment connector
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiConnectorErrorDetails {
+    /// Connector-specific error code
+    pub code: Option<String>,
+    /// Connector-specific error message
+    pub message: Option<String>,
+    /// Additional error reason/details
+    pub reason: Option<String>,
+}
+
 /// Error details for the payment
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
+    #[schema(value_type = String, example = "card_declined")]
     pub code: String,
     /// The error message
+    #[schema(value_type = String, example = "The card was declined.")]
     pub message: String,
     /// The detailed error reason that was returned by the connector.
+    #[schema(value_type = Option<String>, example = "The card was declined.")]
     pub reason: Option<String>,
     /// The unified error code across all connectors.
     /// This can be relied upon for taking decisions based on the error.
+    #[schema(value_type = Option<String>, example = "card_declined")]
     pub unified_code: Option<String>,
     /// The unified error message across all connectors.
     /// If there is a translation available, this will have the translated message
+    #[schema(value_type = Option<String>, example = "The card was declined.")]
     pub unified_message: Option<String>,
     /// This field can be returned for both approved and refused Mastercard payments.
     /// This code provides additional information about the type of transaction or the reason why the payment failed.
     /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    #[schema(value_type = Option<String>, example = "01")]
     pub network_advice_code: Option<String>,
     /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    #[schema(value_type = Option<String>, example = "05")]
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    #[schema(value_type = Option<String>, example = "Do not retry")]
     pub network_error_message: Option<String>,
 }
 
@@ -8895,9 +9051,9 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub email: crypto::OptionalEncryptableEmail,
-    pub name: crypto::OptionalEncryptableName,
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub email: Option<Email>,
+    pub name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
@@ -8937,9 +9093,9 @@ impl From<&PaymentsRequest> for MandateValidationFields {
             customer_id: req
                 .customer
                 .as_ref()
-                .map(|customer_details| &customer_details.id)
+                .and_then(|customer_details| customer_details.id.as_ref())
                 .or(req.customer_id.as_ref())
-                .map(ToOwned::to_owned),
+                .cloned(),
             mandate_data: req.mandate_data.clone(),
             setup_future_usage: req.setup_future_usage,
             off_session: req.off_session,
@@ -9010,6 +9166,7 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_holder_name: card.card_holder_name,
             payment_checks: card.payment_checks,
             authentication_data: card.authentication_data,
+            auth_code: card.auth_code,
         }
     }
 }
@@ -9070,6 +9227,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
+                            auth_code: apple_pay_pm.auth_code,
                         },
                     ))),
                 })),
@@ -9572,9 +9730,20 @@ pub struct GpayMetaData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GpayMetaData>,
+    support_predecrypted_token: Option<bool>,
+}
+impl GooglePayDetailsWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "google_pay")]
-    pub data: GpayMetaData,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9740,14 +9909,35 @@ pub struct ApplepaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayCombinedWrapper {
+    #[serde(flatten)]
+    pub data: Option<ApplePayCombinedMetadata>,
+    support_predecrypted_token: Option<bool>,
+}
+impl ApplePayCombinedWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+    pub fn get_combined_metadata_required(
+        &self,
+    ) -> Result<ApplePayCombinedMetadata, ValidationError> {
+        self.data
+            .clone()
+            .ok_or(ValidationError::IncorrectValueProvided {
+                field_name: "metadata.apple_pay_combined",
+            })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayCombinedSessionTokenData {
-    pub apple_pay_combined: ApplePayCombinedMetadata,
+    pub apple_pay_combined: ApplePayCombinedWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepaySessionTokenMetadata {
-    ApplePayCombined(ApplePayCombinedMetadata),
+    ApplePayCombined(ApplePayCombinedWrapper),
     ApplePay(ApplePayMetadata),
 }
 
@@ -10782,6 +10972,9 @@ pub struct PaymentsCancelRequest {
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// If enabled, provides whole connector response
+    #[smithy(value_type = "Option<bool>")]
+    pub all_keys_required: Option<bool>,
 }
 
 /// Request to cancel a payment when the payment is already captured

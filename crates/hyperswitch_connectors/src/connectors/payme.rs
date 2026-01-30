@@ -435,7 +435,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
         let req_currency = req.request.get_currency()?;
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
         let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
@@ -475,7 +475,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             .parse_struct("Payme GenerateSaleResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let req_amount = data.request.get_minor_amount()?;
+        let req_amount = data.request.get_minor_amount();
         let req_currency = data.request.get_currency()?;
 
         let apple_pay_amount = utils::convert_amount(
@@ -1466,6 +1466,7 @@ impl ConnectorSpecifications for Payme {
                 PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_intent;
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
@@ -30,7 +31,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -45,8 +46,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -66,11 +66,26 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             })?;
 
         let browser_info: Option<BrowserInformation> = self.payment_attempt.get_browser_info().ok();
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = self.payment_intent.customer_id.clone();
+
+        let customer_details = self
+            .payment_intent
+            .customer_details
+            .clone()
+            .map(|customer_details_encrypted| {
+                customer_details_encrypted
+                    .into_inner()
+                    .expose()
+                    .parse_value::<payment_intent::CustomerData>("CustomerData")
+            })
+            .transpose()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to parse customer data from payment intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: platform.get_processor().get_account().get_id().clone(),
+            merchant_id: processor.get_account().get_id().clone(),
             customer_id,
             tenant_id: state.tenant.tenant_id.clone(),
             connector: connector_id.to_string(),
@@ -113,17 +128,9 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                     })
                     .transpose()
                     .unwrap_or_default(),
-                email: customer
-                    .clone()
-                    .and_then(|customer_data| {
-                        customer_data
-                            .email
-                            .map(|email| Email::try_from(email.into_inner().expose()))
-                    })
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "customer.customer_data.email",
-                    })?,
+                email: customer_details
+                    .as_ref()
+                    .and_then(|customer_data| customer_data.email.clone()),
                 gateway: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
@@ -167,6 +174,17 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: match self
+                .payment_intent
+                .get_customer_document_details()
+                .attach_printable("Failed to parse customer_document_details from payment_intent")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+            {
+                Some(details) => {
+                    api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
+                }
+                None => None,
+            },
         };
 
         Ok(router_data)

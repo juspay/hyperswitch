@@ -18,10 +18,7 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
-    payments::{
-        payment_attempt::PaymentAttempt, payment_intent::CustomerData,
-        FromRequestEncryptablePaymentIntent,
-    },
+    payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -36,7 +33,6 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -52,7 +48,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -295,6 +291,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_expiry,
             &business_profile,
             request.is_payment_id_from_merchant,
+            payment_method_info.as_ref(),
         )
         .await?;
 
@@ -630,17 +627,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentCreate {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -789,8 +775,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -802,8 +787,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Box::new(self),
             state,
             payment_data,
-            merchant_key_store,
-            customer,
+            platform,
             storage_scheme,
             business_profile,
             should_retry_with_pan,
@@ -836,7 +820,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -852,7 +836,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
@@ -929,21 +912,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = customer
-            .map(|customer| CustomerData::foreign_try_from(customer.clone()))
-            .transpose()?;
-        let key_manager_state = state.into();
-        // Updation of Customer Details for the cases where both customer_id and specific customer
-        // details are provided in Payment Create Request
-        let customer_details = raw_customer_details
-            .clone()
-            .async_map(|customer_details| {
-                create_encrypted_data(&key_manager_state, key_store, customer_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt customer details")?;
+        let customer_details = payment_data.payment_intent.customer_details.clone();
 
         payment_data.payment_intent = state
             .store
@@ -1076,8 +1045,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
+                    .and_then(|customer| customer.id.as_ref())),
             )?;
         }
 
@@ -1441,6 +1409,7 @@ impl PaymentCreate {
                 debit_routing_savings: None,
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
+                error_details: None,
             },
             additional_pm_data,
 
@@ -1463,6 +1432,7 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
         is_payment_id_from_merchant: bool,
+        payment_method: Option<&hyperswitch_domain_models::payment_methods::PaymentMethod>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1509,19 +1479,52 @@ impl PaymentCreate {
         let split_payments = request.split_payments.clone();
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
-            && (request.name.is_some()
-                || request.email.is_some()
-                || request.phone.is_some()
-                || request.phone_country_code.is_some())
-        {
-            Some(CustomerData {
-                name: request.name.clone(),
-                phone: request.phone.clone(),
-                email: request.email.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-                tax_registration_id: None,
-            })
+        let raw_customer_details = if let Some(customer_id) = request.get_customer_id() {
+            let existing_customer_data = state
+                .store
+                .find_customer_optional_by_customer_id_merchant_id(
+                    customer_id,
+                    platform.get_provider().get_account().get_id(),
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!(
+                    "Failed while fetching customer data for customer_id: {:?}",
+                    customer_id
+                ))?;
+
+            let document_details = if let Some(pm) = payment_method.as_ref() {
+                pm.payment_method_customer_details
+                    .clone()
+                    .map(|encryptable| encryptable.into_inner())
+            } else {
+                existing_customer_data
+                    .as_ref()
+                    .and_then(|cust| cust.document_details.clone().map(|doc| doc.into_inner()))
+            };
+
+            let customer_document_details = document_details.as_ref().and_then(|secret| {
+                secret
+                    .clone()
+                    .expose()
+                    .parse_value::<api_models::customers::CustomerDocumentDetails>(
+                        std::any::type_name::<api_models::customers::CustomerDocumentDetails>(),
+                    )
+                    .ok()
+            });
+
+            Some(
+                hyperswitch_domain_models::payments::payment_intent::CustomerData {
+                    name: request.name.clone(),
+                    email: request.email.clone(),
+                    phone: request.phone.clone(),
+                    phone_country_code: request.phone_country_code.clone(),
+                    tax_registration_id: None,
+                    customer_document_details,
+                },
+            )
         } else {
             None
         };
@@ -1691,6 +1694,7 @@ impl PaymentCreate {
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
+            state_metadata: None,
         })
     }
 }

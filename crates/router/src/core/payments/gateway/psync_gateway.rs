@@ -69,7 +69,7 @@ where
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
         let creds_identifier = context.creds_identifier;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -111,7 +111,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -155,7 +155,7 @@ where
                 if let Some(access_token) =
                     unified_connector_service::get_access_token_from_ucs_response(
                         state,
-                        &platform,
+                        processor,
                         &connector_name,
                         merchant_connector_id.as_ref(),
                         creds_identifier.clone(),
@@ -165,7 +165,7 @@ where
                 {
                     if let Err(error) = unified_connector_service::set_access_token_for_ucs(
                         state,
-                        &platform,
+                        processor,
                         &connector_name,
                         access_token,
                         merchant_connector_id.as_ref(),
@@ -182,10 +182,19 @@ where
                     }
                 }
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response = match router_data_response {
+                    Ok((response, status)) => {
+                        router_data.status = status;
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 let connector_response = extract_connector_response_from_ucs(
                     payment_get_response.connector_response.as_ref(),
                 );

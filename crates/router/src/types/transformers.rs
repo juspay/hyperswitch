@@ -14,6 +14,7 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -384,7 +385,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Fps
             | api_enums::PaymentMethodType::DuitNow
             | api_enums::PaymentMethodType::PromptPay
-            | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
+            | api_enums::PaymentMethodType::VietQr
+            | api_enums::PaymentMethodType::Qris => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
         }
@@ -713,6 +715,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             created_at: dispute.created_at,
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
+            is_already_refunded: false,
         }
     }
 }
@@ -759,6 +762,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
             dispute_id: dispute.dispute_id,
+            amount: dispute.amount,
             dispute_stage: dispute.dispute_stage,
             dispute_status: dispute.dispute_status,
             connector_status: dispute.connector_status,
@@ -794,6 +798,92 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::UnifiedErrorDetails>
+    for payments::ApiUnifiedErrorDetails
+{
+    fn foreign_from(
+        unified: hyperswitch_domain_models::payments::payment_attempt::UnifiedErrorDetails,
+    ) -> Self {
+        Self {
+            category: unified.category,
+            message: unified.message,
+            standardised_code: unified.standardised_code,
+            description: unified.description,
+            user_guidance_message: unified.user_guidance_message,
+            recommended_action: unified.recommended_action,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::NetworkErrorDetails>
+    for payments::ApiNetworkErrorDetails
+{
+    fn foreign_from(
+        network: hyperswitch_domain_models::payments::payment_attempt::NetworkErrorDetails,
+    ) -> Self {
+        Self {
+            name: network.name,
+            advice_code: network.advice_code,
+            advice_message: network.advice_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::IssuerErrorDetails>
+    for payments::ApiIssuerErrorDetails
+{
+    fn foreign_from(
+        issuer: hyperswitch_domain_models::payments::payment_attempt::IssuerErrorDetails,
+    ) -> Self {
+        Self {
+            code: issuer.code,
+            message: issuer.message,
+            network_details: issuer
+                .network_details
+                .map(payments::ApiNetworkErrorDetails::foreign_from),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ConnectorErrorDetails>
+    for payments::ApiConnectorErrorDetails
+{
+    fn foreign_from(
+        connector: hyperswitch_domain_models::payments::payment_attempt::ConnectorErrorDetails,
+    ) -> Self {
+        Self {
+            code: connector.code,
+            message: connector.message,
+            reason: connector.reason,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptErrorDetails>
+    for payments::PaymentErrorDetails
+{
+    fn foreign_from(
+        details: hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptErrorDetails,
+    ) -> Self {
+        Self {
+            unified_details: details
+                .unified_details
+                .map(payments::ApiUnifiedErrorDetails::foreign_from),
+            issuer_details: details
+                .issuer_details
+                .map(payments::ApiIssuerErrorDetails::foreign_from),
+            connector_details: details
+                .connector_details
+                .map(payments::ApiConnectorErrorDetails::foreign_from),
         }
     }
 }
@@ -975,6 +1065,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?,
         };
+
+        let webhook_setup_details =
+            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
+                .get_api_webhook_config();
+
         #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
@@ -1030,6 +1125,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            webhook_setup_capabilities: Some(webhook_setup_details.clone()),
         };
         Ok(response)
     }
@@ -1169,6 +1265,9 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             unified_message: payment_attempt.unified_message,
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
+            error_details: payment_attempt
+                .error_details
+                .map(payments::PaymentErrorDetails::foreign_from),
         }
     }
 }
@@ -1530,26 +1629,33 @@ impl
             .map(api_types::Address::from);
 
         // This change is to fix a merchant integration
-        // If billing.email is not passed by the merchant, and if the customer email is present, then use the `customer.email` as the billing email
+        // If billing.email is not passed by the merchant, and if the customer email is present, then use that as the billing email
+        // Priority order for fallback email: `payment_intent.customer_details.email` > `customer.email`
         if let Some(billing_address) = &mut billing_address {
             billing_address.email = billing_address.email.clone().or_else(|| {
-                customer
-                    .and_then(|cust| {
-                        cust.email
-                            .as_ref()
-                            .map(|email| pii::Email::from(email.clone()))
+                customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
                     })
-                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email))
             });
         } else {
             billing_address = Some(payments::Address {
-                email: customer
-                    .and_then(|cust| {
-                        cust.email
-                            .as_ref()
-                            .map(|email| pii::Email::from(email.clone()))
-                    })
-                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+                email: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    }),
                 ..Default::default()
             });
         }
@@ -1562,15 +1668,25 @@ impl
             billing: billing_address,
             amount: payment_attempt
                 .map(|pa| api_types::Amount::from(pa.net_amount.get_order_amount())),
-            email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
-            phone: customer
-                .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.phone)),
-            name: customer
-                .and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.name)),
+            email: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.email.clone())
+                .or_else(|| {
+                    customer
+                        .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
+                }),
+            phone: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.phone.clone())
+                .or_else(|| {
+                    customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
+                }),
+            name: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.name.clone())
+                .or_else(|| {
+                    customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
+                }),
             ..Self::default()
         })
     }
@@ -1808,6 +1924,17 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
                 .as_ref()
                 .map(|phone| phone.get_inner().to_owned()),
             phone_country_code: customer.phone_country_code.clone(),
+            customer_document_details: customer
+                .document_details
+                .clone()
+                .map(|encryptable| encryptable.into_inner())
+                .and_then(|secret_value| {
+                    secret_value
+                        .parse_value(std::any::type_name::<
+                            api_models::customers::CustomerDocumentDetails,
+                        >())
+                        .ok()
+                }),
         }
     }
 }
@@ -2348,6 +2475,7 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
