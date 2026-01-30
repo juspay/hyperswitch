@@ -564,15 +564,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment method types.
-        let is_card = matches!(
-            resp.request.payment_method,
+        // #0 - Skip unsupported payment methods.
+        if !matches!(
+            payment_data.payment_attempt.payment_method,
             Some(enums::PaymentMethod::Card)
-        ) || matches!(
-            resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
-        );
-        if !is_card {
+        ) {
             return Ok(());
         }
 
@@ -621,6 +617,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             field_name: "merchant_connector_id",
                         }
                     })?;
+                update_connector_mandate_details_for_the_flow(
+                    mandate_reference.connector_mandate_id.clone(),
+                    mandate_reference.mandate_metadata.clone(),
+                    mandate_reference
+                        .connector_mandate_request_reference_id
+                        .clone(),
+                    payment_data,
+                )?;
                 mandate_reference
                     .connector_mandate_id
                     .map(
@@ -923,15 +927,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment method types.
-        let is_card = matches!(
-            resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
-        );
-        if !is_card {
-            return Ok(());
-        }
-
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
@@ -999,43 +994,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment method types.
-        let is_card = matches!(
-            resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
-        );
-        if !is_card {
+        // #0 - Skip unsupported payment methods.
+        if !matches!(
+            payment_data.payment_attempt.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) {
             return Ok(());
         }
-
-        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
-            .response
-            .clone()
-            .ok()
-            .and_then(|resp| {
-                if let types::PaymentsResponseData::TransactionResponse {
-                    mandate_reference, ..
-                } = resp
-                {
-                    mandate_reference.map(|mandate_ref| {
-                        (
-                            mandate_ref.connector_mandate_id.clone(),
-                            mandate_ref.mandate_metadata.clone(),
-                            mandate_ref.connector_mandate_request_reference_id.clone(),
-                        )
-                    })
-                } else {
-                    None
-                }
-            })
-            .unwrap_or((None, None, None));
-
-        update_connector_mandate_details_for_the_flow(
-            connector_mandate_id,
-            mandate_metadata,
-            connector_mandate_request_reference_id,
-            payment_data,
-        )?;
 
         // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
         let payment_method_id = payment_data
@@ -1084,6 +1049,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                             field_name: "merchant_connector_id",
                         }
                     })?;
+                update_connector_mandate_details_for_the_flow(
+                    mandate_reference.connector_mandate_id.clone(),
+                    mandate_reference.mandate_metadata.clone(),
+                    mandate_reference
+                        .connector_mandate_request_reference_id
+                        .clone(),
+                    payment_data,
+                )?;
                 mandate_reference
                     .connector_mandate_id
                     .map(
@@ -1894,12 +1867,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        // #0 - Skip unsupported payment method types.
-        let is_card = matches!(
-            resp.request.payment_method_type,
-            Some(enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit)
-        );
-        if !is_card {
+        // #0 - Skip unsupported payment methods.
+        if !matches!(
+            payment_data.payment_attempt.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) {
             return Ok(());
         }
 
@@ -1942,6 +1914,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                             field_name: "merchant_connector_id",
                         }
                     })?;
+                update_connector_mandate_details_for_the_flow(
+                    mandate_reference.connector_mandate_id.clone(),
+                    mandate_reference.mandate_metadata.clone(),
+                    mandate_reference
+                        .connector_mandate_request_reference_id
+                        .clone(),
+                    payment_data,
+                )?;
                 mandate_reference
                     .connector_mandate_id
                     .map(
@@ -2147,33 +2127,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
-            .response
-            .clone()
-            .ok()
-            .and_then(|resp| {
-                if let types::PaymentsResponseData::TransactionResponse {
-                    mandate_reference, ..
-                } = resp
-                {
-                    mandate_reference.map(|mandate_ref| {
-                        (
-                            mandate_ref.connector_mandate_id.clone(),
-                            mandate_ref.mandate_metadata.clone(),
-                            mandate_ref.connector_mandate_request_reference_id.clone(),
-                        )
-                    })
-                } else {
-                    None
-                }
-            })
-            .unwrap_or((None, None, None));
-        update_connector_mandate_details_for_the_flow(
-            connector_mandate_id,
-            mandate_metadata,
-            connector_mandate_request_reference_id,
-            payment_data,
-        )?;
+        // #0 - Skip unsupported payment methods.
+        if !matches!(
+            payment_data.payment_attempt.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) {
+            return Ok(());
+        }
 
         // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
         let payment_method_id = payment_data
@@ -2222,6 +2182,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                             field_name: "merchant_connector_id",
                         }
                     })?;
+                update_connector_mandate_details_for_the_flow(
+                    mandate_reference.connector_mandate_id.clone(),
+                    mandate_reference.mandate_metadata.clone(),
+                    mandate_reference
+                        .connector_mandate_request_reference_id
+                        .clone(),
+                    payment_data,
+                )?;
                 mandate_reference
                     .connector_mandate_id
                     .map(
