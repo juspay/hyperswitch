@@ -158,7 +158,7 @@ run_tests() {
 
       # --delay 2 prevents multiple browsers from spiking CPU at the same microsecond
       parallel --jobs "$jobs" \
-               --delay 2 \
+               --delay 10 \
                --group \
                --joblog "$job_log" \
                execute_test {} "$service" "$tmp_file" "$results_log" "$lock_file" {%} \
