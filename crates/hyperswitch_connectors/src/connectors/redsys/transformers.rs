@@ -1897,6 +1897,31 @@ pub struct SyncErrorCode {
     ds_errorcode: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DsState {
+    /// Requested
+    S,
+    /// Authorizing
+    P,
+    /// Authenticating
+    A,
+    /// Completed
+    F,
+    /// No response / Technical Error
+    T,
+    /// Transfer, direct debit, or PayPal in progress
+    E,
+    /// Direct debit downloaded.
+    D,
+    /// Online transfer
+    L,
+    /// Redirected to a wallet
+    W,
+    /// Redirected to Iupay
+    O,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RedsysSyncResponseData {
@@ -1905,7 +1930,7 @@ pub struct RedsysSyncResponseData {
     ds_amount: Option<String>,
     ds_currency: Option<String>,
     ds_securepayment: Option<String>,
-    ds_state: Option<String>,
+    ds_state: Option<DsState>,
     ds_response: Option<DsResponse>,
 }
 
@@ -1965,7 +1990,29 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                         (status, payment_response)
                     }
                 } else {
-                    // When the payment is in authentication or still processing
+                    // When ds_response is None, check Ds_State for status mapping
+                    let status = match response.ds_state {
+                        Some(DsState::A) => {
+                            // Authenticating - customer needs to complete 3DS
+                            common_enums::AttemptStatus::AuthenticationPending
+                        }
+                        Some(DsState::P) => common_enums::AttemptStatus::Pending, // Authorizing - payment in progress
+                        Some(DsState::S) => common_enums::AttemptStatus::Pending, // Requested - initial state
+                        Some(DsState::F) => {
+                            // Completed - check capture method for final status
+                            match item.data.request.capture_method {
+                                Some(enums::CaptureMethod::Automatic) | None => {
+                                    common_enums::AttemptStatus::Charged
+                                }
+                                Some(enums::CaptureMethod::Manual) => {
+                                    common_enums::AttemptStatus::Authorized
+                                }
+                                _ => common_enums::AttemptStatus::Pending,
+                            }
+                        }
+                        _ => item.data.status, // Fallback to existing status if Ds_State is unknown/missing
+                    };
+
                     let payment_response = Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(response.ds_order.clone()),
                         redirection_data: Box::new(None),
@@ -1978,7 +2025,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                         charges: None,
                     });
 
-                    (item.data.status, payment_response)
+                    (status, payment_response)
                 }
             }
             (None, Some(errormsg)) => {
