@@ -148,7 +148,6 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -169,7 +168,6 @@ impl
             self.clone(),
             connector_id,
             processor,
-            customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -1237,6 +1235,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             let (router_data_response, status_code) =
                 unified_connector_service::handle_unified_connector_service_response_for_payment_pre_authenticate(
                     payment_pre_authenticate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
