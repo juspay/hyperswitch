@@ -7742,6 +7742,16 @@
           }
         }
       },
+      "BoletoAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "due_date": {
+            "type": "string",
+            "description": "Due Date for the Boleto",
+            "nullable": true
+          }
+        }
+      },
       "BoletoVoucherData": {
         "type": "object",
         "properties": {
@@ -12244,6 +12254,22 @@
               }
             ],
             "nullable": true
+          },
+          "pix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "boleto_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14076,6 +14102,19 @@
         ],
         "discriminator": {
           "propertyName": "method_key"
+        }
+      },
+      "ImmediateExpirationTime": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Expiration time in seconds"
+          }
         }
       },
       "IncrementalAuthorizationResponse": {
@@ -23607,6 +23646,32 @@
           }
         }
       },
+      "PixAdditionalDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "immediate"
+            ],
+            "properties": {
+              "immediate": {
+                "$ref": "#/components/schemas/ImmediateExpirationTime"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "scheduled"
+            ],
+            "properties": {
+              "scheduled": {
+                "$ref": "#/components/schemas/ScheduledExpirationTime"
+              }
+            }
+          }
+        ]
+      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -26322,6 +26387,24 @@
           "low_value",
           "transaction_risk_analysis"
         ]
+      },
+      "ScheduledExpirationTime": {
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Expiration time in terms of date, format: YYYY-MM-DD"
+          },
+          "validity_after_expiration": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days after expiration date for which the QR code remains valid",
+            "nullable": true
+          }
+        }
       },
       "SdkDisplayMode": {
         "type": "string",

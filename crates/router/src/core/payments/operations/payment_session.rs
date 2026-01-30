@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -261,14 +264,22 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(masking::Secret::new);
+        let amount: MinorUnit = payment_data.amount.into();
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
                 .update_payment_intent(
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
+                        metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
+                        feature_metadata,
+                        amount,
                     },
                     key_store,
                     storage_scheme,
