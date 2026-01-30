@@ -1596,10 +1596,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(vec![], vec![], card_with_name()),
         ),
         (
-            Connector::Peachpaymentsapm,
-            fields(vec![], vec![], vec![]),
-        ),
-        (
             Connector::Powertranz,
             fields(vec![], card_with_name(), vec![]),
         ),

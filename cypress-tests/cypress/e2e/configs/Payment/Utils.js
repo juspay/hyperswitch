@@ -53,7 +53,6 @@ import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
-import { connectorDetails as peachpaymentsapmConnectorDetails } from "./Peachpaymentsapm.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
@@ -124,7 +123,6 @@ const connectorDetails = {
   paysafe: paysafeConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
-  peachpaymentsapm: peachpaymentsapmConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,

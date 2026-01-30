@@ -1,12 +1,4 @@
 {
-  "peachpaymentsapm": {
-    "connector_account_details": {
-      "auth_type": "SignatureKey",
-      "api_key": "test",
-      "key1": "test",
-      "api_secret": "test"
-    }
-  },
   "celero": {
     "connector_account_details": {
       "auth_type": "HeaderKey",

@@ -124,7 +124,6 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Paystack => Self::Paystack,
             api_enums::Connector::Payu => Self::Payu,
             api_enums::Connector::Peachpayments => Self::Peachpayments,
-            api_enums::Connector::Peachpaymentsapm => Self::Peachpaymentsapm,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
             api_enums::Connector::Plaid => Self::Plaid,
             api_enums::Connector::Powertranz => Self::Powertranz,
