@@ -5,8 +5,6 @@ use ::payment_methods::client::{
     PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
     UpdatePaymentMethodV1Request,
 };
-#[cfg(feature = "v1")]
-use api_models::payment_methods::PaymentMethodId;
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
@@ -81,7 +79,7 @@ use crate::{
 async fn call_modular_payment_method_update<F>(
     state: &SessionState,
     payment_data: &PaymentData<F>,
-    payment_method_id: &PaymentMethodId,
+    payment_method_id: &str,
     payload: UpdatePaymentMethodV1Payload,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -138,7 +136,7 @@ where
         state,
         &client,
         UpdatePaymentMethodV1Request {
-            payment_method_id: payment_method_id.clone(),
+            payment_method_id: payment_method_id.to_string(),
             payload,
         },
     )
@@ -246,15 +244,7 @@ where
     };
 
     // #5 - Execute the modular payment-method update call.
-    call_modular_payment_method_update(
-        state,
-        payment_data,
-        &PaymentMethodId {
-            payment_method_id: payment_method_id.clone(),
-        },
-        payload,
-    )
-    .await?;
+    call_modular_payment_method_update(state, payment_data, &payment_method_id, payload).await?;
     payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
     Ok(())
 }

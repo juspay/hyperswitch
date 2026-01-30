@@ -1,6 +1,5 @@
 //! Update payment method flow types and modular models.
 
-use api_models::payment_methods::PaymentMethodId;
 use cards::CardNumber;
 use common_enums::{
     CardNetwork, ConnectorTokenStatus, CountryAlpha2, Currency, PaymentMethod, PaymentMethodType,
@@ -14,7 +13,7 @@ use common_utils::{
 };
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use masking::Secret;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 /// V1-facing update flow type.
@@ -25,13 +24,13 @@ pub struct UpdatePaymentMethod;
 #[derive(Debug)]
 pub struct UpdatePaymentMethodV1Request {
     /// Identifier for the payment method to update.
-    pub payment_method_id: PaymentMethodId,
+    pub payment_method_id: String,
     /// Typed update payload derived from aggregated data.
     pub payload: UpdatePaymentMethodV1Payload,
 }
 
 /// V1-facing update payload.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdatePaymentMethodV1Payload {
     /// Payment method details to update.
@@ -43,7 +42,7 @@ pub struct UpdatePaymentMethodV1Payload {
 }
 
 /// Modular service update request payload.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdatePaymentMethodV2Request {
     /// Payment method details to update.
@@ -55,7 +54,7 @@ pub struct UpdatePaymentMethodV2Request {
 }
 
 /// Payment method update data.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
@@ -64,7 +63,7 @@ pub enum PaymentMethodUpdateData {
 }
 
 /// Card update payload for the modular service.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card holder name.
@@ -97,14 +96,10 @@ pub struct ConnectorTokenDetails {
 }
 
 /// Modular service update response payload.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdatePaymentMethodV2Response {
     /// The unique identifier of the payment method.
-    #[serde(
-        deserialize_with = "deserialize_payment_method_id",
-        serialize_with = "serialize_payment_method_id"
-    )]
-    pub id: PaymentMethodId,
+    pub id: String,
     /// Unique identifier for a merchant.
     pub merchant_id: id_type::MerchantId,
     /// The unique identifier of the customer.
@@ -134,14 +129,10 @@ pub struct UpdatePaymentMethodV2Response {
 }
 
 /// V1-facing update response.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdatePaymentMethodResponse {
     /// The unique identifier of the payment method.
-    #[serde(
-        deserialize_with = "deserialize_payment_method_id",
-        serialize_with = "serialize_payment_method_id"
-    )]
-    pub id: PaymentMethodId,
+    pub id: String,
     /// Unique identifier for a merchant.
     pub merchant_id: id_type::MerchantId,
     /// The unique identifier of the customer.
@@ -171,7 +162,7 @@ pub struct UpdatePaymentMethodResponse {
 }
 
 /// Payment method response data.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
@@ -180,7 +171,7 @@ pub enum PaymentMethodResponseData {
 }
 
 /// Card details as returned by the modular service.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize)]
 pub struct CardDetailFromLocker {
     pub issuer_country: Option<CountryAlpha2>,
     pub last4_digits: Option<String>,
@@ -203,13 +194,13 @@ fn saved_in_locker_default() -> bool {
 }
 
 /// Network token response payload.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize)]
 pub struct NetworkTokenResponse {
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
 /// Network token payment method details.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<CountryAlpha2>,
@@ -226,30 +217,13 @@ pub struct NetworkTokenDetailsPaymentMethod {
 }
 
 /// Stored card CVC token details.
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 pub struct CardCVCTokenStorageDetails {
     /// Whether card CVC is stored.
     pub is_stored: bool,
     /// Expiry timestamp for stored CVC.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<PrimitiveDateTime>,
-}
-
-fn deserialize_payment_method_id<'de, D>(deserializer: D) -> Result<PaymentMethodId, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let id = String::deserialize(deserializer)?;
-    Ok(PaymentMethodId {
-        payment_method_id: id,
-    })
-}
-
-fn serialize_payment_method_id<S>(value: &PaymentMethodId, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&value.payment_method_id)
 }
 
 impl TryFrom<&UpdatePaymentMethodV1Request> for UpdatePaymentMethodV2Request {
@@ -291,12 +265,7 @@ impl UpdatePaymentMethod {
         &self,
         request: &UpdatePaymentMethodV1Request,
     ) -> Result<(), MicroserviceClientError> {
-        if request
-            .payment_method_id
-            .payment_method_id
-            .trim()
-            .is_empty()
-        {
+        if request.payment_method_id.trim().is_empty() {
             return Err(MicroserviceClientError {
                 operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
@@ -311,7 +280,7 @@ impl UpdatePaymentMethod {
         &self,
         request: &UpdatePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![("id", request.payment_method_id.payment_method_id.clone())]
+        vec![("id", request.payment_method_id.clone())]
     }
 
     fn build_body(&self, request: UpdatePaymentMethodV2Request) -> Option<RequestContent> {

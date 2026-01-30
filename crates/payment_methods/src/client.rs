@@ -25,6 +25,7 @@ pub use update::{
     ConnectorTokenDetails, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
     UpdatePaymentMethodV1Request,
 };
+
 use crate::configs::ModularPaymentMethodServiceUrl;
 
 #[derive(Debug)]
