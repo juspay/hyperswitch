@@ -4953,7 +4953,7 @@ impl AttemptType {
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
-    fn make_new_payment_attempt(
+    fn make_new_manual_retry_payment_attempt(
         payment_method_data: Option<&api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
@@ -5093,7 +5093,7 @@ impl AttemptType {
             Self::New => {
                 let db = &*state.store;
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
-                let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
+                let new_payment_attempt_to_insert = Self::make_new_manual_retry_payment_attempt(
                     request
                         .payment_method_data
                         .as_ref()
