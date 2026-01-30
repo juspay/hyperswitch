@@ -96,6 +96,27 @@ pub async fn get_config_bool(
     }
 }
 
+pub async fn get_organization_eligibility_config_for_pm_modular_service(
+    state: &SessionState,
+    organization_id: &common_utils::id_type::OrganizationId,
+) -> bool {
+    let config = state
+        .store
+        .find_config_by_key_unwrap_or(
+            &organization_id.get_should_call_pm_modular_service_key(),
+            Some("false".to_string()),
+        )
+        .await;
+
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            router_env::logger::error!(?error);
+            false
+        }
+    }
+}
+
 /// Get a string configuration value with superposition and database fallback
 pub async fn get_config_string(
     state: &SessionState,

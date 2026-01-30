@@ -98,6 +98,7 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
+    configs::get_organization_eligibility_config_for_pm_modular_service,
     errors::StorageErrorExt,
     payment_methods::surcharge_decision_configs,
     routing::TransactionData,
@@ -326,10 +327,28 @@ where
             connector_http_status_code = router_data.connector_http_status_code;
             add_connector_http_status_code_metrics(connector_http_status_code);
 
-            payments_response_operation
-                .to_post_update_tracker()?
-                .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
-                .await?;
+            let is_modular_merchant = get_organization_eligibility_config_for_pm_modular_service(
+                state,
+                &platform.get_processor().get_account().organization_id,
+            )
+            .await;
+            if is_modular_merchant {
+                payments_response_operation
+                    .to_post_update_tracker()?
+                    .update_modular_pm_and_mandate(
+                        state,
+                        &router_data,
+                        &platform,
+                        &mut payment_data,
+                        profile,
+                    )
+                    .await?;
+            } else {
+                payments_response_operation
+                    .to_post_update_tracker()?
+                    .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
+                    .await?;
+            }
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
@@ -423,10 +442,28 @@ where
             connector_http_status_code = router_data.connector_http_status_code;
             add_connector_http_status_code_metrics(connector_http_status_code);
 
-            payments_response_operation
-                .to_post_update_tracker()?
-                .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
-                .await?;
+            let is_modular_merchant = get_organization_eligibility_config_for_pm_modular_service(
+                state,
+                &platform.get_processor().get_account().organization_id,
+            )
+            .await;
+            if is_modular_merchant {
+                payments_response_operation
+                    .to_post_update_tracker()?
+                    .update_modular_pm_and_mandate(
+                        state,
+                        &router_data,
+                        &platform,
+                        &mut payment_data,
+                        profile,
+                    )
+                    .await?;
+            } else {
+                payments_response_operation
+                    .to_post_update_tracker()?
+                    .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
+                    .await?;
+            }
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
@@ -967,16 +1004,35 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
+                    let is_modular_merchant =
+                        get_organization_eligibility_config_for_pm_modular_service(
                             state,
-                            &router_data,
-                            platform,
-                            &mut payment_data,
-                            &business_profile,
+                            &platform.get_processor().get_account().organization_id,
                         )
-                        .await?;
+                        .await;
+                    if is_modular_merchant {
+                        operation
+                            .to_post_update_tracker()?
+                            .update_modular_pm_and_mandate(
+                                state,
+                                &router_data,
+                                platform,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    } else {
+                        operation
+                            .to_post_update_tracker()?
+                            .save_pm_and_mandate(
+                                state,
+                                &router_data,
+                                platform,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    }
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -994,15 +1050,17 @@ where
                         )
                         .await?;
 
-                    operation
-                        .to_post_update_tracker()?
-                        .update_pm_and_mandate(
-                            state,
-                            platform.get_provider(),
-                            &payment_data,
-                            &router_data_for_pm_mandate,
-                        )
-                        .await?;
+                    if !is_modular_merchant {
+                        operation
+                            .to_post_update_tracker()?
+                            .update_pm_and_mandate(
+                                state,
+                                platform.get_provider(),
+                                &payment_data,
+                                &router_data_for_pm_mandate,
+                            )
+                            .await?;
+                    }
 
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
@@ -1169,16 +1227,35 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
+                    let is_modular_merchant =
+                        get_organization_eligibility_config_for_pm_modular_service(
                             state,
-                            &router_data,
-                            platform,
-                            &mut payment_data,
-                            &business_profile,
+                            &platform.get_processor().get_account().organization_id,
                         )
-                        .await?;
+                        .await;
+                    if is_modular_merchant {
+                        operation
+                            .to_post_update_tracker()?
+                            .update_modular_pm_and_mandate(
+                                state,
+                                &router_data,
+                                platform,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    } else {
+                        operation
+                            .to_post_update_tracker()?
+                            .save_pm_and_mandate(
+                                state,
+                                &router_data,
+                                platform,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    }
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1198,7 +1275,7 @@ where
 
                     operation
                         .to_post_update_tracker()?
-                        .update_pm_and_mandate(
+                        .update_modular_pm_and_mandate(
                             state,
                             platform.get_provider(),
                             &payment_data,
@@ -1543,7 +1620,7 @@ where
 
     operation
         .to_post_update_tracker()?
-        .update_pm_and_mandate(
+        .update_modular_pm_and_mandate(
             state,
             platform.get_provider(),
             &payment_data,

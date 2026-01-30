@@ -591,6 +591,19 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     {
         Ok(())
     }
+
+    async fn update_modular_pm_and_mandate<'b>(
+        &self,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
