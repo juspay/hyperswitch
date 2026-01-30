@@ -17,7 +17,7 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::{ExposeOptionInterface, PeekInterface, Secret, SwitchStrategy};
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
@@ -275,7 +275,8 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            id: self.id,
+            id: self.id.clone(),
+            customer_id: Some(self.id),
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
@@ -373,7 +374,7 @@ impl behaviour::Conversion for Customer {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: self.id,
+            id: self.id.clone(),
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
@@ -397,6 +398,7 @@ impl behaviour::Conversion for Customer {
                 .as_ref()
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
+            customer_id: Some(self.id),
         })
     }
 }
@@ -746,12 +748,11 @@ where
 #[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
-    customer: Option<&Customer>,
+    connector_customer_map: Option<&pii::SecretSerdeValue>,
     connector_customer_id: Option<String>,
 ) -> Option<CustomerUpdate> {
-    let mut connector_customer_map = customer
-        .and_then(|customer| customer.connector_customer.clone().expose_option())
-        .and_then(|connector_customer| connector_customer.as_object().cloned())
+    let mut connector_customer_map = connector_customer_map
+        .and_then(|connector_customer| connector_customer.clone().expose().as_object().cloned())
         .unwrap_or_default();
 
     let updated_connector_customer_map = connector_customer_id.map(|connector_customer_id| {
