@@ -823,6 +823,9 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub shutdown_timeout: u64,
+    pub keep_alive: u64,
+    pub client_request_timeout: u64,
+    pub client_disconnect_timeout: u64,
     #[cfg(feature = "tls")]
     pub tls: Option<ServerTls>,
 }
