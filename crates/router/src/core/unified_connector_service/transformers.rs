@@ -4879,7 +4879,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                 amount_data.currency,
                             )
                             .unwrap_or(payments_grpc::Currency::Unspecified)
-                                as i32,
+                                .into(),
                             start_date: amount_data.start_date.map(
                                 |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
                             ),
@@ -4898,7 +4898,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                     amount_data.currency,
                                 )
                                 .unwrap_or(payments_grpc::Currency::Unspecified)
-                                    as i32,
+                                    .into(),
                                 start_date: amount_data.start_date.map(
                                     |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
                                 ),
