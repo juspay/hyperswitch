@@ -608,10 +608,10 @@ where
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        provider: &domain::Provider,
+        _provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -619,29 +619,11 @@ where
         ),
         errors::StorageError,
     > {
-        let db = &*state.store;
-        let merchant_key_store = provider.get_key_store();
-        let storage_scheme = provider.get_account().storage_scheme;
-        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
-            None => None,
-            Some(customer_id) => {
-                // This function is to retrieve customer details. If the customer is deleted, it returns
-                // customer details that contains the fields as Redacted
-                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-                    customer_id,
-                    &merchant_key_store.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?
-            }
-        };
-
-        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
-            payment_data.set_email_if_not_present(email.into());
-        }
-
-        Ok((Box::new(self), customer))
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of Retrieve
+        Ok((Box::new(self), None))
     }
 
     async fn get_connector<'a>(
@@ -694,10 +676,10 @@ where
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        provider: &domain::Provider,
+        _provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -705,28 +687,11 @@ where
         ),
         errors::StorageError,
     > {
-        let db = &*state.store;
-        let merchant_key_store = provider.get_key_store();
-        let storage_scheme = provider.get_account().storage_scheme;
-
-        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
-            None => None,
-            Some(customer_id) => {
-                db.find_customer_optional_by_customer_id_merchant_id(
-                    customer_id,
-                    &merchant_key_store.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?
-            }
-        };
-
-        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
-            payment_data.set_email_if_not_present(email.into());
-        }
-
-        Ok((Box::new(self), customer))
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of Capture
+        Ok((Box::new(self), None))
     }
 
     #[instrument(skip_all)]
@@ -797,10 +762,10 @@ where
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        provider: &domain::Provider,
+        _provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -808,28 +773,12 @@ where
         ),
         errors::StorageError,
     > {
-        let db = &*state.store;
-        let merchant_key_store = provider.get_key_store();
-        let storage_scheme = provider.get_account().storage_scheme;
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of Cancel
 
-        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
-            None => None,
-            Some(customer_id) => {
-                db.find_customer_optional_by_customer_id_merchant_id(
-                    customer_id,
-                    &merchant_key_store.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?
-            }
-        };
-
-        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
-            payment_data.set_email_if_not_present(email.into());
-        }
-
-        Ok((Box::new(self), customer))
+        Ok((Box::new(self), None))
     }
 
     #[instrument(skip_all)]
