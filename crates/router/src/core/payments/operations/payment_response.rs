@@ -30,8 +30,6 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
 #[cfg(feature = "v1")]
-use masking::ExposeInterface;
-#[cfg(feature = "v1")]
 use masking::Maskable;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
@@ -42,7 +40,6 @@ use router_derive;
 use router_env::RequestIdentifier;
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
-use serde_json::json;
 use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
@@ -555,6 +552,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -566,42 +564,17 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate start (payments_authorize)"
-        );
+        // #0 - Skip unsupported payment method types.
         let is_wallet = matches!(
             resp.request.payment_method_type,
             Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
         );
         if is_wallet {
-            logger::info!(
-                payment_id=?payment_data.payment_intent.get_id(),
-                attempt_id=?payment_data.payment_attempt.attempt_id,
-                "update_pm_and_mandate skip: wallet payment_method_type"
-            );
             return Ok(());
         }
 
-        let network_transaction_id = resp.response.clone().ok().and_then(|response| {
-            if let types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } =
-                response
-            {
-                network_txn_id
-            } else {
-                None
-            }
-        });
-        let network_transaction_id = if payment_data.payment_intent.setup_future_usage
-            == Some(enums::FutureUsage::OffSession)
-        {
-            network_transaction_id
-        } else {
-            None
-        };
-
-        let payment_method_id_opt = payment_data
+        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
+        let payment_method_id = payment_data
             .payment_attempt
             .payment_method_id
             .clone()
@@ -610,87 +583,71 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     .payment_method_info
                     .as_ref()
                     .map(|info| info.get_id().clone())
-            });
-        let payment_method_id = match payment_method_id_opt {
-            Some(id) => id,
-            None => {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing payment_method_id; using hardcoded fallback for testing"
-                );
-                // TODO: Remove hardcoded fallback once save_pm_and_mandate guarantees pm_id here.
-                "12345_pm_01926c58bc6e77c09e809964e72af8c8".to_string()
-            }
-        };
-
-        let connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
+            })
             .ok_or_else(|| {
-                logger::error!("Missing required Param merchant_connector_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "merchant_connector_id",
-                }
+                logger::error!("Missing required param - payment_method_id");
+                errors::ApiErrorResponse::InternalServerError
             })?;
 
-        let connector_mandate_detail = payment_data
-            .payment_attempt
-            .connector_mandate_detail
-            .clone();
-        let connector_mandate_id = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.connector_mandate_id.clone())
-            .unwrap_or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_id; using dummy for testing"
-                );
-                "K24P6BRD5BQKTH65".to_string()
-            });
-        let mandate_metadata = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.mandate_metadata.clone());
-        let connector_mandate_request_reference_id = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.connector_mandate_request_reference_id.clone())
-            .or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_request_reference_id; using dummy for testing"
-                );
-                Some("GsTR8Lf6qdfPwKV7xW".to_string())
-            });
+        // #2 - Derive network transaction ID only for off-session payments.
+        let network_transaction_id = (payment_data.payment_intent.setup_future_usage
+            == Some(enums::FutureUsage::OffSession))
+        .then(|| {
+            resp.response
+                .as_ref()
+                .ok()
+                .and_then(types::PaymentsResponseData::get_network_transaction_id)
+        })
+        .flatten();
 
-        let network_transaction_id = network_transaction_id.or_else(|| {
-            logger::warn!(
-                payment_id=?payment_data.payment_intent.get_id(),
-                attempt_id=?payment_data.payment_attempt.attempt_id,
-                "update_pm_and_mandate missing network_transaction_id; using dummy for testing"
-            );
-            Some("523425632845384".to_string())
-        });
+        // #3 - Build connector token details only when a mandate reference is available.
+        let connector_token_details = match resp
+            .response
+            .as_ref()
+            .ok()
+            .and_then(types::PaymentsResponseData::get_mandate_reference)
+        {
+            Some(mandate_reference) => {
+                let connector_id = payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .ok_or_else(|| {
+                        logger::error!("Missing required Param merchant_connector_id");
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "merchant_connector_id",
+                        }
+                    })?;
+                mandate_reference
+                    .connector_mandate_id
+                    .map(
+                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
+                            connector_id,
+                            token_type: TokenizationType::MultiUse,
+                            status: ConnectorTokenStatus::Active,
+                            connector_token_request_reference_id: mandate_reference
+                                .connector_mandate_request_reference_id,
+                            original_payment_authorized_amount: Some(
+                                payment_data.payment_attempt.net_amount.get_total_amount(),
+                            ),
+                            original_payment_authorized_currency: payment_data
+                                .payment_attempt
+                                .currency,
+                            metadata: mandate_reference.mandate_metadata,
+                            token: masking::Secret::new(connector_mandate_id),
+                        },
+                    )
+            }
+            None => None,
+        };
 
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
-                connector_id: connector_id.clone(),
-                token_type: TokenizationType::MultiUse,
-                status: ConnectorTokenStatus::Active,
-                connector_token_request_reference_id: connector_mandate_request_reference_id,
-                original_payment_authorized_amount: Some(
-                    payment_data.payment_attempt.net_amount.get_total_amount(),
-                ),
-                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
-                metadata: None,
-                token: masking::Secret::new(connector_mandate_id),
-            }),
+            connector_token_details,
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
+        // #5 - Assemble headers for the modular payment-method service call.
         let mut parent_headers = Headers::new();
         if let Some(profile_id) = payment_data
             .payment_intent
@@ -731,13 +688,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             &trace,
         );
 
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            payment_method_id=?payment_method_id,
-            connector_id=?connector_id,
-            "update_pm_and_mandate calling payment_methods update"
-        );
+        // #6 - Execute the modular payment-method update call.
         UpdatePaymentMethod::call(
             state,
             &client,
@@ -754,11 +705,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             errors::ApiErrorResponse::InternalServerError
         })?;
         payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate completed"
-        );
         Ok(())
     }
 }
@@ -974,11 +920,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate start (payments_sync)"
+        // #0 - Skip unsupported payment method types.
+        let is_wallet = matches!(
+            resp.request.payment_method_type,
+            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
         );
+        if is_wallet {
+            return Ok(());
+        }
+
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
@@ -1034,6 +984,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1045,6 +996,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
+        // #0 - Skip unsupported payment method types.
+        let is_wallet = matches!(
+            resp.request.payment_method_type,
+            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+        );
+        if is_wallet {
+            return Ok(());
+        }
+
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
@@ -1074,23 +1034,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data,
         )?;
 
-        let network_transaction_id = resp.response.clone().ok().and_then(|response| {
-            if let types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } =
-                response
-            {
-                network_txn_id
-            } else {
-                None
-            }
-        });
-        let network_transaction_id = if payment_data.payment_intent.setup_future_usage
-            == Some(enums::FutureUsage::OffSession)
-        {
-            network_transaction_id
-        } else {
-            None
-        };
-
+        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
         let payment_method_id = payment_data
             .payment_attempt
             .payment_method_id
@@ -1108,84 +1052,64 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 }
             })?;
 
-        let connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .ok_or_else(|| {
-                logger::error!("Missing required Param merchant_connector_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "merchant_connector_id",
-                }
-            })?;
+        // #2 - Derive network transaction ID only for off-session payments.
+        let network_transaction_id = (payment_data.payment_intent.setup_future_usage
+            == Some(enums::FutureUsage::OffSession))
+        .then(|| {
+            resp.response
+                .as_ref()
+                .ok()
+                .and_then(types::PaymentsResponseData::get_network_transaction_id)
+        })
+        .flatten();
 
-        let connector_mandate_detail = payment_data
-            .payment_attempt
-            .connector_mandate_detail
-            .clone();
-        let connector_mandate_id = connector_mandate_detail
+        // #3 - Build connector token details only when a mandate reference is available.
+        let connector_token_details = match resp
+            .response
             .as_ref()
-            .and_then(|detail| detail.connector_mandate_id.clone())
-            .unwrap_or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_id; using dummy for testing"
-                );
-                "K24P6BRD5BQKTH65".to_string()
-            });
-        let mandate_metadata = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.mandate_metadata.clone());
-        let connector_mandate_request_reference_id = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.connector_mandate_request_reference_id.clone())
-            .or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_request_reference_id; using dummy for testing"
-                );
-                Some("GsTR8Lf6qdfPwKV7xW".to_string())
-            });
-
-        let network_transaction_id = network_transaction_id.or_else(|| {
-            logger::warn!(
-                payment_id=?payment_data.payment_intent.get_id(),
-                attempt_id=?payment_data.payment_attempt.attempt_id,
-                "update_pm_and_mandate missing network_transaction_id; using dummy for testing"
-            );
-            Some("523425632845384".to_string())
-        });
-        let metadata = match (network_transaction_id.clone(), mandate_metadata) {
-            (Some(network_txn_id), Some(existing)) => Some(masking::Secret::new(json!({
-                "network_transaction_id": network_txn_id,
-                "mandate_metadata": existing.expose(),
-            }))),
-            (Some(network_txn_id), None) => Some(masking::Secret::new(json!({
-                "network_transaction_id": network_txn_id
-            }))),
-            (None, Some(existing)) => Some(existing),
-            (None, None) => None,
+            .ok()
+            .and_then(types::PaymentsResponseData::get_mandate_reference)
+        {
+            Some(mandate_reference) => {
+                let connector_id = payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .ok_or_else(|| {
+                        logger::error!("Missing required Param merchant_connector_id");
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "merchant_connector_id",
+                        }
+                    })?;
+                mandate_reference
+                    .connector_mandate_id
+                    .map(
+                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
+                            connector_id,
+                            token_type: TokenizationType::MultiUse,
+                            status: ConnectorTokenStatus::Active,
+                            connector_token_request_reference_id: mandate_reference
+                                .connector_mandate_request_reference_id,
+                            original_payment_authorized_amount: Some(
+                                payment_data.payment_attempt.net_amount.get_total_amount(),
+                            ),
+                            original_payment_authorized_currency: payment_data
+                                .payment_attempt
+                                .currency,
+                            metadata: mandate_reference.mandate_metadata,
+                            token: masking::Secret::new(connector_mandate_id),
+                        },
+                    )
+            }
+            None => None,
         };
-
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
-                connector_id: connector_id.clone(),
-                token_type: TokenizationType::MultiUse,
-                status: ConnectorTokenStatus::Active,
-                connector_token_request_reference_id: connector_mandate_request_reference_id,
-                original_payment_authorized_amount: Some(
-                    payment_data.payment_attempt.net_amount.get_total_amount(),
-                ),
-                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
-                metadata,
-                token: masking::Secret::new(connector_mandate_id),
-            }),
+            connector_token_details,
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
+        // #5 - Assemble headers for the modular payment-method service call.
         let mut parent_headers = Headers::new();
         if let Some(profile_id) = payment_data
             .payment_intent
@@ -1226,13 +1150,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             &trace,
         );
 
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            payment_method_id=?payment_method_id,
-            connector_id=?connector_id,
-            "update_pm_and_mandate calling payment_methods update"
-        );
+        // #6 - Execute the modular payment-method update call.
         UpdatePaymentMethod::call(
             state,
             &client,
@@ -1249,11 +1167,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             errors::ApiErrorResponse::InternalServerError
         })?;
         payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate completed"
-        );
         Ok(())
     }
 }
@@ -1966,10 +1879,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     {
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
-        _resp: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
+        resp: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
         _platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
@@ -1977,11 +1891,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate start (setup_mandate)"
+        // #0 - Skip unsupported payment method types.
+        let is_wallet = matches!(
+            resp.request.payment_method_type,
+            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
         );
+        if is_wallet {
+            return Ok(());
+        }
+
+        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
         let payment_method_id = payment_data
             .payment_attempt
             .payment_method_id
@@ -1999,85 +1918,56 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 }
             })?;
 
-        let connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .ok_or_else(|| {
-                logger::error!("Missing required Param merchant_connector_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "merchant_connector_id",
-                }
-            })?;
+        // #2 - Derive network transaction ID for the update payload.
+        let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
 
-        let network_transaction_id: Option<String> = None;
-        let connector_mandate_detail = payment_data
-            .payment_attempt
-            .connector_mandate_detail
-            .clone();
-        let connector_mandate_id = connector_mandate_detail
+        // #3 - Build connector token details only when a mandate reference is available.
+        let connector_token_details = match resp
+            .response
             .as_ref()
-            .and_then(|detail| detail.connector_mandate_id.clone())
-            .unwrap_or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_id; using dummy for testing"
-                );
-                "K24P6BRD5BQKTH65".to_string()
-            });
-        let mandate_metadata = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.mandate_metadata.clone());
-        let connector_mandate_request_reference_id = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.connector_mandate_request_reference_id.clone())
-            .or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_request_reference_id; using dummy for testing"
-                );
-                Some("GsTR8Lf6qdfPwKV7xW".to_string())
-            });
-
-        let network_transaction_id = network_transaction_id.or_else(|| {
-            logger::warn!(
-                payment_id=?payment_data.payment_intent.get_id(),
-                attempt_id=?payment_data.payment_attempt.attempt_id,
-                "update_pm_and_mandate missing network_transaction_id; using dummy for testing"
-            );
-            Some("523425632845384".to_string())
-        });
-        let metadata = match (network_transaction_id.clone(), mandate_metadata) {
-            (Some(network_txn_id), Some(existing)) => Some(masking::Secret::new(json!({
-                "network_transaction_id": network_txn_id,
-                "mandate_metadata": existing.expose(),
-            }))),
-            (Some(network_txn_id), None) => Some(masking::Secret::new(json!({
-                "network_transaction_id": network_txn_id
-            }))),
-            (None, Some(existing)) => Some(existing),
-            (None, None) => None,
+            .ok()
+            .and_then(types::PaymentsResponseData::get_mandate_reference)
+        {
+            Some(mandate_reference) => {
+                let connector_id = payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .ok_or_else(|| {
+                        logger::error!("Missing required Param merchant_connector_id");
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "merchant_connector_id",
+                        }
+                    })?;
+                mandate_reference
+                    .connector_mandate_id
+                    .map(
+                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
+                            connector_id,
+                            token_type: TokenizationType::MultiUse,
+                            status: ConnectorTokenStatus::Active,
+                            connector_token_request_reference_id: mandate_reference
+                                .connector_mandate_request_reference_id,
+                            original_payment_authorized_amount: Some(
+                                payment_data.payment_attempt.net_amount.get_total_amount(),
+                            ),
+                            original_payment_authorized_currency: payment_data
+                                .payment_attempt
+                                .currency,
+                            metadata: mandate_reference.mandate_metadata,
+                            token: masking::Secret::new(connector_mandate_id),
+                        },
+                    )
+            }
+            None => None,
         };
-
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
-                connector_id: connector_id.clone(),
-                token_type: TokenizationType::MultiUse,
-                status: ConnectorTokenStatus::Active,
-                connector_token_request_reference_id: connector_mandate_request_reference_id,
-                original_payment_authorized_amount: Some(
-                    payment_data.payment_attempt.net_amount.get_total_amount(),
-                ),
-                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
-                metadata,
-                token: masking::Secret::new(connector_mandate_id),
-            }),
+            connector_token_details,
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
+        // #5 - Assemble headers for the modular payment-method service call.
         let mut parent_headers = Headers::new();
         if let Some(profile_id) = payment_data
             .payment_intent
@@ -2118,13 +2008,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             &trace,
         );
 
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            payment_method_id=?payment_method_id,
-            connector_id=?connector_id,
-            "update_pm_and_mandate calling payment_methods update"
-        );
+        // #6 - Execute the modular payment-method update call.
         UpdatePaymentMethod::call(
             state,
             &client,
@@ -2141,11 +2025,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             errors::ApiErrorResponse::InternalServerError
         })?;
         payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate completed"
-        );
         Ok(())
     }
 }
@@ -2195,11 +2074,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate start (complete_authorize)"
-        );
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
@@ -2258,6 +2132,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
     }
 
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -2297,23 +2172,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
         )?;
 
-        let network_transaction_id = resp.response.clone().ok().and_then(|response| {
-            if let types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } =
-                response
-            {
-                network_txn_id
-            } else {
-                None
-            }
-        });
-        let network_transaction_id = if payment_data.payment_intent.setup_future_usage
-            == Some(enums::FutureUsage::OffSession)
-        {
-            network_transaction_id
-        } else {
-            None
-        };
-
+        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
         let payment_method_id = payment_data
             .payment_attempt
             .payment_method_id
@@ -2331,84 +2190,64 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 }
             })?;
 
-        let connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .ok_or_else(|| {
-                logger::error!("Missing required Param merchant_connector_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "merchant_connector_id",
-                }
-            })?;
+        // #2 - Derive network transaction ID only for off-session payments.
+        let network_transaction_id = (payment_data.payment_intent.setup_future_usage
+            == Some(enums::FutureUsage::OffSession))
+        .then(|| {
+            resp.response
+                .as_ref()
+                .ok()
+                .and_then(types::PaymentsResponseData::get_network_transaction_id)
+        })
+        .flatten();
 
-        let connector_mandate_detail = payment_data
-            .payment_attempt
-            .connector_mandate_detail
-            .clone();
-        let connector_mandate_id = connector_mandate_detail
+        // #3 - Build connector token details only when a mandate reference is available.
+        let connector_token_details = match resp
+            .response
             .as_ref()
-            .and_then(|detail| detail.connector_mandate_id.clone())
-            .unwrap_or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_id; using dummy for testing"
-                );
-                "K24P6BRD5BQKTH65".to_string()
-            });
-        let mandate_metadata = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.mandate_metadata.clone());
-        let connector_mandate_request_reference_id = connector_mandate_detail
-            .as_ref()
-            .and_then(|detail| detail.connector_mandate_request_reference_id.clone())
-            .or_else(|| {
-                logger::warn!(
-                    payment_id=?payment_data.payment_intent.get_id(),
-                    attempt_id=?payment_data.payment_attempt.attempt_id,
-                    "update_pm_and_mandate missing connector_mandate_request_reference_id; using dummy for testing"
-                );
-                Some("GsTR8Lf6qdfPwKV7xW".to_string())
-            });
-
-        let network_transaction_id = network_transaction_id.or_else(|| {
-            logger::warn!(
-                payment_id=?payment_data.payment_intent.get_id(),
-                attempt_id=?payment_data.payment_attempt.attempt_id,
-                "update_pm_and_mandate missing network_transaction_id; using dummy for testing"
-            );
-            Some("523425632845384".to_string())
-        });
-        let metadata = match (network_transaction_id.clone(), mandate_metadata) {
-            (Some(network_txn_id), Some(existing)) => Some(masking::Secret::new(json!({
-                "network_transaction_id": network_txn_id,
-                "mandate_metadata": existing.expose(),
-            }))),
-            (Some(network_txn_id), None) => Some(masking::Secret::new(json!({
-                "network_transaction_id": network_txn_id
-            }))),
-            (None, Some(existing)) => Some(existing),
-            (None, None) => None,
+            .ok()
+            .and_then(types::PaymentsResponseData::get_mandate_reference)
+        {
+            Some(mandate_reference) => {
+                let connector_id = payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .ok_or_else(|| {
+                        logger::error!("Missing required Param merchant_connector_id");
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "merchant_connector_id",
+                        }
+                    })?;
+                mandate_reference
+                    .connector_mandate_id
+                    .map(
+                        |connector_mandate_id| ::payment_methods::client::ConnectorTokenDetails {
+                            connector_id,
+                            token_type: TokenizationType::MultiUse,
+                            status: ConnectorTokenStatus::Active,
+                            connector_token_request_reference_id: mandate_reference
+                                .connector_mandate_request_reference_id,
+                            original_payment_authorized_amount: Some(
+                                payment_data.payment_attempt.net_amount.get_total_amount(),
+                            ),
+                            original_payment_authorized_currency: payment_data
+                                .payment_attempt
+                                .currency,
+                            metadata: mandate_reference.mandate_metadata,
+                            token: masking::Secret::new(connector_mandate_id),
+                        },
+                    )
+            }
+            None => None,
         };
-
         let payload = UpdatePaymentMethodV1Payload {
             payment_method_data: None,
-            connector_token_details: Some(::payment_methods::client::ConnectorTokenDetails {
-                connector_id: connector_id.clone(),
-                token_type: TokenizationType::MultiUse,
-                status: ConnectorTokenStatus::Active,
-                connector_token_request_reference_id: connector_mandate_request_reference_id,
-                original_payment_authorized_amount: Some(
-                    payment_data.payment_attempt.net_amount.get_total_amount(),
-                ),
-                original_payment_authorized_currency: payment_data.payment_attempt.currency.clone(),
-                metadata,
-                token: masking::Secret::new(connector_mandate_id),
-            }),
+            connector_token_details,
             network_transaction_id: network_transaction_id.map(masking::Secret::new),
         };
 
+        // #5 - Assemble headers for the modular payment-method service call.
         let mut parent_headers = Headers::new();
         if let Some(profile_id) = payment_data
             .payment_intent
@@ -2449,13 +2288,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             &trace,
         );
 
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            payment_method_id=?payment_method_id,
-            connector_id=?connector_id,
-            "update_pm_and_mandate calling payment_methods update"
-        );
+        // #6 - Execute the modular payment-method update call.
         UpdatePaymentMethod::call(
             state,
             &client,
@@ -2472,11 +2305,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             errors::ApiErrorResponse::InternalServerError
         })?;
         payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
-        logger::info!(
-            payment_id=?payment_data.payment_intent.get_id(),
-            attempt_id=?payment_data.payment_attempt.attempt_id,
-            "update_pm_and_mandate completed"
-        );
         Ok(())
     }
 }

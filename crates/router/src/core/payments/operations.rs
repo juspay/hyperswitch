@@ -592,9 +592,11 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         Ok(())
     }
 
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         _state: &SessionState,
+        _resp: &types::RouterData<F, R, PaymentsResponseData>,
         _platform: &domain::Platform,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
