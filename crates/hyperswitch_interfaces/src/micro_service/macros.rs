@@ -67,6 +67,7 @@ macro_rules! impl_microservice_flow {
         client = $client_ty:ty
         $(, body = $body_fn:expr)?
         $(, path_params = $path_params_fn:expr)?
+        $(, query_params = $query_params_fn:expr)?
         $(, validate = $validate_fn:expr)?
     ) => {
         #[async_trait::async_trait]
@@ -117,9 +118,18 @@ macro_rules! impl_microservice_flow {
             $(
             fn path_params(
                 &self,
-                request: &Self::V2Request,
+                request: &Self::V1Request,
             ) -> Vec<(&'static str, String)> {
                 $path_params_fn(self, request)
+            }
+            )?
+
+            $(
+            fn query_params(
+                &self,
+                request: &Self::V1Request,
+            ) -> Vec<(&'static str, String)> {
+                $query_params_fn(self, request)
             }
             )?
         }

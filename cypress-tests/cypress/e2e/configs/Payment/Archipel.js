@@ -40,6 +40,7 @@ const paymentMethodDataNo3DSResponse = {
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
