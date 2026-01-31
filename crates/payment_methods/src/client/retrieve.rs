@@ -52,23 +52,21 @@ impl TryFrom<RawPaymentMethodData> for PaymentMethodData {
 
     fn try_from(value: RawPaymentMethodData) -> Result<Self, Self::Error> {
         match value {
-            RawPaymentMethodData::Card(card_data) => {
-                Ok(Self::CardDetailsForNetworkTransactionId(
-                    CardDetailsForNetworkTransactionId {
-                        card_number: card_data.card_number,
-                        card_exp_month: card_data.card_exp_month,
-                        card_exp_year: card_data.card_exp_year,
-                        card_issuer: card_data.card_issuer,
-                        card_network: card_data.card_network,
-                        card_type: card_data.card_type.map(|val| val.to_string()),
-                        card_issuing_country: card_data.card_issuing_country,
-                        card_issuing_country_code: None,
-                        card_holder_name: card_data.card_holder_name,
-                        bank_code: None,
-                        nick_name: card_data.nick_name,
-                    },
-                ))
-            }
+            RawPaymentMethodData::Card(card_data) => Ok(Self::CardDetailsForNetworkTransactionId(
+                CardDetailsForNetworkTransactionId {
+                    card_number: card_data.card_number,
+                    card_exp_month: card_data.card_exp_month,
+                    card_exp_year: card_data.card_exp_year,
+                    card_issuer: card_data.card_issuer,
+                    card_network: card_data.card_network,
+                    card_type: card_data.card_type.map(|val| val.to_string()),
+                    card_issuing_country: card_data.card_issuing_country,
+                    card_issuing_country_code: None,
+                    card_holder_name: card_data.card_holder_name,
+                    bank_code: None,
+                    nick_name: card_data.nick_name,
+                },
+            )),
         }
     }
 }
