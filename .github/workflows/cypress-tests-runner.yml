@@ -94,8 +94,6 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
-    if: |
-      github.event_name == 'merge_group' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     env:
@@ -108,7 +106,7 @@ jobs:
         run: echo 'Skipping tests for PRs from forks'
         
       - name: Check S-test-ready label
-        if: github.event_name == 'pull_request'
+        if: ${{ env.RUN_TESTS == 'true' }}  
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -116,19 +114,12 @@ jobs:
           if gh pr view ${{ github.event.pull_request.number }} \
               --repo ${{ github.repository }} \
               --json labels \
-              --jq '.labels[].name' | grep -q '^S-test-ready$'; then
-            echo "RUN_CYPRESS=true" >> $GITHUB_ENV
+              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
             echo "S-test-ready label found"
           else
-            echo "RUN_CYPRESS=false" >> $GITHUB_ENV
-            echo "S-test-ready label not found"
+            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+            exit 1
           fi
-
-      - name: Fail if S-test-ready label is missing
-        if: github.event_name == 'pull_request' && env.RUN_CYPRESS == 'false'
-        run: |
-          echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-          exit 1
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -234,7 +225,6 @@ jobs:
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
-    if: github.event_name == 'merge_group' || github.event_name == 'pull_request'
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
@@ -273,7 +263,7 @@ jobs:
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Check S-test-ready label
-        if: github.event_name == 'pull_request'
+        if: ${{ env.RUN_TESTS == 'true' }}  
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -281,19 +271,12 @@ jobs:
           if gh pr view ${{ github.event.pull_request.number }} \
               --repo ${{ github.repository }} \
               --json labels \
-              --jq '.labels[].name' | grep -q '^S-test-ready$'; then
-            echo "RUN_CYPRESS=true" >> $GITHUB_ENV
+              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
             echo "S-test-ready label found"
           else
-            echo "RUN_CYPRESS=false" >> $GITHUB_ENV
-            echo "S-test-ready label not found"
+            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+            exit 1
           fi
-
-      - name: Fail if S-test-ready label is missing
-        if: github.event_name == 'pull_request' && env.RUN_CYPRESS == 'false'
-        run: |
-          echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-          exit 1
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -943,7 +926,7 @@ jobs:
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Check S-test-ready label
-        if: github.event_name == 'pull_request'
+        if: ${{ env.RUN_TESTS == 'true' }}  
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -951,19 +934,12 @@ jobs:
           if gh pr view ${{ github.event.pull_request.number }} \
               --repo ${{ github.repository }} \
               --json labels \
-              --jq '.labels[].name' | grep -q '^S-test-ready$'; then
-            echo "RUN_CYPRESS=true" >> $GITHUB_ENV
+              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
             echo "S-test-ready label found"
           else
-            echo "RUN_CYPRESS=false" >> $GITHUB_ENV
-            echo "S-test-ready label not found"
+            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+            exit 1
           fi
-
-      - name: Fail if S-test-ready label is missing
-        if: github.event_name == 'pull_request' && env.RUN_CYPRESS == 'false'
-        run: |
-          echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-          exit 1
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1177,7 +1153,7 @@ jobs:
         run: echo 'Skipping tests for PRs from forks'
         
       - name: Check S-test-ready label
-        if: github.event_name == 'pull_request'
+        if: ${{ env.RUN_TESTS == 'true' }}  
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -1185,19 +1161,12 @@ jobs:
           if gh pr view ${{ github.event.pull_request.number }} \
               --repo ${{ github.repository }} \
               --json labels \
-              --jq '.labels[].name' | grep -q '^S-test-ready$'; then
-            echo "RUN_CYPRESS=true" >> $GITHUB_ENV
+              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
             echo "S-test-ready label found"
           else
-            echo "RUN_CYPRESS=false" >> $GITHUB_ENV
-            echo "S-test-ready label not found"
+            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+            exit 1
           fi
-
-      - name: Fail if S-test-ready label is missing
-        if: github.event_name == 'pull_request' && env.RUN_CYPRESS == 'false'
-        run: |
-          echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-          exit 1
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1235,7 +1204,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install mold linker
-        if: ${{ runner.os == 'Linux' && env.RUN_CYPRESS == 'true' }}
+        if: ${{ runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
         uses: rui314/setup-mold@v1
         with:
           make-default: true
@@ -1356,7 +1325,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
-        if: env.RUN_CYPRESS == 'true' && failure()
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
           name: cypress-v2-test-results
@@ -1375,7 +1344,7 @@ jobs:
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: ${{ env.RUN_CYPRESS == 'true' && github.event_name != 'merge_group' && (success() || failure()) }}
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' && (success() || failure()) }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
