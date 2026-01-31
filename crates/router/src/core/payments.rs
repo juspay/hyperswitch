@@ -153,6 +153,7 @@ use crate::{
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryInto,
+        PaymentsResponseData,
     },
     utils::{
         self, add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode,
@@ -197,14 +198,13 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 
     // To perform router related operation for PaymentResponse
@@ -500,14 +500,13 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 
     // To perform router related operation for PaymentResponse
@@ -618,12 +617,11 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
@@ -1400,13 +1398,12 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>
-        + Send
-        + Sync,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, PaymentsResponseData> + Send + Sync,
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
@@ -1627,14 +1624,13 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 
     // To perform router related operation for PaymentResponse
@@ -1704,14 +1700,13 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 
     // To perform router related operation for PaymentResponse
@@ -2261,19 +2256,20 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 }
 
 #[cfg(feature = "v1")]
-async fn handle_pm_and_mandate_post_update<F, R, Op>(
+async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     state: &SessionState,
     operation: &Op,
-    router_data: &types::RouterData<F, R, types::PaymentsResponseData>,
+    router_data: &RouterData<F, R, PaymentsResponseData>,
     platform: &domain::Platform,
-    payment_data: &mut PaymentData<F>,
+    payment_data: &mut D,
     business_profile: &domain::Profile,
     is_modular_merchant: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone + Send + Sync,
     R: Send,
-    Op: Operation<F, R, Data = PaymentData<F>> + Send + Sync,
+    D: OperationSessionGetters<F> + Send + Sync,
+    Op: Operation<F, R, Data = D> + Send + Sync,
 {
     if is_modular_merchant {
         logger::debug!(
@@ -2297,13 +2293,7 @@ where
         );
         operation
             .to_post_update_tracker()?
-            .save_pm_and_mandate(
-                state,
-                router_data,
-                platform,
-                payment_data,
-                business_profile,
-            )
+            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)
             .await?;
     }
 
@@ -2333,11 +2323,10 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
@@ -2399,12 +2388,11 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
@@ -2463,15 +2451,14 @@ where
         + Send
         + Sync
         + Clone,
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
     PaymentResponse: Operation<F, FData, Data = D>,
 
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 {
     operation
@@ -2542,15 +2529,14 @@ where
         + Send
         + Sync
         + Clone,
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
     PaymentResponse: Operation<F, FData, Data = D>,
 
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 {
     operation
@@ -2998,18 +2984,17 @@ where
         + Sync
         + Clone,
     // To create connector flow specific interface data
-    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
-    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    D: ConstructFlowSpecificData<F, FData, PaymentsResponseData>,
+    RouterData<F, FData, PaymentsResponseData>: Feature<F, FData>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 
     // To create updatable objects in post update tracker
-    RouterData<F, FData, router_types::PaymentsResponseData>:
+    RouterData<F, FData, PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
 {
     // Validate the request fields
@@ -4239,7 +4224,7 @@ where
 }
 
 pub struct ConnectorServiceIntermediateState<F, RouterDReq> {
-    pub router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    pub router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     pub connector_request: Option<services::Request>,
     pub should_continue_further: bool,
     pub gateway_context: gateway_context::RouterGatewayContext,
@@ -4261,7 +4246,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     is_retry_payment: bool,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     tokenization_action: TokenizationAction,
     context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<(
@@ -4274,12 +4259,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
-        + Send
-        + Sync,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData> + Send + Sync,
 {
     let add_access_token_result = router_data
         .add_access_token(
@@ -4406,7 +4390,7 @@ where
         (router_data, false)
     };
 
-    if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
+    if let Ok(PaymentsResponseData::PreProcessingResponse {
         session_token: Some(session_token),
         ..
     }) = router_data.response.to_owned()
@@ -4476,7 +4460,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
 ) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
 )>
 where
@@ -4485,12 +4469,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
-        + Send
-        + Sync,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData> + Send + Sync,
 {
     // Update payment trackers
     let (_, new_payment_data) = operation
@@ -4547,7 +4530,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
     TokenizationAction,
 )>
 where
@@ -4556,12 +4539,10 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send + Clone,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
@@ -4707,7 +4688,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     business_profile: &'a domain::Profile,
     is_retry_payment: bool,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     Option<storage::CustomerUpdate>,
@@ -4720,12 +4701,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>:
         Feature<F, RouterDReq> + Send + Clone + serde::Serialize,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
@@ -4822,7 +4802,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     should_retry_with_pan: bool,
     return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     tokenization_action: TokenizationAction,
     gateway_context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<ConnectorServiceIntermediateState<F, RouterDReq>>
@@ -4832,12 +4812,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
-        + Send
-        + Sync,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData> + Send + Sync,
 {
     let add_access_token_result = router_data
         .add_access_token(
@@ -4932,7 +4911,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
 ) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
     domain::MerchantConnectorAccountTypeDetails,
 )>
 where
@@ -4941,12 +4920,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
-        + Send
-        + Sync,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData> + Send + Sync,
 {
     // Update payment trackers
     let (_, new_payment_data) = operation
@@ -5012,7 +4990,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
 ) -> RouterResult<(
     domain::MerchantConnectorAccountTypeDetails,
     Option<storage::CustomerUpdate>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
     TokenizationAction,
 )>
 where
@@ -5021,11 +4999,10 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let merchant_connector_account_type_details =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
@@ -5111,7 +5088,7 @@ pub async fn call_connector_service_prerequisites_for_external_vault_proxy<
     domain::MerchantConnectorAccountTypeDetails,
     domain::MerchantConnectorAccountTypeDetails,
     Option<storage::CustomerUpdate>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
 )>
 where
     F: Send + Clone + Sync,
@@ -5119,11 +5096,10 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     // get merchant connector account related to external vault
     let external_vault_source: id_type::MerchantConnectorAccountId = business_profile
@@ -5185,7 +5161,7 @@ pub async fn internal_call_connector_service_prerequisites<F, RouterDReq, ApiReq
     business_profile: &domain::Profile,
 ) -> RouterResult<(
     domain::MerchantConnectorAccountTypeDetails,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
 )>
 where
     F: Send + Clone + Sync,
@@ -5193,11 +5169,10 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let merchant_connector_details =
         payment_data
@@ -5253,18 +5228,17 @@ pub async fn connector_service_decider<F, RouterDReq, ApiRequest, D>(
     return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     guest_customer: Option<hyperswitch_domain_models::payments::GuestCustomer>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let mut router_data = payment_data
         .construct_router_data(
@@ -5388,7 +5362,7 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     should_retry_with_pan: bool,
     return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     ConnectorServiceIntermediateState<F, RouterDReq>,
@@ -5400,11 +5374,10 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
         // Extract previous gateway from payment data
@@ -5488,20 +5461,19 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     _return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     external_vault_merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     _updated_customer: Option<storage::CustomerUpdate>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
         (_, *payment_data) = operation
@@ -5564,7 +5536,7 @@ pub async fn proxy_for_call_connector_service<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     return_raw_connector_response: Option<bool>,
 ) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
 )>
 where
@@ -5573,11 +5545,10 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
 
@@ -5669,7 +5640,7 @@ where
         &call_connector_action,
     );
 
-    if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
+    if let Ok(PaymentsResponseData::PreProcessingResponse {
         session_token: Some(session_token),
         ..
     }) = router_data.response.to_owned()
@@ -5761,18 +5732,17 @@ pub async fn proxy_for_call_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     business_profile: &domain::Profile,
     return_raw_connector_response: Option<bool>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
 
@@ -5894,18 +5864,17 @@ pub async fn call_connector_service_for_external_vault_proxy<F, RouterDReq, ApiR
     header_payload: HeaderPayload,
     business_profile: &domain::Profile,
     return_raw_connector_response: Option<bool>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
 
@@ -6507,12 +6476,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    D: ConstructFlowSpecificData<F, Req, PaymentsResponseData>,
+    RouterData<F, Req, PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, PaymentsResponseData>,
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
@@ -6570,10 +6538,8 @@ where
         let connector_name = session_connector.connector.connector_name.to_string();
         match connector_res {
             Ok(connector_response) => {
-                if let Ok(router_types::PaymentsResponseData::SessionResponse {
-                    session_token,
-                    ..
-                }) = connector_response.response.clone()
+                if let Ok(PaymentsResponseData::SessionResponse { session_token, .. }) =
+                    connector_response.response.clone()
                 {
                     // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
                     // In case of error, that error is already logged
@@ -6626,12 +6592,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    D: ConstructFlowSpecificData<F, Req, PaymentsResponseData>,
+    RouterData<F, Req, PaymentsResponseData>: Feature<F, Req>,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, PaymentsResponseData>,
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
@@ -6696,10 +6661,8 @@ where
         let connector_name = session_connector.connector.connector_name.to_string();
         match connector_res {
             Ok(connector_response) => {
-                if let Ok(router_types::PaymentsResponseData::SessionResponse {
-                    session_token,
-                    ..
-                }) = connector_response.response.clone()
+                if let Ok(PaymentsResponseData::SessionResponse { session_token, .. }) =
+                    connector_response.response.clone()
                 {
                     // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
                     // In case of error, that error is already logged
@@ -6758,16 +6721,14 @@ pub async fn decide_unified_connector_service_call_for_multiple_connectors_servi
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     creds_identifier: Option<String>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send + Clone,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
@@ -6996,12 +6957,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    D: ConstructFlowSpecificData<F, Req, PaymentsResponseData>,
+    RouterData<F, Req, PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, PaymentsResponseData>,
 {
     let connector_name = payment_data.get_payment_attempt().connector.clone();
     match connector_name {
@@ -7107,12 +7067,11 @@ where
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    D: ConstructFlowSpecificData<F, Req, PaymentsResponseData>,
+    RouterData<F, Req, PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, PaymentsResponseData>,
 {
     let connector_name = payment_data.get_payment_attempt().connector.clone();
 
@@ -7260,16 +7219,15 @@ async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
     payment_data: &mut D,
     _operation: &BoxedOperation<'_, F, Q, D>,
     header_payload: Option<HeaderPayload>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<RouterData<F, RouterDReq, PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
+    D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
 {
     let mut router_data = payment_data
         .construct_router_data(
@@ -7292,11 +7250,11 @@ where
                 router_data = router_data.postprocessing_steps(state, connector).await?;
                 let token = if let Ok(ref res) = router_data.response {
                     match res {
-                        router_types::PaymentsResponseData::PostProcessingResponse {
-                            session_token,
-                        } => session_token
-                            .as_ref()
-                            .map(|token| api::SessionToken::OpenBanking(token.clone())),
+                        PaymentsResponseData::PostProcessingResponse { session_token } => {
+                            session_token
+                                .as_ref()
+                                .map(|token| api::SessionToken::OpenBanking(token.clone()))
+                        }
                         _ => None,
                     }
                 } else {
