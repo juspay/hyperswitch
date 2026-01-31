@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.21.0-hotfix3
+
+### Refactors
+
+- **core:** Derive card_isin in payment_token flow for routing dsl input ([#11102](https://github.com/juspay/hyperswitch/pull/11102)) ([`1a7a87a`](https://github.com/juspay/hyperswitch/commit/1a7a87ac5caf995fca9ab2d44305250efc701b6b))
+
+**Full Changelog:** [`2026.01.21.0-hotfix2...2026.01.21.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.01.21.0-hotfix2...2026.01.21.0-hotfix3)
+
+- - -
+
 ## 2026.01.21.0-hotfix2
 
 ### Features
