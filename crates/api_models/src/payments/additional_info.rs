@@ -338,6 +338,8 @@ pub enum UpiAdditionalData {
     UpiIntent(Box<super::UpiIntentData>),
     #[schema(value_type = UpiQrData)]
     UpiQr(Box<super::UpiQrData>),
+    #[smithy(value_type = "UpiInAppAdditionalData")]
+    UpiInApp(Box<UpiInAppAdditionalData>),
 }
 
 #[derive(
@@ -349,6 +351,46 @@ pub struct UpiCollectAdditionalData {
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct UpiInAppAdditionalData {
+    /// The payment service provider (PSP) for UPI InApp (e.g., AXIS_BIZ, YES_BIZ, BHIM)
+    #[schema(value_type = Option<String>, example = "AXIS_BIZ")]
+    #[smithy(value_type = "Option<String>")]
+    pub psp: Option<String>,
+    /// The customer virtual payment address (VPA)
+    #[schema(value_type = Option<String>, example = "customer@bank")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_vpa: Option<MaskedUpiVpaId>,
+    /// The merchant virtual payment address (VPA)
+    #[schema(value_type = Option<String>, example = "merchant@bank")]
+    #[smithy(value_type = "Option<String>")]
+    pub payee_vpa: Option<MaskedUpiVpaId>,
+    /// The transaction amount
+    #[schema(value_type = Option<String>, example = "100.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub amount: Option<String>,
+    /// The currency for the transaction (default: INR)
+    #[schema(value_type = Option<String>, example = "INR")]
+    #[smithy(value_type = "Option<String>")]
+    pub currency: Option<String>,
+    /// The payment mode detected from gateway response (e.g., CREDIT_CARD, PREPAID_INSTRUMENT)
+    #[schema(value_type = Option<String>, example = "CREDIT_CARD")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_mode: Option<String>,
+    /// The EPG transaction ID from the gateway response
+    #[schema(value_type = Option<String>, example = "EPG123456")]
+    #[smithy(value_type = "Option<String>")]
+    pub epg_transaction_id: Option<String>,
+    /// The payment source/app name
+    #[schema(value_type = Option<String>, example = "BHIM")]
+    #[smithy(value_type = "Option<String>")]
+    pub upi_app: Option<String>,
 }
 
 #[derive(
