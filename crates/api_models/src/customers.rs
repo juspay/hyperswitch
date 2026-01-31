@@ -1,6 +1,14 @@
+use common_enums::enums::DocumentKind;
 use common_types::primitive_wrappers::CustomerListLimit;
-use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
-use masking::Secret;
+use common_utils::{
+    crypto, custom_serde,
+    errors::ValidationError,
+    ext_traits::{Encode, ValueExt},
+    id_type, pii,
+    types::Description,
+};
+use error_stack::Report;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
@@ -54,6 +62,10 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema, SmithyModel)]
@@ -100,6 +112,14 @@ impl CustomerRequest {
     pub fn get_optional_email(&self) -> Option<pii::Email> {
         self.email.clone()
     }
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.document_details
+            .as_ref()
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
+    }
 }
 
 /// The customer details
@@ -139,6 +159,9 @@ pub struct CustomerRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -211,6 +234,10 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: crypto::OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -273,6 +300,9 @@ pub struct CustomerResponse {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: crypto::OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -372,6 +402,10 @@ pub struct CustomerUpdateRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -417,6 +451,9 @@ pub struct CustomerUpdateRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -450,4 +487,78 @@ pub struct CustomerListResponse {
     pub data: Vec<CustomerResponse>,
     /// Total count of customers
     pub total_count: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+pub struct CustomerDocumentDetails {
+    /// The customer's document type
+    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
+    pub document_type: DocumentKind,
+    /// The customer's document number
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub document_number: Secret<String>,
+}
+
+impl CustomerDocumentDetails {
+    pub fn from(value: &Option<Secret<serde_json::Value>>) -> Option<Self> {
+        value
+            .as_ref()?
+            .peek()
+            .clone()
+            .parse_value("CustomerDocumentDetails")
+            .ok()
+    }
+
+    pub fn to(value: &Option<Self>) -> Option<Secret<serde_json::Value>> {
+        value
+            .as_ref()
+            .and_then(|details| serde_json::to_value(details).ok().map(Secret::new))
+    }
+
+    pub fn encode_to_secret(
+        &self,
+    ) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, common_utils::errors::ParsingError>
+    {
+        self.encode_to_value().map(Secret::new)
+    }
+
+    pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let doc_type = &self.document_type;
+        let doc_number = &self.document_number;
+        let raw_number = doc_number.peek();
+        if !raw_number.chars().all(|c| c.is_ascii_digit()) {
+            tracing::error!(?doc_type, "Document number contains non-digit characters");
+            return Err(Report::new(ValidationError::InvalidValue {
+                message: format!("{:?} must contain only digits", doc_type),
+            }));
+        }
+
+        // Length check for CPF and CNPJ
+        let expected_len = if matches!(doc_type, DocumentKind::Cpf) {
+            11
+        } else {
+            14
+        };
+
+        if raw_number.len() != expected_len {
+            tracing::error!(
+                ?doc_type,
+                actual_len = raw_number.len(),
+                expected_len,
+                "Document length mismatch"
+            );
+            return Err(Report::new(ValidationError::IncorrectValueProvided {
+                field_name: Box::leak(
+                    format!(
+                        "document_number (expected {} chars, got {})",
+                        expected_len,
+                        raw_number.len()
+                    )
+                    .into_boxed_str(),
+                ),
+            }));
+        }
+
+        Ok(())
+    }
 }

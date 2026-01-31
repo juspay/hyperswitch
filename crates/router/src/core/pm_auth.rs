@@ -530,6 +530,7 @@ async fn store_bank_details_in_payment_methods(
                 vault_source_details: Default::default(),
                 created_by: None,
                 last_modified_by: None,
+                payment_method_customer_details: None,
             };
 
             new_entries.push(pm_new);

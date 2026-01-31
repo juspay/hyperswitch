@@ -82,6 +82,8 @@ pub struct CardNetworkTokenizeRecord {
     pub customer_phone_country_code: Option<String>,
     #[serde(rename = "tax_registration_id")]
     pub customer_tax_registration_id: Option<masking::Secret<String>>,
+    #[serde(rename = "document_details")]
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
     // Billing details
     pub billing_address_city: Option<String>,
     pub billing_address_country: Option<enums::CountryAlpha2>,
@@ -104,12 +106,13 @@ pub struct CardNetworkTokenizeRecord {
 impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::CustomerDetails {
     fn foreign_from(record: &CardNetworkTokenizeRecord) -> Self {
         Self {
-            id: record.customer_id.clone(),
+            id: Some(record.customer_id.clone()),
             name: record.customer_name.clone(),
             email: record.customer_email.clone(),
             phone: record.customer_phone.clone(),
             phone_country_code: record.customer_phone_country_code.clone(),
             tax_registration_id: record.customer_tax_registration_id.clone(),
+            document_details: record.customer_document_details.clone(),
         }
     }
 }
@@ -219,12 +222,13 @@ impl ForeignTryFrom<CustomerDetails> for payments_api::CustomerDetails {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(customer: CustomerDetails) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: customer.customer_id.get_required_value("customer_id")?,
+            id: Some(customer.customer_id.get_required_value("customer_id")?),
             name: customer.name,
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            document_details: customer.document_details,
         })
     }
 }
@@ -272,12 +276,13 @@ impl ForeignFrom<payment_methods_api::TokenizeDataRequest> for TokenizeDataReque
 impl ForeignFrom<payments_api::CustomerDetails> for CustomerDetails {
     fn foreign_from(req: payments_api::CustomerDetails) -> Self {
         Self {
-            customer_id: Some(req.id),
+            customer_id: req.id,
             name: req.name,
             email: req.email,
             phone: req.phone,
             phone_country_code: req.phone_country_code,
             tax_registration_id: req.tax_registration_id,
+            document_details: req.document_details,
         }
     }
 }

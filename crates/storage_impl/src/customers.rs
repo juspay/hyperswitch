@@ -184,10 +184,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             ),
             updated_customer,
             kv_router_store::UpdateResourceParams {
-                updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
+                updateable: kv::Updateable::CustomerUpdate(Box::new(kv::CustomerUpdateMems {
                     orig: customer.clone(),
                     update_data: customer_update.clone().into(),
-                }),
+                })),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
         )
@@ -450,10 +450,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             diesel_models::CustomerUpdateInternal::from(customer_update.clone())
                 .apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
-                updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
+                updateable: kv::Updateable::CustomerUpdate(Box::new(kv::CustomerUpdateMems {
                     orig: customer.clone(),
                     update_data: customer_update.into(),
-                }),
+                })),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
         )

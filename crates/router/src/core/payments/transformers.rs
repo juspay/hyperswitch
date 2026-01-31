@@ -219,6 +219,7 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
     Ok(router_data)
 }
@@ -569,6 +570,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -915,6 +917,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1049,6 +1052,7 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1417,6 +1421,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1643,6 +1648,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1868,6 +1874,16 @@ where
         });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
+    let customer_document_details = api_models::customers::CustomerDocumentDetails::from(
+        &payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "failed while fetching customer_document_details from payment_intent",
+            )?,
+    );
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: processor.get_account().get_id().clone(),
@@ -1956,6 +1972,7 @@ where
         l2_l3_data,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details,
     };
 
     Ok(router_data)
@@ -2171,6 +2188,17 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: match payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .attach_printable("Failed to parse customer_document_details from payment_intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+        {
+            Some(details) => {
+                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
+            }
+            None => None,
+        },
     };
 
     Ok(router_data)
@@ -3601,6 +3629,7 @@ where
 
     // If we have customer data in Payment Intent and if the customer is not deleted, We are populating the Retrieve response from the
     // same. If the customer is deleted then we use the customer table to populate customer details
+
     let customer_details_response = payment_intent
         .customer_details
         .clone()
@@ -3617,6 +3646,7 @@ where
             email: customer_details.email,
             phone: customer_details.phone,
             phone_country_code: customer_details.phone_country_code,
+            customer_document_details: customer_details.customer_document_details,
         });
 
     headers.extend(
@@ -4267,7 +4297,8 @@ impl
                             name: parsed_data.name,
                             phone: parsed_data.phone,
                             email: parsed_data.email,
-                            phone_country_code:parsed_data.phone_country_code
+                            phone_country_code:parsed_data.phone_country_code,
+                            customer_document_details: parsed_data.customer_document_details
                     }),
                     Err(e) => {
                         router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
@@ -6313,12 +6344,13 @@ impl ForeignFrom<payments::FraudCheck> for FrmMessage {
 impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
     fn foreign_from(customer: CustomerDetails) -> Self {
         Self {
-            customer_id: Some(customer.id),
+            customer_id: customer.id,
             name: customer.name,
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            document_details: customer.document_details,
         }
     }
 }

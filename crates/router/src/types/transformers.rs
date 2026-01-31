@@ -1924,6 +1924,17 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
                 .as_ref()
                 .map(|phone| phone.get_inner().to_owned()),
             phone_country_code: customer.phone_country_code.clone(),
+            customer_document_details: customer
+                .document_details
+                .clone()
+                .map(|encryptable| encryptable.into_inner())
+                .and_then(|secret_value| {
+                    secret_value
+                        .parse_value(std::any::type_name::<
+                            api_models::customers::CustomerDocumentDetails,
+                        >())
+                        .ok()
+                }),
         }
     }
 }
