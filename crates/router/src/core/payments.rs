@@ -976,29 +976,16 @@ where
                             &platform.get_processor().get_account().organization_id,
                         )
                         .await;
-                    if is_modular_merchant {
-                        operation
-                            .to_post_update_tracker()?
-                            .update_modular_pm_and_mandate(
-                                state,
-                                &router_data,
-                                platform,
-                                &mut payment_data,
-                                &business_profile,
-                            )
-                            .await?;
-                    } else {
-                        operation
-                            .to_post_update_tracker()?
-                            .save_pm_and_mandate(
-                                state,
-                                &router_data,
-                                platform,
-                                &mut payment_data,
-                                &business_profile,
-                            )
-                            .await?;
-                    }
+                    handle_pm_and_mandate_post_update(
+                        state,
+                        operation.as_ref(),
+                        &router_data,
+                        platform,
+                        &mut payment_data,
+                        &business_profile,
+                        is_modular_merchant,
+                    )
+                    .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1199,29 +1186,16 @@ where
                             &platform.get_processor().get_account().organization_id,
                         )
                         .await;
-                    if is_modular_merchant {
-                        operation
-                            .to_post_update_tracker()?
-                            .update_modular_pm_and_mandate(
-                                state,
-                                &router_data,
-                                platform,
-                                &mut payment_data,
-                                &business_profile,
-                            )
-                            .await?;
-                    } else {
-                        operation
-                            .to_post_update_tracker()?
-                            .save_pm_and_mandate(
-                                state,
-                                &router_data,
-                                platform,
-                                &mut payment_data,
-                                &business_profile,
-                            )
-                            .await?;
-                    }
+                    handle_pm_and_mandate_post_update(
+                        state,
+                        operation.as_ref(),
+                        &router_data,
+                        platform,
+                        &mut payment_data,
+                        &business_profile,
+                        is_modular_merchant,
+                    )
+                    .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -2284,6 +2258,56 @@ pub async fn call_surcharge_decision_management_for_session_flow(
             Some(api::SessionSurchargeDetails::Calculated(surcharge_results))
         })
     }
+}
+
+#[cfg(feature = "v1")]
+async fn handle_pm_and_mandate_post_update<F, R, Op>(
+    state: &SessionState,
+    operation: &Op,
+    router_data: &types::RouterData<F, R, types::PaymentsResponseData>,
+    platform: &domain::Platform,
+    payment_data: &mut PaymentData<F>,
+    business_profile: &domain::Profile,
+    is_modular_merchant: bool,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone + Send + Sync,
+    R: Send,
+    Op: Operation<F, R, Data = PaymentData<F>> + Send + Sync,
+{
+    if is_modular_merchant {
+        logger::debug!(
+            payment_id = ?payment_data.get_payment_attempt().payment_id,
+            "Modular merchant detected; calling update_modular_pm_and_mandate"
+        );
+        operation
+            .to_post_update_tracker()?
+            .update_modular_pm_and_mandate(
+                state,
+                router_data,
+                platform,
+                payment_data,
+                business_profile,
+            )
+            .await?;
+    } else {
+        logger::debug!(
+            payment_id = ?payment_data.get_payment_attempt().payment_id,
+            "Non-modular merchant; calling save_pm_and_mandate"
+        );
+        operation
+            .to_post_update_tracker()?
+            .save_pm_and_mandate(
+                state,
+                router_data,
+                platform,
+                payment_data,
+                business_profile,
+            )
+            .await?;
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "v1")]
