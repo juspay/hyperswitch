@@ -146,6 +146,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+hyperpg.base_url = "https://sandbox.hyperpg.in"
 hyperswitch_vault.base_url = "http://localhost:8080"
 hyperwallet.base_url = "https://uat-api.paylution.com"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
@@ -437,6 +438,10 @@ upi_intent = { country = "IN", currency = "INR" }
 [pm_filters.paytm]
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
+
+[pm_filters.hyperpg]
+credit = { currency = "INR,USD,GBP,EUR" }
+debit = { currency = "INR,USD,GBP,EUR" }
 
 [pm_filters.adyen]
 boleto = { country = "BR", currency = "BRL" }
