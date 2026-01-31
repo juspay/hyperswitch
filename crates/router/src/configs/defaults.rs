@@ -11,6 +11,9 @@ impl Default for super::settings::Server {
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             shutdown_timeout: 30,
+            keep_alive: 5,
+            client_request_timeout: 5000,
+            client_disconnect_timeout: 1000,
             #[cfg(feature = "tls")]
             tls: None,
         }

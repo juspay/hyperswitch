@@ -1,6 +1,7 @@
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
 use common_utils::request::Method;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
@@ -8,7 +9,6 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use error_stack::ResultExt;
 
 use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
 
@@ -181,13 +181,13 @@ pub struct WebhookTransformData {
     pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
+impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceGetResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceGetResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -210,12 +210,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
             Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => hyperswitch_domain_models::router_request_types::ResponseId::EncodedData(encoded_data),
             Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
         };
-        println!("The redirection data is {:?}",response.redirection_data);
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -232,7 +234,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -267,10 +269,12 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
     }
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
+impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(grpc_status: payments_grpc::PaymentStatus) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (grpc_status, prev_status): (payments_grpc::PaymentStatus, Self),
+    ) -> Result<Self, Self::Error> {
         match grpc_status {
             payments_grpc::PaymentStatus::Started => Ok(Self::Started),
             payments_grpc::PaymentStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
@@ -303,7 +307,7 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
-            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
+            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }

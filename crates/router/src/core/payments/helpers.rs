@@ -83,7 +83,7 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
-        authentication,
+        authentication, configs,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1784,6 +1784,48 @@ pub async fn populate_raw_customer_details<F: Clone>(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn merge_request_and_intent_customer_data(
+    state: &SessionState,
+    payment_intent_customer_details: Option<Encryptable<pii::SecretSerdeValue>>,
+    request_customer_details: &CustomerDetails,
+    processor: &domain::Processor,
+) -> CustomResult<Option<Encryptable<pii::SecretSerdeValue>>, errors::StorageError> {
+    let key_store = processor.get_key_store();
+    let key_manager_state = state.into();
+
+    let merged_customer_details =
+    // If the request has any customer data, merge it with intent customer data, else return the intent customer data unmodified
+    // TODO: Optimization: This call is redundant if intent and request customer data is exactly the same
+        if let Some(mut request_customer_data) = request_customer_details.get_customer_data() {
+            if let Some(customer_details_encrypted) = &payment_intent_customer_details {
+                let decrypted_data = customer_details_encrypted
+                    .clone()
+                    .into_inner()
+                    .expose()
+                    .parse_value::<CustomerData>("CustomerData")
+                    .change_context(errors::StorageError::DeserializationFailed)
+                    .attach_printable("Failed to parse customer data from payment intent")?;
+
+                // Customer details in request take priority, so only fill missing fields from payment intent
+                request_customer_data.fill_missing_fields(&decrypted_data);
+            }
+
+            // Encrypt and update customer details in payment intent
+            Some(
+                create_encrypted_data(&key_manager_state, key_store, request_customer_data)
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)
+                    .attach_printable("Unable to encrypt customer details")?,
+            )
+        } else {
+            payment_intent_customer_details
+        };
+
+    Ok(merged_customer_details)
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
@@ -1859,12 +1901,29 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
+                    let implicit_customer_update = configs::get_config_bool(
+                        state,
+                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE,
+                        &provider
+                            .get_account()
+                            .get_id()
+                            .get_implicit_customer_update_key(), // database
+                        Some(external_services::superposition::ConfigContext::new().with(
+                            "merchant_id",
+                            provider.get_account().get_id().get_string_repr(),
+                        )), // context
+                        false, // Implicit Customer update is disabled by default
+                    )
+                    .await
+                    .attach_printable("Failed to fetch implicit_customer_update config")?;
+
                     // Update the customer data if new data is passed in the request
-                    if request_customer_details.email.is_some()
-                        | request_customer_details.name.is_some()
-                        | request_customer_details.phone.is_some()
-                        | request_customer_details.phone_country_code.is_some()
-                        | request_customer_details.tax_registration_id.is_some()
+                    if implicit_customer_update
+                        && (request_customer_details.email.is_some()
+                            | request_customer_details.name.is_some()
+                            | request_customer_details.phone.is_some()
+                            | request_customer_details.phone_country_code.is_some()
+                            | request_customer_details.tax_registration_id.is_some())
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
@@ -1936,24 +1995,53 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 }
             })
         }
-        None => match &payment_data.payment_intent.customer_id {
-            None => None,
-            Some(customer_id) => db
-                .find_customer_optional_by_customer_id_merchant_id(
-                    customer_id,
-                    merchant_id,
-                    key_store,
-                    storage_scheme,
-                )
-                .await?
-                .map(Ok),
-        },
+        None => None,
     };
+
     Ok((
         operation,
         match optional_customer {
             Some(customer) => {
                 let customer = customer?;
+
+                let customer_record_data = CustomerData {
+                    name: customer.name.clone().map(|val| val.into_inner()),
+                    email: customer.email.clone().map(|val| val.clone().into()),
+                    phone: customer.phone.clone().map(|val| val.into_inner()),
+                    phone_country_code: customer.phone_country_code.clone(),
+                    tax_registration_id: customer
+                        .tax_registration_id
+                        .clone()
+                        .map(|val| val.into_inner()),
+                };
+
+                // Merge with existing payment intent customer details if present
+                let final_customer_data = match &payment_data.payment_intent.customer_details {
+                    Some(encrypted_details) => {
+                        let mut intent_customer_data = encrypted_details
+                            .clone()
+                            .into_inner()
+                            .expose()
+                            .parse_value::<CustomerData>("CustomerData")
+                            .change_context(errors::StorageError::DeserializationFailed)
+                            .attach_printable(
+                                "Failed to parse customer data from payment intent",
+                            )?;
+
+                        // Intent customer data takes priority, so only fill missing fields from customer record
+                        intent_customer_data.fill_missing_fields(&customer_record_data);
+                        intent_customer_data
+                    }
+                    None => customer_record_data,
+                };
+
+                // Encrypt and store the final customer data
+                payment_data.payment_intent.customer_details = Some(
+                    create_encrypted_data(key_manager_state, key_store, final_customer_data)
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)
+                        .attach_printable("Unable to encrypt customer details")?,
+                );
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
                 payment_data.email = payment_data.email.clone().or_else(|| {
@@ -3004,7 +3092,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     platform: &domain::Platform,
-    customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
@@ -3078,7 +3165,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
                 card_token_data.as_ref(),
-                customer,
                 storage_scheme,
                 mandate_id,
                 payment_data.payment_method_info.clone(),
@@ -7636,7 +7722,6 @@ pub async fn get_payment_method_details_from_payment_token(
                 platform.get_processor(),
                 &auth_token,
                 payment_intent,
-                &None,
             )
             .await
         }

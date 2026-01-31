@@ -18,7 +18,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    mandates::MandateData,
+    mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
@@ -139,16 +139,15 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_type
-            .map(|payment_method_type| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    router_data.request.payment_method_data.clone(),
-                    Some(payment_method_type),
-                )
-            })
-            .transpose()?;
+        // Always build payment_method using payment_method_data (which is non-optional).
+        // payment_method_type is passed as optional, but payment_method must always be present
+        // for UCS to process the tokenization request.
+        let payment_method = Some(
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+            )?,
+        );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -172,7 +171,7 @@ impl
             metadata: None,
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -367,14 +366,14 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            redirection_response: None,
+            threeds_completion_indicator: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            continue_redirection_url: None,
-            threeds_completion_indicator: None,
-            redirection_response: None,
         })
     }
 }
@@ -432,12 +431,33 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        // First try to get authentication_data from the request
         let authentication_data = router_data
             .request
             .authentication_data
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
+
+        // If not in request, try to extract from connector_meta (stored during Authorize flow)
+        let authentication_data = if authentication_data.is_none() {
+            router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .and_then(|metadata| metadata.get("authentication_data"))
+                .and_then(|value| {
+                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
+                        value.clone(),
+                    )
+                    .ok()
+                })
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?
+        } else {
+            authentication_data
+        };
+
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
@@ -490,7 +510,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
             customer_name: None,
@@ -537,14 +556,25 @@ impl
             payment_channel: None,
             billing_descriptor: None,
             locale: None,
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            redirection_response: router_data
+                .request
+                .redirect_response
+                .clone()
+                .map(|redirection_response| {
+                    payments_grpc::RedirectionResponse::foreign_try_from(redirection_response)
+                })
+                .transpose()?,
+            threeds_completion_indicator: router_data
+                .request
+                .threeds_method_comp_ind
+                .clone()
+                .map(|ind| payments_grpc::ThreeDsCompletionIndicator::foreign_from(ind).into()),
             tokenization_strategy: router_data
                 .request
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            continue_redirection_url: None,
-            threeds_completion_indicator: None,
-            redirection_response: None,
         })
     }
 }
@@ -740,6 +770,7 @@ impl
             ),
             merchant_account_metadata: None,
             metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -819,6 +850,11 @@ impl
             })
             .transpose()?;
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -827,6 +863,15 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
+
+        // Convert ucs_authentication_data from PreAuthenticate response to gRPC format
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -848,7 +893,7 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None,
             address: Some(address),
-            authentication_data: None,
+            authentication_data,
             metadata: None,
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
@@ -869,7 +914,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
-            capture_method: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -990,6 +1035,12 @@ impl
             )?,
         );
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -1043,7 +1094,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
-            capture_method: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -1128,6 +1179,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -1221,6 +1273,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: None,
             customer_name: None,
@@ -1266,7 +1319,6 @@ impl
             connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
             tokenization_strategy: router_data
                 .request
                 .tokenization
@@ -1544,6 +1596,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            locale: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1620,7 +1673,6 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
-            locale: None,
             tokenization_strategy: None,
         })
     }
@@ -1800,7 +1852,6 @@ impl
             .map(|pm_type| pm_type.into());
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-
         let mandate_reference_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
@@ -2111,12 +2162,18 @@ impl
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServicePreAuthenticateResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        response: payments_grpc::PaymentServicePreAuthenticateResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServicePreAuthenticateResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2159,7 +2216,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -2176,7 +2236,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
+
+            let authentication_data = response.authentication_data.and_then(|auth_data| {
+                router_request_types::UcsAuthenticationData::foreign_try_from(auth_data)
+                    .ok()
+                    .map(Box::new)
+            });
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -2187,7 +2253,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
+                    authentication_data,
                     charges: None,
                 },
                 status,
@@ -2198,13 +2264,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceAuthorizeResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceAuthorizeResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceAuthorizeResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2332,7 +2404,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -2349,7 +2424,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -2379,13 +2454,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCaptureResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceCaptureResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2437,7 +2512,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2453,7 +2531,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -2523,13 +2601,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCu
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceRegisterResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceRegisterResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceRegisterResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2566,7 +2644,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2582,7 +2663,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             // Extract connector_metadata from response if present
             let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
@@ -2633,13 +2714,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceRepeatEverythingResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceRepeatEverythingResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2691,7 +2778,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -2707,7 +2797,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -3661,12 +3751,18 @@ impl transformers::ForeignTryFrom<storage_enums::FutureUsage> for payments_grpc:
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServicePostAuthenticateResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        response: payments_grpc::PaymentServicePostAuthenticateResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServicePostAuthenticateResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -3739,7 +3835,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -3756,7 +3855,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -3864,6 +3963,18 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payments::ThreeDsCompletionIndicator>
+    for payments_grpc::ThreeDsCompletionIndicator
+{
+    fn foreign_from(value: api_models::payments::ThreeDsCompletionIndicator) -> Self {
+        match value {
+            api_models::payments::ThreeDsCompletionIndicator::Success => Self::Success,
+            api_models::payments::ThreeDsCompletionIndicator::Failure => Self::Failure,
+            api_models::payments::ThreeDsCompletionIndicator::NotAvailable => Self::NotAvailable,
         }
     }
 }
@@ -4648,12 +4759,18 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTransactionInfo> for GpayTr
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceAuthenticateResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceAuthenticateResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceAuthenticateResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -4725,7 +4842,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -4742,7 +4862,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -4807,9 +4927,56 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
             .clone()
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
+
+        // Map the mandate_type from domain type to grpc type
+        let mandate_type = mandate_data
+            .mandate_type
+            .as_ref()
+            .map(|domain_mandate_type| match domain_mandate_type {
+                MandateDataType::SingleUse(amount_data) => payments_grpc::MandateType {
+                    mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
+                        payments_grpc::MandateAmountData {
+                            amount: amount_data.amount.get_amount_as_i64(),
+                            currency: payments_grpc::Currency::foreign_try_from(
+                                amount_data.currency,
+                            )
+                            .unwrap_or(payments_grpc::Currency::Unspecified)
+                            .into(),
+                            start_date: amount_data.start_date.map(
+                                |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                            ),
+                            end_date: amount_data.end_date.map(|dt: time::PrimitiveDateTime| {
+                                dt.assume_utc().unix_timestamp()
+                            }),
+                        },
+                    )),
+                },
+                MandateDataType::MultiUse(amount_data_opt) => payments_grpc::MandateType {
+                    mandate_type: amount_data_opt.as_ref().map(|amount_data| {
+                        payments_grpc::mandate_type::MandateType::MultiUse(
+                            payments_grpc::MandateAmountData {
+                                amount: amount_data.amount.get_amount_as_i64(),
+                                currency: payments_grpc::Currency::foreign_try_from(
+                                    amount_data.currency,
+                                )
+                                .unwrap_or(payments_grpc::Currency::Unspecified)
+                                .into(),
+                                start_date: amount_data.start_date.map(
+                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                                ),
+                                end_date: amount_data.end_date.map(
+                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+                                ),
+                            },
+                        )
+                    }),
+                },
+            });
+
         Ok(Self {
             update_mandate_id: mandate_data.update_mandate_id.clone(),
             customer_acceptance,
+            mandate_type,
         })
     }
 }
@@ -5353,6 +5520,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -5372,13 +5540,13 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundStatus> for RefundStatus 
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceVoidResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceVoidResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -5430,7 +5598,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -5447,7 +5618,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
