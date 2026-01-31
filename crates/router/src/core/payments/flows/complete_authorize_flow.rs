@@ -673,6 +673,7 @@ pub async fn call_unified_connector_service_authenticate(
         state,
         payment_authenticate_request,
         headers_builder,
+        unified_connector_service_execution_mode,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_authenticate(
@@ -781,6 +782,7 @@ pub async fn call_unified_connector_service_post_authenticate(
         state,
         payment_post_authenticate_request,
         headers_builder,
+        unified_connector_service_execution_mode,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_post_authenticate(

@@ -105,6 +105,7 @@ where
             state,
             payment_capture_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, payment_capture_request, grpc_headers| async move {
                 let response = client
                     .payment_capture(

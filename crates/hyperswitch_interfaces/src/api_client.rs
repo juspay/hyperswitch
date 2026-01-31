@@ -5,7 +5,7 @@ use std::{
 
 use common_enums::ApiClientError;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID},
+    consts::{EVENT_ORIGIN_ROUTER, X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID},
     errors::CustomResult,
     request::{Request, RequestContent},
 };
@@ -298,6 +298,8 @@ where
                         req.dispute_id.clone(),
                         req.payout_id.clone(),
                         status_code,
+                        EVENT_ORIGIN_ROUTER.to_string(),
+                        common_enums::ServiceCall::External,
                     );
 
                     match response {

@@ -1,5 +1,6 @@
 //! Connector API logs interface
 
+use common_enums::ServiceCall;
 use common_utils::request::Method;
 use router_env::RequestId;
 use serde::Serialize;
@@ -23,6 +24,8 @@ pub struct ConnectorEvent {
     pub request_id: String,
     latency: u128,
     status_code: u16,
+    origin: String,
+    service_call: ServiceCall,
     #[serde(flatten)]
     connector_event_type: common_utils::events::ConnectorEventsType,
 }
@@ -45,6 +48,8 @@ impl ConnectorEvent {
         dispute_id: Option<String>,
         payout_id: Option<String>,
         status_code: u16,
+        origin: String,
+        service_call: ServiceCall,
     ) -> Self {
         let connector_event_type = common_utils::events::ConnectorEventsType::new(
             payment_id, refund_id, payout_id, dispute_id,
@@ -69,6 +74,8 @@ impl ConnectorEvent {
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
             status_code,
+            origin,
+            service_call,
             connector_event_type,
         }
     }
