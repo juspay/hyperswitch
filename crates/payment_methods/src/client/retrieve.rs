@@ -53,7 +53,7 @@ impl TryFrom<RawPaymentMethodData> for PaymentMethodData {
     fn try_from(value: RawPaymentMethodData) -> Result<Self, Self::Error> {
         match value {
             RawPaymentMethodData::Card(card_data) => {
-                Ok(PaymentMethodData::CardDetailsForNetworkTransactionId(
+                Ok(Self::CardDetailsForNetworkTransactionId(
                     CardDetailsForNetworkTransactionId {
                         card_number: card_data.card_number,
                         card_exp_month: card_data.card_exp_month,

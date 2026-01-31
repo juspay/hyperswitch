@@ -70,7 +70,6 @@ pub struct ModularPMRetrieveResponse {
 /// V2 RawPaymentMethodData enum
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
-
 pub enum RawPaymentMethodData {
     Card(CardDetail),
 }
