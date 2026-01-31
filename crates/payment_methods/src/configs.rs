@@ -10,8 +10,33 @@ use url::Url;
 pub struct MicroServicesConfig {
     /// Base URL for the modular payment methods service.
     pub payment_methods_base_url: ModularPaymentMethodServiceUrl,
+    pub payment_methods_prefix: ModularPaymentMethodServicePrefix,
 }
 
+/// Prefix wrapper for the modular payment methods service.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(transparent)]
+pub struct ModularPaymentMethodServicePrefix(pub String);
+
+impl Default for ModularPaymentMethodServicePrefix {
+    fn default() -> Self {
+        Self("v2".to_string())
+    }
+}
+
+impl std::ops::Deref for ModularPaymentMethodServicePrefix {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for ModularPaymentMethodServicePrefix {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
 /// Base URL wrapper for the modular payment methods service.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(transparent)]
