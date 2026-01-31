@@ -5072,6 +5072,36 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+pub(crate) fn check_internal_api_key_or_dashboard_auth_no_client_secret<T>(
+    headers: &HeaderMap,
+    api_auth: V2ApiKeyAuth,
+    jwt_auth: JWTAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    common_enums::ApiKeyType,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            common_enums::ApiKeyType::Internal,
+        ))
+    } else if is_jwt_auth(headers) {
+        Ok((Box::new(jwt_auth), common_enums::ApiKeyType::External))
+    } else {
+        Ok((
+            Box::new(HeaderAuth(api_auth)),
+            common_enums::ApiKeyType::External,
+        ))
+    }
+}
+
 pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
