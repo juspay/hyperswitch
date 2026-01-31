@@ -1,9 +1,10 @@
-use api_models::payment_methods::CardDetailFromLocker;
+use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
+
+use crate::client::create::CardDetail;
 #[derive(Clone, Debug)]
 pub struct ModularListCustomerPaymentMethodsRequest;
 
@@ -43,7 +44,7 @@ pub enum PaymentMethodResponseData {
 
 /// V2 modular service request payload.
 #[derive(Clone, Debug)]
-pub struct ModularPMRetrieveResquest;
+pub struct ModularPMRetrieveRequest;
 
 /// V2 PaymentMethodResponse as returned by the V2 API.
 /// This is a copy of the V2 PaymentMethodResponse struct from api_models for use in V1-only builds.
@@ -52,8 +53,8 @@ pub struct ModularPMRetrieveResponse {
     pub id: String,
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
-    pub payment_method_type: Option<PaymentMethod>,
-    pub payment_method_subtype: Option<PaymentMethodType>,
+    pub payment_method_type: PaymentMethod,
+    pub payment_method_subtype: PaymentMethodType,
     pub recurring_enabled: Option<bool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
@@ -64,6 +65,14 @@ pub struct ModularPMRetrieveResponse {
     pub network_token: Option<NetworkTokenResponse>,
     pub storage_type: Option<common_enums::StorageType>,
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
+}
+/// V2 RawPaymentMethodData enum
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+
+pub enum RawPaymentMethodData {
+    Card(CardDetail),
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
@@ -77,12 +86,6 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub token: masking::Secret<String>,
-}
-
-/// V2 NetworkTokenResponse (for deserialization, ignored in transformation)
-#[derive(Clone, Debug, Deserialize)]
-pub struct NetworkTokenResponse {
-    pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)
