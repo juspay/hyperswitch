@@ -5073,7 +5073,7 @@ where
 }
 
 #[cfg(feature = "v2")]
-pub fn check_internal_api_key_or_dashboard_auth_no_client_secret<T>(
+pub(crate) fn check_internal_api_key_or_dashboard_auth_no_client_secret<T>(
     headers: &HeaderMap,
     api_auth: V2ApiKeyAuth,
     jwt_auth: JWTAuth,
