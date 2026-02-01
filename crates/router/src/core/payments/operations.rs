@@ -254,20 +254,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     ) -> RouterResult<()> {
         Ok(())
     }
-
-    async fn create_payment_method(
-        &self,
-        _state: &SessionState,
-        _request: &R,
-        _platform: &domain::Platform,
-        _payment_data: &mut D,
-        _business_profile: &domain::Profile,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
-
-
-
 }
 
 #[async_trait]
@@ -314,6 +300,27 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
+    #[cfg(feature = "v1")]
+    async fn create_payment_method(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _platform: &domain::Platform,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+    
+    // async fn fetch_payment_method(
+    //     &self,
+    //     _state: &SessionState,
+    //     _request: &R,
+    //     _platform: &domain::Platform,
+    //     _business_profile: &domain::Profile,
+    // ) -> RouterResult<()> {
+    //     Ok(())
+    // }
 
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(

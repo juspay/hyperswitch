@@ -642,6 +642,18 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
+    // let (payment_method_info) = if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+    //     &*state.store,
+    //     &platform.get_processor().get_account().organization_id,
+    // )
+    // .await
+    // {
+    //     operation
+    //         .to_domain()?
+    //         .fetch_payment_method(state, &req, platform, &business_profile)
+    //         .await?
+    // };
+
     //fetch in gettrackers trait
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -680,7 +692,7 @@ where
     .await
     {
         operation
-            .to_get_tracker()?
+            .to_domain()?
             .create_payment_method(state, &req, platform, &mut payment_data, &business_profile)
             .await?;
     }
