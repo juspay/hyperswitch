@@ -286,6 +286,13 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "local_bank_transfer",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -574,6 +581,37 @@ export const connectorDetails = {
           },
         },
         currency: "PLN",
+      },
+    }),
+    LocalBankTransfer: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "local_bank_transfer",
+        payment_method_data: {
+          bank_transfer: {
+            local_bank_transfer: {
+              bank_code: "PAYSHAP:NEDBANK",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2000",
+            country: "ZA",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "821234567",
+            country_code: "+27",
+          },
+        },
+        currency: "ZAR",
       },
     }),
   },

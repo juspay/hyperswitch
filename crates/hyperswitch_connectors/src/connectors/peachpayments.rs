@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
+use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use transformers as peachpayments;
 
 use crate::{
@@ -147,20 +147,120 @@ impl ConnectorCommon for Peachpayments {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsErrorResponse = res
-            .response
-            .parse_struct("PeachpaymentsErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        // Handle 429 rate limit errors specially - keep payment in pending state
+        // PeachPayments rate limits status queries to 2 per minute per transaction
+        if res.status_code == 429 {
+            let response_text = std::str::from_utf8(&res.response)
+                .unwrap_or("Rate limited")
+                .to_string();
+            router_env::logger::warn!(
+                "PeachPayments rate limit hit (429), keeping payment in pending state: {}",
+                response_text
+            );
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: "RATE_LIMITED".to_string(),
+                message: "Rate limited by payment provider, status will be updated via webhook"
+                    .to_string(),
+                reason: Some(response_text),
+                attempt_status: Some(enums::AttemptStatus::Pending),
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        // Try parsing as Card Gateway error format first
+        if let Ok(response) = res
+            .response
+            .parse_struct::<peachpayments::PeachpaymentsErrorResponse>("PeachpaymentsErrorResponse")
+        {
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error_ref.clone(),
+                message: response.message.clone(),
+                reason: Some(response.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        if let Ok(response) = res
+            .response
+            .parse_struct::<peachpayments::PeachpaymentsApmErrorResponse>(
+                "PeachpaymentsApmErrorResponse",
+            )
+        {
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            let error_response: ErrorResponse = response.into();
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                ..error_response
+            });
+        }
+
+        if let Ok(response) = res
+            .response
+            .parse_struct::<peachpayments::PeachpaymentsApmPaymentsResponse>(
+                "PeachpaymentsApmPaymentsResponse",
+            )
+        {
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            let attempt_status =
+                Some(peachpayments::map_apm_result_code_to_status(&response.result.code));
+
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.result.code,
+                message: response.result.description.clone(),
+                reason: Some(response.result.description),
+                attempt_status,
+                connector_transaction_id: Some(response.id),
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        // Fallback: return raw response as error message
+        let response_text = std::str::from_utf8(&res.response)
+            .unwrap_or("Failed to parse error response")
+            .to_string();
+        router_env::logger::error!(connector_error_response=?response_text);
+
+        let attempt_status = if response_text.contains("\"900.")
+            || response_text.contains("\"800.")
+            || response_text.contains("\"200.")
+            || response_text.contains("\"100.")
+        {
+            Some(enums::AttemptStatus::Failure)
+        } else {
+            None
+        };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_ref.clone(),
-            message: response.message.clone(),
-            reason: Some(response.message.clone()),
-            attempt_status: None,
+            code: "PEACHPAYMENTS_ERROR".to_string(),
+            message: response_text.clone(),
+            reason: Some(response_text),
+            attempt_status,
             connector_transaction_id: None,
             connector_response_reference_id: None,
             network_advice_code: None,
@@ -203,10 +303,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         if is_apm_payment(req) {
-            // APM uses form-encoded content-type with auth in body, not headers
+            // APM uses JSON content-type with auth in body (no API key headers)
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
-                "application/x-www-form-urlencoded".to_string().into(),
+                "application/json".to_string().into(),
             )])
         } else {
             // Card payments use JSON with auth headers
@@ -262,12 +362,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         if is_apm_payment(req) {
-            // APM uses form-encoded request
+            // APM uses JSON request with authentication in body
             let connector_router_data =
                 peachpayments::PeachpaymentsRouterData::from((amount, req));
             let connector_req =
                 peachpayments::PeachpaymentsApmPaymentsRequest::try_from(&connector_router_data)?;
-            Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            Ok(RequestContent::Json(Box::new(connector_req)))
         } else {
             // Card payments use JSON
             let connector_router_data =
@@ -342,6 +442,32 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    // Override get_5xx_error_response - PeachPayments returns detailed error info
+    // in the body even for 5xx responses that we need to parse
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+/// Check if payment sync is for APM based on payment_method_type
+fn is_apm_sync(req: &PaymentsSyncRouterData) -> bool {
+    matches!(
+        req.request.payment_method_type,
+        Some(common_enums::PaymentMethodType::LocalBankTransfer)
+    )
+}
+
+/// Check if refund is for APM based on payment_method_type
+fn is_apm_refund<F>(req: &RouterData<F, RefundsData, RefundsResponseData>) -> bool {
+    matches!(
+        req.payment_method_type,
+        Some(common_enums::PaymentMethodType::LocalBankTransfer)
+    )
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Peachpayments {
@@ -350,7 +476,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        if is_apm_sync(req) {
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )])
+        } else {
+            self.build_headers(req, connectors)
+        }
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -367,11 +500,26 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}/transactions/{}",
-            self.base_url(connectors),
-            connector_transaction_id
-        ))
+
+        if is_apm_sync(req) {
+            let auth =
+                peachpayments::PeachpaymentsApmAuthType::try_from(&req.connector_auth_type)?;
+            Ok(format!(
+                "{}/payments/{}?authentication.entityId={}&authentication.userId={}&authentication.password={}",
+                connectors.peachpayments.secondary_base_url,
+                connector_transaction_id,
+                auth.entity_id.peek(),
+                auth.user_id.peek(),
+                auth.password.peek()
+            ))
+        } else {
+            // Card Gateway: GET /transaction/{id}
+            Ok(format!(
+                "{}/transactions/{}",
+                self.base_url(connectors),
+                connector_transaction_id
+            ))
+        }
     }
 
     fn build_request(
@@ -395,20 +543,43 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsPaymentsResponse = res
-            .response
-            .parse_struct("peachpayments PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        if is_apm_sync(data) {
+            let response: peachpayments::PeachpaymentsApmSyncResponse = res
+                .response
+                .parse_struct("peachpayments ApmSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            // Card Gateway response format
+            let response: peachpayments::PeachpaymentsPaymentsResponse = res
+                .response
+                .parse_struct("peachpayments PaymentsSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -500,6 +671,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -604,6 +783,14 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpayments {
@@ -612,7 +799,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpa
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        if is_apm_refund(req) {
+            // APM uses JSON content-type with auth in body (no API key headers)
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )])
+        } else {
+            self.build_headers(req, connectors)
+        }
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -624,11 +819,19 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpa
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/transactions/{}/refund",
-            self.base_url(connectors),
-            req.request.connector_transaction_id
-        ))
+        if is_apm_refund(req) {
+            Ok(format!(
+                "{}/payments/{}",
+                connectors.peachpayments.secondary_base_url,
+                req.request.connector_transaction_id
+            ))
+        } else {
+            Ok(format!(
+                "{}/transactions/{}/refund",
+                self.base_url(connectors),
+                req.request.connector_transaction_id
+            ))
+        }
     }
 
     fn get_request_body(
@@ -636,8 +839,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpa
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = peachpayments::PeachpaymentsRefundRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        if is_apm_refund(req) {
+            let connector_req = peachpayments::PeachpaymentsApmRefundRequest::try_from(req)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        } else {
+            let connector_req = peachpayments::PeachpaymentsRefundRequest::try_from(req)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        }
     }
 
     fn build_request(
@@ -665,20 +873,42 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsRefundResponse = res
-            .response
-            .parse_struct("PeachpaymentsRefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        if is_apm_refund(data) {
+            let response: peachpayments::PeachpaymentsApmRefundResponse = res
+                .response
+                .parse_struct("PeachpaymentsApmRefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: peachpayments::PeachpaymentsRefundResponse = res
+                .response
+                .parse_struct("PeachpaymentsRefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -693,7 +923,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        if is_apm_refund(req) {
+            // APM sync doesn't need auth headers - entityId is in query param
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )])
+        } else {
+            self.build_headers(req, connectors)
+        }
     }
 
     fn get_url(
@@ -702,11 +940,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_refund_id = req.request.get_connector_refund_id()?;
-        Ok(format!(
-            "{}/transactions/{}",
-            self.base_url(connectors),
-            connector_refund_id
-        ))
+
+        if is_apm_refund(req) {
+            let auth =
+                peachpayments::PeachpaymentsApmAuthType::try_from(&req.connector_auth_type)?;
+            Ok(format!(
+                "{}/payments/{}?authentication.entityId={}&authentication.userId={}&authentication.password={}",
+                connectors.peachpayments.secondary_base_url,
+                connector_refund_id,
+                auth.entity_id.peek(),
+                auth.user_id.peek(),
+                auth.password.peek()
+            ))
+        } else {
+            Ok(format!(
+                "{}/transactions/{}",
+                self.base_url(connectors),
+                connector_refund_id
+            ))
+        }
     }
 
     fn build_request(
@@ -730,20 +982,42 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsRsyncResponse = res
-            .response
-            .parse_struct("PeachpaymentsRsyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        if is_apm_refund(data) {
+            let response: peachpayments::PeachpaymentsApmRefundSyncResponse = res
+                .response
+                .parse_struct("PeachpaymentsApmRefundSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: peachpayments::PeachpaymentsRsyncResponse = res
+                .response
+                .parse_struct("PeachpaymentsRsyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,

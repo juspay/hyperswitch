@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::Secret;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -567,6 +567,17 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     }
 }
 
+/// Extract payment brand and bank from bank_code
+/// Format: "PAYSHAP:NEDBANK" -> ("PAYSHAP", Some("NEDBANK"))
+/// Format: "PEACHEFT" -> ("PEACHEFT", None)
+fn extract_payment_brand_and_bank(bank_code: &str) -> (String, Option<String>) {
+    if let Some((brand, bank)) = bank_code.split_once(':') {
+        (brand.to_uppercase(), Some(bank.to_uppercase()))
+    } else {
+        (bank_code.to_uppercase(), None)
+    }
+}
+
 // TryFrom for APM (Bank Transfer) requests
 impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     for PeachpaymentsApmPaymentsRequest
@@ -589,22 +600,42 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     let bank_code_str = bank_code.unwrap_or_default();
                     let (payment_brand, bank) = extract_payment_brand_and_bank(&bank_code_str);
 
+                    let virtual_account = build_virtual_account(
+                        &payment_brand,
+                        bank,
+                        item.router_data,
+                    );
+
+                    let is_non_production_env = !matches!(
+                        router_env::env::which(),
+                        router_env::Env::Production
+                    );
+                    let is_test_mode = item.router_data.test_mode.unwrap_or(false);
+                    let custom_parameters = if is_non_production_env || is_test_mode {
+                        Some(PeachpaymentsCustomParameters {
+                            enable_test_mode: Some("true".to_string()),
+                        })
+                    } else {
+                        None
+                    };
+
                     Ok(Self {
-                        entity_id: auth.entity_id,
-                        username: auth.username,
-                        password: auth.password,
-                        amount,
-                        currency: item.router_data.request.currency,
-                        payment_type: "DB".to_string(),
-                        payment_brand,
+                        authentication: PeachpaymentsApmAuthentication {
+                            user_id: auth.user_id,
+                            password: auth.password,
+                            entity_id: auth.entity_id,
+                        },
                         merchant_transaction_id: item
                             .router_data
                             .connector_request_reference_id
                             .clone(),
+                        amount,
+                        currency: item.router_data.request.currency,
+                        payment_brand,
+                        payment_type: "DB".to_string(),
                         shopper_result_url: return_url,
-                        virtual_account_id: None,
-                        virtual_account_type: None,
-                        virtual_account_bank: bank,
+                        virtual_account,
+                        custom_parameters,
                     })
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
@@ -620,6 +651,58 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
+/// Build virtual account based on payment brand
+fn build_virtual_account(
+    payment_brand: &str,
+    bank: Option<String>,
+    router_data: &PaymentsAuthorizeRouterData,
+) -> Option<PeachpaymentsVirtualAccount> {
+    // Get phone number as-is from billing - let PeachPayments validate format
+    let phone = router_data
+        .get_billing_phone_number()
+        .ok()
+        .map(|p| p.expose().to_string());
+
+    // Get email from billing
+    let email = router_data
+        .get_billing_email()
+        .ok()
+        .map(|e| e.peek().to_string());
+
+    match payment_brand {
+        // Phone-based payments
+        "PAYSHAP" => Some(PeachpaymentsVirtualAccount {
+            bank,
+            account_type: Some("CELLPHONE".to_string()),
+            account_id: phone,
+            password: None,
+        }),
+        "CAPITECPAY" => Some(PeachpaymentsVirtualAccount {
+            bank: None,
+            account_type: Some("CELLPHONE".to_string()),
+            account_id: phone,
+            password: None,
+        }),
+        "MPESA" | "BLINKBYEMTEL" | "MCBJUICE" => Some(PeachpaymentsVirtualAccount {
+            bank: None,
+            account_type: None,
+            account_id: phone,
+            password: None,
+        }),
+        // Email-based payments (vouchers, store credit)
+        "MOBICRED" | "1VOUCHER" | "1FORYOU" | "RCS" | "APLUS" => {
+            Some(PeachpaymentsVirtualAccount {
+                bank: None,
+                account_type: None,
+                account_id: email,
+                password: None, // Voucher PIN would come from payment_method_data if needed
+            })
+        }
+        // PEACHEFT, PAYFLEX, ZEROPAY, FLOAT, HAPPYPAY, MASTERPASS, MONEYBADGER don't require virtual account
+        _ => None,
+    }
+}
+
 // TryFrom for APM refund requests
 impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsApmRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -631,9 +714,11 @@ impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsApmRefundRequest {
         let amount = format!("{:.2}", amount_decimal);
 
         Ok(Self {
-            entity_id: auth.entity_id,
-            username: auth.username,
-            password: auth.password,
+            authentication: PeachpaymentsApmAuthentication {
+                user_id: auth.user_id,
+                password: auth.password,
+                entity_id: auth.entity_id,
+            },
             amount,
             currency: item.request.currency,
             payment_type: "RF".to_string(),
@@ -1145,7 +1230,7 @@ pub struct WebhookTransaction {
     pub payment_method: Secret<String>,
 }
 
-// Error Response
+// Error Response for Card Gateway API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsErrorResponse {
@@ -1164,14 +1249,64 @@ impl TryFrom<ErrorResponse> for PeachpaymentsErrorResponse {
     }
 }
 
+/// Error Response for APM API - simpler format with just message
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeachpaymentsApmErrorResponse {
+    pub message: String,
+    #[serde(default)]
+    pub result: Option<ApmResultCode>,
+}
+
+impl From<PeachpaymentsApmErrorResponse> for ErrorResponse {
+    fn from(error: PeachpaymentsApmErrorResponse) -> Self {
+        let (code, message) = if let Some(ref result) = error.result {
+            (result.code.clone(), result.description.clone())
+        } else {
+            ("APM_ERROR".to_string(), error.message.clone())
+        };
+
+        // Determine attempt_status based on result code
+        // Error codes (100.xxx, 200.xxx, 800.xxx, 900.xxx) should mark payment as failed
+        let attempt_status = error.result.as_ref().map(|r| {
+            if r.code.starts_with("100.")
+                || r.code.starts_with("200.")
+                || r.code.starts_with("800.")
+                || r.code.starts_with("900.")
+            {
+                common_enums::AttemptStatus::Failure
+            } else {
+                // For other error codes, keep pending to allow retry
+                common_enums::AttemptStatus::Pending
+            }
+        });
+
+        ErrorResponse {
+            status_code: 400,
+            code,
+            message: message.clone(),
+            reason: Some(message),
+            attempt_status,
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        }
+    }
+}
+
 // ============================================================================
 // APM (Payments API v2) Types - Form-encoded requests with different auth
 // ============================================================================
 
-/// Auth for APM Payments API - uses SignatureKey with entityId, userId, password
+/// Auth for APM Payments API - uses SignatureKey
+/// api_key = entityId
+/// key1 = userId
+/// api_secret = password
 pub struct PeachpaymentsApmAuthType {
     pub entity_id: Secret<String>,
-    pub username: Secret<String>,
+    pub user_id: Secret<String>,
     pub password: Secret<String>,
 }
 
@@ -1186,7 +1321,7 @@ impl TryFrom<&ConnectorAuthType> for PeachpaymentsApmAuthType {
         {
             Ok(Self {
                 entity_id: api_key.clone(),
-                username: key1.clone(),
+                user_id: key1.clone(),
                 password: api_secret.clone(),
             })
         } else {
@@ -1195,48 +1330,64 @@ impl TryFrom<&ConnectorAuthType> for PeachpaymentsApmAuthType {
     }
 }
 
-/// APM payment request - form-encoded
+/// APM authentication object for JSON request
 #[derive(Debug, Serialize)]
-pub struct PeachpaymentsApmPaymentsRequest {
-    #[serde(rename = "authentication.entityId")]
-    pub entity_id: Secret<String>,
-    #[serde(rename = "authentication.userId")]
-    pub username: Secret<String>,
-    #[serde(rename = "authentication.password")]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsApmAuthentication {
+    pub user_id: Secret<String>,
     pub password: Secret<String>,
-    pub amount: String,
-    pub currency: common_enums::Currency,
-    #[serde(rename = "paymentType")]
-    pub payment_type: String,
-    #[serde(rename = "paymentBrand")]
-    pub payment_brand: String,
-    #[serde(rename = "merchantTransactionId")]
-    pub merchant_transaction_id: String,
-    #[serde(rename = "shopperResultUrl")]
-    pub shopper_result_url: Option<String>,
-    #[serde(rename = "virtualAccount.accountId")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub virtual_account_id: Option<Secret<String>>,
-    #[serde(rename = "virtualAccount.type")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub virtual_account_type: Option<String>,
-    #[serde(rename = "virtualAccount.bank")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub virtual_account_bank: Option<String>,
+    pub entity_id: Secret<String>,
 }
 
-/// APM refund request - form-encoded
+/// Virtual account details for APM payments
 #[derive(Debug, Serialize)]
-pub struct PeachpaymentsApmRefundRequest {
-    #[serde(rename = "authentication.entityId")]
-    pub entity_id: Secret<String>,
-    #[serde(rename = "authentication.userId")]
-    pub username: Secret<String>,
-    #[serde(rename = "authentication.password")]
-    pub password: Secret<String>,
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsVirtualAccount {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub account_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<Secret<String>>,
+}
+
+/// Custom parameters for APM requests (e.g., test mode)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsCustomParameters {
+    /// Enable test mode for sandbox testing - required for many APMs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_test_mode: Option<String>,
+}
+
+/// APM payment request - JSON format
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsApmPaymentsRequest {
+    pub authentication: PeachpaymentsApmAuthentication,
+    pub merchant_transaction_id: String,
     pub amount: String,
     pub currency: common_enums::Currency,
-    #[serde(rename = "paymentType")]
+    pub payment_brand: String,
+    pub payment_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shopper_result_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub virtual_account: Option<PeachpaymentsVirtualAccount>,
+    /// Custom parameters - includes enableTestMode for sandbox
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_parameters: Option<PeachpaymentsCustomParameters>,
+}
+
+/// APM refund request - JSON format
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsApmRefundRequest {
+    pub authentication: PeachpaymentsApmAuthentication,
+    pub amount: String,
+    pub currency: common_enums::Currency,
     pub payment_type: String,
 }
 
@@ -1262,17 +1413,28 @@ pub struct ApmRedirect {
     pub url: String,
     #[serde(default)]
     pub method: Option<String>,
+    #[serde(default)]
+    pub parameters: Vec<ApmRedirectParameter>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ApmRedirectParameter {
+    pub name: String,
+    pub value: String,
 }
 
 /// APM Sync response
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsApmSyncResponse {
     pub id: String,
     pub result: ApmResultCode,
-    #[serde(rename = "paymentType")]
     pub payment_type: Option<String>,
-    pub amount: Option<String>,
+    pub payment_brand: Option<String>,
+    /// Amount comes back as a float from the API (e.g., 100.00)
+    pub amount: Option<f64>,
     pub currency: Option<common_enums::Currency>,
+    pub merchant_transaction_id: Option<String>,
 }
 
 /// APM webhook body
@@ -1284,12 +1446,6 @@ pub struct PeachpaymentsApmWebhookBody {
     pub payment_type: Option<String>,
     #[serde(rename = "merchantTransactionId")]
     pub merchant_transaction_id: Option<String>,
-}
-
-/// APM error response
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PeachpaymentsApmErrorResponse {
-    pub result: ApmResultCode,
 }
 
 /// Helper function to map APM result codes to AttemptStatus
@@ -1326,16 +1482,6 @@ pub fn is_apm_pending(code: &str) -> bool {
     code.starts_with("000.200")
 }
 
-/// Helper function to extract payment brand from bank_code
-/// Format: "BRAND:BANK" (e.g., "PAYSHAP:NEDBANK")
-pub fn extract_payment_brand_and_bank(bank_code: &str) -> (String, Option<String>) {
-    if let Some((brand, bank)) = bank_code.split_once(':') {
-        (brand.to_string(), Some(bank.to_string()))
-    } else {
-        (bank_code.to_string(), None)
-    }
-}
-
 /// Helper function to check if payment method data is APM (bank transfer)
 pub fn is_apm_payment_method(payment_method_data: &PaymentMethodData) -> bool {
     matches!(
@@ -1369,12 +1515,25 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsApmPaymentsResponse, T, Pa
                 charges: None,
             })
         } else if is_apm_pending(&item.response.result.code) {
-            // Redirect flow - return redirect URL
+            // Redirect flow - return redirect URL with parameters
             let redirect_data = item.response.redirect.map(|r| {
+                // Convert parameters to form fields
+                let form_fields: std::collections::HashMap<String, String> = r
+                    .parameters
+                    .into_iter()
+                    .map(|p| (p.name, p.value))
+                    .collect();
+
+                // Use the method from the response (POST or GET)
+                let method = match r.method.as_deref() {
+                    Some("POST") => common_utils::request::Method::Post,
+                    _ => common_utils::request::Method::Get,
+                };
+
                 hyperswitch_domain_models::router_response_types::RedirectForm::Form {
                     endpoint: r.url,
-                    method: common_utils::request::Method::Get,
-                    form_fields: std::collections::HashMap::new(),
+                    method,
+                    form_fields,
                 }
             });
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1461,6 +1620,103 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsApmSyncResponse, T, Paymen
 
         Ok(Self {
             status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+// ============================================================================
+// APM Refund Response Types
+// ============================================================================
+
+/// APM refund response - same format as payment response
+pub type PeachpaymentsApmRefundResponse = PeachpaymentsApmPaymentsResponse;
+
+/// APM refund sync response - same format as payment sync response
+pub type PeachpaymentsApmRefundSyncResponse = PeachpaymentsApmSyncResponse;
+
+/// Helper function to map APM result codes to RefundStatus
+pub fn map_apm_result_code_to_refund_status(code: &str) -> storage_enums::RefundStatus {
+    if is_apm_success(code) {
+        storage_enums::RefundStatus::Success
+    } else if is_apm_pending(code) {
+        storage_enums::RefundStatus::Pending
+    } else {
+        storage_enums::RefundStatus::Failure
+    }
+}
+
+// TryFrom implementation for APM refund response
+impl<F> TryFrom<ResponseRouterData<F, PeachpaymentsApmRefundResponse, RefundsData, RefundsResponseData>>
+    for RouterData<F, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PeachpaymentsApmRefundResponse, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = map_apm_result_code_to_refund_status(&item.response.result.code);
+
+        let response = if refund_status == storage_enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+// TryFrom implementation for APM refund sync response
+impl<F> TryFrom<ResponseRouterData<F, PeachpaymentsApmRefundSyncResponse, RefundsData, RefundsResponseData>>
+    for RouterData<F, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PeachpaymentsApmRefundSyncResponse, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = map_apm_result_code_to_refund_status(&item.response.result.code);
+
+        let response = if refund_status == storage_enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            })
+        };
+
+        Ok(Self {
             response,
             ..item.data
         })

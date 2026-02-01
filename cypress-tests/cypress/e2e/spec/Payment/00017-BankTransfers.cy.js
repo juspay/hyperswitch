@@ -240,4 +240,63 @@ describe("Bank Transfers", () => {
       }
     });
   });
+
+  context("Bank transfer - LocalBankTransfer flow (South African EFT)", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["PaymentIntent"]("LocalBankTransfer");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm bank transfer", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["LocalBankTransfer"];
+
+      cy.confirmBankTransferCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Handle bank transfer redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+
+      // Skip redirect handling for peachpayments as it requires manual bank interaction
+      if (globalState.get("connectorId") != "peachpayments") {
+        cy.handleBankTransferRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      }
+    });
+  });
 });
