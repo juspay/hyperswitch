@@ -830,8 +830,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         //     })
         //     .map(From::from);
 
-        let unified_address =
-            address.unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
+        let unified_address = address
+            .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
 
         // If processor_payment_token is passed in request then populating the same in PaymentData
         let mandate_id = request
@@ -1000,7 +1000,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             _ => Ok(()),
         }
     }
-
 }
 
 #[async_trait]
@@ -1157,7 +1156,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         Ok(())
     }
 
-        // #[instrument(skip_all)]
+    // #[instrument(skip_all)]
     // async fn fetch_payment_method(
     //     &self,
     //     state: &SessionState,

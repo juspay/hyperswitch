@@ -27,7 +27,6 @@ use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-use crate::core::payments::pm_transformers::PaymentMethodWrapper;
 use crate::{
     consts,
     core::{
@@ -35,7 +34,10 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payment_methods::{transformers as pm_transformers, utils as pm_utils},
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, pm_transformers::PaymentMethodWrapper, CustomerDetails,
+            PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -640,8 +642,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .and_then(|pmd| pmd.billing.clone()));
 
-        let unified_address =
-            address.unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
+        let unified_address = address
+            .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -704,7 +706,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         Ok(get_trackers_response)
     }
-
 }
 
 #[async_trait]

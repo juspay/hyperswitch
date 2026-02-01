@@ -311,7 +311,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> RouterResult<()> {
         Ok(())
     }
-    
+
     // async fn fetch_payment_method(
     //     &self,
     //     _state: &SessionState,
