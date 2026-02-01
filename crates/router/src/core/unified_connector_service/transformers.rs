@@ -12,7 +12,6 @@ use api_models::payments::{
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
     ext_traits::Encode,
-    request::Method,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums as storage_enums;
@@ -771,6 +770,7 @@ impl
             ),
             merchant_account_metadata: None,
             metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -1179,6 +1179,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -3739,66 +3740,6 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
-        match value.form_type {
-            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
-                endpoint: form.clone().endpoint,
-                method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
-            }),
-            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
-                html_data: html.html_data,
-            }),
-            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "URI form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
-            Some(payments_grpc::redirect_form::FormType::Braintree(braintree)) => {
-                Ok(Self::Braintree {
-                    client_token: braintree.client_token,
-                    card_token: braintree.card_token,
-                    bin: braintree.bin,
-                    acs_url: braintree.acs_url,
-                })
-            }
-            Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
-                Ok(Self::Mifinity {
-                    initialization_token: mifinity.initialization_token,
-                })
-            }
-            None => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Missing form type".to_string(),
-                )
-                .into(),
-            ),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::HttpMethod> for Method {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
-        tracing::debug!("Converting gRPC HttpMethod: {:?}", value);
-        match value {
-            payments_grpc::HttpMethod::Get => Ok(Self::Get),
-            payments_grpc::HttpMethod::Post => Ok(Self::Post),
-            payments_grpc::HttpMethod::Put => Ok(Self::Put),
-            payments_grpc::HttpMethod::Delete => Ok(Self::Delete),
-            payments_grpc::HttpMethod::Unspecified => {
-                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                    .attach_printable("Invalid Http Method")
-            }
-        }
-    }
-}
-
 impl transformers::ForeignTryFrom<storage_enums::FutureUsage> for payments_grpc::FutureUsage {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -5579,6 +5520,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }

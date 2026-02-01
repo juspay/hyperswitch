@@ -1,11 +1,13 @@
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
+use common_utils::request::Method;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
         ExtendedAuthorizationResponseData,
     },
-    router_response_types::PaymentsResponseData,
+    router_response_types::{PaymentsResponseData, RedirectForm},
 };
 
 use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
@@ -221,14 +223,14 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -237,7 +239,13 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
-                    redirection_data: Box::new(None),
+                    redirection_data: Box::new(
+                        response
+                            .redirection_data
+                            .clone()
+                            .map(ForeignTryFrom::foreign_try_from)
+                            .transpose()?,
+                    ),
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
@@ -617,6 +625,65 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("Unknown BankNames variant")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
+        match value.form_type {
+            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
+                endpoint: form.clone().endpoint,
+                method: Method::foreign_try_from(form.clone().method())?,
+                form_fields: form.clone().form_fields,
+            }),
+            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
+                html_data: html.html_data,
+            }),
+            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(braintree)) => {
+                Ok(Self::Braintree {
+                    client_token: braintree.client_token,
+                    card_token: braintree.card_token,
+                    bin: braintree.bin,
+                    acs_url: braintree.acs_url,
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
+                Ok(Self::Mifinity {
+                    initialization_token: mifinity.initialization_token,
+                })
+            }
+            None => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Missing form type".to_string(),
+                )
+                .into(),
+            ),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::HttpMethod::Get => Ok(Self::Get),
+            payments_grpc::HttpMethod::Post => Ok(Self::Post),
+            payments_grpc::HttpMethod::Put => Ok(Self::Put),
+            payments_grpc::HttpMethod::Delete => Ok(Self::Delete),
+            payments_grpc::HttpMethod::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    .attach_printable("Invalid Http Method")
+            }
         }
     }
 }
