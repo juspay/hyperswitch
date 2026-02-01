@@ -4,31 +4,30 @@ use api_models::payment_methods::Card;
 use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
 use common_enums::CardNetwork;
 use common_utils::{
+    crypto::Encryptable,
     ext_traits::{Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
-    request::{RequestContent, Headers},
+    request::{Headers, RequestContent},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
+use masking::Mask;
+use payment_methods::client::{
+    self as pm_client,
+    create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
+    retrieve::RetrievePaymentMethodV1Request,
+};
 use router_env::{RequestId, RequestIdentifier};
 use serde::{Deserialize, Serialize};
-
-use payment_methods::client::{ self as pm_client,
-    create::{CreatePaymentMethodV1Request, CreatePaymentMethodResponse},
-    retrieve::{RetrievePaymentMethodV1Request},
-};
-use crate::core::payment_methods::cards::create_encrypted_data;
-use common_utils::crypto::Encryptable;
-use masking::Mask;
 
 use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payment_methods::cards::call_vault_service,
+        payment_methods::cards::{call_vault_service, create_encrypted_data},
     },
     headers,
     pii::{prelude::*, Secret},
@@ -1149,16 +1148,22 @@ impl TryFrom<api::PaymentMethodResponse> for DomainPaymentMethodWrapper {
             is_stored: None,
             swift_code: None,
             direct_debit_token: None,
-            created_at: response.created.unwrap_or_else(common_utils::date_time::now),
-            last_modified: response.last_used_at.unwrap_or_else(common_utils::date_time::now),
+            created_at: response
+                .created
+                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
             payment_method: response.payment_method,
             payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
             payment_method_issuer_code: None,
             metadata: None,
             payment_method_data: None, //use response.card to convert to OptionalEncryptableValue
-            locker_id: None, //This id will always be with PM Service
-            last_used_at:  response.last_used_at.unwrap_or_else(common_utils::date_time::now),
+            locker_id: None,           //This id will always be with PM Service
+            last_used_at: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
             connector_mandate_details: None,
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
@@ -1166,14 +1171,13 @@ impl TryFrom<api::PaymentMethodResponse> for DomainPaymentMethodWrapper {
             client_secret: None,
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
-            version:  common_enums::ApiVersion::V1, //to be updated later
+            version: common_enums::ApiVersion::V1, //to be updated later
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
             created_by: None,
             last_modified_by: None,
-            
         }))
     }
 }
@@ -1197,16 +1201,22 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             is_stored: None,
             swift_code: None,
             direct_debit_token: None,
-            created_at: response.created.unwrap_or_else(common_utils::date_time::now),
-            last_modified: response.last_used_at.unwrap_or_else(common_utils::date_time::now),
+            created_at: response
+                .created
+                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
             payment_method: response.payment_method,
             payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
             payment_method_issuer_code: None,
             metadata: None,
             payment_method_data: None, //use response.card to convert to OptionalEncryptableValue
-            locker_id: None, //This id will always be with PM Service
-            last_used_at:  response.last_used_at.unwrap_or_else(common_utils::date_time::now),
+            locker_id: None,           //This id will always be with PM Service
+            last_used_at: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
             connector_mandate_details: None,
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
@@ -1214,14 +1224,13 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             client_secret: None,
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
-            version:  common_enums::ApiVersion::V1, //to be updated later
+            version: common_enums::ApiVersion::V1, //to be updated later
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
             created_by: None,
             last_modified_by: None,
-            
         }))
     }
 }
@@ -1236,17 +1245,21 @@ pub async fn fetch_payment_method_from_modular_service(
 ) -> CustomResult<PaymentMethodWrapper, errors::ApiErrorResponse> {
     //Request body construction
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
-        payment_method_id: api_models::payment_methods::PaymentMethodId { payment_method_id: payment_method_id.to_owned() },
+        payment_method_id: api_models::payment_methods::PaymentMethodId {
+            payment_method_id: payment_method_id.to_owned(),
+        },
     };
 
     //fn to take state, construct request and call modular service
-    let pm_response = retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req).await?;
-    
+    let pm_response =
+        retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req)
+            .await?;
+
     //Convert PMResponse to PaymentMethodWrapper
     let payment_method = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
-    let pm_wrapper = PaymentMethodWrapper{
-        payment_method, 
+    let pm_wrapper = PaymentMethodWrapper {
+        payment_method,
         // raw_payment_method_data: pm_response.raw_payment_method_data,
         raw_payment_method_data: None,
     };
@@ -1260,11 +1273,20 @@ pub async fn retrieve_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
 ) -> CustomResult<api::PaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state.conf.internal_merchant_id_profile_id_auth.internal_api_key;
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
     //headers
     let mut parent_headers = Headers::new();
-    parent_headers.insert(("X-Profile-Id".to_string(), profile_id.get_string_repr().to_string().into_masked()));
-    parent_headers.insert(("X-Internal-Api-Key".to_string(), internal_api_key.clone().expose().to_string().into_masked()));
+    parent_headers.insert((
+        "X-Profile-Id".to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        "X-Internal-Api-Key".to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
 
     let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
         .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
@@ -1277,18 +1299,16 @@ pub async fn retrieve_pm_modular_service_call(
     );
 
     //Modular service call
-    let pm_response = pm_client::RetrievePaymentMethod::call(
-        state, &client, payment_method_fetch_req
-    ).await.map_err(|err| {
+    let pm_response =
+        pm_client::RetrievePaymentMethod::call(state, &client, payment_method_fetch_req)
+            .await
+            .map_err(|err| {
                 println!("Error in creating payment method: {:?}", err);
                 errors::ApiErrorResponse::InternalServerError
             })?;
 
     Ok(pm_response)
 }
-
-
-
 
 // //Create Payment Method from Modular Service
 #[cfg(feature = "v1")]
@@ -1317,18 +1337,19 @@ pub async fn create_payment_method_in_modular_service(
     };
 
     //fn to take state, construct request and call modular service
-    let pm_response = create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request).await?;
-    
+    let pm_response =
+        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
+            .await?;
+
     //Convert PMResponse to PaymentMethodWrapper
     let payment_method_wrapper = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
     // let pm_wrapper = PaymentMethodWrapper{
-    //     payment_method, 
+    //     payment_method,
     //     // raw_payment_method_data: pm_response.raw_payment_method_data,
     //     raw_payment_method_data: None,
     // };
     Ok(payment_method_wrapper.0)
-
 }
 
 #[cfg(feature = "v1")]
@@ -1338,11 +1359,20 @@ pub async fn create_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_create_req: CreatePaymentMethodV1Request,
 ) -> CustomResult<CreatePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state.conf.internal_merchant_id_profile_id_auth.internal_api_key;
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
     //headers
     let mut parent_headers = Headers::new();
-    parent_headers.insert(("X-Profile-Id".to_string(), profile_id.get_string_repr().to_string().into_masked()));
-    parent_headers.insert(("X-Internal-Api-Key".to_string(), internal_api_key.clone().expose().to_string().into_masked()));
+    parent_headers.insert((
+        "X-Profile-Id".to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        "X-Internal-Api-Key".to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
 
     let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
         .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
@@ -1355,9 +1385,10 @@ pub async fn create_pm_modular_service_call(
     );
 
     //Modular service call
-    let pm_response = pm_client::CreatePaymentMethod::call(
-        state, &client, payment_method_create_req
-    ).await.map_err(|err| {
+    let pm_response =
+        pm_client::CreatePaymentMethod::call(state, &client, payment_method_create_req)
+            .await
+            .map_err(|err| {
                 println!("Error in creating payment method: {:?}", err);
                 errors::ApiErrorResponse::InternalServerError
             })?;

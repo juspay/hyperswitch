@@ -23,7 +23,6 @@ use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-use crate::core::payments::pm_transformers::PaymentMethodWrapper;
 #[cfg(feature = "v1")]
 use crate::{
     consts,
@@ -42,7 +41,8 @@ use crate::{
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
-            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
+            pm_transformers::PaymentMethodWrapper, populate_surcharge_details, CustomerDetails,
+            PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
