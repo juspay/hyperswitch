@@ -2,9 +2,6 @@
 
 use api_models::payment_methods::{NetworkTokenResponse, PaymentMethodId};
 use common_utils::{id_type, request::Method};
-use hyperswitch_domain_models::payment_method_data::{
-    CardDetailsForNetworkTransactionId, PaymentMethodData,
-};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use time::PrimitiveDateTime;
 
@@ -37,7 +34,7 @@ pub struct RetrievePaymentMethodResponse {
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<NetworkTokenResponse>,
-    pub raw_payment_method_data: Option<PaymentMethodData>,
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveRequest {
@@ -45,29 +42,6 @@ impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveRequest {
 
     fn try_from(_value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self)
-    }
-}
-impl TryFrom<RawPaymentMethodData> for PaymentMethodData {
-    type Error = MicroserviceClientError;
-
-    fn try_from(value: RawPaymentMethodData) -> Result<Self, Self::Error> {
-        match value {
-            RawPaymentMethodData::Card(card_data) => Ok(Self::CardDetailsForNetworkTransactionId(
-                CardDetailsForNetworkTransactionId {
-                    card_number: card_data.card_number,
-                    card_exp_month: card_data.card_exp_month,
-                    card_exp_year: card_data.card_exp_year,
-                    card_issuer: card_data.card_issuer,
-                    card_network: card_data.card_network,
-                    card_type: card_data.card_type.map(|val| val.to_string()),
-                    card_issuing_country: card_data.card_issuing_country,
-                    card_issuing_country_code: None,
-                    card_holder_name: card_data.card_holder_name,
-                    bank_code: None,
-                    nick_name: card_data.nick_name,
-                },
-            )),
-        }
     }
 }
 
@@ -81,11 +55,6 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
         // Convert GlobalCustomerId to CustomerId
         let customer_id = v2_resp.customer_id;
 
-        let raw_payment_method_data = match v2_resp.raw_payment_method_data {
-            Some(raw_data) => Some(PaymentMethodData::try_from(raw_data)?),
-            None => None,
-        };
-
         Ok(Self {
             payment_method_id,
             merchant_id: v2_resp.merchant_id,
@@ -98,7 +67,7 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
             payment_method_data: v2_resp.payment_method_data,
             connector_tokens: v2_resp.connector_tokens,
             network_token: v2_resp.network_token,
-            raw_payment_method_data,
+            raw_payment_method_data: v2_resp.raw_payment_method_data,
         })
     }
 }
