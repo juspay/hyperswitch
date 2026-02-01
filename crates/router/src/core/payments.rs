@@ -7807,23 +7807,22 @@ where
                     )
                     .await
                     {
-                    let (_operation, payment_method_data, pm_id) = operation
-                        .to_domain()?
-                        .make_pm_data(
-                            state,
-                            payment_data,
-                            validate_result.storage_scheme,
-                            platform,
-                            business_profile,
-                            should_retry_with_pan,
-                        )
-                        .await?;
+                        let (_operation, payment_method_data, pm_id) = operation
+                            .to_domain()?
+                            .make_pm_data(
+                                state,
+                                payment_data,
+                                validate_result.storage_scheme,
+                                platform,
+                                business_profile,
+                                should_retry_with_pan,
+                            )
+                            .await?;
 
-                    payment_data.set_payment_method_data(payment_method_data);
-                    payment_data.set_payment_method_id_in_attempt(pm_id);
-                    }else{
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                    } else {
                         //new merchant flow
-
                     }
                     TokenizationAction::TokenizeInConnector
                 }

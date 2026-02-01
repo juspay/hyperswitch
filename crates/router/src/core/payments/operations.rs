@@ -265,9 +265,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     ) -> RouterResult<()> {
         Ok(())
     }
-
-
-
 }
 
 #[async_trait]
