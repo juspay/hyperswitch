@@ -254,6 +254,20 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     ) -> RouterResult<()> {
         Ok(())
     }
+
+    async fn create_payment_method(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _platform: &domain::Platform,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
+
+
 }
 
 #[async_trait]

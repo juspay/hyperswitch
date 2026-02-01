@@ -133,6 +133,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
+            None,
         ))
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> =

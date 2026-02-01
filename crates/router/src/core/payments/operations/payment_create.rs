@@ -146,6 +146,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
+        // same logic as confirm
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -159,6 +160,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request,
             mandate_type,
             platform,
+            None,
             None,
             None,
         )
@@ -445,7 +447,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
-            request.confirm,
+            request.confirm, //verifying if confirm is true
             self,
         );
 
@@ -474,6 +476,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
+        ///should we populate it here
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()

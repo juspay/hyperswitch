@@ -161,6 +161,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             payment_intent.customer_id.as_ref(),
+            None,
         ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;

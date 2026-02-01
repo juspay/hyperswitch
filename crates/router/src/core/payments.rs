@@ -130,7 +130,9 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::{
+            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
+        },
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -640,6 +642,7 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
+    //fetch in gettrackers trait
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
     let operations::GetTrackerResponse {
@@ -669,6 +672,18 @@ where
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
     )?;
+
+    if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+        &*state.store,
+        &platform.get_processor().get_account().organization_id,
+    )
+    .await
+    {
+        operation
+            .to_get_tracker()?
+            .create_payment_method(state, &req, platform, &mut payment_data, &business_profile)
+            .await?;
+    }
 
     let (operation, customer) = operation
         .to_domain()?
@@ -7637,12 +7652,13 @@ async fn decide_payment_method_tokenize_action(
                     payment_method,
                     connector_name
                 );
-
+                //this will throw error, in repeat cit, since pm token generate wont be of this key
                 let connector_token_option = redis_conn
                     .get_key::<Option<String>>(&key.into())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?;
+                //new merchant,dont throw error??
 
                 match connector_token_option {
                     Some(connector_token) => {
@@ -7756,24 +7772,41 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    let (_operation, payment_method_data, pm_id) = operation
-                        .to_domain()?
-                        .make_pm_data(
-                            state,
-                            payment_data,
-                            validate_result.storage_scheme,
-                            platform,
-                            business_profile,
-                            should_retry_with_pan,
-                        )
-                        .await?;
-                    payment_data.set_payment_method_data(payment_method_data);
-                    payment_data.set_payment_method_id_in_attempt(pm_id);
+                    //old merchant flow
+                    if !pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+                        &*state.store,
+                        &platform.get_processor().get_account().organization_id,
+                    )
+                    .await
+                    {
+                        let (_operation, payment_method_data, pm_id) = operation
+                            .to_domain()?
+                            .make_pm_data(
+                                state,
+                                payment_data,
+                                validate_result.storage_scheme,
+                                platform,
+                                business_profile,
+                                should_retry_with_pan,
+                            )
+                            .await?;
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                    } else {
+                    }
+
+                    //new merchant flow, return vault operation.pmd, and comment abt temp storage.
 
                     TokenizationAction::SkipConnectorTokenization
                 }
                 TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
                 TokenizationAction::TokenizeInConnectorAndRouter => {
+                    if !pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+                        &*state.store,
+                        &platform.get_processor().get_account().organization_id,
+                    )
+                    .await
+                    {
                     let (_operation, payment_method_data, pm_id) = operation
                         .to_domain()?
                         .make_pm_data(
@@ -7788,6 +7821,10 @@ where
 
                     payment_data.set_payment_method_data(payment_method_data);
                     payment_data.set_payment_method_id_in_attempt(pm_id);
+                    }else{
+                        //new merchant flow
+
+                    }
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
