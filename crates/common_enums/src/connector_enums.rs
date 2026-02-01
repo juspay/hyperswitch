@@ -79,6 +79,7 @@ pub enum Connector {
     Blackhawknetwork,
     #[serde(alias = "bluecode")]
     Calida,
+    Capitecvrp,
     Boku,
     Braintree,
     Breadpay,
@@ -241,6 +242,7 @@ impl Connector {
         matches!(
             (self, payment_method),
             (Self::Airwallex, _)
+                | (Self::Capitecvrp, _)
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
@@ -301,6 +303,7 @@ impl Connector {
             | Self::Bluesnap
             | Self::Blackhawknetwork
             | Self::Calida
+            | Self::Capitecvrp
             | Self::Boku
             | Self::Breadpay
             | Self::Cashtocode
