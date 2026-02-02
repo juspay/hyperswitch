@@ -25,6 +25,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Blackhawknetwork => Self::Blackhawknetwork,
             api_enums::Connector::Calida => Self::Calida,
+            api_enums::Connector::Capitecvrp => Self::Capitecvrp,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Breadpay => Self::Breadpay,
