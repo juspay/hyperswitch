@@ -642,6 +642,10 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
+    //instead of calling again, construct state to have modular merchant config
+// FeatureSet{
+//     AllowedModular: true
+// }
     let payment_method_info =
         if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
             &*state.store,
@@ -7811,6 +7815,7 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
+
                     }
 
                     //new merchant flow, return vault operation.pmd, and comment abt temp storage.

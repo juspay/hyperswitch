@@ -17,7 +17,7 @@ use masking::Mask;
 use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
-    retrieve::RetrievePaymentMethodV1Request,
+    retrieve::{RetrievePaymentMethodV1Request, RetrievePaymentMethodResponse},
 };
 use router_env::{RequestId, RequestIdentifier};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payment_methods::cards::{call_vault_service, create_encrypted_data},
+        payment_methods::cards::call_vault_service,
     },
     headers,
     pii::{prelude::*, Secret},
@@ -1124,6 +1124,8 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
 #[derive(Clone, Debug)]
 pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 
+pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
+
 #[derive(Clone, Debug)]
 pub struct PaymentMethodWrapper {
     pub payment_method: DomainPaymentMethodWrapper,
@@ -1131,14 +1133,14 @@ pub struct PaymentMethodWrapper {
 }
 
 // from to convert payment method response to domain payment method
-impl TryFrom<api::PaymentMethodResponse> for DomainPaymentMethodWrapper {
+impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(response: api::PaymentMethodResponse) -> Result<Self, Self::Error> {
+    fn try_from(response: &RetrievePaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self(domain::PaymentMethod {
             //for guest checkout, where customer id, this will fail.
-            customer_id: response.customer_id.get_required_value("CustomerId")?,
-            merchant_id: response.merchant_id,
-            payment_method_id: response.payment_method_id,
+            customer_id: response.customer_id.clone().get_required_value("CustomerId")?,
+            merchant_id: response.merchant_id.clone(),
+            payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
             scheme: None,
             token: None,
@@ -1155,12 +1157,12 @@ impl TryFrom<api::PaymentMethodResponse> for DomainPaymentMethodWrapper {
             last_modified: response
                 .last_used_at
                 .unwrap_or_else(common_utils::date_time::now),
-            payment_method: response.payment_method,
-            payment_method_type: response.payment_method_type,
+            payment_method: Some(response.payment_method),
+            payment_method_type: Some(response.payment_method_type),
             payment_method_issuer: None,
             payment_method_issuer_code: None,
             metadata: None,
-            payment_method_data: None, //use response.card to convert to OptionalEncryptableValue
+            payment_method_data: None, //this is not required in any flow, hence None
             locker_id: None,           //This id will always be with PM Service
             last_used_at: response
                 .last_used_at
@@ -1184,6 +1186,50 @@ impl TryFrom<api::PaymentMethodResponse> for DomainPaymentMethodWrapper {
 }
 
 // from to convert payment method response to domain payment method
+impl TryFrom<(
+    payment_methods::types::RawPaymentMethodData,
+    Option<domain::CardToken>,
+)> for DomainPaymentMethodDataWrapper
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(
+        (raw_data, card_token): (
+            payment_methods::types::RawPaymentMethodData,
+            Option<domain::CardToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match raw_data {
+            payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
+                // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
+                let card_cvc = card_token
+                .as_ref()
+                    .and_then(|token| token.card_cvc.clone())
+                    .or(card_detail.card_cvc).get_required_value("card_cvc")?;
+                let card_holder_name = card_token.and_then(|token| token.card_holder_name.clone()).or(card_detail.card_holder_name.clone());
+
+                Ok(Self(domain::PaymentMethodData::Card(hyperswitch_domain_models::payment_method_data::Card {
+                    card_number: card_detail.card_number,
+                    card_exp_month: card_detail.card_exp_month,
+                    card_exp_year: card_detail.card_exp_year,
+                    card_cvc,
+                    card_issuer: card_detail.card_issuer,
+                    card_network: card_detail.card_network,
+                    card_type: card_detail
+                        .card_type
+                        .map(|card_type| card_type.to_string()),
+                    card_issuing_country: card_detail.card_issuing_country,
+                    card_issuing_country_code: None,
+                    bank_code: None,
+                    nick_name: card_detail.nick_name,
+                    card_holder_name,
+                    co_badged_card_data: None,
+                })))
+            }
+        }
+    }
+}
+
 impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
@@ -1243,15 +1289,16 @@ pub async fn fetch_payment_method_from_modular_service(
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
-    // _pmd_card_token: Option<domain::CardToken>,
-) -> CustomResult<PaymentMethodWrapper, errors::ApiErrorResponse> {
-    //Request body construction
+    pmd_card_token: Option<domain::CardToken>,
+) -> CustomResult<PaymentMethodWrapper, errors::ApiErrorResponse> { //Own error instead of api errors
 
-    use std::str::FromStr;
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
             payment_method_id: payment_method_id.to_owned(),
         },
+        fetch_raw_detail: true,
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        
     };
 
     //fn to take state, construct request and call modular service
@@ -1259,12 +1306,20 @@ pub async fn fetch_payment_method_from_modular_service(
         retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req).await?;
 
     //Convert PMResponse to PaymentMethodWrapper
-    let payment_method = DomainPaymentMethodWrapper::try_from(pm_response)?;
+    let payment_method = DomainPaymentMethodWrapper::try_from(&pm_response)?;
 
-    let pm_wrapper = PaymentMethodWrapper {
+    //Convert RawPaymentMethodData to domain::PaymentMethodData
+    let raw_payment_method_data = pm_response
+        .raw_payment_method_data
+        .map(|raw_data| {
+            DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to convert raw payment method data")?;
+
+    let pm_wrapper = PaymentMethodWrapper { //change the naming
         payment_method,
-        // raw_payment_method_data: pm_response.raw_payment_method_data,
-        raw_payment_method_data: None,
+        raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
     Ok(pm_wrapper)
 }
@@ -1275,7 +1330,7 @@ pub async fn retrieve_pm_modular_service_call(
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
-) -> CustomResult<api::PaymentMethodResponse, errors::ApiErrorResponse> {
+) -> CustomResult<RetrievePaymentMethodResponse, errors::ApiErrorResponse> {
     let internal_api_key = &state
         .conf
         .internal_merchant_id_profile_id_auth
@@ -1326,9 +1381,9 @@ pub async fn create_payment_method_in_modular_service(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: common_enums::PaymentMethodType,
     payment_method_data: domain::PaymentMethodData,
-    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    _billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
-) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
+) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> { //change the error type
     //Request body construction
 
     let payment_method_request = CreatePaymentMethodV1Request {
@@ -1341,6 +1396,7 @@ pub async fn create_payment_method_in_modular_service(
         billing: None,
         network_tokenization: None,
         storage_type: Some(common_enums::StorageType::Persistent),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
 
     //fn to take state, construct request and call modular service
