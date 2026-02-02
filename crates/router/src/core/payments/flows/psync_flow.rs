@@ -302,7 +302,7 @@ impl RouterDataPSync
                 .to_payment_failed_response()?;
                 Ok(resp)
             }
-            payments::CallConnectorAction::Trigger => {
+            _ => {
                 // in trigger, call connector for every capture_id
                 for connector_capture_id in pending_connector_capture_id_list {
                     // TEMPORARY FIX: remove the clone on router data after removing this function as an impl on trait RouterDataPSync
@@ -337,28 +337,6 @@ impl RouterDataPSync
                         _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
                     };
                 }
-                let mut cloned_router_data = self.clone();
-                cloned_router_data.response =
-                    Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-                        capture_sync_response_list: capture_sync_response_map,
-                    });
-                Ok(cloned_router_data)
-            }
-            payments::CallConnectorAction::Avoid => {
-                // Avoid calling connector, return empty response
-                let mut cloned_router_data = self.clone();
-                cloned_router_data.response =
-                    Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-                        capture_sync_response_list: capture_sync_response_map,
-                    });
-                Ok(cloned_router_data)
-            }
-            payments::CallConnectorAction::StatusUpdate {
-                status: _,
-                error_code: _,
-                error_message: _,
-            } => {
-                // Status update without calling connector
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.response =
                     Ok(types::PaymentsResponseData::MultipleCaptureResponse {
