@@ -1186,6 +1186,7 @@ where
         UpdatePaymentMethodV1Request {
             payment_method_id: payment_method_id.to_string(),
             payload,
+            prefix: state.conf.micro_services.payment_methods_prefix,
         },
     )
     .await
