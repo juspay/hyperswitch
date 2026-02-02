@@ -125,6 +125,7 @@ where
             state,
             create_access_token_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, create_access_token_request, grpc_headers| async move {
                 let response = client
                     .create_access_token(

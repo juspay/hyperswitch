@@ -107,6 +107,7 @@ where
             state,
             create_connector_customer_request,
             grpc_headers,
+            unified_connector_service_execution_mode,
             |mut router_data, create_connector_customer_request, grpc_headers| async move {
                 let response = Box::pin(client.create_connector_customer(
                     create_connector_customer_request,

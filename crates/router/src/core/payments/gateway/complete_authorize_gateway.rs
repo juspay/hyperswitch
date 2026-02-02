@@ -112,6 +112,7 @@ where
             state,
             granular_authorize_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_authorize_granular(
                     granular_authorize_request,
