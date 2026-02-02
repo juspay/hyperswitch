@@ -197,6 +197,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub payment_data: D,
     pub business_profile: domain::Profile,
     pub mandate_type: Option<api::MandateTransactionType>,
+    pub feature_set: crate::core::utils::FeatureSet,
 }
 
 /// This trait is used to fetch / create all the tracker related information for a payment

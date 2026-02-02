@@ -611,12 +611,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
         };
 
+        let feature_set = core_utils::get_feature_set(state, platform).await;
+
         let get_trackers_response = operations::GetTrackerResponse {
             operation,
             customer_details: Some(customer_details),
             payment_data,
             business_profile,
             mandate_type,
+            feature_set,
         };
 
         Ok(get_trackers_response)

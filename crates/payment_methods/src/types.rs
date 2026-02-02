@@ -1,7 +1,6 @@
 use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

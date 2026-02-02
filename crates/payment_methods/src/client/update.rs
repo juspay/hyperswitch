@@ -1,5 +1,6 @@
 //! Update payment method flow types and modular models.
 
+use api_models::payment_methods::NetworkTokenResponse;
 use common_enums::{PaymentMethod, PaymentMethodType, StorageType};
 use common_utils::{
     id_type,
@@ -12,7 +13,7 @@ use time::PrimitiveDateTime;
 
 use crate::types::{
     CardCVCTokenStorageDetails, ConnectorTokenDetails, ModularPMRetrieveResponse,
-    NetworkTokenResponse, PaymentMethodResponseData,
+    PaymentMethodResponseData,
 };
 
 /// V1-facing update flow type.
@@ -26,6 +27,7 @@ pub struct UpdatePaymentMethodV1Request {
     pub payment_method_id: String,
     /// Typed update payload derived from aggregated data.
     pub payload: UpdatePaymentMethodV1Payload,
+    pub modular_service_prefix: String,
 }
 
 /// V1-facing update payload.
@@ -38,7 +40,6 @@ pub struct UpdatePaymentMethodV1Payload {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
-    pub modular_service_prefix: String,
 }
 
 /// Modular service update request payload.
@@ -84,9 +85,9 @@ pub struct UpdatePaymentMethodResponse {
     /// The unique identifier of the customer.
     pub customer_id: Option<id_type::CustomerId>,
     /// The type of payment method.
-    pub payment_method_type: Option<PaymentMethod>,
+    pub payment_method_type: PaymentMethod,
     /// The payment method subtype.
-    pub payment_method_subtype: Option<PaymentMethodType>,
+    pub payment_method_subtype: PaymentMethodType,
     /// Indicates whether recurring is enabled.
     pub recurring_enabled: Option<bool>,
     /// Timestamp for creation time.

@@ -15,6 +15,7 @@ use crate::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,
         },
+        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -183,12 +184,14 @@ impl<F: Send + Clone + Sync>
             external_authentication_data: None,
         };
 
+        let feature_set = core_utils::get_feature_set(state, platform).await;
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: None,
             payment_data,
             business_profile,
             mandate_type: None,
+            feature_set,
         };
 
         Ok(get_trackers_response)

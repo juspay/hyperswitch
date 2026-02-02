@@ -1136,7 +1136,7 @@ pub async fn call_modular_payment_method_update<F>(
     payment_data: &PaymentData<F>,
     payment_method_id: &str,
     payload: UpdatePaymentMethodV1Payload,
-) -> CustomResult<(), errors::ApiErrorResponse>
+) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError>
 where
     F: Clone,
 {
@@ -1186,13 +1186,13 @@ where
         UpdatePaymentMethodV1Request {
             payment_method_id: payment_method_id.to_string(),
             payload,
-            prefix: state.conf.micro_services.payment_methods_prefix,
+            modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
         },
     )
     .await
     .map_err(|err| {
         logger::error!(error=?err, "modular payment method update failed");
-        errors::ApiErrorResponse::InternalServerError
+        ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed
     })?;
     Ok(())
 }

@@ -99,10 +99,7 @@ use self::{
 };
 use super::{
     errors::StorageErrorExt,
-    payment_methods::{
-        surcharge_decision_configs,
-        utils::get_organization_eligibility_config_for_pm_modular_service,
-    },
+    payment_methods::surcharge_decision_configs,
     routing::TransactionData,
     unified_connector_service::{
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
@@ -651,6 +648,7 @@ where
         mut payment_data,
         business_profile,
         mandate_type,
+        feature_set,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -970,13 +968,6 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    let is_modular_merchant =
-                        get_organization_eligibility_config_for_pm_modular_service(
-                            state.store.as_ref(),
-                            &platform.get_processor().get_account().organization_id,
-                        )
-                        .await;
-
                     handle_pm_and_mandate_post_update(
                         state,
                         operation.as_ref(),
@@ -985,7 +976,7 @@ where
                         &mut payment_data,
                         &business_profile,
                         req.get_payment_method_data(),
-                        is_modular_merchant,
+                        &feature_set,
                     )
                     .await?;
 
@@ -1005,7 +996,7 @@ where
                         )
                         .await?;
 
-                    if !is_modular_merchant {
+                    if !feature_set.is_modular_merchant {
                         operation
                             .to_post_update_tracker()?
                             .update_pm_and_mandate(
@@ -1182,13 +1173,6 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    let is_modular_merchant =
-                        get_organization_eligibility_config_for_pm_modular_service(
-                            state.store.as_ref(),
-                            &platform.get_processor().get_account().organization_id,
-                        )
-                        .await;
-
                     handle_pm_and_mandate_post_update(
                         state,
                         operation.as_ref(),
@@ -1197,7 +1181,7 @@ where
                         &mut payment_data,
                         &business_profile,
                         req.get_payment_method_data(),
-                        is_modular_merchant,
+                        &feature_set,
                     )
                     .await?;
 
@@ -1217,7 +1201,7 @@ where
                         )
                         .await?;
 
-                    if !is_modular_merchant {
+                    if !feature_set.is_modular_merchant {
                         operation
                             .to_post_update_tracker()?
                             .update_pm_and_mandate(
@@ -1438,6 +1422,7 @@ where
         mut payment_data,
         business_profile,
         mandate_type: _,
+        feature_set: _,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -2274,7 +2259,7 @@ async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     payment_data: &mut D,
     business_profile: &domain::Profile,
     request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    is_modular_merchant: bool,
+    feature_set: &core_utils::FeatureSet,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone + Send + Sync,
@@ -2282,7 +2267,7 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    if is_modular_merchant {
+    if feature_set.is_modular_merchant {
         logger::debug!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular merchant detected; calling update_modular_pm_and_mandate"

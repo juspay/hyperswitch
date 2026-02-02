@@ -76,7 +76,7 @@ async fn update_modular_pm_and_mandate_impl<F, T>(
     resp: &types::RouterData<F, T, types::PaymentsResponseData>,
     request_payment_method_data: Option<&domain::PaymentMethodData>,
     payment_data: &mut PaymentData<F>,
-) -> CustomResult<(), errors::ApiErrorResponse>
+) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError>
 where
     F: Clone + Send + Sync,
 {
@@ -98,9 +98,7 @@ where
             })
             .ok_or_else(|| {
                 logger::error!("Missing required Param payment_method_id");
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_id",
-                }
+                ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
             })?;
 
         // #2 - Derive network transaction ID from the connector response.
@@ -141,9 +139,7 @@ where
                     .clone()
                     .ok_or_else(|| {
                         logger::error!("Missing required Param merchant_connector_id");
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "merchant_connector_id",
-                        }
+                        ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
                     })?;
                 update_connector_mandate_details_for_the_flow(
                     mandate_reference.connector_mandate_id.clone(),
@@ -152,6 +148,9 @@ where
                         .connector_mandate_request_reference_id
                         .clone(),
                     payment_data,
+                )
+                .change_context(
+                    ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
                 )?;
                 mandate_reference
                     .connector_mandate_id
@@ -686,6 +685,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     {
         update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
             .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -970,6 +971,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     {
         update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
             .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -1696,6 +1699,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     {
         update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
             .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -1817,6 +1822,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     {
         update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
             .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
