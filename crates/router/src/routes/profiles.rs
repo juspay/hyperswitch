@@ -474,3 +474,139 @@ pub async fn payment_connector_list_profile(
     )
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::ProfileWebhooksAdd))]
+pub async fn profile_webhooks_add(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
+    json_payload: web::Json<api_models::admin::ProfileWebhooksAddRequest>,
+) -> HttpResponse {
+    let flow = Flow::ProfileWebhooksAdd;
+    let (merchant_id, profile_id) = path.into_inner();
+    let webhook_payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        webhook_payload,
+        |state, _, webhook_request, _| {
+            add_profile_webhook(state, &merchant_id, &profile_id, webhook_request)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: permissions::Permission::ProfileAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ProfileWebhooksUpdate))]
+pub async fn profile_webhooks_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+        common_utils::id_type::WebhookEndpointId,
+    )>,
+    json_payload: web::Json<api_models::admin::ProfileWebhooksUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::ProfileWebhooksUpdate;
+    let (merchant_id, profile_id, webhook_id) = path.into_inner();
+    let webhook_payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        webhook_payload,
+        |state, _, webhook_request, _| {
+            update_profile_webhook(state, &merchant_id, &profile_id, &webhook_id, webhook_request)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: permissions::Permission::ProfileAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ProfileWebhooksDelete))]
+pub async fn profile_webhooks_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+        common_utils::id_type::WebhookEndpointId,
+    )>,
+) -> HttpResponse {
+    let flow = Flow::ProfileWebhooksDelete;
+    let (merchant_id, profile_id, webhook_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        api_models::admin::ProfileWebhooksDeleteRequest {},
+        |state, _, webhook_request, _| {
+            delete_profile_webhook(state, &merchant_id, &profile_id, &webhook_id, webhook_request)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: permissions::Permission::ProfileAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::ProfileWebhooksList))]
+pub async fn profile_webhooks_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
+) -> HttpResponse {
+    let flow = Flow::ProfileWebhooksList;
+    let (merchant_id, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, _, _, _| list_profile_webhooks(state, &merchant_id, &profile_id),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: permissions::Permission::ProfileAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

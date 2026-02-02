@@ -2064,6 +2064,21 @@ impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
             .multiple_webhooks_list
             .as_ref()
             .and_then(|list| list.get_legacy_url());
+        let multiple_webhooks_list = item
+            .multiple_webhooks_list
+            .as_ref()
+            .map(|urls| {
+                urls.0
+                    .iter()
+                    .filter(|webhook_detail| !webhook_detail.is_legacy_url)
+                    .map(|webhook| api_models::admin::MultipleWebhookDetail {
+                        webhook_endpoint_id: webhook.webhook_endpoint_id.clone(),
+                        webhook_url: webhook.webhook_url.clone().expose().to_owned(),
+                        events: webhook.events.iter().copied().collect(),
+                        status: webhook.status,
+                    })
+                    .collect::<Vec<_>>()
+            });
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2075,6 +2090,7 @@ impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list,
         }
     }
 }

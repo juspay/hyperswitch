@@ -226,7 +226,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ProfileDelete
             | Flow::ProfileList
             | Flow::ToggleExtendedCardInfo
-            | Flow::ToggleConnectorAgnosticMit => Self::Profile,
+            | Flow::ToggleConnectorAgnosticMit
+            | Flow::ProfileWebhooksAdd
+            | Flow::ProfileWebhooksUpdate
+            | Flow::ProfileWebhooksDelete
+            | Flow::ProfileWebhooksList => Self::Profile,
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
             | Flow::PaymentSecureLinkInitiate

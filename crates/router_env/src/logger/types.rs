@@ -359,6 +359,14 @@ pub enum Flow {
     ProfileDelete,
     /// List all the profiles for a merchant
     ProfileList,
+    /// Add webhooks to a profile
+    ProfileWebhooksAdd,
+    /// Update webhook in a profile
+    ProfileWebhooksUpdate,
+    /// Delete webhook in a profile
+    ProfileWebhooksDelete,
+    /// List webhooks in a profile
+    ProfileWebhooksList,
     /// Different verification flows
     Verification,
     /// Rust locker migration

@@ -305,6 +305,22 @@ pub struct MerchantAccountMetadata {
     pub data: Option<pii::SecretSerdeValue>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct MultipleWebhookDetail {
+    /// Unique identifier for the webhook endpoint
+    #[schema(value_type = String, example = "wept_abcdefghijklmnopqrstuvwxyz")]
+    pub webhook_endpoint_id: id_type::WebhookEndpointId,
+    /// The URL for the webhook endpoint
+    #[schema(value_type = String, example = "https://example.com/webhook")]
+    pub webhook_url: String,
+    /// Event types for which webhook will be triggered
+    #[schema(value_type = Vec<EventType>, example = "[\"payment_intent.success\", \"payment_intent.failure\"]")]
+    pub events: Vec<common_enums::EventType>,
+    /// Status of the webhook endpoint
+    #[schema(value_type = OutgoingWebhookStatus, example = "active")]
+    pub status: api_enums::OutgoingWebhookEndpointStatus,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -718,6 +734,10 @@ pub struct WebhookDetails {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
     pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+
+    /// List of multiple webhook endpoints with their configurations
+    #[schema(value_type = Option<Vec<MultipleWebhookDetail>>, example = json!([{"webhook_endpoint_id": "wept_abcdefgh", "webhook_url": "https://example.com/webhook", "events": ["payment_intent.success"], "status": "active"}]))]
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
 impl WebhookDetails {
@@ -3493,3 +3513,65 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
         &self.0
     }
 }
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProfileWebhooksAddRequest {
+    /// The url for the webhook endpoint
+    #[schema(value_type = String, example = "https://example.com/webhook")]
+    pub webhook_url: String,
+
+    /// Event types for which webhook will be triggered
+    #[schema(value_type = Vec<EventType>, example = "[\"payment_intent.success\", \"payment_intent.failure\"]")]
+    pub events: Vec<common_enums::EventType>,
+
+    /// Status of the webhook endpoint
+    #[schema(value_type = Option<OutgoingWebhookStatus>, example = "active")]
+    pub status: Option<OutgoingWebhookStatus>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OutgoingWebhookStatus {
+    /// Webhook endpoint is active
+    Active,
+    /// Webhook endpoint is inactive
+    Inactive,
+    Deprecated,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WebhookStatus {
+    /// Webhook is active
+    Active,
+    /// Webhook is inactive
+    Inactive,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProfileWebhooksUpdateRequest {
+    /// Event types for which webhook will be triggered
+    #[schema(value_type = Vec<EventType>, example = "[\"payment_intent.success\", \"payment_intent.failure\"]")]
+    pub events: Vec<common_enums::EventType>,
+
+    /// Status of the webhook endpoint
+    #[schema(value_type = Option<OutgoingWebhookStatus>, example = "active")]
+    pub status: Option<OutgoingWebhookStatus>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, ToSchema, Serialize)]
+pub struct ProfileWebhooksDeleteRequest {}
+
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct ProfileWebhooksListResponse {
+    /// List of webhook endpoints for the profile
+    #[schema(value_type = Vec<MultipleWebhookDetail>)]
+    pub webhooks: Vec<MultipleWebhookDetail>,
+}
+
+impl common_utils::events::ApiEventMetric for ProfileWebhooksAddRequest {}
+impl common_utils::events::ApiEventMetric for ProfileWebhooksUpdateRequest {}
+impl common_utils::events::ApiEventMetric for ProfileWebhooksDeleteRequest {}
+impl common_utils::events::ApiEventMetric for ProfileWebhooksListResponse {}
