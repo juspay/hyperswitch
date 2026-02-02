@@ -1,9 +1,5 @@
 //! Update payment method flow types and modular models.
 
-use crate::types::{
-    CardCVCTokenStorageDetails, ConnectorTokenDetails, ModularPMRetrieveResponse,
-    NetworkTokenResponse, PaymentMethodResponseData,
-};
 use common_enums::{PaymentMethod, PaymentMethodType, StorageType};
 use common_utils::{
     id_type,
@@ -13,6 +9,11 @@ use hyperswitch_interfaces::micro_service::{MicroserviceClientError, Microservic
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::types::{
+    CardCVCTokenStorageDetails, ConnectorTokenDetails, ModularPMRetrieveResponse,
+    NetworkTokenResponse, PaymentMethodResponseData,
+};
 
 /// V1-facing update flow type.
 #[derive(Debug)]

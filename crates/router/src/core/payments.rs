@@ -974,6 +974,7 @@ where
                             &platform.get_processor().get_account().organization_id,
                         )
                         .await;
+
                     handle_pm_and_mandate_post_update(
                         state,
                         operation.as_ref(),
@@ -981,6 +982,7 @@ where
                         platform,
                         &mut payment_data,
                         &business_profile,
+                        req.get_payment_method_data(),
                         is_modular_merchant,
                     )
                     .await?;
@@ -1184,6 +1186,7 @@ where
                             &platform.get_processor().get_account().organization_id,
                         )
                         .await;
+
                     handle_pm_and_mandate_post_update(
                         state,
                         operation.as_ref(),
@@ -1191,6 +1194,7 @@ where
                         platform,
                         &mut payment_data,
                         &business_profile,
+                        req.get_payment_method_data(),
                         is_modular_merchant,
                     )
                     .await?;
@@ -2256,6 +2260,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     state: &SessionState,
     operation: &Op,
@@ -2263,6 +2268,7 @@ async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     platform: &domain::Platform,
     payment_data: &mut D,
     business_profile: &domain::Profile,
+    request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
     is_modular_merchant: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -2276,6 +2282,10 @@ where
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular merchant detected; calling update_modular_pm_and_mandate"
         );
+
+        let domain_payment_method_data =
+            request_payment_method_data.map(domain::PaymentMethodData::from);
+
         operation
             .to_post_update_tracker()?
             .update_modular_pm_and_mandate(
@@ -2284,6 +2294,7 @@ where
                 platform,
                 payment_data,
                 business_profile,
+                domain_payment_method_data.as_ref(),
             )
             .await?;
     } else {

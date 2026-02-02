@@ -3,6 +3,8 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
 use common_enums::CardNetwork;
+#[cfg(feature = "v1")]
+use common_utils::request::Headers;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -13,7 +15,19 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
+#[cfg(feature = "v2")]
+use masking::ExposeInterface;
+#[cfg(feature = "v1")]
+use masking::Maskable;
+use masking::PeekInterface;
+#[cfg(feature = "v1")]
+use payment_methods::client::{
+    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethodV1Request,
+};
 use router_env::RequestId;
+#[cfg(feature = "v1")]
+use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -35,19 +49,6 @@ use crate::{
     consts,
     types::{payment_methods as pm_types, transformers},
 };
-#[cfg(feature = "v1")]
-use common_utils::request::Headers;
-#[cfg(feature = "v1")]
-use masking::Maskable;
-#[cfg(feature = "v1")]
-use masking::PeekInterface;
-#[cfg(feature = "v1")]
-use payment_methods::client::{
-    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
-    UpdatePaymentMethodV1Request,
-};
-#[cfg(feature = "v1")]
-use router_env::{logger, RequestIdentifier};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

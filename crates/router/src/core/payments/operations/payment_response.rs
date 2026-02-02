@@ -32,6 +32,8 @@ use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v2")]
@@ -43,9 +45,7 @@ use crate::{
         card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::{
-            self, cards::create_encrypted_data, transformers::call_modular_payment_method_update,
-        },
+        payment_methods::{self, cards::create_encrypted_data},
         payments::{
             helpers::{
                 self as payments_helpers,
@@ -74,6 +74,7 @@ use crate::{
 async fn update_modular_pm_and_mandate_impl<F, T>(
     state: &SessionState,
     resp: &types::RouterData<F, T, types::PaymentsResponseData>,
+    request_payment_method_data: Option<&domain::PaymentMethodData>,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -112,21 +113,19 @@ where
         .ok()
         .and_then(types::PaymentsResponseData::get_network_transaction_id);
 
-        // #3 - Fill payment method data for cards (update card holder name & cvc).
+        // #3 - Fill payment method data for cards (update card holder name, nick_name & cvc).
+        // Use request payment method data for card_holder_name and nick_name
         let payment_method_data =
-            payment_data
-                .payment_method_data
-                .as_ref()
-                .and_then(|method_data| match method_data {
-                    domain::PaymentMethodData::Card(card) => {
-                        Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
-                            card_holder_name: card.card_holder_name.clone(),
-                            nick_name: card.nick_name.clone(),
-                            card_cvc: None, // Hardcoded to None since this is not expected to be stored in persistent storage
-                        }))
-                    }
-                    _ => None,
-                });
+            request_payment_method_data.and_then(|method_data| match method_data {
+                domain::PaymentMethodData::Card(card) => {
+                    Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
+                        card_holder_name: card.card_holder_name.clone(),
+                        nick_name: card.nick_name.clone(),
+                        card_cvc: Some(card.card_cvc.clone()),
+                    }))
+                }
+                _ => None,
+            });
 
         // #4 - Build connector token details only when a mandate reference is available.
         let connector_token_details = match resp
@@ -680,11 +679,13 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         _platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
     }
 }
 
@@ -962,11 +963,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         _platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
     }
 }
 
@@ -1686,11 +1689,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         _platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
     }
 }
 
@@ -1805,11 +1810,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         _platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, payment_data).await
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
     }
 }
 
