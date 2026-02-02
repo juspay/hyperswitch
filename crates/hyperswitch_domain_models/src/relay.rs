@@ -13,8 +13,7 @@ use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::api_error_response::ApiErrorResponse, router_data::ErrorResponse,
-    router_response_types,
+    errors::api_error_response::ApiErrorResponse, router_data::ErrorResponse, router_response_types,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -80,12 +79,12 @@ impl From<api_models::relay::RelayData> for RelayData {
                     currency: relay_capture_request.currency,
                 })
             }
-            api_models::relay::RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                Self::IncrementalAuthorization(RelayIncrementalAuthorizationData {
-                    additional_amount: relay_incremental_authorization_request.additional_amount,
-                    currency: relay_incremental_authorization_request.currency,
-                })
-            }
+            api_models::relay::RelayData::IncrementalAuthorization(
+                relay_incremental_authorization_request,
+            ) => Self::IncrementalAuthorization(RelayIncrementalAuthorizationData {
+                additional_amount: relay_incremental_authorization_request.additional_amount,
+                currency: relay_incremental_authorization_request.currency,
+            }),
         }
     }
 }
@@ -110,7 +109,9 @@ impl From<api_models::relay::RelayCaptureRequestData> for RelayCaptureData {
     }
 }
 
-impl From<api_models::relay::RelayIncrementalAuthorizationRequestData> for RelayIncrementalAuthorizationData {
+impl From<api_models::relay::RelayIncrementalAuthorizationRequestData>
+    for RelayIncrementalAuthorizationData
+{
     fn from(relay: api_models::relay::RelayIncrementalAuthorizationRequestData) -> Self {
         Self {
             additional_amount: relay.additional_amount,
@@ -163,7 +164,9 @@ impl RelayUpdate {
                     let data = capture_sync_response_list
                         .get(&connector_resource_id)
                         .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to find connector_transaction_id in capture_response_list")?;
+                        .attach_printable(
+                            "Failed to find connector_transaction_id in capture_response_list",
+                        )?;
 
                     match data.to_owned() {
                         router_response_types::CaptureSyncResponse::Success {
@@ -207,23 +210,17 @@ impl RelayUpdate {
                     status,
                     error_code,
                     error_message,
-                } => {
-                    match error_code {
-                        Some(error_code) => {
-                            Ok(Self::ErrorUpdate { 
-                                error_code: error_code.clone(),
-                                error_message: error_message.unwrap_or(error_code),
-                                status: common_enums::RelayStatus::Failure,
-                            })
-                        }
-                        None => {
-                            Ok(Self::StatusUpdate {
-                                connector_reference_id: connector_authorization_id, 
-                                status: common_enums::RelayStatus::from(status),
-                            })
-                        }
-                    }
-                }
+                } => match error_code {
+                    Some(error_code) => Ok(Self::ErrorUpdate {
+                        error_code: error_code.clone(),
+                        error_message: error_message.unwrap_or(error_code),
+                        status: common_enums::RelayStatus::Failure,
+                    }),
+                    None => Ok(Self::StatusUpdate {
+                        connector_reference_id: connector_authorization_id,
+                        status: common_enums::RelayStatus::from(status),
+                    }),
+                },
                 _ => Err(ApiErrorResponse::InternalServerError)
                     .attach_printable("Payment Response Not Supported"),
             },
@@ -249,10 +246,13 @@ impl From<RelayData> for api_models::relay::RelayData {
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                Self::IncrementalAuthorization(api_models::relay::RelayIncrementalAuthorizationRequestData {
-                    additional_amount: relay_incremental_authorization_request.additional_amount,
-                    currency: relay_incremental_authorization_request.currency,
-                })
+                Self::IncrementalAuthorization(
+                    api_models::relay::RelayIncrementalAuthorizationRequestData {
+                        additional_amount: relay_incremental_authorization_request
+                            .additional_amount,
+                        currency: relay_incremental_authorization_request.currency,
+                    },
+                )
             }
         }
     }
@@ -286,10 +286,13 @@ impl From<Relay> for api_models::relay::RelayResponse {
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                api_models::relay::RelayData::IncrementalAuthorization(api_models::relay::RelayIncrementalAuthorizationRequestData {
-                    additional_amount: relay_incremental_authorization_request.additional_amount,
-                    currency: relay_incremental_authorization_request.currency,
-                })
+                api_models::relay::RelayData::IncrementalAuthorization(
+                    api_models::relay::RelayIncrementalAuthorizationRequestData {
+                        additional_amount: relay_incremental_authorization_request
+                            .additional_amount,
+                        currency: relay_incremental_authorization_request.currency,
+                    },
+                )
             }
         });
         Self {
