@@ -7505,9 +7505,6 @@ pub fn add_connector_response_to_additional_payment_data(
                 debitor_bic,
                 debitor_name,
                 debitor_email,
-                creditor_name,
-                creditor_iban,
-                creditor_bic,
             },
         ) => api_models::payments::AdditionalPaymentData::BankTransfer {
             details: Some(
@@ -7517,9 +7514,6 @@ pub fn add_connector_response_to_additional_payment_data(
                         debitor_bic,
                         debitor_name,
                         debitor_email,
-                        creditor_name,
-                        creditor_iban,
-                        creditor_bic,
                     },
                 )),
             ),

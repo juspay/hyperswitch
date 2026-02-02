@@ -1121,24 +1121,11 @@ pub fn handle_webhook_response(
                 .and_then(|debtor| debtor.name.clone()),
             payment_information.debtor.and_then(|debtor| debtor.email),
         );
-        let (creditor_name, creditor_iban, creditor_bic) = (
-            payment_information
-                .creditor
-                .and_then(|creditor| creditor.name.clone()),
-            payment_information
-                .creditor_account
-                .and_then(|acc| acc.iban),
-            payment_information
-                .creditor_agent
-                .and_then(|agent| agent.bic),
-        );
+
         if debitor_iban.is_some()
             || debitor_bic.is_some()
             || debitor_name.is_some()
             || debitor_email.is_some()
-            || creditor_name.is_some()
-            || creditor_iban.is_some()
-            || creditor_bic.is_some()
         {
             Some(ConnectorResponseData::with_additional_payment_method_data(
                 AdditionalPaymentMethodConnectorResponse::SepaBankTransfer {
@@ -1146,9 +1133,6 @@ pub fn handle_webhook_response(
                     debitor_bic,
                     debitor_name,
                     debitor_email,
-                    creditor_name,
-                    creditor_iban,
-                    creditor_bic,
                 },
             ))
         } else {

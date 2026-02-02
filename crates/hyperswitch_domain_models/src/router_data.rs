@@ -732,9 +732,6 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         debitor_bic: Option<Secret<String>>,
         debitor_name: Option<Secret<String>>,
         debitor_email: Option<Secret<String>>,
-        creditor_name: Option<Secret<String>>,
-        creditor_iban: Option<Secret<String>>,
-        creditor_bic: Option<Secret<String>>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
