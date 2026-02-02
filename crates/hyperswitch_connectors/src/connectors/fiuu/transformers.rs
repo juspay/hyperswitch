@@ -473,7 +473,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             true => 0,
         };
         let notification_url = Some(
-            Url::parse(&item.router_data.request.get_webhook_url()?)
+            Url::parse("https://unwounded-unabjective-chantelle.ngrok-free.dev/webhooks/merchant_1770017808/mca_6nksOc8NKJJO9OqQr5fx")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         );
         let payment_method_data = match item
@@ -993,7 +993,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                         })
                     };
                     Ok(Self {
-                        status,
+                        status:common_enums::AttemptStatus::Pending,
                         response,
                         ..item.data
                     })
