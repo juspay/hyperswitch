@@ -25,7 +25,7 @@ pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
 #[cfg(feature = "v1")]
 pub use update::{
-    ConnectorTokenDetails, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
     UpdatePaymentMethodV1Request,
 };
 

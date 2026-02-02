@@ -21,9 +21,10 @@ use crate::{
     core::{
         errors::{self, CustomResult},
         payment_methods::cards::call_vault_service,
+        payments::PaymentData,
     },
     headers,
-    pii::{prelude::*, Secret},
+    pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, domain},
@@ -34,6 +35,19 @@ use crate::{
     consts,
     types::{payment_methods as pm_types, transformers},
 };
+#[cfg(feature = "v1")]
+use common_utils::request::Headers;
+#[cfg(feature = "v1")]
+use masking::Maskable;
+#[cfg(feature = "v1")]
+use masking::PeekInterface;
+#[cfg(feature = "v1")]
+use payment_methods::client::{
+    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethodV1Request,
+};
+#[cfg(feature = "v1")]
+use router_env::{logger, RequestIdentifier};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -1113,4 +1127,70 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             token: token.clone().token,
         }
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn call_modular_payment_method_update<F>(
+    state: &routes::SessionState,
+    payment_data: &PaymentData<F>,
+    payment_method_id: &str,
+    payload: UpdatePaymentMethodV1Payload,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+{
+    let mut parent_headers = Headers::new();
+    if let Some(profile_id) = payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .or(Some(payment_data.payment_attempt.profile_id.clone()))
+    {
+        parent_headers.insert((
+            headers::X_PROFILE_ID.to_string(),
+            profile_id.get_string_repr().to_string().into(),
+        ));
+    }
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        payment_data
+            .payment_intent
+            .merchant_id
+            .get_string_repr()
+            .to_string()
+            .into(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        Maskable::Normal(
+            state
+                .conf
+                .internal_merchant_id_profile_id_auth
+                .internal_api_key
+                .peek()
+                .to_string(),
+        ),
+    ));
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+    let client = PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    UpdatePaymentMethod::call(
+        state,
+        &client,
+        UpdatePaymentMethodV1Request {
+            payment_method_id: payment_method_id.to_string(),
+            payload,
+        },
+    )
+    .await
+    .map_err(|err| {
+        logger::error!(error=?err, "modular payment method update failed");
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+    Ok(())
 }
