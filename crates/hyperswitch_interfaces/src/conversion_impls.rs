@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
@@ -12,7 +14,7 @@ use hyperswitch_domain_models::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
             ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
-            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, GiftCardBalanceCheckFlowData,
+            GetSubscriptionItemPricesData, GetSubscriptionItemsData, GiftCardBalanceCheckFlowData,
             InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
             SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
@@ -78,9 +80,9 @@ fn get_default_router_data<F, Req, Resp>(
         frm_metadata: None,
         dispute_id: None,
         refund_id: None,
+        payout_id: None,
         connector_response: None,
         payment_method_status: None,
-        is_migrated_card: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -894,8 +896,8 @@ macro_rules! default_router_data_conversion {
         }
     };
 }
-default_router_data_conversion!(GetSubscriptionPlansData);
-default_router_data_conversion!(GetSubscriptionPlanPricesData);
+default_router_data_conversion!(GetSubscriptionItemsData);
+default_router_data_conversion!(GetSubscriptionItemPricesData);
 default_router_data_conversion!(SubscriptionCreateData);
 default_router_data_conversion!(SubscriptionCustomerData);
 default_router_data_conversion!(GetSubscriptionEstimateData);
@@ -1080,6 +1082,10 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone(),
             connector_customer: old_router_data.connector_customer.clone(),
+            connector: common_enums::connector_enums::Connector::from_str(
+                &old_router_data.connector,
+            )
+            .change_context(ConnectorError::InvalidConnectorName)?,
             payment_id: old_router_data.payment_id.clone(),
             attempt_id: old_router_data.attempt_id.clone(),
             status: old_router_data.status,
@@ -1126,6 +1132,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
             merchant_id,
             customer_id,
             connector_customer,
+            connector,
             payment_id,
             attempt_id,
             status,
@@ -1161,6 +1168,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for External
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.connector_customer = connector_customer;
+        router_data.connector = connector.to_string();
         router_data.payment_id = payment_id;
         router_data.attempt_id = attempt_id;
         router_data.status = status;

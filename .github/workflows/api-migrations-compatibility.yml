@@ -1,0 +1,206 @@
+name: API & Migrations Compatibility Check
+
+permissions:
+  contents: read
+
+# This workflow:
+# - Runs on ALL PRs that modify API-related files
+# - Always fails if breaking changes are detected
+
+on:
+  pull_request:
+    paths:
+      - 'crates/api_models/**'
+      - 'crates/openapi/**'
+      - 'api-reference/**'
+      - 'migrations/**'
+      - 'v2_migrations/**'
+      - 'v2_compatible_migrations/**'
+      - '.github/oasdiff/**'
+    types: [opened, synchronize, reopened]
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-compatibility-check:
+    name: API Compatibility Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go for oasdiff
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install oasdiff
+        run: |
+          go install github.com/oasdiff/oasdiff@v1.11.7
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Prepare PR schemas
+        run: |
+          jq empty api-reference/v1/openapi_spec_v1.json && cp api-reference/v1/openapi_spec_v1.json pr-v1-schema.json || { echo "::error::V1 schema invalid or missing"; exit 1; }
+          jq empty api-reference/v2/openapi_spec_v2.json && cp api-reference/v2/openapi_spec_v2.json pr-v2-schema.json || { echo "::error::V2 schema invalid or missing"; exit 1; }
+
+      - name: Extract base branch schemas
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE_SHA:api-reference/v1/openapi_spec_v1.json" > base-v1-schema.json 2>/dev/null || echo "{}" > base-v1-schema.json
+          git show "$BASE_SHA:api-reference/v2/openapi_spec_v2.json" > base-v2-schema.json 2>/dev/null || echo "{}" > base-v2-schema.json
+
+      - name: Run breaking change detection
+        id: breaking_changes
+        run: |
+          BREAKING_CHANGES=0
+
+          if oasdiff breaking \
+            --fail-on ERR \
+            --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
+            base-v1-schema.json pr-v1-schema.json > v1-breaking-report.txt 2>&1; then
+            echo "V1 API is backward compatible" > v1-breaking-status.txt
+          else
+            echo "Breaking changes detected in V1 API" > v1-breaking-status.txt
+            BREAKING_CHANGES=$((BREAKING_CHANGES + 1))
+            cat v1-breaking-report.txt
+          fi
+
+          if oasdiff breaking \
+            --fail-on ERR \
+            --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
+            base-v2-schema.json pr-v2-schema.json > v2-breaking-report.txt 2>&1; then
+            echo "V2 API is backward compatible" > v2-breaking-status.txt
+          else
+            echo "Breaking changes detected in V2 API" > v2-breaking-status.txt
+            BREAKING_CHANGES=$((BREAKING_CHANGES + 1))
+            cat v2-breaking-report.txt
+          fi
+
+          oasdiff diff base-v1-schema.json pr-v1-schema.json > v1-detailed-diff.txt 2>/dev/null || true
+          oasdiff diff base-v2-schema.json pr-v2-schema.json > v2-detailed-diff.txt 2>/dev/null || true
+
+          echo "breaking_changes=$BREAKING_CHANGES" >> $GITHUB_OUTPUT
+          echo "total_issues=$BREAKING_CHANGES" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Display API Compatibility Report
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "API COMPATIBILITY REPORT"
+          echo "=========================================="
+          echo ""
+          echo "V1 API Breaking Changes:"
+          cat v1-breaking-report.txt 2>/dev/null || echo "No breaking changes detected"
+          echo ""
+          echo "V2 API Breaking Changes:"
+          cat v2-breaking-report.txt 2>/dev/null || echo "No breaking changes detected"
+          echo ""
+          echo "V1 API Detailed Diff:"
+          cat v1-detailed-diff.txt 2>/dev/null || echo "No changes detected"
+          echo ""
+          echo "V2 API Detailed Diff:"
+          cat v2-detailed-diff.txt 2>/dev/null || echo "No changes detected"
+          echo "=========================================="
+
+      - name: Fail if breaking changes detected
+        if: steps.breaking_changes.outputs.breaking_changes > 0
+        run: |
+          echo "::error::Breaking changes detected in API schema."
+          echo "::error::Found ${{ steps.breaking_changes.outputs.breaking_changes }} breaking change(s)."
+          exit 1
+
+  migration-compatibility-check:
+    name: Migration Breaking Change Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin "$BASE_REF:$BASE_REF"
+
+      - name: Validate V1 migrations
+        id: migration_check
+        run: |
+          bash .github/scripts/validate_migrations.sh migrations
+
+      - name: Validate V2 migrations
+        if: success() || failure()
+        id: v2_migration_check
+        run: |
+          bash .github/scripts/validate_migrations.sh v2_migrations
+
+      - name: Validate V2 compatible migrations
+        if: success() || failure()
+        id: v2_compat_migration_check
+        run: |
+          bash .github/scripts/validate_migrations.sh v2_compatible_migrations
+
+      - name: Calculate migration totals
+        if: always()
+        id: migration_report
+        env:
+          MIGRATION_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
+          MIGRATION_WARNINGS: ${{ steps.migration_check.outputs.warnings }}
+          V2_MIGRATION_BREAKING: ${{ steps.v2_migration_check.outputs.breaking_changes }}
+          V2_MIGRATION_WARNINGS: ${{ steps.v2_migration_check.outputs.warnings }}
+          V2_COMPAT_MIGRATION_BREAKING: ${{ steps.v2_compat_migration_check.outputs.breaking_changes }}
+          V2_COMPAT_MIGRATION_WARNINGS: ${{ steps.v2_compat_migration_check.outputs.warnings }}
+        run: |
+          TOTAL_BREAKING=$((
+            ${MIGRATION_BREAKING:-0} +
+            ${V2_MIGRATION_BREAKING:-0} +
+            ${V2_COMPAT_MIGRATION_BREAKING:-0}
+          ))
+
+          TOTAL_WARNINGS=$((
+            ${MIGRATION_WARNINGS:-0} +
+            ${V2_MIGRATION_WARNINGS:-0} +
+            ${V2_COMPAT_MIGRATION_WARNINGS:-0}
+          ))
+
+          echo "total_breaking=$TOTAL_BREAKING" >> $GITHUB_OUTPUT
+          echo "total_warnings=$TOTAL_WARNINGS" >> $GITHUB_OUTPUT
+
+          if [[ $TOTAL_BREAKING -gt 0 ]]; then
+            echo "validation_status=BREAKING CHANGES DETECTED" >> $GITHUB_OUTPUT
+          elif [[ $TOTAL_WARNINGS -gt 0 ]]; then
+            echo "validation_status=WARNINGS FOUND" >> $GITHUB_OUTPUT
+          else
+            echo "validation_status=ALL CHECKS PASSED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display Migration Summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "MIGRATION VALIDATION SUMMARY"
+          echo "=========================================="
+          echo "V1: Breaking=${{ steps.migration_check.outputs.breaking_changes }} Warnings=${{ steps.migration_check.outputs.warnings }}"
+          echo "V2: Breaking=${{ steps.v2_migration_check.outputs.breaking_changes }} Warnings=${{ steps.v2_migration_check.outputs.warnings }}"
+          echo "V2 Compat: Breaking=${{ steps.v2_compat_migration_check.outputs.breaking_changes }} Warnings=${{ steps.v2_compat_migration_check.outputs.warnings }}"
+          echo "----------------------------------------"
+          echo "Total: Breaking=${{ steps.migration_report.outputs.total_breaking }} Warnings=${{ steps.migration_report.outputs.total_warnings }}"
+          echo "Status: ${{ steps.migration_report.outputs.validation_status }}"
+          echo "=========================================="
+
+          if [[ "${{ steps.migration_report.outputs.total_breaking }}" != "0" && "${{ steps.migration_report.outputs.total_breaking }}" != "" ]]; then
+            echo "::error::Migration validation failed with breaking changes."
+            exit 1
+          fi

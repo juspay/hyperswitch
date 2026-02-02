@@ -5,10 +5,14 @@ use std::{
     sync::LazyLock,
 };
 
-use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    payments,
+    payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
+};
 use base64::Engine;
+use cards::NetworkToken;
 use common_enums::{
     enums,
     enums::{
@@ -34,7 +38,10 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::{
+        BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE,
+        BASE64_ENGINE_URL_SAFE_NO_PAD,
+    },
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -50,10 +57,9 @@ use hyperswitch_domain_models::router_request_types::fraud_check::{
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
-        self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
-        PaymentMethodData,
+        self, Card, CardDetailsForNetworkTransactionId, CardWithLimitedDetails,
+        GooglePayPaymentMethodInfo, NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
     },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
@@ -62,8 +68,9 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
         CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
         ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
@@ -132,6 +139,24 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     BASE64_ENGINE
         .decode(data)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    let mut error_stack = Vec::new();
+    [
+        &BASE64_ENGINE,
+        &BASE64_ENGINE_STD_NO_PAD,
+        &BASE64_ENGINE_URL_SAFE,
+        &BASE64_ENGINE_URL_SAFE_NO_PAD,
+    ]
+    .iter()
+    .find_map(|engine| engine.decode(&data).map_err(|e| error_stack.push(e)).ok())
+    .ok_or_else(|| {
+        logger::error!(
+            "Base64 decoding failed for all engines. Errors: {:?}",
+            error_stack
+        );
+        report!(errors::ConnectorError::ResponseDeserializationFailed)
+    })
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -362,6 +387,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -438,6 +464,39 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
+pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => true,
+        AttemptStatus::Started
+        | AttemptStatus::Authorized
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Failure
+        | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::Expired => false,
+    }
+}
+
 pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     match status {
         AttemptStatus::AuthenticationFailed
@@ -451,8 +510,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthenticationPending
         | AttemptStatus::AuthenticationSuccessful
         | AttemptStatus::Authorized
-        | AttemptStatus::Charged
         | AttemptStatus::Authorizing
+        | AttemptStatus::Charged
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
         | AttemptStatus::VoidedPostCharge
@@ -461,8 +520,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AutoRefunded
         | AttemptStatus::PartialCharged
         | AttemptStatus::PartialChargedAndChargeable
-        | AttemptStatus::Unresolved
         | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
@@ -1506,6 +1565,29 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = 
     },
 );
 
+pub trait CardWithLimitedData {
+    fn get_card_expiry_year_2_digit(
+        &self,
+    ) -> Result<Option<Secret<String>>, errors::ConnectorError>;
+}
+
+impl CardWithLimitedData for CardWithLimitedDetails {
+    fn get_card_expiry_year_2_digit(
+        &self,
+    ) -> Result<Option<Secret<String>>, errors::ConnectorError> {
+        self.card_exp_year
+            .clone()
+            .map(|card_exp_year| {
+                let year = card_exp_year.peek();
+
+                year.get(year.len() - 2..)
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                    .map(|value| Secret::new(value.to_string()))
+            })
+            .transpose()
+    }
+}
+
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
@@ -1795,6 +1877,8 @@ impl AddressDetailsData for AddressDetails {
 pub trait AdditionalCardInfo {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl AdditionalCardInfo for payments::AdditionalCardInfo {
@@ -1829,8 +1913,134 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
             Err(errors::ConnectorError::RequestEncodingFailed)
         }
     }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        self.card_holder_name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            })
+    }
 }
 
+impl AdditionalCardInfo for WalletAdditionalDataForCard {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
+impl AdditionalCardInfo for ApplepayPaymentMethod {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -1892,19 +2102,49 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 }
 
 pub trait CustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl CustomerData for ConnectorCustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>> {
+        self.name.clone()
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
     }
     fn is_mandate_payment(&self) -> bool {
         // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
         // mandate_reference_id is not needed here as we do not need to check for existing mandates.
         self.customer_acceptance.is_some()
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+}
+
+pub trait PaymentsPostAuthenticateRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostAuthenticateRequestData for PaymentsPostAuthenticateData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
     }
 }
 
@@ -1919,9 +2159,11 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_optional_webhook_url(&self) -> Option<String>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
+    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2003,8 +2245,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -2021,6 +2264,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
+    fn get_optional_webhook_url(&self) -> Option<String> {
+        self.webhook_url.clone()
+    }
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
@@ -2031,6 +2277,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn is_mit_payment(&self) -> bool {
+        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -2052,8 +2301,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     Some(connector_mandate_ids.clone())
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
             })
     }
 
@@ -2158,6 +2408,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2176,6 +2427,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2458,7 +2710,9 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2466,6 +2720,11 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
@@ -2475,6 +2734,10 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
                 .as_ref()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
+    }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -2489,6 +2752,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
     fn get_connector_mandate_id(&self) -> Option<String>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2500,6 +2764,11 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -2538,6 +2807,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2565,6 +2835,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2609,13 +2880,88 @@ impl AddressData for Address {
             .and_then(|billing_address| billing_address.get_optional_last_name())
     }
 }
+
+pub trait PaymentsPreAuthenticateRequestData {
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn get_minor_amount(&self) -> MinorUnit;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+}
+impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        Ok(self.payment_method_data.clone())
+    }
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub trait PaymentsAuthenticateRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        self.payment_method_data
+            .clone()
+            .ok_or_else(missing_field_err("payment_method_data"))
+    }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
 pub trait PaymentsPreProcessingRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_amount(&self) -> i64;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -2644,13 +2990,13 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
@@ -2707,6 +3053,7 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -6128,6 +6475,7 @@ pub enum PaymentMethodDataType {
     Benefit,
     MomoAtm,
     CardRedirect,
+    CardWithLimitedDetails,
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
@@ -6236,9 +6584,11 @@ pub enum PaymentMethodDataType {
     Fps,
     PromptPay,
     VietQr,
+    Qris,
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
+    NetworkTransactionIdAndNetworkTokenDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
     InstantBankTransferFinland,
@@ -6254,6 +6604,10 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails
+            }
+            PaymentMethodData::CardWithLimitedDetails(_) => Self::CardWithLimitedDetails,
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                Self::NetworkTransactionIdAndNetworkTokenDetails
             }
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -6354,6 +6708,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankRedirectData::LocalBankRedirect {} => {
                     Self::LocalBankRedirect
                 }
+                payment_method_data::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
@@ -6442,6 +6797,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     payment_method_data::RealTimePaymentData::Fps {} => Self::Fps,
                     payment_method_data::RealTimePaymentData::PromptPay {} => Self::PromptPay,
                     payment_method_data::RealTimePaymentData::VietQr {} => Self::VietQr,
+                    payment_method_data::RealTimePaymentData::Qris {} => Self::Qris,
                 }
             }
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
@@ -6567,7 +6923,19 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+    response.starts_with("<html>")
+        || response.starts_with("<!DOCTYPE html>")
+        || response.starts_with("<!doctype html>")
+}
+
+pub fn is_html_response_from_headers(headers: Option<&http::HeaderMap>) -> bool {
+    headers
+        .and_then(|headers| headers.get(http::header::CONTENT_TYPE))
+        .and_then(|content_type| content_type.to_str().ok())
+        .map(|content_type| {
+            content_type.contains("text/html") || content_type.contains("application/xhtml+xml")
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "payouts")]
@@ -6580,6 +6948,9 @@ pub trait PayoutsData {
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_optional_additional_payout_method_data(
+        &self,
+    ) -> Option<common_utils::payout_method_utils::AdditionalPayoutMethodData>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6616,7 +6987,26 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_additional_payout_method_data(
+        &self,
+    ) -> Option<common_utils::payout_method_utils::AdditionalPayoutMethodData> {
+        self.additional_payout_method_data.clone()
+    }
 }
+
+pub trait AdditionalPayoutMethodData {
+    fn get_optional_card_holder_name(&self) -> Option<Secret<String>>;
+}
+
+impl AdditionalPayoutMethodData for common_utils::payout_method_utils::AdditionalPayoutMethodData {
+    fn get_optional_card_holder_name(&self) -> Option<Secret<String>> {
+        match self.clone() {
+            Self::Card(card_data) => card_data.card_holder_name,
+            _ => None,
+        }
+    }
+}
+
 pub trait RevokeMandateRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
@@ -6757,7 +7147,7 @@ impl CardData for api_models::payouts::CardPayout {
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token(&self) -> NetworkToken;
     fn get_network_token_expiry_month(&self) -> Secret<String>;
     fn get_network_token_expiry_year(&self) -> Secret<String>;
     fn get_cryptogram(&self) -> Option<Secret<String>>;
@@ -6798,12 +7188,12 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     }
 
     #[cfg(feature = "v1")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.token_number.clone()
     }
 
     #[cfg(feature = "v2")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.network_token.clone()
     }
 
@@ -6888,6 +7278,60 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     }
 }
 
+impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.network_token.peek())
+    }
+
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+
+    fn get_network_token(&self) -> NetworkToken {
+        self.network_token.clone()
+    }
+
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.token_exp_month.clone()
+    }
+
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.token_exp_year.clone()
+    }
+
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        // Since it is a MIT flow, cryptogram won't be present here
+        None
+    }
+
+    fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_token_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_token_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.token_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+}
+
 pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -6933,8 +7377,10 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,
+        ucs_authentication_data: None,
         customer_acceptance: data.request.customer_acceptance.clone(),
         split_payments: None, // TODO: allow charges on mandates?
+        guest_customer: None,
         merchant_order_reference_id: None,
         integrity_object: None,
         additional_payment_method_data: None,
@@ -6950,6 +7396,11 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
         billing_descriptor: data.request.billing_descriptor.clone(),
+        tokenization: None,
+        partner_merchant_identifier_details: data
+            .request
+            .partner_merchant_identifier_details
+            .clone(),
     }
 }
 
@@ -6982,7 +7433,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         session_token: data.session_token.clone(),
         reference_id: data.reference_id.clone(),
         customer_id: data.customer_id.clone(),
-        payment_method_token: None,
+        payment_method_token: data.payment_method_token.clone(),
         preprocessing_id: None,
         connector_customer: data.connector_customer.clone(),
         recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
@@ -7001,6 +7452,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         frm_metadata: data.frm_metadata.clone(),
         dispute_id: data.dispute_id.clone(),
         refund_id: data.refund_id.clone(),
+        payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
         additional_merchant_data: data.additional_merchant_data.clone(),
@@ -7013,7 +7465,6 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
-        is_migrated_card: data.is_migrated_card,
     }
 }
 
@@ -7314,7 +7765,7 @@ pub trait SplitPaymentData {
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
@@ -7332,13 +7783,13 @@ impl SplitPaymentData for PaymentsSyncData {
 
 impl SplitPaymentData for PaymentsCancelData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 impl SplitPaymentData for ExternalVaultProxyPaymentsData {

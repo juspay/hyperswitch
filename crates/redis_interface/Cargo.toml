@@ -16,7 +16,7 @@ fred = { version = "7.1.2", features = ["metrics", "partial-tracing", "subscribe
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
-tokio = "1.45.1"
+tokio = "1.48.0"
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tracing = { workspace = true }
 
@@ -24,7 +24,7 @@ tracing = { workspace = true }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
 
 [dev-dependencies]
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

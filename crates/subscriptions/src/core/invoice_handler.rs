@@ -66,10 +66,9 @@ impl InvoiceHandler {
             connector_invoice_id,
         );
 
-        let key_manager_state = &(state).into();
         let invoice = state
             .store
-            .insert_invoice_entry(key_manager_state, &self.merchant_key_store, invoice_new)
+            .insert_invoice_entry(&self.merchant_key_store, invoice_new)
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Create Invoice".to_string(),
@@ -87,11 +86,9 @@ impl InvoiceHandler {
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
         let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate =
             update_request.into();
-        let key_manager_state = &(state).into();
         state
             .store
             .update_invoice_entry(
-                key_manager_state,
                 &self.merchant_key_store,
                 invoice_id.get_string_repr().to_string(),
                 update_invoice,
@@ -235,11 +232,9 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
-        let key_manager_state = &(state).into();
         state
             .store
             .get_latest_invoice_for_subscription(
-                key_manager_state,
                 &self.merchant_key_store,
                 self.subscription.id.get_string_repr().to_string(),
             )
@@ -255,11 +250,9 @@ impl InvoiceHandler {
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
-        let key_manager_state = &(state).into();
         state
             .store
             .find_invoice_by_invoice_id(
-                key_manager_state,
                 &self.merchant_key_store,
                 invoice_id.get_string_repr().to_string(),
             )
@@ -276,11 +269,9 @@ impl InvoiceHandler {
         subscription_id: common_utils::id_type::SubscriptionId,
         connector_invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::SubscriptionResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
-        let key_manager_state = &(state).into();
         state
             .store
             .find_invoice_by_subscription_id_connector_invoice_id(
-                key_manager_state,
                 &self.merchant_key_store,
                 subscription_id.get_string_repr().to_string(),
                 connector_invoice_id,

@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -190,6 +189,7 @@ impl ConnectorCommon for Payjustnow {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

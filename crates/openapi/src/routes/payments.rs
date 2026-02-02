@@ -774,7 +774,7 @@ pub fn payments_connector_session() {}
     ),
     tag = "Payments",
     operation_id = "Create V2 Session tokens for a Payment",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payments_connector_session() {}
 
@@ -1178,7 +1178,7 @@ pub fn payments_update_intent() {}
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
-  security(("publishable_key" = [])),
+  security(("publishable_key__client_secret" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
@@ -1285,7 +1285,7 @@ pub(crate) enum ForceSync {
     ),
     tag = "Payments",
     operation_id = "Retrieve Payment methods for a Payment",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn list_payment_methods() {}
 
@@ -1307,40 +1307,13 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Payment Method Balance Check
+/// Payments - Check Balance and Apply PM Data
 ///
-/// Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency
+/// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/v2/payments/{id}/payment-methods/check-balance",
-    params(
-        ("id" = String, Path, description = "The global payment id"),
-        (
-          "X-Profile-Id" = String, Header,
-          description = "Profile ID associated to the payment intent",
-          example = "pro_abcdefghijklmnop"
-        ),
-    ),
-    request_body(
-      content = PaymentMethodBalanceCheckRequest,
-    ),
-    responses(
-        (status = 200, description = "Get the Payment Method Balance", body = PaymentMethodBalanceCheckResponse),
-    ),
-    tag = "Payments",
-    operation_id = "Retrieve Payment Method Balance",
-    security(("publishable_key" = []))
-)]
-pub fn payment_check_gift_card_balance() {}
-
-/// Payments - Apply PM Data
-///
-/// Apply the payment method data and recalculate surcharge
-#[cfg(feature = "v2")]
-#[utoipa::path(
-    post,
-    path = "/v2/payments/{id}/apply-payment-method-data",
+    path = "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data",
     params(
         ("id" = String, Path, description = "The global payment id"),
         (
@@ -1353,10 +1326,10 @@ pub fn payment_check_gift_card_balance() {}
       content = ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Apply the Payment Method Data", body = ApplyPaymentMethodDataResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
     operation_id = "Apply Payment Method Data",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payments_apply_pm_data() {}

@@ -1205,8 +1205,6 @@ impl super::RedisConnectionPool {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
-
     use std::collections::HashMap;
 
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};

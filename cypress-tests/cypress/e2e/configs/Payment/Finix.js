@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField } from "./Commons";
+import { cardRequiredField, customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Card details for non-3DS payment
@@ -40,10 +40,10 @@ const failedNo3DSCardDetails = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "DEBIT",
+    card_network: "Visa",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -51,6 +51,7 @@ const payment_method_data_no3ds = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -404,6 +405,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -481,8 +484,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "card_declined",
-          error_message: "Card was declined",
+          error_code: "DO_NOT_HONOR",
+          error_message:
+            "The card was declined for an unknown reason. The cardholder needs to contact their issuing bank for more information.",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },

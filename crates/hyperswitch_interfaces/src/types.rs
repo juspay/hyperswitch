@@ -1,5 +1,5 @@
 //! Types interface
-
+use common_utils::types::Url;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse},
     router_data_v2::flow_common_types,
@@ -12,13 +12,13 @@ use hyperswitch_domain_models::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
             InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
-            UpdateMetadata, Void,
+            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SettlementSplitCreate,
+            SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
         },
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck,
+        ProcessIncomingWebhook,
     },
     router_request_types::{
         revenue_recovery::{
@@ -37,14 +38,14 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -56,9 +57,9 @@ use hyperswitch_domain_models::{
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -66,8 +67,8 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
@@ -86,6 +87,7 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
+use serde;
 
 use crate::{api::ConnectorIntegration, connector_integration_v2::ConnectorIntegrationV2};
 /// struct Response
@@ -154,6 +156,14 @@ pub type PaymentsPreAuthorizeType = dyn ConnectorIntegration<
     AuthorizeSessionTokenData,
     PaymentsResponseData,
 >;
+
+/// Type alias for `ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>`
+pub type PaymentsSettlementSplitCreateType = dyn ConnectorIntegration<
+    SettlementSplitCreate,
+    SettlementSplitRequestData,
+    PaymentsResponseData,
+>;
+
 /// Type alias for `ConnectorIntegration<GiftCardBalanceCheck, GiftCardBalanceCheckRequestData, GiftCardBalanceCheckResponseData>`
 pub type PaymentsGiftCardBalanceCheckType = dyn ConnectorIntegration<
     GiftCardBalanceCheck,
@@ -201,11 +211,11 @@ pub type ExtendedAuthorizationType = dyn ConnectorIntegration<
     PaymentsResponseData,
 >;
 
-/// Type alias for ConnectorIntegration<GetSubscriptionPlanPrices, GetSubscriptionPlanPricesRequest, GetSubscriptionPlanPricesResponse>
+/// Type alias for ConnectorIntegration<GetSubscriptionItemPrices, GetSubscriptionItemPricesRequest, GetSubscriptionItemPricesResponse>
 pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
-    GetSubscriptionPlanPrices,
-    GetSubscriptionPlanPricesRequest,
-    GetSubscriptionPlanPricesResponse,
+    GetSubscriptionItemPrices,
+    GetSubscriptionItemPricesRequest,
+    GetSubscriptionItemPricesResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>`
@@ -315,6 +325,13 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
+/// Type alias for `ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>`
+pub type UasProcessWebhookType = dyn ConnectorIntegration<
+    ProcessIncomingWebhook,
+    UasWebhookRequestData,
+    UasAuthenticationResponseData,
+>;
+
 /// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
 pub type InvoiceRecordBackType = dyn ConnectorIntegration<
     InvoiceRecordBack,
@@ -367,11 +384,11 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegration<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>`
+/// Type alias for `ConnectorIntegration<GetSubscriptionItems, GetSubscriptionItemsRequest, GetSubscriptionItemsResponse>`
 pub type GetSubscriptionPlansType = dyn ConnectorIntegration<
-    GetSubscriptionPlans,
-    GetSubscriptionPlansRequest,
-    GetSubscriptionPlansResponse,
+    GetSubscriptionItems,
+    GetSubscriptionItemsRequest,
+    GetSubscriptionItemsResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<GetSubscriptionEstimate, GetSubscriptionEstimateRequest, GetSubscriptionEstimateResponse>`
@@ -416,7 +433,7 @@ pub type ExternalVaultCreateType =
     dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
 
 /// Proxy configuration structure
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(default)]
 pub struct Proxy {
     /// The URL of the HTTP proxy server.
@@ -451,6 +468,12 @@ impl Default for Proxy {
     }
 }
 
+impl Proxy {
+    /// Check if any proxy configuration is present
+    pub fn has_proxy_config(&self) -> bool {
+        self.http_url.is_some() || self.https_url.is_some()
+    }
+}
 /// Proxy override configuration for rollout-based proxy switching
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProxyOverride {
@@ -467,3 +490,17 @@ pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
     ConnectorCustomerData,
     PaymentsResponseData,
 >;
+
+/// Configuration for the comparison service
+///
+/// This struct contains configuration parameters for the external comparison service
+/// used to compare results between different execution paths (e.g., Direct vs UCS).
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ComparisonServiceConfig {
+    /// The URL of the comparison service endpoint
+    pub url: Url,
+    /// Whether the comparison service is enabled
+    pub enabled: bool,
+    /// Timeout in seconds for comparison service requests
+    pub timeout_secs: Option<u64>,
+}

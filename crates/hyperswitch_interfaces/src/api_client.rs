@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use masking::Maskable;
 use reqwest::multipart::Form;
-use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, logger, tracing, RequestId};
 use serde_json::json;
 
 use crate::{
@@ -188,6 +188,7 @@ where
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -295,6 +296,7 @@ where
                         external_latency,
                         req.refund_id.clone(),
                         req.dispute_id.clone(),
+                        req.payout_id.clone(),
                         status_code,
                     );
 
@@ -423,6 +425,7 @@ where
                                     status_code: 504,
                                     attempt_status: None,
                                     connector_transaction_id: None,
+                                    connector_response_reference_id: None,
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,

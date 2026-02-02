@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout)]
-
 use std::str::FromStr;
 
 use hyperswitch_domain_models::address::{Address, AddressDetails};

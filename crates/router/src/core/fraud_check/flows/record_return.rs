@@ -31,7 +31,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -46,8 +46,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -64,11 +63,11 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = self.payment_intent.customer_id.clone();
         let currency = self.payment_attempt.clone().currency;
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            merchant_id: processor.get_account().get_id().clone(),
             tenant_id: state.tenant.tenant_id.clone(),
             customer_id,
             connector: connector_id.to_string(),
@@ -125,6 +124,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
@@ -137,7 +137,6 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            is_migrated_card: None,
         };
 
         Ok(router_data)
@@ -151,16 +150,9 @@ impl FeatureFrm<RecordReturn, FraudCheckRecordReturnData> for FrmRecordReturnRou
         state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> RouterResult<Self> {
-        decide_frm_flow(
-            &mut self,
-            state,
-            connector,
-            call_connector_action,
-            merchant_context,
-        )
-        .await
+        decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }
 }
 
@@ -169,7 +161,7 @@ pub async fn decide_frm_flow(
     state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
 ) -> RouterResult<FrmRecordReturnRouterData> {
     let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         RecordReturn,

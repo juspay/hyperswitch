@@ -37,9 +37,9 @@ const billingAddress = {
 const payment_method_data_visa = {
   card: {
     last4: "0026",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
+    card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
     card_isin: "401200",
     card_extended_bin: null,
@@ -48,6 +48,7 @@ const payment_method_data_visa = {
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: {
     address: {
@@ -564,6 +565,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

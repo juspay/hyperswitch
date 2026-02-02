@@ -91,8 +91,6 @@ pub fn get_toml_table<'a>(table_name: &'a str, toml_data: &'a Value) -> &'a Valu
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use std::str::FromStr;
 
     use toml::Value;

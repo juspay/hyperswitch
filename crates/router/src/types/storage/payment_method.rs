@@ -23,12 +23,19 @@ pub struct CardTokenData {
     pub network_token_locker_id: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankDebitTokenData {
+    pub payment_method_id: String,
+    pub locker_id: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
     pub locker_id: Option<String>,
     pub token: String,
+    pub storage_type: enums::StorageType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
@@ -60,6 +67,7 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
+    BankDebit(BankDebitTokenData),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -92,11 +100,13 @@ impl PaymentTokenData {
         payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
         locker_id: Option<String>,
         token: String,
+        storage_type: enums::StorageType,
     ) -> Self {
         Self::PermanentCard(CardTokenData {
             payment_method_id,
             locker_id,
             token,
+            storage_type,
         })
     }
 

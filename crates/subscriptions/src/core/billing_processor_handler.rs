@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response as errors,
     router_data_v2::flow_common_types::{
-        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
+        GetSubscriptionEstimateData, GetSubscriptionItemPricesData, GetSubscriptionItemsData,
         InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
         SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
     },
@@ -48,7 +48,6 @@ impl BillingHandler {
         let billing_processor_mca = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &(state).into(),
                 merchant_account.get_id(),
                 &merchant_connector_id,
                 key_store,
@@ -120,6 +119,7 @@ impl BillingHandler {
             description: None,
             phone: None,
             name: None,
+            metadata: None,
             preprocessing_id: None,
             split_payments: None,
             setup_future_usage: None,
@@ -129,6 +129,7 @@ impl BillingHandler {
                 .as_ref()
                 .and_then(|add| add.address.clone())
                 .and_then(|addr| addr.into()),
+            currency: None,
         };
         let router_data = self.build_router_data(
             state,
@@ -290,19 +291,20 @@ impl BillingHandler {
         self.handle_connector_response(response)
     }
 
-    pub async fn get_subscription_plans(
+    pub async fn get_subscription_items(
         &self,
         state: &SessionState,
         limit: Option<u32>,
         offset: Option<u32>,
-    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionPlansResponse> {
-        let get_plans_request =
-            subscription_request_types::GetSubscriptionPlansRequest::new(limit, offset);
+        item_type: subscription_types::SubscriptionItemType,
+    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionItemsResponse> {
+        let get_items_request =
+            subscription_request_types::GetSubscriptionItemsRequest::new(limit, offset, item_type);
 
         let router_data = self.build_router_data(
             state,
-            get_plans_request,
-            GetSubscriptionPlansData {
+            get_items_request,
+            GetSubscriptionItemsData {
                 connector_meta_data: self.connector_metadata.clone(),
             },
         )?;
@@ -313,25 +315,25 @@ impl BillingHandler {
             .call_connector(
                 state,
                 router_data,
-                "get subscription plans",
+                "get subscription items",
                 connector_integration,
             )
             .await?;
         self.handle_connector_response(response)
     }
 
-    pub async fn get_subscription_plan_prices(
+    pub async fn get_subscription_item_prices(
         &self,
         state: &SessionState,
-        plan_price_id: String,
-    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionPlanPricesResponse> {
-        let get_plan_prices_request =
-            subscription_request_types::GetSubscriptionPlanPricesRequest { plan_price_id };
+        item_price_id: String,
+    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionItemPricesResponse> {
+        let get_item_prices_request =
+            subscription_request_types::GetSubscriptionItemPricesRequest { item_price_id };
 
         let router_data = self.build_router_data(
             state,
-            get_plan_prices_request,
-            GetSubscriptionPlanPricesData {
+            get_item_prices_request,
+            GetSubscriptionItemPricesData {
                 connector_meta_data: self.connector_metadata.clone(),
             },
         )?;
@@ -342,7 +344,7 @@ impl BillingHandler {
             .call_connector(
                 state,
                 router_data,
-                "get subscription plan prices",
+                "get subscription item prices",
                 connector_integration,
             )
             .await?;

@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     errors::HttpClientError,
     types::Proxy,
 };
-use reqwest;
 use router_env::logger;
 
 use crate::{http_client, hubspot_proxy::HubspotRequest};

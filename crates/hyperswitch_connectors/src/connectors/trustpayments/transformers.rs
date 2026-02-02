@@ -1,4 +1,3 @@
-use cards;
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
@@ -598,6 +597,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: response_data.transactionreference.clone(),
+                    connector_response_reference_id: response_data.transactionreference.clone(),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -617,6 +617,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -671,6 +672,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(transaction_id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -690,6 +692,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -744,6 +747,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(transaction_id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -763,6 +767,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -817,6 +822,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(transaction_id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -836,6 +842,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

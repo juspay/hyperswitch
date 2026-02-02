@@ -191,6 +191,8 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::OpenBanking(_) => Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message(item.router_data.connector.as_str()),
             )),
@@ -340,6 +342,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         network_txn_id: None,
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..item.data
@@ -355,6 +358,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         status_code: item.http_code,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(item.response.mer_ref.clone()),
+                        connector_response_reference_id: Some(item.response.mer_ref.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -375,6 +379,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                     status_code: item.http_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(item.response.mer_ref.clone()),
+                    connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -441,6 +446,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -457,6 +463,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     status_code: item.http_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(item.response.mer_ref.clone()),
+                    connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

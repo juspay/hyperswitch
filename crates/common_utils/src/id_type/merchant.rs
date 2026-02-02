@@ -3,8 +3,6 @@
 //! Ids for merchant account are derived from the merchant name
 //! If there are any special characters, they are removed
 
-use std::fmt::Display;
-
 use crate::{
     date_time,
     errors::{CustomResult, ValidationError},
@@ -112,6 +110,11 @@ impl MerchantId {
         format!("{}_requires_cvv", self.get_string_repr())
     }
 
+    /// get_implicit_customer_update_key
+    pub fn get_implicit_customer_update_key(&self) -> String {
+        format!("{}_implicit_customer_update", self.get_string_repr())
+    }
+
     /// get_pm_filters_cgraph_key
     pub fn get_pm_filters_cgraph_key(&self) -> String {
         format!("pm_filters_cgraph_{}", self.get_string_repr())
@@ -120,6 +123,11 @@ impl MerchantId {
     /// get_blocklist_enabled_key
     pub fn get_blocklist_guard_key(&self) -> String {
         format!("guard_blocklist_for_{}", self.get_string_repr())
+    }
+
+    /// get_pre_routing_disabled_pm_pmt_key
+    pub fn get_pre_routing_disabled_pm_pmt_key(&self) -> String {
+        format!("pre_routing_disabled_pm_pmt_for_{}", self.get_string_repr())
     }
 
     /// get_merchant_fingerprint_secret_key
@@ -145,17 +153,6 @@ impl MerchantId {
     /// get_poll_id
     pub fn get_poll_id(&self, unique_id: &str) -> String {
         format!("poll_{}_{unique_id}", self.get_string_repr())
-    }
-
-    /// get_access_token_key
-    pub fn get_access_token_key(
-        &self,
-        merchant_connector_id_or_connector_name: impl Display,
-    ) -> String {
-        format!(
-            "access_token_{}_{merchant_connector_id_or_connector_name}",
-            self.get_string_repr()
-        )
     }
 
     /// get_skip_saving_wallet_at_connector_key
@@ -203,6 +200,22 @@ impl MerchantId {
         format!("should_call_gsm_{}", self.get_string_repr())
     }
 
+    /// get should call auth tokenization for modular authentication
+    pub fn get_should_disable_auth_tokenization(&self) -> String {
+        format!(
+            "should_disable_auth_tokenization_{}",
+            self.get_string_repr()
+        )
+    }
+
+    /// get should enable MIT with limited card data
+    pub fn get_should_enable_mit_with_limited_card_data(&self) -> String {
+        format!(
+            "should_enable_mit_with_limited_card_data_{}",
+            self.get_string_repr()
+        )
+    }
+
     /// get_max_auto_single_connector_payout_retries_enabled_
     pub fn get_max_auto_single_connector_payout_retries_enabled(
         &self,
@@ -236,6 +249,19 @@ impl MerchantId {
     pub fn get_should_store_eligibility_check_data_for_authentication(&self) -> String {
         format!(
             "should_store_eligibility_check_data_for_authentication_{}",
+            self.get_string_repr()
+        )
+    }
+
+    /// Get threeds_routing_region key for merchant
+    pub fn get_threeds_routing_region_uas_key(&self) -> String {
+        format!("threeds_routing_region_uas_{}", self.get_string_repr())
+    }
+
+    /// fetch should_return_raw_payment_method_details key for organization
+    pub fn should_return_raw_payment_method_details_key(&self) -> String {
+        format!(
+            "should_return_raw_payment_method_details_{}",
             self.get_string_repr()
         )
     }

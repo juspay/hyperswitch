@@ -12,7 +12,6 @@ use crate::{
     core::{api_locking, unified_authentication_service},
     routes::app::{self},
     services::{api, authentication as auth},
-    types::domain,
 };
 
 #[cfg(feature = "v1")]
@@ -30,14 +29,11 @@ pub async fn authentication_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            unified_authentication_service::authentication_create_core(state, merchant_context, req)
+            unified_authentication_service::authentication_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -70,12 +66,9 @@ pub async fn authentication_eligibility(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             unified_authentication_service::authentication_eligibility_core(
                 state,
-                merchant_context,
+                auth.platform,
                 req,
                 authentication_id.clone(),
             )
@@ -114,12 +107,9 @@ pub async fn authentication_authenticate(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             unified_authentication_service::authentication_authenticate_core(
                 state,
-                merchant_context,
+                auth.platform,
                 req,
                 auth_flow,
             )
@@ -158,12 +148,9 @@ pub async fn authentication_eligibility_check(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             unified_authentication_service::authentication_eligibility_check_core(
                 state,
-                merchant_context,
+                auth.platform,
                 req,
                 auth_flow,
             )
@@ -191,18 +178,15 @@ pub async fn authentication_retrieve_eligibility_check(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             unified_authentication_service::authentication_retrieve_eligibility_check_core(
                 state,
-                merchant_context,
+                auth.platform,
                 req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -239,12 +223,9 @@ pub async fn authentication_sync(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             unified_authentication_service::authentication_sync_core(
                 state,
-                merchant_context,
+                auth.platform,
                 auth_flow,
                 req,
             )
@@ -275,14 +256,7 @@ pub async fn authentication_sync_post_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            unified_authentication_service::authentication_post_sync_core(
-                state,
-                merchant_context,
-                req,
-            )
+            unified_authentication_service::authentication_post_sync_core(state, auth.platform, req)
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
@@ -319,14 +293,7 @@ pub async fn authentication_session_token(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            unified_authentication_service::authentication_session_core(
-                state,
-                merchant_context,
-                req,
-            )
+            unified_authentication_service::authentication_session_core(state, auth.platform, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

@@ -12,14 +12,19 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, errors::RouterResult, payouts::*},
+    core::{
+        api_locking::{self, GetLockingInput},
+        errors::RouterResult,
+        payouts::*,
+    },
     logger,
+    routes::lock_utils,
     services::{
         api,
         authentication::{self as auth},
         authorization::permissions::Permission,
     },
-    types::{api::payouts as payout_types, domain, transformers::ForeignTryFrom},
+    types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
 
 /// Payouts - Create
@@ -48,14 +53,11 @@ pub async fn payouts_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_create_core(state, merchant_context, req)
+            payouts_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -84,15 +86,13 @@ pub async fn payouts_retrieve(
         &req,
         payout_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_retrieve_core(state, merchant_context, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            payouts_retrieve_core(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -115,20 +115,28 @@ pub async fn payouts_update(
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+    if let Err(err) =
+        populate_browser_info_for_payouts(&req, &mut payout_update_payload, &header_payload)
+    {
+        return api::log_and_return_error_response(err);
+    }
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_update_core(state, merchant_context, req)
+            payouts_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -156,17 +164,20 @@ pub async fn payouts_confirm(
             Err(e) => return api::log_and_return_error_response(e),
         };
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+    if let Err(err) = populate_browser_info_for_payouts(&req, &mut payload, &header_payload) {
+        return api::log_and_return_error_response(err);
+    }
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_confirm_core(state, merchant_context, req)
-        },
+        |state, auth, req, _| payouts_confirm_core(state, auth.platform, req),
         &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
@@ -191,14 +202,11 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_cancel_core(state, merchant_context, req)
+            payouts_cancel_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -222,14 +230,11 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_fulfill_core(state, merchant_context, req)
+            payouts_fulfill_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -253,15 +258,12 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_list_core(state, merchant_context, None, req)
+            payouts_list_core(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -290,20 +292,17 @@ pub async fn payouts_list_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payouts_list_core(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -332,15 +331,12 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_filtered_list_core(state, merchant_context, None, req)
+            payouts_filtered_list_core(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -369,20 +365,17 @@ pub async fn payouts_list_by_filter_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payouts_filtered_list_core(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -411,15 +404,12 @@ pub async fn payouts_list_available_filters_for_merchant(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_list_available_filters_core(state, merchant_context, None, req)
+            payouts_list_available_filters_core(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -448,20 +438,17 @@ pub async fn payouts_list_available_filters_for_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payouts_list_available_filters_core(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -482,6 +469,33 @@ pub async fn payouts_accounts() -> impl Responder {
 
 fn http_response<T: MessageBody + 'static>(response: T) -> HttpResponse<BoxBody> {
     HttpResponse::Ok().body(response)
+}
+
+/// Payouts - Available filters for Profile
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) -> impl Responder {
+    let flow = Flow::PayoutsFilter;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| get_payout_filters_core(state, auth.platform),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
 }
 
 pub fn populate_browser_info_for_payouts(
@@ -537,4 +551,106 @@ pub fn populate_browser_info_for_payouts(
     payload.browser_info = Some(browser_info);
 
     Ok(())
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payouts_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_payouts(state, auth.platform, None, req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPayoutRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn get_payouts_aggregates_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_payouts(
+                state,
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePayoutRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "payouts"))]
+impl GetLockingInput for payout_types::PayoutsManualUpdateRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payout_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "payouts"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsManualUpdate))]
+pub async fn payouts_manual_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutsManualUpdateRequest>,
+    path: web::Path<id_type::PayoutId>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsManualUpdate;
+    let mut payload = json_payload.into_inner();
+    let payout_id = path.into_inner();
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    tracing::Span::current().record("payout_id", payout_id.get_string_repr());
+
+    payload.payout_id = payout_id;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _auth, req, _req_state| payouts_manual_update_core(state, req),
+        &auth::AdminApiAuth,
+        locking_action,
+    ))
+    .await
 }

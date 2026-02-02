@@ -1,4 +1,3 @@
-use common_enums;
 use common_utils::{
     self, date_time,
     errors::{CustomResult, ValidationError},

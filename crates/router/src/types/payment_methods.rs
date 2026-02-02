@@ -1,9 +1,6 @@
 use std::fmt::Debug;
 
 use api_models::enums as api_enums;
-#[cfg(feature = "v1")]
-use cards::CardNumber;
-#[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_types::primitive_wrappers;
@@ -60,7 +57,7 @@ pub struct AddVaultResponse {
     #[cfg(feature = "v2")]
     pub vault_id: domain::VaultId,
     #[cfg(feature = "v1")]
-    pub vault_id: String,
+    pub vault_id: hyperswitch_domain_models::router_response_types::VaultIdType,
     pub fingerprint_id: Option<String>,
 }
 
@@ -203,7 +200,6 @@ pub struct ApiPayload {
     pub service: String,
     pub card_data: Secret<String>, //encrypted card data
     pub order_data: OrderData,
-    pub key_id: String,
     pub should_send_token: bool,
 }
 
@@ -212,6 +208,39 @@ pub struct CardNetworkTokenResponse {
     pub payload: Secret<String>, //encrypted payload
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize)]
+pub struct NTEligibilityRequest {
+    pub check_tokenize_support: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NTEligibilityResponse {
+    /// country associated with the card
+    pub country: Option<String>,
+    /// extended card type
+    pub extended_card_type: Option<String>,
+    /// card brand (like VISA, MASTERCARD etc)
+    pub brand: Option<String>,
+    /// bank code as per juspay
+    pub juspay_bank_code: Option<String>,
+    /// object type
+    pub object: Option<String>,
+    /// card bin length
+    pub id: String,
+    /// card sub type
+    pub card_sub_type: Option<String>,
+    /// indicates whether the (merchant + card_bin) is enabled tokenization
+    #[serde(default)]
+    pub tokenize_support: bool,
+
+    /// card type (like CREDIT, DEBIT etc)
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
+    /// bank associated with the card
+    pub bank: Option<String>,
+}
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -266,14 +295,14 @@ pub struct GetCardToken {
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: CardNumber, //network token
+    pub token: NetworkToken,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: NetworkToken, //network token
+    pub token: NetworkToken,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -321,7 +350,7 @@ pub struct NetworkTokenErrorInfo {
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct NetworkTokenErrorResponse {
-    pub error_message: String,
+    pub error_message: Option<String>,
     pub error_info: NetworkTokenErrorInfo,
 }
 
@@ -339,6 +368,7 @@ pub struct CheckTokenStatus {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckTokenStatus {
     pub card_reference: String,
     pub customer_id: id_type::GlobalCustomerId,
@@ -348,21 +378,28 @@ pub struct CheckTokenStatus {
 #[serde(rename_all = "UPPERCASE")]
 pub enum TokenStatus {
     Active,
+    Inactive,
     Suspended,
-    Deactivated,
+    Expired,
+    Deleted,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CheckTokenStatusResponse {
+pub struct CheckTokenStatusResponsePayload {
     pub token_status: TokenStatus,
-    pub token_expiry_month: Secret<String>,
-    pub token_expiry_year: Secret<String>,
-    pub card_last_4: String,
-    pub card_expiry: String,
-    pub token_last_4: String,
+    pub token_expiry_month: Option<Secret<String>>,
+    pub token_expiry_year: Option<Secret<String>>,
+    pub card_last_four: Option<String>,
+    pub card_expiry_month: Option<Secret<String>>,
+    pub card_expiry_year: Option<Secret<String>>,
+    pub token_last_four: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CheckTokenStatusResponse {
+    pub payload: CheckTokenStatusResponsePayload,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NetworkTokenRequestorData {
     pub card_reference: String,

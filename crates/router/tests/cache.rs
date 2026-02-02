@@ -1,4 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::print_stdout)]
 use std::sync::Arc;
 
 use router::{configs::settings::Settings, routes, services};

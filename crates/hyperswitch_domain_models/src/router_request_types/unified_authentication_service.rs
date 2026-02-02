@@ -1,5 +1,5 @@
 use api_models::payments::DeviceChannel;
-use common_enums::MerchantCategoryCode;
+use common_enums::{MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
 use masking::Secret;
@@ -16,6 +16,7 @@ pub struct UasPreAuthenticationRequestData {
     pub billing_address: Option<Address>,
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,9 +30,10 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub notification_url: Option<url::Url>,
+    pub webhook_url: Option<url::Url>,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct AuthenticationInfo {
     pub authentication_type: Option<String>,
     pub authentication_reasons: Option<Vec<String>>,
@@ -41,6 +43,7 @@ pub struct AuthenticationInfo {
     pub supported_card_brands: Option<String>,
     pub encrypted_payload: Option<Secret<String>>,
 }
+
 #[derive(Clone, Debug)]
 pub struct UasAuthenticationRequestData {
     pub browser_details: Option<super::BrowserInformation>,
@@ -51,6 +54,8 @@ pub struct UasAuthenticationRequestData {
     pub email: Option<common_utils::pii::Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub webhook_url: String,
+    pub authentication_info: Option<AuthenticationInfo>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -86,11 +91,14 @@ pub struct TransactionDetails {
     pub currency: Option<common_enums::Currency>,
     pub device_channel: Option<DeviceChannel>,
     pub message_category: Option<super::authentication::MessageCategory>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug)]
 pub struct UasPostAuthenticationRequestData {
     pub threeds_server_transaction_id: Option<String>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +113,15 @@ pub enum UasAuthenticationResponseData {
         authentication_details: PostAuthenticationDetails,
     },
     Confirmation {},
+    Webhook {
+        trans_status: common_enums::TransactionStatus,
+        authentication_value: Option<Secret<String>>,
+        eci: Option<String>,
+        three_ds_server_transaction_id: String,
+        authentication_id: Option<common_utils::id_type::AuthenticationId>,
+        results_request: Option<common_utils::pii::SecretSerdeValue>,
+        results_response: Option<common_utils::pii::SecretSerdeValue>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -117,6 +134,7 @@ pub struct PreAuthenticationDetails {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub connector_metadata: Option<serde_json::Value>,
     pub directory_server_id: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -141,11 +159,21 @@ pub struct PostAuthenticationDetails {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
+    pub raw_card_details: Option<RawCardDetails>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
@@ -186,4 +214,35 @@ pub struct ThreeDsMetaData {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PostAuthenticationDetails>
+    for Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>
+{
+    fn from(item: PostAuthenticationDetails) -> Self {
+        match (item.raw_card_details, item.token_details) {
+            (Some(card_data), _) => Some(
+                api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
+                    card_expiry_year: Some(card_data.expiration_year),
+                    card_expiry_month: Some(card_data.expiration_month),
+                },
+            ),
+            (None, Some(network_token_data)) => {
+                Some(
+                    api_models::authentication::AuthenticationPaymentMethodDataResponse::NetworkTokenData {
+                        network_token_expiry_year: Some(network_token_data.token_expiration_year),
+                        network_token_expiry_month: Some(network_token_data.token_expiration_month),
+                    },
+                )
+            }
+            (None, None) => None,
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct UasWebhookRequestData {
+    pub body: Vec<u8>,
+    pub routing_region: Option<RoutingRegion>,
 }

@@ -480,6 +480,7 @@ pub trait ConnectorActions: Connector {
                 webhook_url: None,
                 browser_info: None,
                 payout_connector_metadata: None,
+                additional_payout_method_data: None,
             },
             payment_info,
         )
@@ -553,6 +554,7 @@ pub trait ConnectorActions: Connector {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
@@ -565,7 +567,6 @@ pub trait ConnectorActions: Connector {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            is_migrated_card: None,
         }
     }
 
@@ -955,6 +956,7 @@ impl Default for CCardType {
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
@@ -996,8 +998,10 @@ impl Default for PaymentAuthorizeType {
             request_extended_authorization: None,
             metadata: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
+            guest_customer: None,
             integrity_object: None,
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
@@ -1013,6 +1017,8 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
         };
         Self(data)
     }
@@ -1129,6 +1135,8 @@ impl Default for CustomerType {
             setup_future_usage: None,
             customer_id: None,
             billing_address: None,
+            currency: None,
+            metadata: None,
         };
         Self(data)
     }
@@ -1146,6 +1154,9 @@ impl Default for TokenType {
             setup_future_usage: None,
             customer_acceptance: None,
             setup_mandate_details: None,
+            payment_method_type: None,
+            router_return_url: None,
+            capture_method: None,
         };
         Self(data)
     }
@@ -1186,6 +1197,7 @@ pub fn get_connector_metadata(
             network_txn_id: _,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            authentication_data: None,
             charges: _,
         }) => connector_metadata,
         _ => None,

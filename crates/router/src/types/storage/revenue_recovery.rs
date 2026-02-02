@@ -83,6 +83,7 @@ pub struct RecoveryTimestamp {
     pub reopen_workflow_buffer_time_in_seconds: i64,
     pub max_random_schedule_delay_in_seconds: i64,
     pub redis_ttl_buffer_in_seconds: i64,
+    pub unretried_invoice_schedule_time_offset_seconds: i64,
 }
 
 impl Default for RecoveryTimestamp {
@@ -93,6 +94,7 @@ impl Default for RecoveryTimestamp {
             reopen_workflow_buffer_time_in_seconds: 60,
             max_random_schedule_delay_in_seconds: 300,
             redis_ttl_buffer_in_seconds: 300,
+            unretried_invoice_schedule_time_offset_seconds: 300,
         }
     }
 }

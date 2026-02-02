@@ -347,6 +347,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::RequiresCapture
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable
                     | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndProcessing
                     | common_enums::IntentStatus::Processing => None,
                 }
             },
@@ -395,6 +396,7 @@ impl Capturable for PaymentsCaptureData {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
@@ -455,7 +457,8 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::RequiresCapture
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable
                     | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-                    | common_enums::IntentStatus::Processing => None,
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
@@ -520,7 +523,8 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
@@ -564,6 +568,7 @@ impl Capturable for PaymentsCancelPostCaptureData {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
@@ -697,6 +702,7 @@ impl Capturable for PaymentsExtendAuthorizationData {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
@@ -713,9 +719,15 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+pub struct BalanceCheckResult {
+    pub balance_check_result: Result<Option<PaymentMethodBalance>, ErrorResponse>,
+    pub should_continue_payment: bool,
+}
+
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,
+    pub should_continue_further: bool,
 }
 
 pub struct PspTokenResult {
@@ -744,6 +756,9 @@ pub struct UcsSetupMandateResponseData {
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+    pub amount_captured: Option<i64>,
+    pub minor_amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1237,10 +1252,10 @@ impl ForeignFrom<&ExternalVaultProxyPaymentsRouterData> for AuthorizeSessionToke
 impl<'a> ForeignFrom<&'a SetupMandateRouterData> for AuthorizeSessionTokenData {
     fn foreign_from(data: &'a SetupMandateRouterData) -> Self {
         Self {
-            amount_to_capture: data.request.amount,
+            amount_to_capture: Some(data.request.amount),
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
@@ -1302,8 +1317,10 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             request_extended_authorization: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
+            guest_customer: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,
@@ -1319,6 +1336,11 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
             billing_descriptor: data.request.billing_descriptor.clone(),
+            tokenization: None,
+            partner_merchant_identifier_details: data
+                .request
+                .partner_merchant_identifier_details
+                .clone(),
         }
     }
 }
@@ -1372,6 +1394,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             frm_metadata: data.frm_metadata.clone(),
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
+            payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
             additional_merchant_data: data.additional_merchant_data.clone(),
@@ -1386,7 +1409,6 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
-            is_migrated_card: data.is_migrated_card,
         }
     }
 }
@@ -1447,6 +1469,7 @@ impl<F1, F2>
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
             header_payload: data.header_payload.clone(),
@@ -1459,7 +1482,6 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            is_migrated_card: None,
         }
     }
 }

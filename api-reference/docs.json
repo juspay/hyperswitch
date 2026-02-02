@@ -308,8 +308,7 @@
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
                       "v2/payments/payments--list",
-                      "v2/payments/payments--gift-card-balance-check",
-                      "v2/payments/payments--apply-pm-data"
+                      "v2/payments/payments--check-balance-and-apply-pm-data"
                     ]
                   },
                   {

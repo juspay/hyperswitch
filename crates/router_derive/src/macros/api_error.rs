@@ -152,6 +152,8 @@ fn implement_error_message(
     }
 
     quote! {
+        // Some fields of enum variants may not be used in the message
+        #[allow(unused_variables, unused_assignments)]
         pub fn error_message(&self) -> String {
             match self {
                 #(#arms),*

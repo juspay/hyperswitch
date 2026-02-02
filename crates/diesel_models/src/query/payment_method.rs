@@ -106,6 +106,27 @@ impl PaymentMethod {
         .await
     }
 
+    pub async fn find_by_merchant_id_payment_method_ids(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_method_ids: &[String],
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        if payment_method_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_method_id.eq_any(payment_method_ids.to_owned())),
+            limit,
+            None,
+            Some(dsl::payment_method_id.asc()),
+        )
+        .await
+    }
+
     pub async fn get_count_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &common_utils::id_type::CustomerId,

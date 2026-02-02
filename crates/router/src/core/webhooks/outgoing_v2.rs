@@ -6,7 +6,6 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
-use masking;
 use router_env::{
     instrument,
     tracing::{self, Instrument},
@@ -121,7 +120,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(key_manager_state, new_event, merchant_key_store)
+        .insert_event(new_event, merchant_key_store)
         .await;
 
     let event = match event_insert_result {
@@ -489,7 +488,6 @@ async fn update_event_in_storage(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            key_manager_state,
             merchant_id,
             event_id,
             event_update,
@@ -505,8 +503,6 @@ async fn update_overall_delivery_status_in_storage(
     merchant_id: &common_utils::id_type::MerchantId,
     updated_event: &domain::Event,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let key_manager_state = &(&state).into();
-
     let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
         is_overall_delivery_successful: true,
     };
@@ -523,7 +519,6 @@ async fn update_overall_delivery_status_in_storage(
         state
             .store
             .update_event_by_merchant_id_event_id(
-                key_manager_state,
                 merchant_id,
                 initial_attempt_id.as_str(),
                 update_overall_delivery_status,

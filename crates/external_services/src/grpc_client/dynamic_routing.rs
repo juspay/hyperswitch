@@ -5,7 +5,6 @@ use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
 use router_env::logger;
-use serde;
 /// Elimination Routing Client Interface Implementation
 pub mod elimination_based_client;
 /// Success Routing Client Interface Implementation

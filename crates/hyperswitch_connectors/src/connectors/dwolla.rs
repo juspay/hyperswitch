@@ -154,13 +154,13 @@ impl ConnectorCommon for Dwolla {
             code: response.code,
             message: response.message,
             reason: response
-                ._embedded
+                .embedded
                 .as_ref()
-                .and_then(|errors_vec| errors_vec.first())
-                .and_then(|details| details.errors.first())
-                .and_then(|err_detail| err_detail.message.clone()),
+                .and_then(|errors_vec| errors_vec.errors.first())
+                .and_then(|details| details.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -466,13 +466,13 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
                     code: response.code,
                     message: response.message,
                     reason: response
-                        ._embedded
+                        .embedded
                         .as_ref()
-                        .and_then(|errors_vec| errors_vec.first())
-                        .and_then(|details| details.errors.first())
-                        .and_then(|err_detail| err_detail.message.clone()),
+                        .and_then(|errors_vec| errors_vec.errors.first())
+                        .and_then(|details| details.message.clone()),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -586,6 +586,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 network_txn_id: None,
                 connector_response_reference_id: Some(payment_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             amount_captured: Some(data.request.amount),
@@ -984,7 +985,7 @@ static DWOLLA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Dwolla",
     description: "Dwolla is a multinational financial technology company offering financial services and software as a service (SaaS)",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Beta,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static DWOLLA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

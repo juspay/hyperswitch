@@ -1118,6 +1118,7 @@ pub struct ReportConfig {
     pub refund_function: String,
     pub dispute_function: String,
     pub authentication_function: String,
+    pub payout_function: String,
     pub region: String,
 }
 
@@ -1147,6 +1148,7 @@ pub enum AnalyticsFlow {
     GenerateDisputeReport,
     GenerateRefundReport,
     GenerateAuthenticationReport,
+    GeneratePayoutReport,
     GetApiEventMetrics,
     GetApiEventFilters,
     GetConnectorEvents,

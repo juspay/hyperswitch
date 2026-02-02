@@ -98,3 +98,37 @@ impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
         Ok(Self(global_attempt_id))
     }
 }
+
+crate::global_id_type!(
+    GlobalAttemptGroupId,
+    "A global id that can be used to identify a payment attempt group"
+);
+
+// Database related implementations so that this field can be used directly in the database tables
+crate::impl_queryable_id_type!(GlobalAttemptGroupId);
+crate::impl_to_sql_from_sql_global_id_type!(GlobalAttemptGroupId);
+
+impl GlobalAttemptGroupId {
+    /// Generate a new GlobalAttemptId from a cell id
+    pub fn generate(cell_id: &super::CellId) -> Self {
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::AttemptGroup);
+        Self(global_id)
+    }
+
+    /// Get string representation of the id
+    pub fn get_string_repr(&self) -> &str {
+        self.0.get_string_repr()
+    }
+}
+
+impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptGroupId {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
+        let global_attempt_group_id = super::GlobalId::from_string(value).change_context(
+            errors::ValidationError::IncorrectValueProvided {
+                field_name: "global_attempt_group_id",
+            },
+        )?;
+        Ok(Self(global_attempt_group_id))
+    }
+}

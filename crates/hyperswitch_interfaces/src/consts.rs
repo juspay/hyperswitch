@@ -29,3 +29,21 @@ pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
 
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
+
+/// Header value for content type JSON
+pub const CONTENT_TYPE: &str = "Content-Type";
+
+/// Header name for flow name
+pub const X_FLOW_NAME: &str = "x-flow";
+
+/// Header name for request ID
+pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// Default webhook setup capabilities for connectors
+pub static DEFAULT_WEBHOOK_SETUP_CAPABILITIES:
+    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
+    common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        is_webhook_auto_configuration_supported: false,
+        requires_webhook_secret: None,
+        config_type: None,
+    };

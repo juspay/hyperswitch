@@ -167,8 +167,7 @@ where
         _req_state: ReqState,
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
-        _merchant_context: &domain::MerchantContext,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }
@@ -181,15 +180,13 @@ where
         _req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        platform: &domain::Platform,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            merchant_context,
-            customer,
+            platform,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
@@ -217,15 +214,13 @@ where
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        platform: &domain::Platform,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            merchant_context,
-            customer,
+            platform,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::CheckoutOrSale;

@@ -80,6 +80,8 @@ pub struct SmithyEnumValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub documentation: Option<String>,
     pub is_default: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub traits: Vec<SmithyTrait>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +103,10 @@ pub enum SmithyTrait {
     HttpQuery { name: String },
     #[serde(rename = "smithy.api#mixin")]
     Mixin,
+    #[serde(rename = "smithy.api#jsonName")]
+    JsonName { name: String },
+    #[serde(rename = "smithy.api#enumValue")]
+    EnumValue { value: String },
 }
 
 #[derive(Debug, Clone)]
@@ -119,6 +125,8 @@ pub struct SmithyEnumVariant {
     pub fields: Vec<SmithyField>,
     pub constraints: Vec<SmithyConstraint>,
     pub documentation: Option<String>,
+    pub nested_value_type: bool,
+    pub value_type: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -129,6 +137,8 @@ pub enum SmithyConstraint {
     Required,
     HttpLabel,
     HttpQuery(String),
+    JsonName(String),
+    EnumValue(String),
 }
 
 pub trait SmithyModelGenerator {
@@ -148,7 +158,7 @@ pub fn resolve_type_and_generate_shapes(
     let target_type = match value_type {
         "String" | "str" => "smithy.api#String".to_string(),
         "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => "smithy.api#Integer".to_string(),
-        "i64" | "u64" | "isize" | "usize" => "smithy.api#Long".to_string(),
+        "i64" | "u64" | "i128" | "isize" | "usize" => "smithy.api#Long".to_string(),
         "f32" => "smithy.api#Float".to_string(),
         "f64" => "smithy.api#Double".to_string(),
         "bool" => "smithy.api#Boolean".to_string(),

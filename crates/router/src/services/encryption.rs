@@ -127,8 +127,6 @@ pub fn verify_sign(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used, clippy::expect_used)]
-
     use super::*;
 
     // Keys used for tests

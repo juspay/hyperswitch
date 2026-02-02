@@ -1,5 +1,3 @@
-use api_models;
-use common_enums;
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,

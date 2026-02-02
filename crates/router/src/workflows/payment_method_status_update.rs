@@ -31,27 +31,20 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         let prev_pm_status = tracking_data.prev_status;
         let curr_pm_status = tracking_data.curr_status;
         let merchant_id = tracking_data.merchant_id;
-        let key_manager_state = &state.into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 
         let payment_method = db
-            .find_payment_method(
-                &(state.into()),
-                &key_store,
-                &pm_id,
-                merchant_account.storage_scheme,
-            )
+            .find_payment_method(&key_store, &pm_id, merchant_account.storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
@@ -66,11 +59,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
 
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
             status: Some(curr_pm_status),
+            last_modified_by: None,
         };
 
         let res = db
             .update_payment_method(
-                &(state.into()),
                 &key_store,
                 payment_method,
                 pm_update,

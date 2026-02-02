@@ -1,7 +1,8 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_data_backfill::{
-    BackfillQuery, GetRedisDataQuery, RevenueRecoveryDataBackfillForm, UpdateTokenStatusRequest,
+    BackfillQuery, GetRedisDataQuery, RevenueRecoveryDataBackfillForm, UnlockStatusRequest,
+    UnlockStatusResponse, UpdateTokenStatusRequest,
 };
 use router_env::{instrument, tracing, Flow};
 
@@ -96,18 +97,27 @@ pub async fn update_revenue_recovery_additional_redis_data(
 pub async fn revenue_recovery_data_backfill_status(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, common_utils::id_type::GlobalPaymentId)>,
 ) -> HttpResponse {
     let flow = Flow::RecoveryDataBackfill;
-    let connector_customer_id = path.into_inner();
+    let (connector_customer_id, payment_intent_id) = path.into_inner();
+
+    let payload = UnlockStatusRequest {
+        connector_customer_id,
+        payment_intent_id,
+    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        connector_customer_id,
-        |state, _: (), id, _| {
-            revenue_recovery_data_backfill::unlock_connector_customer_status(state, id)
+        payload,
+        |state, _: (), req, _| {
+            revenue_recovery_data_backfill::unlock_connector_customer_status_handler(
+                state,
+                req.connector_customer_id,
+                req.payment_intent_id,
+            )
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,

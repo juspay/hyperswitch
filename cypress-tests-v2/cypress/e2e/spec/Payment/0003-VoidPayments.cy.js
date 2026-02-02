@@ -124,11 +124,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
           Response: data.ResponseCustom,
         };
 
-        cy.paymentVoidCall(
-          globalState,
-          fixtures.void_payment_body,
-          void_data
-        );
+        cy.paymentVoidCall(globalState, fixtures.void_payment_body, void_data);
 
         if (should_continue) should_continue = should_continue_further(data);
       });
@@ -195,11 +191,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
         Response: data.ResponseCustom,
       };
 
-      cy.paymentVoidCall(
-        globalState,
-        fixtures.void_payment_body,
-        void_data
-      );
+      cy.paymentVoidCall(globalState, fixtures.void_payment_body, void_data);
 
       if (should_continue) should_continue = should_continue_further(data);
     });

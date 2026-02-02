@@ -101,6 +101,9 @@ impl
                     directory_server_id: card_range
                         .as_ref()
                         .and_then(|card_range| card_range.directory_server_id.clone()),
+                    scheme_id: card_range
+                        .as_ref()
+                        .map(|card_range| card_range.scheme_id.clone().to_string()),
                 })
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => Err(ErrorResponse {
@@ -110,6 +113,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -205,6 +209,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,

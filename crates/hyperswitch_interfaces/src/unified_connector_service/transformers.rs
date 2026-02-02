@@ -78,6 +78,30 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
+    /// Failed to perform Create Order from gRPC Server
+    #[error("Failed to perform Create Order from gRPC Server")]
+    PaymentCreateOrderFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform. Granular Payment Authorize from gRPC Server")]
+    PaymentAuthorizeGranularFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Session Token Create from gRPC Server")]
+    PaymentCreateSessionTokenFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Access Token Create from gRPC Server")]
+    PaymentCreateAccessTokenFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Method Token Create from gRPC Server")]
+    PaymentMethodTokenCreateFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Connector Customer Create from gRPC Server")]
+    PaymentConnectorCustomerCreateFailure,
+
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentAuthorizeFailure,
@@ -91,7 +115,7 @@ pub enum UnifiedConnectorServiceError {
     PaymentAuthenticateFailure,
 
     /// Failed to perform Payment Authenticate from gRPC Server
-    #[error("Failed to perform Payment Poat Authenticate from gRPC Server")]
+    #[error("Failed to perform Payment Post Authenticate from gRPC Server")]
     PaymentPostAuthenticateFailure,
 
     /// Failed to perform Payment Get from gRPC Server
@@ -125,6 +149,14 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Cancel from gRPC Server
     #[error("Failed to perform Cancel from gRPC Server")]
     PaymentCancelFailure,
+
+    /// Failed to perform Sdk Session Token from gRPC Server
+    #[error("Failed to perform Sdk Session Token from gRPC Server")]
+    SdkSessionTokenFailure,
+
+    /// Failed to perform Incremental Authorization from gRPC Server
+    #[error("Failed to perform Incremental Authorization from gRPC Server")]
+    IncrementalAuthorizationFailure,
 }
 
 /// UCS Webhook transformation status
@@ -147,13 +179,13 @@ pub struct WebhookTransformData {
     pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
+impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceGetResponse,
+        (response, prev_status): (payments_grpc::PaymentServiceGetResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -180,7 +212,10 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
             };
 
             Err(ErrorResponse {
@@ -189,14 +224,15 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 reason: Some(response.error_message().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
             })
         } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
@@ -205,7 +241,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: None,
+                            payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
                         }
@@ -214,6 +250,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 },
                 status,
@@ -224,10 +261,12 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
     }
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
+impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(grpc_status: payments_grpc::PaymentStatus) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (grpc_status, prev_status): (payments_grpc::PaymentStatus, Self),
+    ) -> Result<Self, Self::Error> {
         match grpc_status {
             payments_grpc::PaymentStatus::Started => Ok(Self::Started),
             payments_grpc::PaymentStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
@@ -260,7 +299,9 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
-            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
+            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(prev_status),
+            payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
+            payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }
     }
 }
@@ -300,6 +341,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
             additional_payment_method_data,
             is_overcapture_enabled,
             extended_authorization_response_data,
+            None,
         ))
     }
 }
@@ -338,6 +380,8 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             }),
             card_network: card_data.card_network,
             domestic_network: card_data.domestic_network,
+            // needs to be updated
+            auth_code: None,
         })
     }
 }
@@ -352,4 +396,227 @@ pub fn convert_connector_service_status_code(
         ))
         .into()
     })
+}
+
+// Bank Debit Reverse Transformations: Proto -> Hyperswitch
+
+impl ForeignTryFrom<payments_grpc::Ach>
+    for hyperswitch_domain_models::payment_method_data::BankDebitData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(ach: payments_grpc::Ach) -> Result<Self, Self::Error> {
+        use unified_connector_service_masking::ExposeInterface;
+
+        let bank_name = payments_grpc::BankNames::try_from(ach.bank_name)
+            .ok()
+            .and_then(|bn| common_enums::BankNames::foreign_try_from(bn).ok());
+
+        let bank_type = payments_grpc::BankType::try_from(ach.bank_type)
+            .ok()
+            .and_then(|bt| common_enums::BankType::foreign_try_from(bt).ok());
+
+        let bank_holder_type = payments_grpc::BankHolderType::try_from(ach.bank_holder_type)
+            .ok()
+            .and_then(|bht| common_enums::BankHolderType::foreign_try_from(bht).ok());
+
+        Ok(Self::AchBankDebit {
+            account_number: masking::Secret::new(
+                ach.account_number
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "account_number",
+                    })?
+                    .expose(),
+            ),
+            routing_number: masking::Secret::new(
+                ach.routing_number
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "routing_number",
+                    })?
+                    .expose(),
+            ),
+            card_holder_name: ach
+                .card_holder_name
+                .map(|s| masking::Secret::new(s.expose())),
+            bank_account_holder_name: ach
+                .bank_account_holder_name
+                .map(|s| masking::Secret::new(s.expose())),
+            bank_name,
+            bank_type,
+            bank_holder_type,
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::Sepa>
+    for hyperswitch_domain_models::payment_method_data::BankDebitData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(sepa: payments_grpc::Sepa) -> Result<Self, Self::Error> {
+        use unified_connector_service_masking::ExposeInterface;
+
+        Ok(Self::SepaBankDebit {
+            iban: masking::Secret::new(
+                sepa.iban
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "iban",
+                    })?
+                    .expose(),
+            ),
+            bank_account_holder_name: sepa
+                .bank_account_holder_name
+                .map(|name| masking::Secret::new(name.expose())),
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::Bacs>
+    for hyperswitch_domain_models::payment_method_data::BankDebitData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(bacs: payments_grpc::Bacs) -> Result<Self, Self::Error> {
+        use unified_connector_service_masking::ExposeInterface;
+
+        Ok(Self::BacsBankDebit {
+            account_number: masking::Secret::new(
+                bacs.account_number
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "account_number",
+                    })?
+                    .expose(),
+            ),
+            sort_code: masking::Secret::new(
+                bacs.sort_code
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "sort_code",
+                    })?
+                    .expose(),
+            ),
+            bank_account_holder_name: bacs
+                .bank_account_holder_name
+                .map(|name| masking::Secret::new(name.expose())),
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::Becs>
+    for hyperswitch_domain_models::payment_method_data::BankDebitData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(becs: payments_grpc::Becs) -> Result<Self, Self::Error> {
+        use unified_connector_service_masking::ExposeInterface;
+
+        Ok(Self::BecsBankDebit {
+            account_number: masking::Secret::new(
+                becs.account_number
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "account_number",
+                    })?
+                    .expose(),
+            ),
+            bsb_number: masking::Secret::new(
+                becs.bsb_number
+                    .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "bsb_number",
+                    })?
+                    .expose(),
+            ),
+            bank_account_holder_name: becs
+                .bank_account_holder_name
+                .map(|name| masking::Secret::new(name.expose())),
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(bank_type: payments_grpc::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            payments_grpc::BankType::Checking => Ok(Self::Checking),
+            payments_grpc::BankType::Savings => Ok(Self::Savings),
+            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankType unspecified")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        bank_holder_type: payments_grpc::BankHolderType,
+    ) -> Result<Self, Self::Error> {
+        match bank_holder_type {
+            payments_grpc::BankHolderType::Personal => Ok(Self::Personal),
+            payments_grpc::BankHolderType::Business => Ok(Self::Business),
+            payments_grpc::BankHolderType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankHolderType unspecified")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(bank_name: payments_grpc::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            payments_grpc::BankNames::AmericanExpress => Ok(Self::AmericanExpress),
+            payments_grpc::BankNames::AffinBank => Ok(Self::AffinBank),
+            payments_grpc::BankNames::AgroBank => Ok(Self::AgroBank),
+            payments_grpc::BankNames::AllianceBank => Ok(Self::AllianceBank),
+            payments_grpc::BankNames::AmBank => Ok(Self::AmBank),
+            payments_grpc::BankNames::BankOfAmerica => Ok(Self::BankOfAmerica),
+            payments_grpc::BankNames::BankOfChina => Ok(Self::BankOfChina),
+            payments_grpc::BankNames::BankIslam => Ok(Self::BankIslam),
+            payments_grpc::BankNames::BankMuamalat => Ok(Self::BankMuamalat),
+            payments_grpc::BankNames::BankRakyat => Ok(Self::BankRakyat),
+            payments_grpc::BankNames::BankSimpananNasional => Ok(Self::BankSimpananNasional),
+            payments_grpc::BankNames::Barclays => Ok(Self::Barclays),
+            payments_grpc::BankNames::BlikPsp => Ok(Self::BlikPSP),
+            payments_grpc::BankNames::CapitalOne => Ok(Self::CapitalOne),
+            payments_grpc::BankNames::Chase => Ok(Self::Chase),
+            payments_grpc::BankNames::Citi => Ok(Self::Citi),
+            payments_grpc::BankNames::CimbBank => Ok(Self::CimbBank),
+            payments_grpc::BankNames::Discover => Ok(Self::Discover),
+            payments_grpc::BankNames::NavyFederalCreditUnion => Ok(Self::NavyFederalCreditUnion),
+            payments_grpc::BankNames::PentagonFederalCreditUnion => {
+                Ok(Self::PentagonFederalCreditUnion)
+            }
+            payments_grpc::BankNames::SynchronyBank => Ok(Self::SynchronyBank),
+            payments_grpc::BankNames::WellsFargo => Ok(Self::WellsFargo),
+            payments_grpc::BankNames::AbnAmro => Ok(Self::AbnAmro),
+            payments_grpc::BankNames::AsnBank => Ok(Self::AsnBank),
+            payments_grpc::BankNames::Bunq => Ok(Self::Bunq),
+            payments_grpc::BankNames::Handelsbanken => Ok(Self::Handelsbanken),
+            payments_grpc::BankNames::HongLeongBank => Ok(Self::HongLeongBank),
+            payments_grpc::BankNames::HsbcBank => Ok(Self::HsbcBank),
+            payments_grpc::BankNames::Ing => Ok(Self::Ing),
+            payments_grpc::BankNames::Knab => Ok(Self::Knab),
+            payments_grpc::BankNames::KuwaitFinanceHouse => Ok(Self::KuwaitFinanceHouse),
+            payments_grpc::BankNames::Moneyou => Ok(Self::Moneyou),
+            payments_grpc::BankNames::Rabobank => Ok(Self::Rabobank),
+            payments_grpc::BankNames::Regiobank => Ok(Self::Regiobank),
+            payments_grpc::BankNames::Revolut => Ok(Self::Revolut),
+            payments_grpc::BankNames::SnsBank => Ok(Self::SnsBank),
+            payments_grpc::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            payments_grpc::BankNames::VanLanschot => Ok(Self::VanLanschot),
+            payments_grpc::BankNames::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankNames unspecified")),
+            // Add remaining bank names as needed
+            _ => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("Unknown BankNames variant")),
+        }
+    }
 }

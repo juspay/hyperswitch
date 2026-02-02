@@ -1,6 +1,5 @@
 pub mod transformers;
 
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -21,7 +20,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData, VaultRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData, VaultResponseData},
-    types::VaultRouterData,
+    types::{RefreshTokenRouterData, VaultRouterData},
 };
 use hyperswitch_interfaces::{
     api::{
@@ -34,7 +33,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Mask;
+use masking::{Mask, PeekInterface};
 use transformers as vgs;
 
 use crate::{constants::headers, types::ResponseRouterData};
@@ -73,20 +72,14 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = auth
-            .username
-            .zip(auth.password)
-            .map(|(username, password)| {
-                format!(
-                    "Basic {}",
-                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
-                )
-            });
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth_value.into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         )])
     }
 }
@@ -140,6 +133,7 @@ impl ConnectorCommon for Vgs {
             reason: error.detail.clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -151,8 +145,6 @@ impl ConnectorCommon for Vgs {
 impl ConnectorValidation for Vgs {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Vgs {}
-
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Vgs {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Vgs {}
 
@@ -168,13 +160,128 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Vgs {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Vgs {}
 
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Vgs {
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth_base_url = connectors
+            .vgs
+            .secondary_base_url
+            .as_ref()
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        Ok(format!(
+            "{}auth/realms/vgs/protocol/openid-connect/token",
+            auth_base_url
+        ))
+    }
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+    fn get_headers(
+        &self,
+        _req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefreshTokenType::get_content_type(self)
+                .to_string()
+                .into(),
+        )])
+    }
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = vgs::VgsAuthUpdateRequest::try_from(req)?;
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        let response: vgs::VgsAuthUpdateResponse = res
+            .response
+            .parse_struct("Vgs VgsAuthUpdateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: vgs::VgsAccessTokenErrorResponse = res
+            .response
+            .parse_struct("Vgs AccessTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error.clone(),
+            message: response.error.clone(),
+            reason: Some(response.error_description),
+            attempt_status: None,
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+}
+
 impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData> for Vgs {
     fn get_url(
         &self,
-        _req: &VaultRouterData<ExternalVaultInsertFlow>,
+        req: &VaultRouterData<ExternalVaultInsertFlow>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}aliases", self.base_url(connectors)))
+        let base_url = self.base_url(connectors);
+        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let vault_specific_url = base_url.replace("{{vault_id}}", auth.vault_id.peek());
+
+        Ok(format!("{}aliases", vault_specific_url))
     }
 
     fn get_headers(
@@ -250,13 +357,18 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
         req: &VaultRouterData<ExternalVaultRetrieveFlow>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = self.base_url(connectors);
+        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let vault_specific_url = base_url.replace("{{vault_id}}", auth.vault_id.peek());
+
         let alias = req.request.connector_vault_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "connector_vault_id",
             },
         )?;
 
-        Ok(format!("{}aliases/{alias}", self.base_url(connectors)))
+        Ok(format!("{}aliases/{alias}", vault_specific_url))
     }
 
     fn get_headers(

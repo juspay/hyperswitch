@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used)]
-
 mod test_module;
 
 use ::config::ConfigError;
@@ -11,6 +9,8 @@ fn logger() -> error_stack::Result<&'static TelemetryGuard, ConfigError> {
     use std::sync::OnceLock;
 
     static INSTANCE: OnceLock<TelemetryGuard> = OnceLock::new();
+
+    #[allow(clippy::unwrap_used)]
     Ok(INSTANCE.get_or_init(|| {
         let config = router_env::Config::new().unwrap();
 

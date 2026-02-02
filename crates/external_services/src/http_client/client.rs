@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_utils::consts::BASE64_ENGINE;
@@ -9,7 +9,16 @@ use masking::ExposeInterface;
 use once_cell::sync::OnceCell;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+
+static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
+
 use router_env::logger;
+
+use super::metrics;
+
+trait ProxyClientCacheKey {
+    fn cache_key(&self) -> Option<Proxy>;
+}
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
@@ -86,6 +95,12 @@ pub fn get_client_builder(
 
     let proxy_exclusion_config =
         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
+
+    logger::debug!(
+        "Proxy HTTP Proxy -> {:?} and HTTPS Proxy -> {:?}",
+        proxy_config.http_url.clone(),
+        proxy_config.https_url.clone()
+    );
 
     // Proxy all HTTPS traffic through the configured HTTPS proxy
     if let Some(url) = proxy_config.https_url.as_ref() {
@@ -170,13 +185,114 @@ fn apply_mitm_certificate(
     client_builder
 }
 
+impl ProxyClientCacheKey for Proxy {
+    fn cache_key(&self) -> Option<Proxy> {
+        if self.has_proxy_config() {
+            logger::debug!("Using proxy config as cache key: {:?}", self);
+
+            // Return a clone of the proxy config for caching
+            // Exclude timeout from cache key by creating a normalized version
+            Some(Self {
+                http_url: self.http_url.clone(),
+                https_url: self.https_url.clone(),
+                bypass_proxy_hosts: self.bypass_proxy_hosts.clone(),
+                mitm_ca_certificate: self.mitm_ca_certificate.clone(),
+                idle_pool_connection_timeout: None, // Exclude timeout from cache key
+                mitm_enabled: self.mitm_enabled,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+fn get_or_create_proxy_client(
+    cache: &RwLock<HashMap<Proxy, reqwest::Client>>,
+    cache_key: Proxy,
+    proxy_config: &Proxy,
+    metrics_tag: &[router_env::opentelemetry::KeyValue],
+) -> CustomResult<reqwest::Client, HttpClientError> {
+    let read_result = cache
+        .read()
+        .ok()
+        .and_then(|read_lock| read_lock.get(&cache_key).cloned());
+
+    let client = match read_result {
+        Some(cached_client) => {
+            logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
+            metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+            cached_client
+        }
+        None => {
+            let mut write_lock = cache.try_write().map_err(|_| {
+                error_stack::Report::new(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to acquire proxy client cache write lock")
+            })?;
+
+            match write_lock.get(&cache_key) {
+                Some(cached_client) => {
+                    logger::debug!(
+                        "Retrieved cached proxy client after write lock for config: {:?}",
+                        cache_key
+                    );
+                    metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+                    cached_client.clone()
+                }
+                None => {
+                    logger::info!("Creating new proxy client for config: {:?}", cache_key);
+                    metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
+
+                    let new_client =
+                        apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                            .build()
+                            .change_context(HttpClientError::ClientConstructionFailed)
+                            .attach_printable("Failed to construct proxy client")?;
+
+                    metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+                    write_lock.insert(cache_key.clone(), new_client.clone());
+                    logger::debug!("Cached new proxy client for config: {:?}", cache_key);
+                    new_client
+                }
+            }
+        }
+    };
+
+    Ok(client)
+}
+
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
-    Ok(DEFAULT_CLIENT
-        .get_or_try_init(|| {
-            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                .build()
-                .change_context(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct base client")
-        })?
-        .clone())
+    // Check if proxy configuration is provided using trait method
+    if let Some(cache_key) = proxy_config.cache_key() {
+        logger::debug!(
+            "Using proxy-specific client cache with key: {:?}",
+            cache_key
+        );
+
+        let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
+
+        let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+
+        let client = get_or_create_proxy_client(cache, cache_key, proxy_config, metrics_tag)?;
+
+        Ok(client)
+    } else {
+        logger::debug!("No proxy configuration detected, using DEFAULT_CLIENT");
+
+        let metrics_tag = router_env::metric_attributes!(("client_type", "default"));
+
+        // Use DEFAULT_CLIENT for non-proxy scenarios
+        let client = DEFAULT_CLIENT
+            .get_or_try_init(|| {
+                logger::info!("Initializing DEFAULT_CLIENT (no proxy configuration)");
+                metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+                apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                    .build()
+                    .change_context(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to construct default client")
+            })?
+            .clone();
+
+        metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+        Ok(client)
+    }
 }

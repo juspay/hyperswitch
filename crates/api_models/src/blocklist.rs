@@ -13,8 +13,8 @@ pub enum BlocklistRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GenerateFingerprintRequest {
-    pub card: Card,
-    pub hash_key: StrongSecret<String>,
+    pub data: StrongSecret<String>,
+    pub key: StrongSecret<String>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Card {
@@ -35,7 +35,7 @@ pub struct BlocklistResponse {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct GenerateFingerprintResponsePayload {
-    pub card_fingerprint: String,
+    pub fingerprint_id: String,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleBlocklistResponse {

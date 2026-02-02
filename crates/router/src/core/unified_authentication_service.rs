@@ -22,11 +22,8 @@ use api_models::{
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
-use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
-    types::AmountConvertor,
-};
-use diesel_models::authentication::{Authentication, AuthenticationNew};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
+use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -57,6 +54,7 @@ use crate::{
     core::{
         authentication::utils as auth_utils,
         errors::utils::StorageErrorExt,
+        metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
@@ -69,6 +67,7 @@ use crate::{
     services::AuthFlow,
     types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
+
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl UnifiedAuthenticationService for ClickToPay {
@@ -82,6 +81,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
@@ -103,28 +103,20 @@ impl UnifiedAuthenticationService for ClickToPay {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
 
-        let authentication_info = Some(AuthenticationInfo {
-            authentication_type: None,
-            authentication_reasons: None,
-            consent_received: false, // This is not relevant in this flow so keeping it as false
-            is_authenticated: false, // This is not relevant in this flow so keeping it as false
-            locale: None,
-            supported_card_brands: None,
-            encrypted_payload: service_details
-                .as_ref()
-                .and_then(|details| details.encrypted_payload.clone()),
-        });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(domain_service_details),
             transaction_details: Some(transaction_details),
             payment_details: None,
-            authentication_info,
+            authentication_info: None,
             merchant_details: merchant_details.cloned(),
             billing_address: billing_address.cloned(),
             acquirer_bin,
             acquirer_merchant_id,
+            routing_region,
         })
     }
 
@@ -145,6 +137,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(
             payment_method_data,
@@ -156,6 +149,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             acquirer_bin,
             acquirer_merchant_id,
             payment_method_type,
+            routing_region,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -188,10 +182,12 @@ impl UnifiedAuthenticationService for ClickToPay {
         authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
         merchant_id: &common_utils::id_type::MerchantId,
-        _authentication: Option<&Authentication>,
+        _authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
         let post_authentication_data = UasPostAuthenticationRequestData {
             threeds_server_transaction_id: None,
+            routing_region,
         };
 
         let post_auth_router_data: UasPostAuthenticationRouterData =
@@ -304,6 +300,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -330,7 +327,10 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
+
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
             transaction_details: Some(transaction_details),
@@ -340,6 +340,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             billing_address: billing_address.cloned(),
             acquirer_bin,
             acquirer_merchant_id,
+            routing_region,
         })
     }
 
@@ -361,6 +362,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(
             payment_method_data,
@@ -372,6 +374,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             acquirer_bin,
             acquirer_merchant_id,
             payment_method_type,
+            routing_region,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -401,12 +404,15 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         currency: Option<common_enums::Currency>,
         message_category: MessageCategory,
         device_channel: payments::DeviceChannel,
-        authentication: Authentication,
+        authentication: hyperswitch_domain_models::authentication::Authentication,
         return_url: Option<String>,
         sdk_information: Option<payments::SdkInformation>,
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Ok(UasAuthenticationRequestData {
             browser_details,
@@ -415,6 +421,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 currency,
                 device_channel: Some(device_channel),
                 message_category: Some(message_category),
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             },
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
@@ -437,6 +445,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             email,
             threeds_method_comp_ind,
             webhook_url,
+            authentication_info: None,
+            routing_region,
         })
     }
 
@@ -450,7 +460,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         currency: Option<common_enums::Currency>,
         message_category: MessageCategory,
         device_channel: payments::DeviceChannel,
-        authentication: Authentication,
+        authentication: hyperswitch_domain_models::authentication::Authentication,
         return_url: Option<String>,
         sdk_information: Option<payments::SdkInformation>,
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -459,6 +469,9 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_id: Option<common_utils::id_type::PaymentId>,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
@@ -473,6 +486,9 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 threeds_method_comp_ind,
                 email,
                 webhook_url,
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
+                routing_region,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -495,7 +511,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
     }
 
     fn get_post_authentication_request_data(
-        authentication: Option<Authentication>,
+        authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRequestData> {
         Ok(UasPostAuthenticationRequestData {
             // authentication.threeds_server_transaction_id is mandatory for post-authentication in ExternalAuthentication
@@ -506,6 +523,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                         field_name: "authentication.threeds_server_transaction_id",
                     })?,
             ),
+            routing_region,
         })
     }
 
@@ -518,11 +536,13 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
         _merchant_id: &common_utils::id_type::MerchantId,
-        authentication: Option<&Authentication>,
+        authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
+        routing_region: Option<common_enums::RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_post_authentication_request_data(
                 authentication.cloned(),
+                routing_region,
             )?;
         let auth_router_data: UasPostAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -568,7 +588,8 @@ pub async fn create_new_authentication(
     return_url: Option<String>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     customer_details: Option<common_utils::encryption::Encryption>,
-) -> RouterResult<Authentication> {
+    merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
         .transpose()
@@ -580,15 +601,23 @@ pub async fn create_new_authentication(
         "{}_secret",
         authentication_id.get_string_repr()
     )));
-    let new_authorization = AuthenticationNew {
-        authentication_id: authentication_id.to_owned(),
+
+    let key_manager_state = (state).into();
+
+    let current_time = common_utils::date_time::now();
+
+    let new_authentication = hyperswitch_domain_models::authentication::Authentication {
+        authentication_id: authentication_id.clone(),
         merchant_id,
         authentication_connector,
         connector_authentication_id: None,
+        authentication_data: None,
         payment_method_id: "".to_string(),
         authentication_type: None,
         authentication_status,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+        created_at: current_time,
+        modified_at: current_time,
         error_message: None,
         error_code: None,
         connector_metadata: None,
@@ -605,7 +634,6 @@ pub async fn create_new_authentication(
         three_ds_method_url: None,
         acs_url: None,
         challenge_request: None,
-        challenge_request_key: None,
         acs_reference_number: None,
         acs_trans_id: None,
         acs_signed_content: None,
@@ -615,14 +643,31 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code,
-        service_details: service_details_value,
         organization_id,
+        mcc: None,
+        amount,
+        currency,
+        billing_country: None,
+        shipping_country: None,
+        issuer_country: None,
+        earliest_supported_version: None,
+        latest_supported_version: None,
+        platform: None,
+        device_type: None,
+        device_brand: None,
+        device_os: None,
+        device_display: None,
+        browser_name: None,
+        browser_version: None,
+        issuer_id: None,
+        scheme_name: None,
+        exemption_requested: Some(psd2_sca_exemption_type.is_some()),
+        exemption_accepted: None,
+        service_details: service_details_value,
         authentication_client_secret,
         force_3ds_challenge,
         psd2_sca_exemption_type,
         return_url,
-        amount,
-        currency,
         billing_address: None,
         shipping_address: None,
         browser_info: None,
@@ -632,11 +677,14 @@ pub async fn create_new_authentication(
         challenge_cancel: None,
         challenge_code_reason: None,
         message_extension: None,
+        challenge_request_key: None,
         customer_details,
+        merchant_country_code: None,
     };
+
     state
         .store
-        .insert_authentication(new_authorization)
+        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -650,18 +698,17 @@ pub async fn create_new_authentication(
 #[cfg(feature = "v1")]
 pub async fn authentication_create_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationCreateRequest,
 ) -> RouterResponse<AuthenticationResponse> {
     let db = &*state.store;
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
-        &merchant_context,
+        platform.get_processor(),
         req.profile_id.as_ref(),
         db,
         true,
@@ -669,11 +716,7 @@ pub async fn authentication_create_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -741,12 +784,9 @@ pub async fn authentication_create_core(
                         .transpose()?,
                 ),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -780,6 +820,7 @@ pub async fn authentication_create_core(
         customer_details
             .clone()
             .map(common_utils::encryption::Encryption::from),
+        platform.get_processor().get_key_store(),
     )
     .await?;
 
@@ -807,12 +848,9 @@ pub async fn authentication_create_core(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -845,7 +883,7 @@ pub async fn authentication_create_core(
 
 impl
     ForeignTryFrom<(
-        Authentication,
+        hyperswitch_domain_models::authentication::Authentication,
         common_utils::types::MinorUnit,
         common_enums::Currency,
         common_utils::id_type::ProfileId,
@@ -867,7 +905,7 @@ impl
             customer_data,
             customer_id,
         ): (
-            Authentication,
+            hyperswitch_domain_models::authentication::Authentication,
             common_utils::types::MinorUnit,
             common_enums::Currency,
             common_utils::id_type::ProfileId,
@@ -928,7 +966,7 @@ impl
 #[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
-        Authentication,
+        hyperswitch_domain_models::authentication::Authentication,
         api_models::authentication::NextAction,
         common_utils::id_type::ProfileId,
         Option<payments::Address>,
@@ -940,7 +978,7 @@ impl
     type Error = error_stack::Report<ApiErrorResponse>;
     fn foreign_try_from(
         (authentication, next_action, profile_id, billing, shipping, browser_information, email): (
-            Authentication,
+            hyperswitch_domain_models::authentication::Authentication,
             api_models::authentication::NextAction,
             common_utils::id_type::ProfileId,
             Option<payments::Address>,
@@ -1000,15 +1038,21 @@ impl
 #[cfg(feature = "v1")]
 pub async fn authentication_eligibility_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
+    let key_manager_state = (&state).into();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
@@ -1026,13 +1070,10 @@ pub async fn authentication_eligibility_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let key_manager_state = (&state).into();
-
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
-        &merchant_context,
+        platform.get_processor(),
         req.profile_id.as_ref(),
         db,
         true,
@@ -1040,11 +1081,7 @@ pub async fn authentication_eligibility_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1053,7 +1090,7 @@ pub async fn authentication_eligibility_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1109,23 +1146,36 @@ pub async fn authentication_eligibility_core(
         .change_context(ApiErrorResponse::InternalServerError)?;
 
     let merchant_country_code = authentication.acquirer_country_code.clone();
+    let merchant_category_code = business_profile.merchant_category_code.or(metadata
+        .clone()
+        .and_then(|metadata| metadata.merchant_category_code));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
         merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+        merchant_category_code: merchant_category_code.clone(),
         endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-        merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+        merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
         notification_url,
+        webhook_url:None
     });
 
     let domain_address = req
         .billing
         .clone()
         .map(hyperswitch_domain_models::address::Address::from);
+
+    let routing_region = utils::fetch_routing_region_for_uas(
+        &state,
+        merchant_id.clone(),
+        merchant_account.organization_id.clone(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch routing path")?;
 
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
@@ -1145,112 +1195,38 @@ pub async fn authentication_eligibility_core(
             domain_address.as_ref(),
             authentication.acquirer_bin.clone(),
             authentication.acquirer_merchant_id.clone(),
+            Some(routing_region),
         )
         .await?;
 
-    let billing_details_encoded = req
+    let domain_billing_address = req
         .billing
         .clone()
-        .map(|billing| {
-            common_utils::ext_traits::Encode::encode_to_value(&billing)
-                .map(masking::Secret::<serde_json::Value>::new)
-        })
-        .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encode billing details to serde_json::Value")?;
-
-    let shipping_details_encoded = req
+        .map(hyperswitch_domain_models::address::Address::from);
+    let domain_shipping_address = req
         .shipping
         .clone()
-        .map(|shipping| {
-            common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                .map(masking::Secret::<serde_json::Value>::new)
-        })
-        .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encode shipping details to serde_json::Value")?;
-
-    let encrypted_data = domain::types::crypto_operation(
-        &key_manager_state,
-        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
-        domain::types::CryptoOperation::BatchEncrypt(
-            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
-                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
-                    billing_address: billing_details_encoded,
-                    shipping_address: shipping_details_encoded,
-                },
-            ),
-        ),
-        common_utils::types::keymanager::Identifier::Merchant(
-            merchant_context
-                .get_merchant_key_store()
-                .merchant_id
-                .clone(),
-        ),
-        merchant_context.get_merchant_key_store().key.peek(),
-    )
-    .await
-    .and_then(|val| val.try_into_batchoperation())
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to encrypt authentication data".to_string())?;
-
-    let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
-
-    let email_encrypted = req
-        .email
-        .clone()
-        .async_lift(|inner| async {
-            domain::types::crypto_operation(
-                &key_manager_state,
-                common_utils::type_name!(Authentication),
-                domain::types::CryptoOperation::EncryptOptional(inner.map(|inner| inner.expose())),
-                common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
-                ),
-                merchant_context.get_merchant_key_store().key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_optionaloperation())
-        })
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt email")?;
-
-    let browser_info = req
-        .browser_information
-        .as_ref()
-        .map(common_utils::ext_traits::Encode::encode_to_value)
-        .transpose()
-        .change_context(ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_information",
-        })?;
-
-    let updated_authentication = utils::external_authentication_update_trackers(
+        .map(hyperswitch_domain_models::address::Address::from);
+    let updated_authentication = Box::pin(utils::external_authentication_update_trackers(
         &state,
         pre_auth_response,
         authentication.clone(),
         None,
-        merchant_context.get_merchant_key_store(),
-        encrypted_data
-            .billing_address
-            .map(common_utils::encryption::Encryption::from),
-        encrypted_data
-            .shipping_address
-            .map(common_utils::encryption::Encryption::from),
-        email_encrypted
+        platform.get_processor().get_key_store(),
+        domain_billing_address,
+        domain_shipping_address,
+        req.email.clone(),
+        req.browser_information.clone(),
+        None,
+        merchant_category_code,
+        merchant_country_code
             .clone()
-            .map(common_utils::encryption::Encryption::from),
-        browser_info,
-    )
+            .map(common_types::payments::MerchantCountryCode::new),
+    ))
     .await?;
 
     let response = AuthenticationEligibilityResponse::foreign_try_from((
-        updated_authentication,
+        updated_authentication.clone(),
         req.get_next_action_api(
             state.base_url,
             authentication_id.get_string_repr().to_string(),
@@ -1261,7 +1237,7 @@ pub async fn authentication_eligibility_core(
         req.get_billing_address(),
         req.get_shipping_address(),
         req.get_browser_information(),
-        email_encrypted,
+        updated_authentication.email,
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -1272,16 +1248,22 @@ pub async fn authentication_eligibility_core(
 #[cfg(feature = "v1")]
 pub async fn authentication_authenticate_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationAuthenticateRequest,
     auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationAuthenticateResponse> {
     let authentication_id = req.authentication_id.clone();
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
+    let key_manager_state = (&state).into();
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
@@ -1296,45 +1278,14 @@ pub async fn authentication_authenticate_core(
         })
         .transpose()?;
 
-    ensure_not_terminal_status(authentication.trans_status.clone())?;
-
-    let key_manager_state = (&state).into();
-
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-
-    let email_encrypted = authentication
-        .email
-        .clone()
-        .async_lift(|inner| async {
-            domain::types::crypto_operation(
-                &key_manager_state,
-                common_utils::type_name!(Authentication),
-                domain::types::CryptoOperation::DecryptOptional(inner),
-                common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
-                ),
-                merchant_context.get_merchant_key_store().key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_optionaloperation())
-        })
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to decrypt email from authentication table")?;
 
     let browser_info = authentication
         .browser_info
@@ -1347,7 +1298,7 @@ pub async fn authentication_authenticate_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1372,6 +1323,15 @@ pub async fn authentication_authenticate_core(
         merchant_connector_account_id_or_connector_name,
     );
 
+    let routing_region = utils::fetch_routing_region_for_uas(
+        &state,
+        merchant_id.clone(),
+        merchant_account.organization_id.clone(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch routing path")?;
+
     let auth_response = <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
         &state,
         &business_profile,
@@ -1383,38 +1343,48 @@ pub async fn authentication_authenticate_core(
         req.device_channel,
         authentication.clone(),
         None,
-        req.sdk_information,
+        req.sdk_information.clone(),
         req.threeds_method_comp_ind,
-        email_encrypted.map(common_utils::pii::Email::from),
+        authentication
+            .email
+            .clone()
+            .map(common_utils::pii::Email::from),
         webhook_url,
         &three_ds_connector_account,
         &authentication_connector.to_string(),
         None,
+        authentication.force_3ds_challenge,
+        authentication.psd2_sca_exemption_type,
+        Some(routing_region),
     )
     .await?;
 
-    let authentication = utils::external_authentication_update_trackers(
+    let authentication = Box::pin(utils::external_authentication_update_trackers(
         &state,
         auth_response,
         authentication.clone(),
         None,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         None,
         None,
         None,
         None,
-    )
+        req.sdk_information
+            .and_then(|sdk_information| sdk_information.device_details),
+        None,
+        None,
+    ))
     .await?;
 
     let (authentication_value, eci) = match auth_flow {
         AuthFlow::Client => (None, None),
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
-                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
+                let tokenised_data = payment_methods::vault::get_tokenized_data(
                     &state,
                     authentication_id.get_string_repr(),
                     false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
+                    platform.get_processor().get_key_store().key.get_inner(),
                 )
                 .await
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
@@ -1451,14 +1421,14 @@ trait EligibilityCheck {
     async fn should_run(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
     async fn execute_check(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
     ) -> CustomResult<Self::Output, ApiErrorResponse>;
 
@@ -1497,9 +1467,9 @@ impl EligibilityCheck for StoreEligibilityCheckData {
     async fn should_run(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<bool, ApiErrorResponse> {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let should_store_eligibility_check_data_key =
             merchant_id.get_should_store_eligibility_check_data_for_authentication();
         let should_store_eligibility_check_data = state
@@ -1529,7 +1499,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
     async fn execute_check(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
     ) -> CustomResult<CheckResult, ApiErrorResponse> {
         let redis = &state
@@ -1540,8 +1510,9 @@ impl EligibilityCheck for StoreEligibilityCheckData {
         let key = format!(
             "{}_{}_{}",
             consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
-            merchant_context
-                .get_merchant_account()
+            platform
+                .get_processor()
+                .get_account()
                 .get_id()
                 .get_string_repr(),
             authentication_eligibility_check_request
@@ -1569,7 +1540,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
 #[cfg(feature = "v1")]
 pub struct EligibilityHandler {
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
 }
 
@@ -1577,12 +1548,12 @@ pub struct EligibilityHandler {
 impl EligibilityHandler {
     fn new(
         state: SessionState,
-        merchant_context: domain::MerchantContext,
+        platform: domain::Platform,
         authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
     ) -> Self {
         Self {
             state,
-            merchant_context,
+            platform,
             authentication_eligibility_check_request,
         }
     }
@@ -1591,14 +1562,12 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
-        let should_run = check
-            .should_run(&self.state, &self.merchant_context)
-            .await?;
+        let should_run = check.should_run(&self.state, &self.platform).await?;
         Ok(match should_run {
             true => check
                 .execute_check(
                     &self.state,
-                    &self.merchant_context,
+                    &self.platform,
                     &self.authentication_eligibility_check_request,
                 )
                 .await
@@ -1611,12 +1580,37 @@ impl EligibilityHandler {
 #[cfg(feature = "v1")]
 pub async fn authentication_eligibility_check_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationEligibilityCheckRequest,
     _auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
     let authentication_id = req.authentication_id.clone();
-    let eligibility_handler = EligibilityHandler::new(state, merchant_context, req);
+    let db = &*state.store;
+    let merchant_account = platform.get_processor().get_account();
+    let merchant_id = merchant_account.get_id();
+    let key_manager_state = (&state).into();
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    req.client_secret
+        .as_ref()
+        .map(|client_secret| {
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                client_secret.peek(),
+                &authentication,
+            )
+        })
+        .transpose()?;
+    let eligibility_handler = EligibilityHandler::new(state, platform, req);
     // Run the checks in sequence, short-circuiting on the first that returns a next action
     let sdk_next_action = eligibility_handler
         .run_check(StoreEligibilityCheckData)
@@ -1633,7 +1627,7 @@ pub async fn authentication_eligibility_check_core(
 #[cfg(feature = "v1")]
 pub async fn authentication_retrieve_eligibility_check_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationRetrieveEligibilityCheckRequest,
 ) -> RouterResponse<AuthenticationRetrieveEligibilityCheckResponse> {
     let redis = &state
@@ -1644,8 +1638,9 @@ pub async fn authentication_retrieve_eligibility_check_core(
     let key = format!(
         "{}_{}_{}",
         consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
-        merchant_context
-            .get_merchant_account()
+        platform
+            .get_processor()
+            .get_account()
             .get_id()
             .get_string_repr(),
         req.authentication_id.get_string_repr()
@@ -1687,7 +1682,7 @@ pub async fn authentication_retrieve_eligibility_check_core(
 
 impl
     ForeignTryFrom<(
-        &Authentication,
+        &hyperswitch_domain_models::authentication::Authentication,
         Option<masking::Secret<String>>,
         Option<String>,
         diesel_models::business_profile::AuthenticationConnectorDetails,
@@ -1697,7 +1692,7 @@ impl
 
     fn foreign_try_from(
         (authentication, authentication_value, eci, authentication_details): (
-            &Authentication,
+            &hyperswitch_domain_models::authentication::Authentication,
             Option<masking::Secret<String>>,
             Option<String>,
             diesel_models::business_profile::AuthenticationConnectorDetails,
@@ -1747,16 +1742,22 @@ impl
 #[cfg(feature = "v1")]
 pub async fn authentication_sync_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     auth_flow: AuthFlow,
     req: AuthenticationSyncRequest,
 ) -> RouterResponse<AuthenticationSyncResponse> {
     let authentication_id = req.authentication_id;
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
+    let key_manager_state = (&state).into();
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
@@ -1771,16 +1772,10 @@ pub async fn authentication_sync_core(
         })
         .transpose()?;
 
-    let key_manager_state = (&state).into();
-
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1789,7 +1784,7 @@ pub async fn authentication_sync_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1823,7 +1818,16 @@ pub async fn authentication_sync_core(
             currency: authentication.currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
+
+        let routing_region = utils::fetch_routing_region_for_uas(
+            &state,
+            authentication.merchant_id.clone(),
+            authentication.organization_id.clone(),
+        )
+        .await?;
 
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
@@ -1845,6 +1849,7 @@ pub async fn authentication_sync_core(
             billing_address: None,
             acquirer_bin: None,
             acquirer_merchant_id: None,
+            routing_region: Some(routing_region),
         };
         // call pre-auth
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -1868,71 +1873,110 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let updated_authentication = if !authentication.authentication_status.is_terminal_status() {
-        let post_auth_response = if authentication_connector.is_click_to_pay() {
-            ClickToPay::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account.clone(),
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                None,
-            )
-            .await?
-        } else {
-            ExternalAuthentication::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account,
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                Some(&authentication),
-            )
-            .await?
-        };
-        utils::external_authentication_update_trackers(
-            &state,
-            post_auth_response,
-            authentication.clone(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            None,
-            None,
-            None,
-            None,
-        )
-        .await?
-    } else {
-        authentication
-    };
+    let (updated_authentication, payment_method_data, vault_token_data) =
+        if !authentication.authentication_status.is_terminal_status() {
+            let post_auth_response = if authentication_connector.is_click_to_pay() {
+                let response = ClickToPay::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account.clone(),
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    None,
+                    None,
+                )
+                .await?;
+                metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
+                response
+            } else {
+                let routing_region = utils::fetch_routing_region_for_uas(
+                    &state,
+                    merchant_id.clone(),
+                    merchant_account.organization_id.clone(),
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch routing path")?;
+                ExternalAuthentication::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account,
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    Some(&authentication),
+                    Some(routing_region),
+                )
+                .await?
+            };
 
-    let (authentication_value, eci) = match auth_flow {
-        AuthFlow::Client => (None, None),
+            let config = db
+                .find_config_by_key_unwrap_or(
+                    &merchant_id.get_should_disable_auth_tokenization(),
+                    Some("false".to_string()),
+                )
+                .await;
+            let should_disable_auth_tokenization = match config {
+                Ok(conf) => conf.config == "true",
+                Err(error) => {
+                    router_env::logger::error!(?error);
+                    false
+                }
+            };
+
+            let vault_token_data = if should_disable_auth_tokenization {
+                // Do not tokenize if the disable flag is present in the config
+                None
+            } else {
+                let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
+                    &state,
+                    &platform,
+                    &business_profile,
+                    &post_auth_response,
+                ))
+                .await?;
+                metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
+                response
+            };
+
+            let payment_method_data =
+                utils::get_authentication_payment_method_data(&post_auth_response);
+
+            let auth_update_response = utils::external_authentication_update_trackers(
+                &state,
+                post_auth_response,
+                authentication.clone(),
+                None,
+                platform.get_processor().get_key_store(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?;
+
+            (auth_update_response, payment_method_data, vault_token_data)
+        } else {
+            (authentication, None, None)
+        };
+
+    let eci = match auth_flow {
+        AuthFlow::Client => None,
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) =
                 updated_authentication.trans_status
             {
-                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
-                    &state,
-                    authentication_id.get_string_repr(),
-                    false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
-                )
-                .await
-                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-                .attach_printable("cavv not present after authentication status is success")?;
-                (
-                    Some(masking::Secret::new(tokenised_data.value1)),
-                    updated_authentication.eci.clone(),
-                )
+                updated_authentication.eci.clone()
             } else {
-                (None, None)
+                None
             }
         }
     };
@@ -1942,57 +1986,6 @@ pub async fn authentication_sync_core(
         acquirer_merchant_id: updated_authentication.acquirer_merchant_id.clone(),
         merchant_country_code: updated_authentication.acquirer_country_code.clone(),
     });
-
-    let encrypted_data = domain::types::crypto_operation(
-        &key_manager_state,
-        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
-        domain::types::CryptoOperation::BatchDecrypt(
-            hyperswitch_domain_models::authentication::EncryptedAuthentication::to_encryptable(
-                hyperswitch_domain_models::authentication::EncryptedAuthentication {
-                    billing_address: updated_authentication.billing_address,
-                    shipping_address: updated_authentication.shipping_address,
-                },
-            ),
-        ),
-        common_utils::types::keymanager::Identifier::Merchant(
-            merchant_context
-                .get_merchant_key_store()
-                .merchant_id
-                .clone(),
-        ),
-        merchant_context.get_merchant_key_store().key.peek(),
-    )
-    .await
-    .and_then(|val| val.try_into_batchoperation())
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to encrypt authentication data".to_string())?;
-
-    let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
-
-    let email_decrypted = updated_authentication
-        .email
-        .clone()
-        .async_lift(|inner| async {
-            domain::types::crypto_operation(
-                &key_manager_state,
-                common_utils::type_name!(Authentication),
-                domain::types::CryptoOperation::DecryptOptional(inner),
-                common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
-                ),
-                merchant_context.get_merchant_key_store().key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_optionaloperation())
-        })
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt email")?;
 
     let browser_info = updated_authentication
         .browser_info
@@ -2019,7 +2012,7 @@ pub async fn authentication_sync_core(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Incorrect authentication connector stored in table")?;
 
-    let billing = encrypted_data
+    let billing = updated_authentication
         .billing_address
         .map(|billing| {
             billing
@@ -2031,7 +2024,7 @@ pub async fn authentication_sync_core(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse billing address")?;
 
-    let shipping = encrypted_data
+    let shipping = updated_authentication
         .shipping_address
         .map(|shipping| {
             shipping
@@ -2061,7 +2054,6 @@ pub async fn authentication_sync_core(
         acquirer_details,
         error_message: updated_authentication.error_message.clone(),
         error_code: updated_authentication.error_code.clone(),
-        authentication_value,
         threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id.clone(),
         maximum_supported_3ds_version: updated_authentication.maximum_supported_version.clone(),
         connector_authentication_id: updated_authentication.connector_authentication_id.clone(),
@@ -2070,10 +2062,12 @@ pub async fn authentication_sync_core(
         message_version: updated_authentication.message_version.clone(),
         connector_metadata: updated_authentication.connector_metadata.clone(),
         directory_server_id: updated_authentication.directory_server_id.clone(),
+        payment_method_data,
+        vault_token_data,
         billing,
         shipping,
         browser_information: browser_info,
-        email: email_decrypted,
+        email: updated_authentication.email,
         transaction_status: updated_authentication.trans_status.clone(),
         acs_url: updated_authentication.acs_url.clone(),
         challenge_request: updated_authentication.challenge_request.clone(),
@@ -2098,15 +2092,21 @@ pub async fn authentication_sync_core(
 #[cfg(feature = "v1")]
 pub async fn authentication_post_sync_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationSyncPostUpdateRequest,
 ) -> RouterResponse<()> {
     let authentication_id = req.authentication_id;
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
+    let key_manager_state = (&state).into();
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
@@ -2114,11 +2114,9 @@ pub async fn authentication_post_sync_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let key_manager_state = (&state).into();
     let business_profile = db
         .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &authentication.profile_id,
         )
         .await
@@ -2129,11 +2127,19 @@ pub async fn authentication_post_sync_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
         .await?;
+    let routing_region = utils::fetch_routing_region_for_uas(
+        &state,
+        merchant_id.clone(),
+        merchant_account.organization_id.clone(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch routing path")?;
 
     let post_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
@@ -2146,6 +2152,7 @@ pub async fn authentication_post_sync_core(
             common_enums::PaymentMethod::Card,
             merchant_id,
             Some(&authentication),
+            Some(routing_region),
         )
         .await?;
 
@@ -2154,7 +2161,10 @@ pub async fn authentication_post_sync_core(
         post_auth_response,
         authentication.clone(),
         None,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
+        None,
+        None,
+        None,
         None,
         None,
         None,
@@ -2212,29 +2222,42 @@ fn ensure_not_terminal_status(
 #[cfg(feature = "v1")]
 pub async fn authentication_session_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationSessionTokenRequest,
 ) -> RouterResponse<api_models::authentication::AuthenticationSessionResponse> {
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
 
     let authentication_id = req.authentication_id;
     let authentication = state
         .store
-        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
         })?;
+
+    req.client_secret
+        .map(|client_secret| {
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                client_secret.peek(),
+                &authentication,
+            )
+        })
+        .transpose()?;
 
     let mut session_tokens = Vec::new();
 
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &authentication.profile_id,
         )
         .await
@@ -2246,8 +2269,7 @@ pub async fn authentication_session_core(
         if let Some(value) = business_profile.authentication_product_ids.clone() {
             let session_token = get_session_token_for_click_to_pay(
                 &state,
-                merchant_context.get_merchant_account().get_id(),
-                &merchant_context,
+                platform.get_processor(),
                 value,
                 &authentication,
             )
@@ -2269,25 +2291,23 @@ pub async fn authentication_session_core(
 #[cfg(feature = "v1")]
 pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-    merchant_context: &domain::MerchantContext,
+    processor: &domain::Processor,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
-    authentication: &Authentication,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
 ) -> RouterResult<api_models::authentication::AuthenticationSessionToken> {
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(ApiErrorResponse::MissingRequiredField {
             field_name: "authentication_product_ids",
         })?;
-    let key_manager_state = &(state).into();
+    let key_manager_state = &state.into();
 
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
-            merchant_id,
+            processor.get_account().get_id(),
             &click_to_pay_mca_id,
-            merchant_context.get_merchant_key_store(),
+            processor.get_key_store(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2325,12 +2345,9 @@ pub async fn get_session_token_for_click_to_pay(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    processor.get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                processor.get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())

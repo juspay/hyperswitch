@@ -38,6 +38,10 @@ pub mod payment_link;
 pub mod payment_method_balance;
 pub mod payment_methods;
 pub mod payments;
+
+#[cfg(feature = "v2")]
+pub mod split_payments;
+
 #[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]

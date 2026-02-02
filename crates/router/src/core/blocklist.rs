@@ -12,12 +12,12 @@ use crate::{
 
 pub async fn add_entry_to_blocklist(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
     utils::insert_entry_into_blocklist(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         body,
     )
     .await
@@ -26,12 +26,12 @@ pub async fn add_entry_to_blocklist(
 
 pub async fn remove_entry_from_blocklist(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
     utils::delete_entry_from_blocklist(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         body,
     )
     .await
@@ -40,12 +40,12 @@ pub async fn remove_entry_from_blocklist(
 
 pub async fn list_blocklist_entries(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResponse<Vec<api_blocklist::BlocklistResponse>> {
     utils::list_blocklist_entries_for_merchant(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         query,
     )
     .await
@@ -54,12 +54,12 @@ pub async fn list_blocklist_entries(
 
 pub async fn toggle_blocklist_guard(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
     utils::toggle_blocklist_guard_for_merchant(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         query,
     )
     .await

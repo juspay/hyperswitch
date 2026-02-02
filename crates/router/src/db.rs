@@ -42,7 +42,7 @@ pub mod user_key_store;
 pub mod user_role;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
-use common_utils::id_type;
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -154,6 +154,7 @@ pub trait StorageInterface:
     fn get_subscription_store(&self)
         -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 #[async_trait::async_trait]
@@ -215,6 +216,12 @@ impl StorageInterface for Store {
     ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
     }
+
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.key_manager_state = Some(key_manager_state.clone());
+        #[cfg(feature = "kv_store")]
+        self.router_store.set_key_manager_state(key_manager_state);
+    }
 }
 
 #[async_trait::async_trait]
@@ -242,6 +249,9 @@ impl StorageInterface for MockDb {
         &self,
     ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
+    }
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.key_manager_state = Some(key_manager_state);
     }
 }
 

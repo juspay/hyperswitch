@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use api_models::subscription::SubscriptionItemType;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -15,7 +16,7 @@ use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::flow_common_types::{
-        GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+        GetSubscriptionItemPricesData, GetSubscriptionItemsData, SubscriptionCreateData,
         SubscriptionCustomerData,
     },
     router_flow_types::{
@@ -24,7 +25,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         CreateConnectorCustomer,
@@ -32,8 +33,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
@@ -43,15 +44,15 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
         ConnectorCustomerRouterData, GetSubscriptionEstimateRouterData,
-        GetSubscriptionPlanPricesRouterData, GetSubscriptionPlansRouterData,
+        GetSubscriptionItemsRouterData, GetSubscriptionPlanPricesRouterData,
         InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
         SubscriptionCancelRouterData, SubscriptionCreateRouterData, SubscriptionPauseRouterData,
@@ -80,7 +81,7 @@ use crate::{
     connectors::chargebee::transformers::{
         ChargebeeGetPlanPricesResponse, ChargebeeListPlansResponse,
     },
-    constants::{self, headers},
+    constants::headers,
     types::ResponseRouterData,
     utils,
 };
@@ -355,6 +356,7 @@ impl ConnectorCommon for Chargebee {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -569,47 +571,51 @@ impl_chargebee_integration!(
     request_body: build_invoice_record_back_request_body
 );
 
-fn get_chargebee_plans_query_params(
-    req: &GetSubscriptionPlansRouterData,
+fn get_chargebee_subscription_items_query_params(
+    req: &GetSubscriptionItemsRouterData,
 ) -> CustomResult<String, errors::ConnectorError> {
     // Try to get limit from request, else default to 10
     let limit = req.request.limit.unwrap_or(10);
     let offset = req.request.offset.unwrap_or(0);
+
+    let subscription_item_type = match req.request.item_type {
+        SubscriptionItemType::Plan => "plan",
+        SubscriptionItemType::Addon => "addon",
+    };
+
     let param = format!(
         "?limit={}&offset={}&type[is]={}",
-        limit,
-        offset,
-        constants::PLAN_ITEM_TYPE
+        limit, offset, subscription_item_type
     );
     Ok(param)
 }
 
-impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
+impl api::subscriptions::GetSubscriptionItemsFlow for Chargebee {}
 impl api::subscriptions::SubscriptionRecordBackFlow for Chargebee {}
 
 impl GetSubscriptionPlansV2 for Chargebee {}
 
 impl
     ConnectorIntegrationV2<
-        GetSubscriptionPlans,
-        GetSubscriptionPlansData,
-        GetSubscriptionPlansRequest,
-        GetSubscriptionPlansResponse,
+        GetSubscriptionItems,
+        GetSubscriptionItemsData,
+        GetSubscriptionItemsRequest,
+        GetSubscriptionItemsResponse,
     > for Chargebee
 {
     // Not implemented (R)
 }
 
 impl_chargebee_integration!(
-    flow: GetSubscriptionPlans,
+    flow: GetSubscriptionItems,
     flow_type: types::GetSubscriptionPlansType,
-    request: GetSubscriptionPlansRequest,
-    response: GetSubscriptionPlansResponse,
-    router_data: GetSubscriptionPlansRouterData,
+    request: GetSubscriptionItemsRequest,
+    response: GetSubscriptionItemsResponse,
+    router_data: GetSubscriptionItemsRouterData,
     connector_response: ChargebeeListPlansResponse,
     url_path: |_req| Some("v2/items".to_string()),
     method: Method::Get,
-    query_params: get_chargebee_plans_query_params
+    query_params: get_chargebee_subscription_items_query_params
 );
 
 impl_chargebee_integration!(
@@ -629,16 +635,16 @@ impl api::subscriptions::GetSubscriptionPlanPricesFlow for Chargebee {}
 fn get_chargebee_plan_prices_query_params(
     req: &GetSubscriptionPlanPricesRouterData,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let item_id = req.request.plan_price_id.to_string();
+    let item_id = req.request.item_price_id.to_string();
     let params = format!("?item_id[is]={item_id}");
     Ok(params)
 }
 
 impl_chargebee_integration!(
-    flow: GetSubscriptionPlanPrices,
+    flow: GetSubscriptionItemPrices,
     flow_type: types::GetSubscriptionPlanPricesType,
-    request: GetSubscriptionPlanPricesRequest,
-    response: GetSubscriptionPlanPricesResponse,
+    request: GetSubscriptionItemPricesRequest,
+    response: GetSubscriptionItemPricesResponse,
     router_data: GetSubscriptionPlanPricesRouterData,
     connector_response: ChargebeeGetPlanPricesResponse,
     url_path: |_req| Some("v2/item_prices".to_string()),
@@ -650,10 +656,10 @@ impl GetSubscriptionPlanPricesV2 for Chargebee {}
 
 impl
     ConnectorIntegrationV2<
-        GetSubscriptionPlanPrices,
-        GetSubscriptionPlanPricesData,
-        GetSubscriptionPlanPricesRequest,
-        GetSubscriptionPlanPricesResponse,
+        GetSubscriptionItemPrices,
+        GetSubscriptionItemPricesData,
+        GetSubscriptionItemPricesRequest,
+        GetSubscriptionItemPricesResponse,
     > for Chargebee
 {
     // TODO: implement functions when support enabled

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
+use common_enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
+use crate::{admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -269,6 +270,10 @@ pub struct CardPayout {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -445,6 +450,10 @@ pub struct ApplePayDecrypt {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
@@ -883,6 +892,22 @@ pub struct PayoutListFilters {
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PayoutListFiltersV2 {
+    /// The list of available connector filters
+    #[schema(value_type = Vec<PayoutConnectors>)]
+    pub connector: HashMap<String, Vec<admin::MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<common_enums::Currency>,
+    /// The list of available payout status filters
+    #[schema(value_type = Vec<PayoutStatus>)]
+    pub status: Vec<common_enums::PayoutStatus>,
+    /// The list of available payout method filters
+    #[schema(value_type = Vec<PayoutType>)]
+    pub payout_method: Vec<common_enums::PayoutType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
     #[schema(value_type = String)]
@@ -1092,4 +1117,61 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
         }
     }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutsAggregateResponse {
+    /// The list of intent status with their count
+    pub status_with_count: HashMap<common_enums::PayoutStatus, i64>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PayoutsManualUpdateRequest {
+    /// The identifier for the payout
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
+    /// The identifier for the payout attempt
+    pub payout_attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the payout attempt
+    #[schema(value_type = Option<PayoutStatus>)]
+    pub status: Option<api_enums::PayoutStatus>,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_payout_id: Option<String>,
+}
+
+impl PayoutsManualUpdateRequest {
+    pub fn is_update_parameter_present(&self) -> bool {
+        self.status.is_some()
+            || self.error_code.is_some()
+            || self.error_message.is_some()
+            || self.connector_payout_id.is_some()
+    }
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PayoutsManualUpdateResponse {
+    /// The identifier for the payout
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
+    /// The identifier for the payout attempt
+    pub payout_attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the payout attempt
+    #[schema(value_type = PayoutStatus)]
+    pub attempt_status: api_enums::PayoutStatus,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_payout_id: Option<String>,
 }
