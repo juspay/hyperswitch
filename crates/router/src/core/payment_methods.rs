@@ -3874,56 +3874,71 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert encrypted cvc in redis")?;
 
-    // Stage 2: Update PM metadata and vault if required
-    let updated_payment_method = if request.is_payment_method_metadata_update() {
-        let pmd: domain::PaymentMethodVaultingData =
-            vault::retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")?
-                .data;
+    // Stage 2: Update payment method if required
+    let updated_payment_method = if request.is_payment_method_update_required() {
+        let (vault_request_data, vault_id, fingerprint_id) = if request
+            .is_payment_method_metadata_update()
+        {
+            let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
+                state,
+                platform,
+                profile,
+                &payment_method,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")?
+            .data;
 
-        let vault_request_data = request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                pm_transforms::generate_pm_vaulting_req_from_update_request(
-                    pmd,
-                    payment_method_data,
-                )
-            });
+            let vault_request_data =
+                request
+                    .payment_method_data
+                    .clone()
+                    .map(|payment_method_data| {
+                        pm_transforms::generate_pm_vaulting_req_from_update_request(
+                            pmd,
+                            payment_method_data,
+                        )
+                    });
 
-        let vaulting_response = match vault_request_data {
-            // cannot use async map because of problems related to lifetimes
-            // to overcome this, we will have to use a move closure and add some clones
-            Some(ref vault_request_data) => {
-                let (vault_response, _) = vault_payment_method(
-                    state,
-                    vault_request_data,
-                    platform,
-                    profile,
-                    // using current vault_id for now,
-                    // will have to refactor this to generate new one on each vaulting later on
-                    current_vault_id,
-                    &payment_method
-                        .customer_id
-                        .clone()
-                        .get_required_value("GlobalCustomerId")?,
-                )
-                .await
-                .attach_printable("Failed to add payment method in vault")?;
+            let vaulting_response = match vault_request_data {
+                // cannot use async map because of problems related to lifetimes
+                // to overcome this, we will have to use a move closure and add some clones
+                Some(ref vault_request_data) => {
+                    let (vault_response, _) = vault_payment_method(
+                        state,
+                        vault_request_data,
+                        platform,
+                        profile,
+                        // using current vault_id for now,
+                        // will have to refactor this to generate new one on each vaulting later on
+                        current_vault_id,
+                        &payment_method
+                            .customer_id
+                            .clone()
+                            .get_required_value("GlobalCustomerId")?,
+                    )
+                    .await
+                    .attach_printable("Failed to add payment method in vault")?;
 
-                Some(vault_response)
+                    Some(vault_response)
+                }
+                None => None,
+            };
+
+            match vaulting_response {
+                Some(vaulting_response) => {
+                    let vault_id = vaulting_response.vault_id.get_string_repr().to_owned();
+                    (
+                        vault_request_data,
+                        Some(vault_id),
+                        vaulting_response.fingerprint_id,
+                    )
+                }
+                None => (vault_request_data, None, None),
             }
-            None => None,
-        };
-
-        let (vault_id, fingerprint_id) = match vaulting_response {
-            Some(vaulting_response) => {
-                let vault_id = vaulting_response.vault_id.get_string_repr().to_owned();
-                (Some(vault_id), vaulting_response.fingerprint_id)
-            }
-            None => (None, None),
+        } else {
+            (None, None, None)
         };
 
         let pm_update = create_pm_additional_data_update(
