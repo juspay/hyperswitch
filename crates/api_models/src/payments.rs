@@ -8191,7 +8191,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             merchant_reference_id: request.merchant_reference_id.clone(),
             routing_algorithm_id: request.routing_algorithm_id.clone(),
             capture_method: request.capture_method,
-            settlement_status: request.settlement_status.clone(),
+            settlement_status: request.settlement_status,
             authentication_type: request.authentication_type,
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
