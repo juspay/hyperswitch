@@ -1358,7 +1358,11 @@ pub struct Customers;
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/customers",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         #[cfg(all(feature = "olap", feature = "v2"))]
         {
             route = route
@@ -1567,7 +1571,11 @@ impl Payouts {
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-methods",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1860,9 +1868,16 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::organization_retrieve))
-                    .route(web::put().to(admin::organization_update)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::organization_retrieve))
+                            .route(web::put().to(admin::organization_update)),
+                    )
+                    .service(
+                        web::resource("/convert_to_platform")
+                            .route(web::post().to(admin::convert_organization_to_platform)),
+                    ),
             )
     }
 }
@@ -1918,7 +1933,7 @@ impl MerchantAccount {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut routes = web::scope("/accounts")
+        let routes = web::scope("/accounts")
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(admin::merchant_account_list)))
             .service(
@@ -1939,12 +1954,6 @@ impl MerchantAccount {
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
             );
-        if state.conf.platform.enabled {
-            routes = routes.service(
-                web::resource("/{id}/platform")
-                    .route(web::post().to(admin::merchant_account_enable_platform_account)),
-            )
-        }
         routes.app_data(web::Data::new(state))
     }
 }

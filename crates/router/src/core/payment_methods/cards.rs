@@ -2765,12 +2765,12 @@ pub async fn list_payment_methods(
     let payment_attempt = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &pi.payment_id,
-                &pi.merchant_id,
+                &pi.processor_merchant_id,
                 &pi.active_attempt.get_id(),
-                platform.get_provider().get_account().storage_scheme,
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -4585,12 +4585,12 @@ async fn perform_surcharge_ops(
         .async_map(|payment_intent| async {
             state
                 .store
-                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     payment_intent.get_id(),
-                    platform.get_provider().get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_provider().get_account().storage_scheme,
-                    platform.get_provider().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -5001,16 +5001,20 @@ pub async fn get_bank_from_vault(
 #[cfg(feature = "v1")]
 pub async fn get_bank_debit_from_hs_locker(
     state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
+    provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
-    let payment_method =
-        get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting payment method from locker")?;
+    let payment_method = get_encrypted_data_from_vault(
+        state,
+        provider.get_key_store(),
+        customer_id,
+        provider.get_account().get_id(),
+        token_ref,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error getting payment method from locker")?;
 
     let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
         .peek()
