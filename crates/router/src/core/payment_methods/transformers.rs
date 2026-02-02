@@ -1303,7 +1303,8 @@ pub async fn fetch_payment_method_from_modular_service(
 
     //fn to take state, construct request and call modular service
     let pm_response =
-        retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req).await?;
+        retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req)
+            .await?;
 
     //Convert PMResponse to PaymentMethodWrapper
     let payment_method = DomainPaymentMethodWrapper::try_from(&pm_response)?;
@@ -1401,7 +1402,8 @@ pub async fn create_payment_method_in_modular_service(
 
     //fn to take state, construct request and call modular service
     let pm_response =
-        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request).await?;
+        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
+            .await?;
 
     //Convert PMResponse to PaymentMethodWrapper
     let payment_method_wrapper = DomainPaymentMethodWrapper::try_from(pm_response)?;
