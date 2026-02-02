@@ -13,7 +13,10 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, ErrorResponse, RouterData,
+    },
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
     router_response_types::{
         PaymentsResponseData, PreprocessingResponseId, RedirectForm, RefundsResponseData,
@@ -840,11 +843,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let (status, error, payment_response_data) =
+        let (status, error, payment_response_data, connector_response) =
             get_trustpay_response(item.response, item.http_code, item.data.status)?;
         Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
+            connector_response,
             ..item.data
         })
     }
@@ -858,6 +862,7 @@ fn handle_cards_response(
         enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -904,7 +909,7 @@ fn handle_cards_response(
         authentication_data: None,
         charges: None,
     };
-    Ok((status, error, payment_response_data))
+    Ok((status, error, payment_response_data, None))
 }
 
 fn handle_bank_redirects_response(
@@ -914,6 +919,7 @@ fn handle_bank_redirects_response(
         enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -933,7 +939,7 @@ fn handle_bank_redirects_response(
         authentication_data: None,
         charges: None,
     };
-    Ok((status, error, payment_response_data))
+    Ok((status, error, payment_response_data, None))
 }
 
 fn handle_bank_redirects_error_response(
@@ -945,6 +951,7 @@ fn handle_bank_redirects_error_response(
         enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -981,7 +988,7 @@ fn handle_bank_redirects_error_response(
         authentication_data: None,
         charges: None,
     };
-    Ok((status, error, payment_response_data))
+    Ok((status, error, payment_response_data, None))
 }
 
 fn handle_bank_redirects_sync_response(
@@ -992,6 +999,7 @@ fn handle_bank_redirects_sync_response(
         enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -1048,7 +1056,7 @@ fn handle_bank_redirects_sync_response(
         authentication_data: None,
         charges: None,
     };
-    Ok((status, error, payment_response_data))
+    Ok((status, error, payment_response_data, None))
 }
 
 pub fn handle_webhook_response(
@@ -1059,6 +1067,7 @@ pub fn handle_webhook_response(
         enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -1102,7 +1111,52 @@ pub fn handle_webhook_response(
         authentication_data: None,
         charges: None,
     };
-    Ok((status, error, payment_response_data))
+    let connector_response = {
+        let (debitor_iban, debitor_bic, debitor_name, debitor_email) = (
+            payment_information.debtor_account.and_then(|acc| acc.iban),
+            payment_information.debtor_agent.and_then(|agent| agent.bic),
+            payment_information
+                .debtor
+                .as_ref()
+                .and_then(|debtor| debtor.name.clone()),
+            payment_information.debtor.and_then(|debtor| debtor.email),
+        );
+        let (creditor_name, creditor_iban, creditor_bic) = (
+            payment_information
+                .creditor
+                .and_then(|creditor| creditor.name.clone()),
+            payment_information
+                .creditor_account
+                .and_then(|acc| acc.iban),
+            payment_information
+                .creditor_agent
+                .and_then(|agent| agent.bic),
+        );
+        if debitor_iban.is_some()
+            || debitor_bic.is_some()
+            || debitor_name.is_some()
+            || debitor_email.is_some()
+            || creditor_name.is_some()
+            || creditor_iban.is_some()
+            || creditor_bic.is_some()
+        {
+            Some(ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::SepaBankTransfer {
+                    debitor_iban,
+                    debitor_bic,
+                    debitor_name,
+                    debitor_email,
+                    creditor_name,
+                    creditor_iban,
+                    creditor_bic,
+                },
+            ))
+        } else {
+            None
+        }
+    };
+
+    Ok((status, error, payment_response_data, connector_response))
 }
 
 pub fn get_trustpay_response(
@@ -1114,6 +1168,7 @@ pub fn get_trustpay_response(
         enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -2079,17 +2134,17 @@ pub struct WebhookPaymentInformation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct Creditor {
-    pub name: Secret<String>,
+    pub name: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreditorAccount {
-    pub iban: Secret<String>,
+    pub iban: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreditorAgent {
-    pub bic: Secret<String>,
+    pub bic: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
@@ -2129,12 +2184,12 @@ pub struct DebtorAddress {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct DebtorAccount {
-    pub iban: Secret<String>,
+    pub iban: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct DebtorAgent {
-    pub bic: Secret<String>,
+    pub bic: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

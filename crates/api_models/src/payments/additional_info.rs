@@ -196,13 +196,50 @@ pub struct GiropayBankRedirectAdditionalData {
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SepaBankTransferAdditionalData {
+    ///   debitor IBAN
+    #[schema(value_type = Option<String>, example = "DE8937******013000")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_iban: Option<Secret<String>>,
+
+    /// debitor BIC
+    #[schema(value_type = Option<String>, example = "MARKDEF1100")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_bic: Option<Secret<String>>,
+
+    ///  debitor name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_name: Option<Secret<String>>,
+
+    ///  debitor email
+    #[schema(value_type = Option<String>, example = "johndoe@example.com")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_email: Option<Secret<String>>,
+    ///  creditor name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
+    pub creditor_name: Option<Secret<String>>,
+    ///  creditor IBAN
+    #[schema(value_type = Option<String>, example = "DE8937******013000")]
+    #[smithy(value_type = "Option<String>")]
+    pub creditor_iban: Option<Secret<String>>,
+    /// creditor BIC
+    #[schema(value_type = Option<String>, example = "MARKDEF1100")]
+    #[smithy(value_type = "Option<String>")]
+    pub creditor_bic: Option<Secret<String>>,
+}
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferAdditionalData {
     #[smithy(nested_value_type)]
     Ach {},
-    #[smithy(nested_value_type)]
-    Sepa {},
+    #[smithy(value_type = "SepaBankTransferAdditionalData")]
+    Sepa(Box<SepaBankTransferAdditionalData>),
     #[smithy(nested_value_type)]
     Bacs {},
     #[smithy(nested_value_type)]
