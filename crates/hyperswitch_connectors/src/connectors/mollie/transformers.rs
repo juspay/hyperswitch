@@ -143,11 +143,14 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for  MollieLinesI
             order_details.get_order_unit_price(),
             currency,
         )?;
-        let discount_amount_value =  convert_amount(
+
+        let discount_amount_value =  order_details.get_optional_unit_discount_amount().map(
+            |unit_discount_amount| convert_amount(
             mollie_converter,
-            order_details.get_optional_unit_discount_amount()?,
+            unit_discount_amount,
             currency,
-        )?;
+        )).transpose()?;
+
         let total_amount_value =   convert_amount(
             mollie_converter,
             order_details.get_optional_order_total_amount()?,
@@ -166,10 +169,10 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for  MollieLinesI
                 currency,
                 value: total_amount_value,
             },
-            discount_amount: OrderItemUnitPrice {
+            discount_amount: discount_amount_value.map(| value|OrderItemUnitPrice {
                 currency,
-                value: discount_amount_value,
-            },
+                value,
+            }),
             sku,
             image_url,
         })
@@ -236,7 +239,7 @@ pub struct Address {
 
 impl Address {
     fn validate_and_build_klarna_billing_address(address_details: hyperswitch_domain_models::address::Address) -> Result<Self, Error> {
-       let address = address_details.address.ok_or(errors::ConnectorError::MissingRequiredField {
+       let address = address_details.address.clone().ok_or(errors::ConnectorError::MissingRequiredField {
             field_name: "Billing Address details for Klarna",
         })?; 
 
@@ -245,7 +248,7 @@ impl Address {
             street_and_number: address.get_combined_address_line()?.into(),
             postal_code: address.get_zip()?.to_owned().into(),
             city: address.get_city()?.to_owned(),
-            region: None,
+            region: address.get_optional_state(),
             country: address.get_country()?.to_owned(),
             given_name: Some(address.get_first_name()?.clone()),
             family_name: Some(address.get_last_name()?.clone()),
