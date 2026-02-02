@@ -2743,6 +2743,8 @@ pub fn get_applepay_wallet_info(
         card_type: Some(item.payment_method.pm_type),
         card_exp_month,
         card_exp_year,
+        // To be populated after connector response
+        auth_code: None,
     }
 }
 
@@ -2763,6 +2765,8 @@ pub fn get_googlepay_wallet_info(
         card_type: Some(item.pm_type),
         card_exp_month,
         card_exp_year,
+        // to be populated after connector response
+        auth_code: None,
     }
 }
 
@@ -2900,6 +2904,55 @@ pub struct CardDetailsPaymentMethod {
 }
 
 #[cfg(feature = "v2")]
+pub struct CardNumberWithStoredDetails {
+    pub card_number: cards::CardNumber,
+    pub card_details: CardDetailsPaymentMethod,
+}
+
+#[cfg(feature = "v2")]
+impl CardNumberWithStoredDetails {
+    pub fn new(card_number: cards::CardNumber, card_details: CardDetailsPaymentMethod) -> Self {
+        Self {
+            card_number,
+            card_details,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn try_from(testing: CardNumberWithStoredDetails) -> Result<Self, Self::Error> {
+        let card_number = testing.card_number;
+        let item = testing.card_details;
+        Ok(Self {
+            card_number,
+            card_exp_month: item
+                .expiry_month
+                .get_required_value("expiry_month")?
+                .clone(),
+            card_exp_year: item.expiry_year.get_required_value("expiry_year")?.clone(),
+            card_holder_name: item.card_holder_name,
+            nick_name: item.nick_name,
+            card_issuing_country: item
+                .issuer_country
+                .as_ref()
+                .map(|country| api_enums::CountryAlpha2::from_str(country))
+                .transpose()
+                .ok()
+                .flatten(),
+            card_network: item.card_network,
+            card_issuer: item.card_issuer,
+            card_type: item
+                .card_type
+                .and_then(|card_type| payment_methods::CardType::from_str(&card_type).ok()),
+            card_cvc: None,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
 impl CardDetailsPaymentMethod {
     pub fn to_card_details_from_locker(self) -> payment_methods::CardDetailFromLocker {
         payment_methods::CardDetailFromLocker {
@@ -2980,6 +3033,25 @@ impl
             saved_to_locker: item.saved_to_locker,
             co_badged_card_data: co_badged_card_data
                 .map(payment_methods::CoBadgedCardDataToBeSaved::from),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payment_methods::CardDetailsPaymentMethod> for CardDetailsPaymentMethod {
+    fn from(item: payment_methods::CardDetailsPaymentMethod) -> Self {
+        Self {
+            issuer_country: item.issuer_country,
+            last4_digits: item.last4_digits,
+            expiry_month: item.expiry_month,
+            expiry_year: item.expiry_year,
+            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }

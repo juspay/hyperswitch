@@ -102,6 +102,14 @@ pub struct PaymentMethodCreate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct PaymentMethodRetrieveRequest {
+    #[serde(default)]
+    pub fetch_raw_detail: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -529,6 +537,12 @@ impl PaymentMethodUpdate {
             }
             _ => false,
         }
+    }
+
+    pub fn is_payment_method_update_required(&self) -> bool {
+        self.is_payment_method_metadata_update()
+            || self.connector_token_details.is_some()
+            || self.network_transaction_id.is_some()
     }
 }
 
@@ -958,6 +972,14 @@ pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum RawPaymentMethodData {
+    Card(CardDetail),
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
@@ -1177,6 +1199,10 @@ pub struct PaymentMethodResponse {
     /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
     pub network_transaction_id: Option<masking::Secret<String>>,
+
+    /// The raw data associated with the payment method
+    #[schema(value_type = RawPaymentMethodData)]
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
 #[cfg(feature = "v2")]
@@ -1209,6 +1235,15 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+}
+
+impl PaymentMethodsData {
+    pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
+        match self {
+            Self::Card(card_details) => Some(card_details.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1334,6 +1369,9 @@ pub struct PaymentMethodDataWalletInfo {
     /// The card's expiry year
     #[schema(value_type = Option<String>,example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
+    /// Unique authorisation code for the payment
+    #[schema(value_type = Option<String>,example = "003225")]
+    pub auth_code: Option<String>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1344,6 +1382,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }
     }
 }
@@ -1356,6 +1395,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_type: item.card_type,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }
     }
 }
@@ -1376,6 +1416,7 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
             card_type: Some(item.pm_type),
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }
     }
 }
@@ -1389,6 +1430,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             pm_type: item.card_type.get_required_value("card_type")?,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
+            auth_code: item.auth_code,
         }))
     }
 }
@@ -1540,7 +1582,6 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct NetworkTokenResponse {
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
@@ -1572,6 +1613,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
@@ -1598,6 +1640,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }

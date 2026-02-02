@@ -80,27 +80,26 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             None,
         );
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, customer, _, _) =
-            Box::pin(payment_flows::payments_operation_core::<
-                api::PSync,
-                _,
-                _,
-                _,
-                payment_flows::PaymentData<api::PSync>,
-            >(
-                state,
-                state.get_req_state(),
-                &platform,
-                None,
-                operations::PaymentStatus,
-                tracking_data.clone(),
-                payment_flows::CallConnectorAction::Trigger,
-                None,
-                services::AuthFlow::Client,
-                None,
-                hyperswitch_domain_models::payments::HeaderPayload::default(),
-            ))
-            .await?;
+        let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
+            api::PSync,
+            _,
+            _,
+            _,
+            payment_flows::PaymentData<api::PSync>,
+        >(
+            state,
+            state.get_req_state(),
+            &platform,
+            None,
+            operations::PaymentStatus,
+            tracking_data.clone(),
+            payment_flows::CallConnectorAction::Trigger,
+            None,
+            services::AuthFlow::Client,
+            None,
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+        ))
+        .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -216,7 +215,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         platform.get_initiator(),
                         business_profile,
                         payment_data,
-                        customer,
                         state,
                         operation,
                     ))

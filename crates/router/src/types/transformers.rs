@@ -1629,26 +1629,33 @@ impl
             .map(api_types::Address::from);
 
         // This change is to fix a merchant integration
-        // If billing.email is not passed by the merchant, and if the customer email is present, then use the `customer.email` as the billing email
+        // If billing.email is not passed by the merchant, and if the customer email is present, then use that as the billing email
+        // Priority order for fallback email: `payment_intent.customer_details.email` > `customer.email`
         if let Some(billing_address) = &mut billing_address {
             billing_address.email = billing_address.email.clone().or_else(|| {
-                customer
-                    .and_then(|cust| {
-                        cust.email
-                            .as_ref()
-                            .map(|email| pii::Email::from(email.clone()))
+                customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
                     })
-                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email))
             });
         } else {
             billing_address = Some(payments::Address {
-                email: customer
-                    .and_then(|cust| {
-                        cust.email
-                            .as_ref()
-                            .map(|email| pii::Email::from(email.clone()))
-                    })
-                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+                email: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    }),
                 ..Default::default()
             });
         }
@@ -1661,15 +1668,25 @@ impl
             billing: billing_address,
             amount: payment_attempt
                 .map(|pa| api_types::Amount::from(pa.net_amount.get_order_amount())),
-            email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
-            phone: customer
-                .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.phone)),
-            name: customer
-                .and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.name)),
+            email: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.email.clone())
+                .or_else(|| {
+                    customer
+                        .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
+                }),
+            phone: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.phone.clone())
+                .or_else(|| {
+                    customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
+                }),
+            name: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.name.clone())
+                .or_else(|| {
+                    customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
+                }),
             ..Self::default()
         })
     }
@@ -2447,6 +2464,7 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }

@@ -5283,7 +5283,12 @@
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25",
+            "example": "003925",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
             "nullable": true
           }
         }
@@ -8734,6 +8739,10 @@
             "nullable": true
           },
           "authentication_data": {
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -19639,7 +19648,8 @@
           "merchant_id",
           "customer_id",
           "payment_method_type",
-          "network_transaction_id"
+          "network_transaction_id",
+          "raw_payment_method_data"
         ],
         "properties": {
           "id": {
@@ -19733,6 +19743,9 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "raw_payment_method_data": {
+            "$ref": "#/components/schemas/RawPaymentMethodData"
           }
         }
       },
@@ -19847,6 +19860,15 @@
             "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
+      },
+      "PaymentMethodRetrieveRequest": {
+        "type": "object",
+        "properties": {
+          "fetch_raw_detail": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -24506,6 +24528,21 @@
           }
         }
       },
+      "RawPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
+      },
       "RealTimePaymentData": {
         "oneOf": [
           {
@@ -28616,6 +28653,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
+            "example": "009825",
             "nullable": true
           }
         }

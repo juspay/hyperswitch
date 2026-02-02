@@ -38,7 +38,10 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
+    consts::{
+        BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE,
+        BASE64_ENGINE_URL_SAFE_NO_PAD,
+    },
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -65,11 +68,11 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
         CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostAuthenticateData,
-        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -138,10 +141,22 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
-    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
-        .iter()
-        .find_map(|d| d.decode(&data).ok())
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
+    let mut error_stack = Vec::new();
+    [
+        &BASE64_ENGINE,
+        &BASE64_ENGINE_STD_NO_PAD,
+        &BASE64_ENGINE_URL_SAFE,
+        &BASE64_ENGINE_URL_SAFE_NO_PAD,
+    ]
+    .iter()
+    .find_map(|engine| engine.decode(&data).map_err(|e| error_stack.push(e)).ok())
+    .ok_or_else(|| {
+        logger::error!(
+            "Base64 decoding failed for all engines. Errors: {:?}",
+            error_stack
+        );
+        report!(errors::ConnectorError::ResponseDeserializationFailed)
+    })
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -2900,6 +2915,46 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
+
+pub trait PaymentsAuthenticateRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        self.payment_method_data
+            .clone()
+            .ok_or_else(missing_field_err("payment_method_data"))
+    }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
 pub trait PaymentsPreProcessingRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
@@ -7322,8 +7377,10 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,
+        ucs_authentication_data: None,
         customer_acceptance: data.request.customer_acceptance.clone(),
         split_payments: None, // TODO: allow charges on mandates?
+        guest_customer: None,
         merchant_order_reference_id: None,
         integrity_object: None,
         additional_payment_method_data: None,
