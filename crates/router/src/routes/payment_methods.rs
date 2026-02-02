@@ -106,7 +106,7 @@ pub async fn create_payment_method_api(
 pub async fn get_pm_nt_eligibility_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_methods::NetworkTokenEligibilityRequest>,
+    query: web::Query<payment_methods::NetworkTokenEligibilityRequest>,
 ) -> HttpResponse {
     let flow = Flow::NetworkTokenEligibilityCheck;
 
@@ -114,7 +114,7 @@ pub async fn get_pm_nt_eligibility_api(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        query.into_inner(),
         |state, auth: auth::AuthenticationData, req, _req_state| async move {
             Box::pin(payment_methods_routes::get_card_nt_eligibility(
                 &state,
@@ -230,6 +230,7 @@ pub async fn payment_method_update_api(
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodRetrieveRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsRetrieve;
@@ -237,6 +238,20 @@ pub async fn payment_method_retrieve_api(
         payment_method_id: path.into_inner(),
     })
     .into_inner();
+
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -247,13 +262,13 @@ pub async fn payment_method_retrieve_api(
             payment_methods_routes::retrieve_payment_method(
                 state,
                 pm,
-                auth.platform.get_provider().clone(),
+                auth.profile,
+                auth.platform,
+                api_key_type,
+                query_payload.fetch_raw_detail,
             )
         },
-        &auth::V2ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

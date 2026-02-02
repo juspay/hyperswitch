@@ -774,7 +774,7 @@ pub fn payments_connector_session() {}
     ),
     tag = "Payments",
     operation_id = "Create V2 Session tokens for a Payment",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payments_connector_session() {}
 
@@ -1197,7 +1197,7 @@ pub fn payments_update_intent() {}
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
-  security(("publishable_key" = [])),
+  security(("publishable_key__client_secret" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
@@ -1304,7 +1304,7 @@ pub(crate) enum ForceSync {
     ),
     tag = "Payments",
     operation_id = "Retrieve Payment methods for a Payment",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn list_payment_methods() {}
 
@@ -1349,6 +1349,6 @@ pub fn payments_list() {}
     ),
     tag = "Payments",
     operation_id = "Apply Payment Method Data",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payments_apply_pm_data() {}

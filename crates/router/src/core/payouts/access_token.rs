@@ -1,9 +1,11 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::{ConnectorAccessTokenSuffix, ConnectorCommon};
+use hyperswitch_interfaces::{
+    api::{ConnectorAccessTokenSuffix, ConnectorCommon},
+    consts,
+};
 
 use crate::{
-    consts,
     core::{
         errors::{self, RouterResult},
         payments,

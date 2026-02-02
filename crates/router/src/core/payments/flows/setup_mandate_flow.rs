@@ -43,7 +43,6 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -58,7 +57,6 @@ impl
             self.clone(),
             connector_id,
             processor,
-            customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -162,17 +160,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        ) && state
-            .conf
-            .preprocessing_flow_config
-            .as_ref()
-            .is_some_and(|config| {
-                // check balance check flow is bloated up for the current connector
-                config
-                    .balance_check_bloated_connectors
-                    .contains(&connector.connector_name)
-            })
-        {
+        ) {
             logger::info!(
                 "Balance check flow is required for connector: {}",
                 connector.connector_name
@@ -455,14 +443,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             _ => Ok((None, true)),
         }
     }
-
-    async fn preprocessing_steps<'a>(
-        self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        setup_mandate_preprocessing_steps(state, &self, true, connector).await
-    }
 }
 
 impl mandate::MandateBehaviour for types::SetupMandateRequestData {
@@ -493,68 +473,5 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     }
     fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
         self.customer_acceptance.clone()
-    }
-}
-
-pub async fn setup_mandate_preprocessing_steps<F: Clone>(
-    state: &SessionState,
-    router_data: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
-    confirm: bool,
-    connector: &api::ConnectorData,
-) -> RouterResult<types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>>
-{
-    if confirm {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let preprocessing_request_data =
-            types::PaymentsPreProcessingData::try_from(router_data.request.clone())?;
-
-        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
-
-        let preprocessing_router_data =
-            helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
-                router_data.clone(),
-                preprocessing_request_data,
-                preprocessing_response_data,
-            );
-
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &preprocessing_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
-
-        let mut setup_mandate_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-            resp.clone(),
-            router_data.request.to_owned(),
-            resp.response.clone(),
-        );
-
-        if connector.connector_name == api_models::enums::Connector::Nuvei {
-            let (enrolled_for_3ds, related_transaction_id) =
-                match &setup_mandate_router_data.response {
-                    Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
-                        enrolled_v2,
-                        related_transaction_id,
-                    }) => (*enrolled_v2, related_transaction_id.clone()),
-                    _ => (false, None),
-                };
-            setup_mandate_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
-            setup_mandate_router_data.request.related_transaction_id = related_transaction_id;
-        }
-
-        Ok(setup_mandate_router_data)
-    } else {
-        Ok(router_data.clone())
     }
 }

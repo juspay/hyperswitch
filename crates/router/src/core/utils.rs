@@ -967,9 +967,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         &dispute.connector,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1078,9 +1077,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1187,9 +1185,8 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1376,9 +1373,8 @@ pub async fn construct_dispute_sync_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1617,9 +1613,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1725,9 +1720,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         profile_id,
         connector_id,
         file_metadata.merchant_connector_id.as_ref(),
@@ -1828,6 +1822,12 @@ pub fn get_connector_request_reference_id(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_name: &str,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
+    // If there's already a connector_request_reference_id stored in the payment_attempt,
+    // reuse it to maintain consistency across multiple connector calls
+    if let Some(existing_reference_id) = &payment_attempt.connector_request_reference_id {
+        return Ok(existing_reference_id.clone());
+    }
+
     let is_config_enabled_to_send_payment_id_as_connector_request_id =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, processor);
 

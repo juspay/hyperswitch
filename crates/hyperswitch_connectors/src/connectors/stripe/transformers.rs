@@ -1104,6 +1104,7 @@ fn validate_and_get_setup_future_usage(
 ) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<ConnectorError>> {
     match payment_method_type {
         Some(common_enums::PaymentMethodType::Affirm)
+        | Some(common_enums::PaymentMethodType::AfterpayClearpay)
         | Some(common_enums::PaymentMethodType::Klarna) => Ok(None),
         Some(_) | None => Ok(setup_future_usage),
     }
@@ -2866,6 +2867,7 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
             payment_checks: item.payment_checks.clone(),
             card_network: None,
             domestic_network: None,
+            auth_code: None,
         }
     }
 }

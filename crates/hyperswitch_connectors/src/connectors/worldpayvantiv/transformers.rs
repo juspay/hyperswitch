@@ -4687,6 +4687,7 @@ fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseDa
             payment_checks,
             card_network: None,
             domestic_network: None,
+            auth_code: None,
         },
     )
 }
@@ -4706,6 +4707,7 @@ fn get_additional_payment_method_connector_response(
         payment_checks,
         card_network: None,
         domestic_network: None,
+        auth_code: None,
     }
 }
 
