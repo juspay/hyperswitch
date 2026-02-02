@@ -3,7 +3,9 @@ use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankDebitData, BankRedirectData, PayLaterData, PaymentMethodData, WalletData},
+    payment_method_data::{
+        BankDebitData, BankRedirectData, PayLaterData, PaymentMethodData, WalletData,
+    },
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_request_types::ResponseId,
     router_response_types::{
@@ -15,17 +17,17 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use url::Url; 
-
+use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        get_unimplemented_payment_method_error_message, AddressDetailsData, BrowserInformationData,
-        CardData as CardDataUtil, CustomerData, PaymentMethodTokenizationRequestData,
-        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, AddressData,
-        RouterData as OtherRouterData, convert_amount, OrderDetailsWithAmountData,
+        convert_amount, get_unimplemented_payment_method_error_message, AddressData,
+        AddressDetailsData, BrowserInformationData, CardData as CardDataUtil, CustomerData,
+        OrderDetailsWithAmountData, PaymentMethodTokenizationRequestData,
+        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -127,13 +129,13 @@ pub struct MollieLinesItems {
     image_url: Option<String>,
 }
 
-impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for  MollieLinesItems {
+impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesItems {
     type Error = Error;
     fn try_from(
         (order_details, currency): (types::OrderDetailsWithAmount, enums::Currency),
     ) -> Result<Self, Self::Error> {
         let description = order_details.get_order_description()?;
-        let quantity =  i32::from(order_details.get_order_quantity());
+        let quantity = i32::from(order_details.get_order_quantity());
         let quantity_unit = order_details.get_optional_order_quantity_unit();
         let sku = order_details.get_optional_sku();
         let image_url = order_details.get_optional_product_img_link();
@@ -144,14 +146,14 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for  MollieLinesI
             currency,
         )?;
 
-        let discount_amount_value =  order_details.get_optional_unit_discount_amount().map(
-            |unit_discount_amount| convert_amount(
-            mollie_converter,
-            unit_discount_amount,
-            currency,
-        )).transpose()?;
+        let discount_amount_value = order_details
+            .get_optional_unit_discount_amount()
+            .map(|unit_discount_amount| {
+                convert_amount(mollie_converter, unit_discount_amount, currency)
+            })
+            .transpose()?;
 
-        let total_amount_value =   convert_amount(
+        let total_amount_value = convert_amount(
             mollie_converter,
             order_details.get_optional_order_total_amount()?,
             currency,
@@ -169,17 +171,13 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for  MollieLinesI
                 currency,
                 value: total_amount_value,
             },
-            discount_amount: discount_amount_value.map(| value|OrderItemUnitPrice {
-                currency,
-                value,
-            }),
+            discount_amount: discount_amount_value
+                .map(|value| OrderItemUnitPrice { currency, value }),
             sku,
             image_url,
         })
-
     }
 }
-
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -238,11 +236,14 @@ pub struct Address {
 }
 
 impl Address {
-    fn validate_and_build_klarna_billing_address(address_details: hyperswitch_domain_models::address::Address) -> Result<Self, Error> {
-       let address = address_details.address.clone().ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "Billing Address details for Klarna",
-        })?; 
-
+    fn validate_and_build_klarna_billing_address(
+        address_details: hyperswitch_domain_models::address::Address,
+    ) -> Result<Self, Error> {
+        let address = address_details.address.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "Billing Address details for Klarna",
+            },
+        )?;
 
         Ok(Self {
             street_and_number: address.get_combined_address_line()?.into(),
@@ -254,8 +255,6 @@ impl Address {
             family_name: Some(address.get_last_name()?.clone()),
             email: Some(address_details.get_email()?.clone()),
         })
-
-
     }
 }
 
@@ -502,28 +501,28 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &PayLaterData)> for MolliePay
     ) -> Result<Self, Self::Error> {
         match value {
             PayLaterData::KlarnaRedirect {} => {
+                let billing_address = Address::validate_and_build_klarna_billing_address(
+                    item.get_billing()?.clone(),
+                )?;
 
-            let billing_address = Address::validate_and_build_klarna_billing_address(item
-                    .get_billing()?.clone())?;
-
-              let lines = item.request.get_order_details()?
+                let lines = item
+                    .request
+                    .get_order_details()?
                     .into_iter()
                     .map(|order_detail| {
-                        MollieLinesItems::try_from((
-                            order_detail,
-                            item.request.currency,
-                        )).map(Box::new)
+                        MollieLinesItems::try_from((order_detail, item.request.currency))
+                            .map(Box::new)
                     })
                     .collect::<Result<Vec<Box<MollieLinesItems>>, Error>>()?;
 
-                Ok(MolliePaymentMethodData::Klarna(Box::new(KlarnaMethodData {
-                    billing_address,
-                    lines,
-                })))
+                Ok(MolliePaymentMethodData::Klarna(Box::new(
+                    KlarnaMethodData {
+                        billing_address,
+                        lines,
+                    },
+                )))
             }
-            _ => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }

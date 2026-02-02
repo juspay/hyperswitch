@@ -3062,7 +3062,8 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         vec![],
                         vec![
                             RequiredField::BillingAddressCountries(vec![
-                                "DE", "AT", "NL", "BE", "FR", "UK", "IT", "ES", "PT", "SE", "DK", "FI", "NO", "CH", "IR", "CZ", "PL", "GR", "SK"
+                                "DE", "AT", "NL", "BE", "FR", "UK", "IT", "ES", "PT", "SE", "DK",
+                                "FI", "NO", "CH", "IR", "CZ", "PL", "GR", "SK",
                             ]),
                             RequiredField::BillingEmail,
                             RequiredField::BillingAddressLine1,
