@@ -514,12 +514,10 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &PayLaterData)> for MolliePay
                     })
                     .collect::<Result<Vec<MollieLinesItems>, Error>>()?;
 
-                Ok(Self::Klarna(Box::new(
-                    KlarnaMethodData {
-                        billing_address,
-                        lines,
-                    },
-                )))
+                Ok(Self::Klarna(Box::new(KlarnaMethodData {
+                    billing_address,
+                    lines,
+                })))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
