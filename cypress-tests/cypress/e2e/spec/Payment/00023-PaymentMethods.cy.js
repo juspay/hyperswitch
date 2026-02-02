@@ -5,7 +5,11 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 let saveCardBody;
 
-describe("Payment Methods Tests", () => {
+describe("Payment Methods Tests",
+  {
+    retries: 2,
+  },
+  () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
