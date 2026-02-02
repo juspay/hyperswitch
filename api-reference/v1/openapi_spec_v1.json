@@ -12209,7 +12209,7 @@
             ],
             "properties": {
               "sepa": {
-                "type": "object"
+                "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
               }
             }
           },
