@@ -1,4 +1,8 @@
 use api_models::payment_methods;
+#[cfg(feature = "v2")]
+use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
@@ -20,6 +24,83 @@ impl PaymentMethodVaultingData {
             Self::CardNumber(_) => None,
         }
     }
+
+    pub fn set_card_cvc(&mut self, card_cvc: masking::Secret<String>) {
+        match self {
+            Self::Card(card_details) => {
+                card_details.card_cvc = Some(card_cvc);
+            }
+            Self::NetworkToken(_) => {}
+            Self::CardNumber(_) => {}
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn convert_to_raw_payment_method_data(
+        &self,
+    ) -> Option<payment_methods::RawPaymentMethodData> {
+        match self {
+            Self::Card(card) => Some(payment_methods::RawPaymentMethodData::Card(card.clone())),
+            // Raw payment methods data is not available for network tokens
+            Self::NetworkToken(network_token) => None,
+            // When it is card number populated_payment_methods_data_and_get_payment_method_vaulting_data
+            // will be called which will populated the payment methods data for card number and convert it to type CardDetail
+            Self::CardNumber(card_number) => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn populated_payment_methods_data_and_get_payment_method_vaulting_data(
+        &self,
+        payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        match self {
+            Self::Card(card_details) => Ok(self.clone()),
+            Self::NetworkToken(_) => Ok(self.clone()),
+            Self::CardNumber(card_number) => {
+                let payment_methods_data = payment_methods_data_optional
+                    .get_required_value("payment methods data")
+                    .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                    .attach_printable("failed to get payment methods data for payment method vaulting data type card number")?;
+
+                let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
+                        card_number,
+                        payment_methods_data,
+                    )?;
+
+                Ok(Self::Card(card_detail))
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
+        card_number: &cards::CardNumber,
+        payment_methods_data: &Encryptable<payment_methods::PaymentMethodsData>,
+    ) -> CustomResult<payment_methods::CardDetail, errors::api_error_response::ApiErrorResponse>
+    {
+        let stored_card_metadata = payment_methods_data
+            .clone()
+            .into_inner()
+            .get_card_details()
+            .get_required_value("card payment methods data")
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to get stored card payment methods details")?;
+
+        let card_with_details = payment_method_data::CardNumberWithStoredDetails::new(
+            card_number.clone(),
+            stored_card_metadata.into(),
+        );
+
+        payment_methods::CardDetail::try_from(card_with_details)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to create card details for payment method vaulting data type card number ",
+            )
+    }
+
     pub fn get_payment_methods_data(&self) -> payment_method_data::PaymentMethodsData {
         match self {
             Self::Card(card) => payment_method_data::PaymentMethodsData::Card(

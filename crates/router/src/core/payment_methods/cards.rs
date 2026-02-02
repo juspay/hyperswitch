@@ -4988,16 +4988,20 @@ pub async fn get_bank_from_vault(
 #[cfg(feature = "v1")]
 pub async fn get_bank_debit_from_hs_locker(
     state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
+    provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
-    let payment_method =
-        get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting payment method from locker")?;
+    let payment_method = get_encrypted_data_from_vault(
+        state,
+        provider.get_key_store(),
+        customer_id,
+        provider.get_account().get_id(),
+        token_ref,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error getting payment method from locker")?;
 
     let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
         .peek()

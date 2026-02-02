@@ -207,7 +207,6 @@ impl<F: Clone + Sync>
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -319,17 +318,6 @@ impl<F: Clone + Send + Sync>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _state: &SessionState,
@@ -357,8 +345,7 @@ impl<F: Clone + Send + Sync>
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

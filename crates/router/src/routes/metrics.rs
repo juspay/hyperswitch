@@ -147,6 +147,9 @@ counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);
 // AI chat metric to track number of chat request
 counter_metric!(CHAT_REQUEST_COUNT, GLOBAL_METER);
 
+// Merchant advice code config lookup metrics
+counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);
+
 // Config Fetch Metrics
 counter_metric!(CONFIG_SUPERPOSITION_FETCH, GLOBAL_METER);  // When fetched from superposition
 counter_metric!(CONFIG_DATABASE_FETCH, GLOBAL_METER);      // When fetched from database  
