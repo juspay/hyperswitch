@@ -1168,9 +1168,9 @@ pub struct PaymentsRequest {
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// Indicates the settlement status for the payment
-    #[schema(value_type = Option<String>, example = "pending")]
-    #[smithy(value_type = "Option<String>")]
-    pub settlement_status: Option<String>,
+    #[schema(value_type = Option<SettlementStatus>, example = "pending")]
+    #[smithy(value_type = "Option<SettlementStatus>")]
+    pub settlement_status: Option<SettlementStatus>,
 
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     #[smithy(value_type = "Option<AuthenticationType>")]
@@ -1818,7 +1818,7 @@ mod payments_request_test {
     #[test]
     fn test_settlement_status_roundtrip() {
         let payments_request = PaymentsRequest {
-            settlement_status: Some("pending".to_string()),
+            settlement_status: Some(SettlementStatus::Pending),
             ..Default::default()
         };
 
@@ -1830,7 +1830,7 @@ mod payments_request_test {
             "settlement_status": "pending"
         }))
         .expect("error de-serializing payments request");
-        assert_eq!(deserialized.settlement_status.as_deref(), Some("pending"));
+        assert_eq!(deserialized.settlement_status, Some(SettlementStatus::Pending));
     }
 }
 
@@ -9908,6 +9908,29 @@ pub struct ApplepayCombinedSessionTokenData {
 pub enum ApplepaySessionTokenMetadata {
     ApplePayCombined(ApplePayCombinedWrapper),
     ApplePay(ApplePayMetadata),
+}
+
+#[cfg(feature = "v1")]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum SettlementStatus {
+    Pending,
+    Settled,
+    Failed,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
