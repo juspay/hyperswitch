@@ -27,6 +27,7 @@ pub struct CreatePaymentMethodV1Request {
     pub billing: Option<payments::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
+    pub modular_service_prefix: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,7 +66,7 @@ pub enum PaymentMethodCreateData {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct ModularPMCreateResponse {
+pub struct ModularPaymentMethodResponse {
     //payment method id
     pub id: String,
     pub merchant_id: id_type::MerchantId,
@@ -167,10 +168,10 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
     }
 }
 
-impl TryFrom<ModularPMCreateResponse> for CreatePaymentMethodResponse {
+impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
-    fn try_from(response: ModularPMCreateResponse) -> Result<Self, Self::Error> {
+    fn try_from(response: ModularPaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_id: response.id,
             merchant_id: response.merchant_id,
@@ -191,16 +192,24 @@ impl CreatePaymentMethod {
     fn build_body(&self, request: ModularPMCreateRequest) -> Option<RequestContent> {
         Some(RequestContent::Json(Box::new(request)))
     }
+
+    fn build_path_params(
+        &self,
+        request: &CreatePaymentMethodV1Request,
+    ) -> Vec<(&'static str, String)> {
+        vec![("prefix", request.modular_service_prefix.clone())]
+    }
 }
 
 hyperswitch_interfaces::impl_microservice_flow!(
     CreatePaymentMethod,
     method = Method::Post,
-    path = "/v2/payment-methods",
+    path = "/{prefix}/payment-methods",
     v1_request = CreatePaymentMethodV1Request,
     v2_request = ModularPMCreateRequest,
-    v2_response = ModularPMCreateResponse,
+    v2_response = ModularPaymentMethodResponse,
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
-    body = CreatePaymentMethod::build_body
+    body = CreatePaymentMethod::build_body,
+    path_params = CreatePaymentMethod::build_path_params
 );
