@@ -130,7 +130,7 @@ pub async fn save_payment_method<FData>(
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
-    payment_method_customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    customer_details: Option<api_models::customers::CustomerDocumentDetails>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -373,7 +373,7 @@ where
 
                 let payment_method_customer_details_encrypted: Option<
                     Encryptable<Secret<serde_json::Value>>,
-                > = payment_method_customer_details
+                > = customer_details
                     .async_map(|customer_details| {
                         create_encrypted_data(
                             &key_manager_state,

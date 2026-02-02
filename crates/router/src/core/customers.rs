@@ -1299,12 +1299,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             type_name!(api_models::customers::CustomerDocumentDetails),
             CryptoOperation::EncryptOptional(
                 self.document_details
-                    .clone()
-                    .map(|struct_value| {
-                        serde_json::to_value(struct_value)
-                            .map(Secret::new)
-                            .map_err(|_| common_utils::errors::CryptoError::EncodingFailed)
-                    })
+                    .as_ref()
+                    .map(|details| details.encode_to_secret())
                     .transpose()
                     .map_err(|e| {
                         error_stack::Report::new(

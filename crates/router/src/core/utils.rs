@@ -612,16 +612,10 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: match &payment_intent
+        customer_document_details: payment_intent
             .get_customer_document_details()
-            .attach_printable("Failed to parse customer_document_details from payment_intent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-        {
-            Some(details) => {
-                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
-            }
-            None => None,
-        },
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
 
     Ok(router_data)
@@ -1067,16 +1061,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: match &payment_intent
+        customer_document_details: payment_intent
             .get_customer_document_details()
-            .attach_printable("Failed to parse customer_document_details from payment_intent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-        {
-            Some(details) => {
-                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
-            }
-            None => None,
-        },
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1183,16 +1171,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: match &payment_intent
+        customer_document_details: payment_intent
             .get_customer_document_details()
-            .attach_printable("Failed to parse customer_document_details from payment_intent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-        {
-            Some(details) => {
-                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
-            }
-            None => None,
-        },
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1494,16 +1476,10 @@ pub async fn construct_dispute_sync_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: match &payment_intent
+        customer_document_details: payment_intent
             .get_customer_document_details()
-            .attach_printable("Failed to parse customer_document_details from payment_intent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-        {
-            Some(details) => {
-                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
-            }
-            None => None,
-        },
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1635,16 +1611,10 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: match &payment_intent
+        customer_document_details: payment_intent
             .get_customer_document_details()
-            .attach_printable("Failed to parse customer_document_details from payment_intent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-        {
-            Some(details) => {
-                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
-            }
-            None => None,
-        },
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1754,16 +1724,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: match &payment_intent
+        customer_document_details: payment_intent
             .get_customer_document_details()
-            .attach_printable("Failed to parse customer_document_details from payment_intent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-        {
-            Some(details) => {
-                api_models::customers::CustomerDocumentDetails::from(&Some(details.clone()))
-            }
-            None => None,
-        },
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }

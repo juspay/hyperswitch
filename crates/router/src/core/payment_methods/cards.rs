@@ -203,7 +203,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                     created_by: None,
                     last_modified_by: None,
-                    payment_method_customer_details: payment_method_customer_details_encrypted,
+                    customer_details: payment_method_customer_details_encrypted,
                 },
                 self.provider.get_account().storage_scheme,
             )

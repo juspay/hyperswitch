@@ -197,7 +197,6 @@ impl behaviour::Conversion for Customer {
                     phone: item.phone.clone(),
                     email: item.email.clone(),
                     tax_registration_id: item.tax_registration_id.clone(),
-                    // document_details: item.document_details.clone(),
                 },
             )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),

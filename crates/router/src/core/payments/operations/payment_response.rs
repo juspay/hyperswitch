@@ -295,15 +295,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .connector_mandate_detail
             .as_ref()
             .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
-        let payment_method_customer_details = api_models::customers::CustomerDocumentDetails::from(
-            &payment_data
-                .payment_intent
-                .get_customer_document_details()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to extract customer document details from payment_intent",
-                )?,
-        );
+        let customer_details = payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?;
 
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
@@ -320,7 +316,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             vault_operation.clone(),
             payment_method_info.clone(),
             payment_data.payment_method_token.clone(),
-            payment_method_customer_details.clone(),
+            customer_details.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -471,7 +467,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         vault_operation.clone(),
                         payment_method_info.clone(),
                         payment_method_token.clone(),
-                        payment_method_customer_details.clone(),
+                        customer_details.clone(),
                     ))
                     .await;
 
@@ -1431,15 +1427,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         let vault_operation = payment_data.vault_operation.clone();
         let payment_method_info = payment_data.payment_method_info.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
-        let payment_method_customer_details = api_models::customers::CustomerDocumentDetails::from(
-            &payment_data
-                .payment_intent
-                .get_customer_document_details()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to extract customer document details from payment_intent",
-                )?,
-        );
+        let customer_details = payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?;
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,
             connector_mandate_reference_id,
@@ -1459,7 +1451,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             vault_operation,
             payment_method_info,
             payment_data.payment_method_token.clone(),
-            payment_method_customer_details,
+            customer_details,
         ))
         .await?;
 

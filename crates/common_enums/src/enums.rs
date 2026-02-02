@@ -768,6 +768,15 @@ pub enum DocumentKind {
     Cpf,
 }
 
+impl DocumentKind {
+    pub fn expected_length(&self) -> usize {
+        match self {
+            Self::Cpf => 11,
+            Self::Cnpj => 14,
+        }
+    }
+}
+
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(

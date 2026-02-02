@@ -237,7 +237,7 @@ pub struct CustomerResponse {
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
-    pub document_details: crypto::OptionalEncryptableValue,
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -302,7 +302,7 @@ pub struct CustomerResponse {
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
-    pub document_details: crypto::OptionalEncryptableValue,
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -500,19 +500,23 @@ pub struct CustomerDocumentDetails {
 }
 
 impl CustomerDocumentDetails {
-    pub fn from(value: &Option<Secret<serde_json::Value>>) -> Option<Self> {
+    pub fn from(value: &Option<pii::SecretSerdeValue>) -> Option<Self> {
         value
             .as_ref()?
             .peek()
             .clone()
             .parse_value("CustomerDocumentDetails")
+            .map_err(|e| {
+                router_env::logger::error!(error = ?e, "Failed to parse CustomerDocumentDetails");
+                e
+            })
             .ok()
     }
 
-    pub fn to(value: &Option<Self>) -> Option<Secret<serde_json::Value>> {
+    pub fn to(value: &Option<Self>) -> Option<pii::SecretSerdeValue> {
         value
             .as_ref()
-            .and_then(|details| serde_json::to_value(details).ok().map(Secret::new))
+            .and_then(|details| details.encode_to_value().ok().map(Secret::new))
     }
 
     pub fn encode_to_secret(
@@ -524,37 +528,16 @@ impl CustomerDocumentDetails {
 
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
         let doc_type = &self.document_type;
-        let doc_number = &self.document_number;
-        let raw_number = doc_number.peek();
-        if !raw_number.chars().all(|c| c.is_ascii_digit()) {
-            tracing::error!(?doc_type, "Document number contains non-digit characters");
-            return Err(Report::new(ValidationError::InvalidValue {
-                message: format!("{:?} must contain only digits", doc_type),
-            }));
-        }
+        let raw_number = self.document_number.peek();
 
-        // Length check for CPF and CNPJ
-        let expected_len = if matches!(doc_type, DocumentKind::Cpf) {
-            11
-        } else {
-            14
-        };
+        let expected_len = doc_type.expected_length();
+        let actual_len = raw_number.len();
 
-        if raw_number.len() != expected_len {
-            tracing::error!(
-                ?doc_type,
-                actual_len = raw_number.len(),
-                expected_len,
-                "Document length mismatch"
-            );
+        if actual_len != expected_len {
             return Err(Report::new(ValidationError::IncorrectValueProvided {
                 field_name: Box::leak(
-                    format!(
-                        "document_number (expected {} chars, got {})",
-                        expected_len,
-                        raw_number.len()
-                    )
-                    .into_boxed_str(),
+                    format!("document_number (expected {expected_len} chars, got {actual_len})")
+                        .into_boxed_str(),
                 ),
             }));
         }

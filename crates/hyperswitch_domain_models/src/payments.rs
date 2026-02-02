@@ -1,6 +1,7 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
+use api_models::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers;
@@ -382,28 +383,18 @@ impl PaymentIntent {
 
     pub fn get_customer_document_details(
         &self,
-    ) -> Result<Option<Secret<Value>>, common_utils::errors::ParsingError> {
-        match &self.customer_details {
-            Some(details) => {
-                let decrypted_value = details.clone().into_inner().expose();
+    ) -> Result<Option<CustomerDocumentDetails>, common_utils::errors::ParsingError> {
+        let decrypted_value = match &self.customer_details {
+            Some(details) => details.clone().into_inner().expose(),
+            None => return Ok(None),
+        };
 
-                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
-                    .map_err(|_| {
-                        common_utils::errors::ParsingError::StructParseFailure("CustomerData")
-                    })
-                    .and_then(|customer_data| {
-                        customer_data
-                            .customer_document_details
-                            .map(|details| {
-                                serde_json::to_value(details)
-                                    .map(Secret::new)
-                                    .map_err(|_| common_utils::errors::ParsingError::UnknownError)
-                            })
-                            .transpose()
-                    })
-            }
-            None => Ok(None),
-        }
+        let customer_data: CustomerData =
+            ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData").map_err(
+                |_| common_utils::errors::ParsingError::StructParseFailure("CustomerData"),
+            )?;
+
+        Ok(customer_data.customer_document_details)
     }
 }
 

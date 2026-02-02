@@ -1674,7 +1674,8 @@ impl PaymentsRequest {
         self.customer
             .as_ref()
             .and_then(|data| data.document_details.as_ref())
-            .map_or(Ok(()), |doc| doc.validate())
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
     }
 
     pub fn get_feature_metadata_as_value(

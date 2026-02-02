@@ -1496,7 +1496,7 @@ impl PaymentCreate {
                 ))?;
 
             let document_details = if let Some(pm) = payment_method.as_ref() {
-                pm.payment_method_customer_details
+                pm.customer_details
                     .clone()
                     .map(|encryptable| encryptable.into_inner())
             } else {

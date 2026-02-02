@@ -1,8 +1,10 @@
 use api_models::customers;
 pub use api_models::customers::{
-    CustomerDeleteResponse, CustomerListRequest, CustomerListRequestWithConstraints,
-    CustomerListResponse, CustomerRequest, CustomerUpdateRequest, CustomerUpdateRequestInternal,
+    CustomerDeleteResponse, CustomerDocumentDetails, CustomerListRequest,
+    CustomerListRequestWithConstraints, CustomerListResponse, CustomerRequest,
+    CustomerUpdateRequest, CustomerUpdateRequestInternal,
 };
+use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::customer;
 use serde::Serialize;
@@ -40,7 +42,13 @@ impl ForeignFrom<(domain::Customer, Option<payments::AddressDetails>)> for Custo
             address,
             default_payment_method_id: cust.default_payment_method_id,
             tax_registration_id: cust.tax_registration_id,
-            document_details: cust.document_details,
+            document_details: cust.document_details.as_ref().and_then(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                    .ok()
+            }),
         }
         .into()
     }
@@ -64,7 +72,13 @@ impl ForeignFrom<customer::Customer> for CustomerResponse {
             default_shipping_address: None,
             default_payment_method_id: cust.default_payment_method_id,
             tax_registration_id: cust.tax_registration_id,
-            document_details: cust.document_details,
+            document_details: cust.document_details.as_ref().and_then(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                    .ok()
+            }),
         }
         .into()
     }

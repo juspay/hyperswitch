@@ -7,6 +7,7 @@ pub use ::payment_methods::helpers::{
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
+    customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
     payments::{
         additional_info::{self as payment_additional_types},
@@ -1924,9 +1925,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         types::crypto_operation(
                             key_manager_state,
                             type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(
-                                api_models::customers::CustomerDocumentDetails::to(&inner),
-                            ),
+                            CryptoOperation::EncryptOptional(CustomerDocumentDetails::to(&inner)),
                             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
                             key,
                         )
@@ -2058,17 +2057,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .tax_registration_id
                         .clone()
                         .map(|val| val.into_inner()),
-                    customer_document_details: customer.document_details.clone().and_then(
-                        |encryptable| {
+                    customer_document_details: customer
+                        .document_details
+                        .clone()
+                        .map(|encryptable| {
                             encryptable
                                 .into_inner()
                                 .expose()
-                                .parse_value::<api_models::customers::CustomerDocumentDetails>(
-                                    "CustomerDocumentDetails",
-                                )
-                                .ok()
-                        },
-                    ),
+                                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                                .change_context(storage_impl::StorageError::SerializationFailed)
+                        })
+                        .transpose()?,
                 };
 
                 // Merge with existing payment intent customer details if present
