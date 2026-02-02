@@ -4,7 +4,6 @@ use api_models::payment_methods::Card;
 use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
 use common_enums::CardNetwork;
 use common_utils::{
-    crypto::Encryptable,
     ext_traits::{Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
@@ -1239,11 +1238,14 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
 #[cfg(feature = "v1")]
 pub async fn fetch_payment_method_from_modular_service(
     state: &routes::SessionState,
-    merchant_id: &id_type::MerchantId,
+    _merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
+    // _pmd_card_token: Option<domain::CardToken>,
 ) -> CustomResult<PaymentMethodWrapper, errors::ApiErrorResponse> {
     //Request body construction
+
+    use std::str::FromStr;
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
             payment_method_id: payment_method_id.to_owned(),
@@ -1252,7 +1254,7 @@ pub async fn fetch_payment_method_from_modular_service(
 
     //fn to take state, construct request and call modular service
     let pm_response =
-        retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req)
+        retrieve_pm_modular_service_call(state, profile_id, payment_method_fetch_req)
             .await?;
 
     //Convert PMResponse to PaymentMethodWrapper
@@ -1269,7 +1271,6 @@ pub async fn fetch_payment_method_from_modular_service(
 #[cfg(feature = "v1")]
 pub async fn retrieve_pm_modular_service_call(
     state: &routes::SessionState,
-    merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
 ) -> CustomResult<api::PaymentMethodResponse, errors::ApiErrorResponse> {
@@ -1338,7 +1339,7 @@ pub async fn create_payment_method_in_modular_service(
 
     //fn to take state, construct request and call modular service
     let pm_response =
-        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
+        create_pm_modular_service_call(state, profile_id, payment_method_request)
             .await?;
 
     //Convert PMResponse to PaymentMethodWrapper
@@ -1355,7 +1356,6 @@ pub async fn create_payment_method_in_modular_service(
 #[cfg(feature = "v1")]
 pub async fn create_pm_modular_service_call(
     state: &routes::SessionState,
-    merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_create_req: CreatePaymentMethodV1Request,
 ) -> CustomResult<CreatePaymentMethodResponse, errors::ApiErrorResponse> {

@@ -27,14 +27,13 @@ use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-use crate::core::payments::pm_transformers::PaymentMethodWrapper;
 use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payment_methods::{transformers as pm_transformers, utils as pm_utils},
+        payment_methods::transformers as pm_transformers,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -74,6 +73,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        payment_method_wrapper: Option<pm_transformers::PaymentMethodWrapper>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -148,37 +148,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let pm_info = if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            &*state.store,
-            &platform.get_processor().get_account().organization_id,
-        )
-        .await
-        {
-            if let Some(payment_token) = &request.payment_token {
-                // Use pm_info as needed in subsequent operations
 
-                logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
-                // Fetch payment method using PM Modular Service
-                let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
-                    state,
-                    platform.get_provider().get_account().get_id(),
-                    &profile_id,
-                    &payment_token,
-                )
-                .await?;
-                logger::info!("Payment method fetched from PM Modular Service in create api.");
-
-                Some(pm_info)
-                // Use pm_info as needed in subsequent operations
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        let m_pm_info = pm_info.clone();
-        // same logic as confirm
+        let m_pm_wrapper = payment_method_wrapper.clone();
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -194,7 +165,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             None,
-            m_pm_info.map(|pm| pm.payment_method.0),
+            m_pm_wrapper.map(|pm| pm.payment_method.0),
         )
         .await?;
 
@@ -232,7 +203,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let payment_method_data_billing = pm_info
+        let payment_method_data_billing = payment_method_wrapper
             .clone()
             .and_then(|pm| {
                 pm.payment_method
@@ -494,25 +465,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_id
         };
 
-        // let (token_data, payment_method_info) =
-        //     if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-        //         &*state.store,
-        //         &platform.get_processor().get_account().organization_id,
-        //     )
-        //     .await
-        //     {
-        //         //only if organization is eligible, token to act as pm id, only for new organization merchant
-        //         (
-        //             None,
-        //             pm_info.clone().and_then(|pm| Some(pm.payment_method.0)),
-        //         )
-        //     } else {
-        //         (None, None)
-        //     };
-
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
-            request.confirm, //verifying if confirm is true
+            request.confirm,
             self,
         );
 
@@ -541,7 +496,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        ///should we populate it here
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
@@ -558,7 +512,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = pm_info
+        let payment_method_data = payment_method_wrapper
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_after_card_bin_call.map(Into::into));
@@ -621,7 +575,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile.use_billing_as_payment_method_billing,
         );
 
-        let payment_method_data_billing = pm_info
+        let payment_method_data_billing = payment_method_wrapper
             .clone()
             .and_then(|pm| {
                 pm.payment_method
@@ -640,8 +594,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .and_then(|pmd| pmd.billing.clone()));
 
-        let unified_address =
-            address.unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
+        let unified_address = address
+            .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -704,7 +658,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         Ok(get_trackers_response)
     }
-
 }
 
 #[async_trait]
@@ -852,47 +805,37 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         }
     }
 
-    // #[instrument(skip_all)]
-    // async fn fetch_payment_method(
-    //     &self,
-    //     state: &SessionState,
-    //     req: &api::PaymentsRequest,
-    //     platform: &domain::Platform,
-    //     business_profile: &domain::Profile,
-    // ) -> RouterResult<(PaymentMethodWrapper)> {
-    //     //check for req.payment_method_data, if card token, and req.payment_token is present then fetch payment method from pm service
+    #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentsRequest,
+        platform: &domain::Platform,
+    ) -> RouterResult<Option<pm_transformers::PaymentMethodWrapper>> {
+        let profile_id = req
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .attach_printable("Profile id is a mandatory parameter")?;
+        let pm_info = if let Some(payment_token) = &req.payment_token {
+            // Fetch payment method using PM Modular Service
+            let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform.get_provider().get_account().get_id(),
+                &profile_id,
+                &payment_token,
+                // None
+            )
+            .await?;
+            logger::info!("Payment method fetched from PM Modular Service.");
 
-    //     let pm_info = if let Some(payment_token) = &req.payment_token {
-    //             logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
-    //             //fetch req/payment_method_data, if CardToken, then send it in fetch call else None
-    //             let payment_method_data = if let Some(payment_method_data) = &req.payment_method_data {
-    //                 if let api_models::payments::PaymentMethodData::CardToken(ref token) = payment_method_data {
-    //                     Some(token.clone())
-    //                 } else {
-    //                     None
-    //                 }
-    //             } else {
-    //                 None
-    //             };
-    //             // Fetch payment method using PM Modular Service
-    //             let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
-    //                 state,
-    //                 platform.get_provider().get_account().get_id(),
-    //                 &profile_id,
-    //                 &payment_token,
-    //                 payment_method_data
-    //             )
-    //             .await?;
-    //             logger::info!("Payment method fetched from PM Modular Service.");
+            Some(pm_info)
+        } else {
+            None
+        };
 
-    //             Some(pm_info)
-    //     } else {
-    //         None
-    //     };
-
-    //     //the pm_info will be set in payment_data in get trackers
-    //     Ok((pm_info))
-    // }
+        Ok(pm_info)
+    }
 
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
