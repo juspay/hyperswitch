@@ -113,7 +113,7 @@ pub struct PaypalMethodData {
 #[serde(rename_all = "camelCase")]
 pub struct KlarnaMethodData {
     billing_address: Address,
-    lines: Vec<Box<MollieLinesItems>>,
+    lines: Vec<MollieLinesItems>,
 }
 
 #[derive(Debug, Serialize)]
@@ -246,8 +246,8 @@ impl Address {
         )?;
 
         Ok(Self {
-            street_and_number: address.get_combined_address_line()?.into(),
-            postal_code: address.get_zip()?.to_owned().into(),
+            street_and_number: address.get_combined_address_line()?,
+            postal_code: address.get_zip()?.to_owned(),
             city: address.get_city()?.to_owned(),
             region: address.get_optional_state(),
             country: address.get_country()?.to_owned(),
@@ -511,11 +511,10 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &PayLaterData)> for MolliePay
                     .into_iter()
                     .map(|order_detail| {
                         MollieLinesItems::try_from((order_detail, item.request.currency))
-                            .map(Box::new)
                     })
-                    .collect::<Result<Vec<Box<MollieLinesItems>>, Error>>()?;
+                    .collect::<Result<Vec<MollieLinesItems>, Error>>()?;
 
-                Ok(MolliePaymentMethodData::Klarna(Box::new(
+                Ok(Self::Klarna(Box::new(
                     KlarnaMethodData {
                         billing_address,
                         lines,
