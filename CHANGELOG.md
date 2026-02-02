@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix2
+
+### Miscellaneous Tasks
+
+- Conditional Audit Event of UCS only during Primary mode ([#11119](https://github.com/juspay/hyperswitch/pull/11119)) ([`0559cc1`](https://github.com/juspay/hyperswitch/commit/0559cc14cd1088e53a1d60627f7f80ca2f4c0bdf))
+
+**Full Changelog:** [`2026.01.28.1-hotfix1...2026.01.28.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1-hotfix1...2026.01.28.1-hotfix2)
+
+- - -
+
 ## 2026.01.28.1-hotfix1
 
 ### Miscellaneous Tasks
