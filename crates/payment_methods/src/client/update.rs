@@ -38,6 +38,7 @@ pub struct UpdatePaymentMethodV1Payload {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
+    pub modular_service_prefix: String,
 }
 
 /// Modular service update request payload.
@@ -160,7 +161,10 @@ impl UpdatePaymentMethod {
         &self,
         request: &UpdatePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![("id", request.payment_method_id.clone())]
+        vec![
+            ("prefix", request.modular_service_prefix.clone()),
+            ("id", request.payment_method_id.clone()),
+        ]
     }
 
     fn build_body(&self, request: ModularPMUpdateRequest) -> Option<RequestContent> {
@@ -171,7 +175,7 @@ impl UpdatePaymentMethod {
 hyperswitch_interfaces::impl_microservice_flow!(
     UpdatePaymentMethod,
     method = Method::Put,
-    path = "/v2/payment-methods/{id}/update-saved-payment-method",
+    path = "/{prefix}/payment-methods/{id}/update-saved-payment-method",
     v1_request = UpdatePaymentMethodV1Request,
     v2_request = ModularPMUpdateRequest,
     v2_response = ModularPMRetrieveResponse,
