@@ -8016,7 +8016,6 @@ pub async fn is_merchant_eligible_authentication_service(
 ) -> RouterResult<bool> {
     let db = &*state.store;
     let org_key = org_id.get_authentication_service_eligible_key();
-    let merchant_key = merchant_id.get_authentication_service_eligible_key();
     let org_eligible = db
         .find_config_by_key(&org_key)
         .await
@@ -8025,6 +8024,13 @@ pub async fn is_merchant_eligible_authentication_service(
         })
         .is_ok_and(|c| c.config.to_lowercase() == "true");
 
+    // Early return if org is eligible - no need to check merchant
+    if org_eligible {
+        return Ok(true);
+    }
+
+    // Only fetch merchant config if org is not eligible
+    let merchant_key = merchant_id.get_authentication_service_eligible_key();
     let merchant_eligible = db
         .find_config_by_key(&merchant_key)
         .await
@@ -8033,7 +8039,7 @@ pub async fn is_merchant_eligible_authentication_service(
         })
         .is_ok_and(|c| c.config.to_lowercase() == "true");
 
-    Ok(org_eligible || merchant_eligible)
+    Ok(merchant_eligible)
 }
 
 #[cfg(feature = "v1")]
