@@ -99,6 +99,8 @@ pub use self::{
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v2")]
 use crate::core::payments;
+#[cfg(feature = "v1")]
+use crate::core::payments::pm_transformers::PaymentMethodWrapper;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
@@ -214,6 +216,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        payment_method_wrapper: Option<PaymentMethodWrapper>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -300,6 +303,27 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+    #[cfg(feature = "v1")]
+    async fn create_payment_method(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _platform: &domain::Platform,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn fetch_payment_method(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _platform: &domain::Platform,
+    ) -> RouterResult<Option<PaymentMethodWrapper>> {
+        Ok(None)
     }
 
     #[allow(clippy::too_many_arguments)]
