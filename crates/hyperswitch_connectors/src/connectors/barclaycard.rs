@@ -1656,6 +1656,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
@@ -1680,6 +1681,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data

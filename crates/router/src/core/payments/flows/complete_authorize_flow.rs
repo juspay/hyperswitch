@@ -173,6 +173,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 payment_method: Some(self.payment_method),
                 request_data: &self.request,
             },
@@ -358,6 +359,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 request_data: &self.request,
                 payment_method: Some(self.payment_method),
             },
@@ -444,6 +446,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
                 request_data: &self.request,
                 payment_method: Some(self.payment_method),
             },
@@ -455,8 +458,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             );
             // Convert CompleteAuthorize to PostAuthenticate for UCS call
             let mut complete_authorize_request_data = router_data.request.clone();
+
             let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
+
             let post_authenticate_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
@@ -683,6 +688,7 @@ pub async fn call_unified_connector_service_authenticate(
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_authenticate(
                     payment_authenticate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
@@ -696,6 +702,7 @@ pub async fn call_unified_connector_service_authenticate(
                 )?),
                 Err(err) => Err(err),
             };
+
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_authenticate_response
                 .raw_connector_response
@@ -789,6 +796,7 @@ pub async fn call_unified_connector_service_post_authenticate(
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_post_authenticate(
                     payment_post_authenticate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
