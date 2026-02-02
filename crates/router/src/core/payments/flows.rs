@@ -49,7 +49,6 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,

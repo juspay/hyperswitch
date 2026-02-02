@@ -151,6 +151,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
+        payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
+            state,
+            payment_intent.customer_details,
+            &customer_details,
+            platform.get_processor(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to store customer data in payment intent")?;
+
         // Stage 2
         let attempt_id = payment_intent.active_attempt.get_id();
         let profile_id = payment_intent
@@ -610,7 +620,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
             let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
                 state,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 &token_data,
                 storage_scheme,
             )
@@ -881,17 +891,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -985,7 +984,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -998,7 +996,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             state,
             payment_data,
             platform,
-            customer,
             storage_scheme,
             business_profile,
             should_retry_with_pan,
@@ -1914,7 +1911,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        customer: Option<domain::Customer>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -2047,7 +2043,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .clone(),
         );
 
-        let customer_id = customer.clone().map(|c| c.customer_id);
+        let customer_id = payment_data.payment_intent.customer_id.clone();
         let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = payment_data.payment_intent.business_label.clone();
