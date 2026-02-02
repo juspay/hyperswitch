@@ -175,9 +175,6 @@ pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
 /// Config Override Header for UCS
 pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
-/// Event origin: Router (Hyperswitch)
-pub const EVENT_ORIGIN_ROUTER: &str = "router";
-
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
 
