@@ -259,60 +259,109 @@ impl RouterDataPSync
         gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
-        if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
-            // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                self,
-                call_connector_action.clone(),
-                None,
-                return_raw_connector_response,
-            )
-            .await
-            .to_payment_failed_response()?;
-            Ok(resp)
-        } else {
-            // in trigger, call connector for every capture_id
-            for connector_capture_id in pending_connector_capture_id_list {
-                // TEMPORARY FIX: remove the clone on router data after removing this function as an impl on trait RouterDataPSync
-                // TRACKING ISSUE: https://github.com/juspay/hyperswitch/issues/4644
-                let mut cloned_router_data = self.clone();
-                cloned_router_data.request.connector_transaction_id =
-                    types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
-                let resp = gateway::execute_payment_gateway(
+        match call_connector_action {
+            payments::CallConnectorAction::HandleResponse(_) => {
+                // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
+                let resp = services::execute_connector_processing_step(
                     state,
-                    connector_integration.clone_box(),
-                    &cloned_router_data,
+                    connector_integration,
+                    self,
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
-                    gateway_context.clone(),
                 )
                 .await
                 .to_payment_failed_response()?;
-                match resp.response {
-                    Err(err) => {
-                        capture_sync_response_map.insert(connector_capture_id, types::CaptureSyncResponse::Error {
-                            code: err.code,
-                            message: err.message,
-                            reason: err.reason,
-                            status_code: err.status_code,
-                            amount: None,
-                        });
-                    },
-                    Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
-                        capture_sync_response_map.extend(capture_sync_response_list.into_iter());
-                    }
-                    _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
-                };
+                Ok(resp)
             }
-            let mut cloned_router_data = self.clone();
-            cloned_router_data.response =
-                Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-                    capture_sync_response_list: capture_sync_response_map,
-                });
-            Ok(cloned_router_data)
+            payments::CallConnectorAction::UCSConsumeResponse(_) => {
+                // UCS 1-step flow: consume the transformed response directly without calling connector
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    self,
+                    call_connector_action.clone(),
+                    None,
+                    return_raw_connector_response,
+                )
+                .await
+                .to_payment_failed_response()?;
+                Ok(resp)
+            }
+            payments::CallConnectorAction::UCSHandleResponse(_) => {
+                // UCS 2-step flow: make second call to UCS with handle_response
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    self,
+                    call_connector_action.clone(),
+                    None,
+                    return_raw_connector_response,
+                )
+                .await
+                .to_payment_failed_response()?;
+                Ok(resp)
+            }
+            payments::CallConnectorAction::Trigger => {
+                // in trigger, call connector for every capture_id
+                for connector_capture_id in pending_connector_capture_id_list {
+                    // TEMPORARY FIX: remove the clone on router data after removing this function as an impl on trait RouterDataPSync
+                    // TRACKING ISSUE: https://github.com/juspay/hyperswitch/issues/4644
+                    let mut cloned_router_data = self.clone();
+                    cloned_router_data.request.connector_transaction_id =
+                        types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
+                    let resp = gateway::execute_payment_gateway(
+                        state,
+                        connector_integration.clone_box(),
+                        &cloned_router_data,
+                        call_connector_action.clone(),
+                        None,
+                        return_raw_connector_response,
+                        gateway_context.clone(),
+                    )
+                    .await
+                    .to_payment_failed_response()?;
+                    match resp.response {
+                        Err(err) => {
+                            capture_sync_response_map.insert(connector_capture_id, types::CaptureSyncResponse::Error {
+                                code: err.code,
+                                message: err.message,
+                                reason: err.reason,
+                                status_code: err.status_code,
+                                amount: None,
+                            });
+                        },
+                        Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
+                            capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+                        }
+                        _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
+                    };
+                }
+                let mut cloned_router_data = self.clone();
+                cloned_router_data.response =
+                    Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                        capture_sync_response_list: capture_sync_response_map,
+                    });
+                Ok(cloned_router_data)
+            }
+            payments::CallConnectorAction::Avoid => {
+                // Avoid calling connector, return empty response
+                let mut cloned_router_data = self.clone();
+                cloned_router_data.response =
+                    Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                        capture_sync_response_list: capture_sync_response_map,
+                    });
+                Ok(cloned_router_data)
+            }
+            payments::CallConnectorAction::StatusUpdate { status: _, error_code: _, error_message: _ } => {
+                // Status update without calling connector
+                let mut cloned_router_data = self.clone();
+                cloned_router_data.response =
+                    Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                        capture_sync_response_list: capture_sync_response_map,
+                    });
+                Ok(cloned_router_data)
+            }
         }
     }
 }
