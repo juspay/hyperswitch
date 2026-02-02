@@ -7,13 +7,20 @@ use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
-    request::RequestContent,
+    request::{Headers, RequestContent},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
-use router_env::RequestId;
+use masking::Mask;
+#[cfg(feature = "v1")]
+use payment_methods::client::{
+    self as pm_client,
+    list::ListCustomerPaymentMethods,
+    list::{ListCustomerPaymentMethodsV1Request, ListCustomerPaymentMethodsV1Response},
+};
+use router_env::{RequestId, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -1113,4 +1120,56 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             token: token.clone().token,
         }
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_customer_pml_modular_service_call(
+    state: &routes::SessionState,
+    profile_id: id_type::ProfileId,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    query_params: &Option<api_models::payment_methods::PaymentMethodListRequest>,
+) -> CustomResult<ListCustomerPaymentMethodsV1Response, errors::ApiErrorResponse> {
+    let list_customer_pml_request = ListCustomerPaymentMethodsV1Request {
+        customer_id: customer_id.clone(),
+        query_params: query_params.clone(),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.to_string(),
+    };
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+    //headers
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        "X-Profile-Id".to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        "X-Internal-Api-Key".to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        "X-Merchant-Id".to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+
+    //pm client construction
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    //Modular service call
+    let pm_response = ListCustomerPaymentMethods::call(state, &client, list_customer_pml_request)
+        .await
+        .map_err(|err| {
+            println!("Error in creating payment method: {:?}", err);
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+    Ok(pm_response)
 }

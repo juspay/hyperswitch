@@ -67,7 +67,10 @@ use super::tokenize::NetworkTokenizationProcess;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
-    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
+    utils::{
+        get_merchant_pm_filter_graph, get_organization_eligibility_config_for_pm_modular_service,
+        make_pm_graph, refresh_pm_filters_cache,
+    },
 };
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
@@ -4180,6 +4183,20 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&id_type::CustomerId>,
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let eligibility = get_organization_eligibility_config_for_pm_modular_service(
+        &*state.store,
+        &platform.get_processor().get_account().organization_id,
+    )
+    .await;
+
+    let profile_id = platform
+        .get_processor()
+        .get_account()
+        .default_profile
+        .clone();
+
+    let merchant_id = platform.get_processor().get_account().get_id();
+
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {
@@ -4197,16 +4214,33 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     let customer_id = customer_id.or(auth_cust.as_ref());
 
     if let Some(customer_id) = customer_id {
-        Box::pin(list_customer_payment_method(
-            &state,
-            platform.clone(),
-            None,
-            customer_id,
-            limit,
-        ))
-        .await
+        if eligibility {
+            let response = payment_methods::list_customer_pml_modular_service_call(
+                &state,
+                profile_id.get_required_value("ProfileId")?,
+                &customer_id,
+                &merchant_id,
+                &req,
+            )
+            .await?;
+            Ok(services::ApplicationResponse::Json(
+                api::CustomerPaymentMethodsListResponse {
+                    customer_payment_methods: response.customer_payment_methods,
+                    is_guest_customer: response.is_guest_customer,
+                },
+            ))
+        } else {
+            Box::pin(list_customer_payment_method(
+                &state,
+                platform.clone(),
+                None,
+                &customer_id,
+                limit,
+            ))
+            .await
+        }
     } else {
-        let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
+        let cloned_secret = req.as_ref().and_then(|r| r.client_secret.as_ref().cloned());
         let payment_intent: Option<hyperswitch_domain_models::payments::PaymentIntent> =
             helpers::verify_payment_intent_time_and_client_secret(&state, &platform, cloned_secret)
                 .await?;
@@ -4216,14 +4250,31 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             .and_then(|intent| intent.customer_id.to_owned())
         {
             Some(customer_id) => {
-                Box::pin(list_customer_payment_method(
-                    &state,
-                    platform,
-                    payment_intent,
-                    &customer_id,
-                    limit,
-                ))
-                .await
+                if eligibility {
+                    let response = payment_methods::list_customer_pml_modular_service_call(
+                        &state,
+                        profile_id.get_required_value("ProfileId")?,
+                        &customer_id,
+                        &merchant_id,
+                        &req,
+                    )
+                    .await?;
+                    Ok(services::ApplicationResponse::Json(
+                        api::CustomerPaymentMethodsListResponse {
+                            customer_payment_methods: response.customer_payment_methods,
+                            is_guest_customer: response.is_guest_customer,
+                        },
+                    ))
+                } else {
+                    Box::pin(list_customer_payment_method(
+                        &state,
+                        platform.clone(),
+                        payment_intent,
+                        &customer_id,
+                        limit,
+                    ))
+                    .await
+                }
             }
             None => {
                 let response = api::CustomerPaymentMethodsListResponse {
