@@ -1470,6 +1470,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
         state,
         payment_pre_authenticate_request,
         headers_builder,
+        unified_connector_service_execution_mode,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_pre_authenticate(
