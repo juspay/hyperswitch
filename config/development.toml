@@ -1506,3 +1506,5 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
+payment_methods_prefix = "v2"
+
