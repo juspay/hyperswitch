@@ -4272,7 +4272,9 @@ pub async fn list_customer_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     // Get requires_cvv using type-safe dimensions config
-    let requires_cvv = dimensions.get_requires_cvv(state).await;
+    let requires_cvv = dimensions
+        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref())
+        .await;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(

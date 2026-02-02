@@ -186,3 +186,50 @@ impl SuperpositionClient {
             })
     }
 }
+
+/// Each config type implements this trait to define how its value should be
+/// retrieved from Superposition.
+pub trait Config {
+    /// The output type of this configuration
+    type Output: Default + Clone;
+
+    /// Get the Superposition key for this config
+    const SUPERPOSITION_KEY: &'static str;
+
+    /// Get the default value for this config
+    const DEFAULT_VALUE: Self::Output;
+
+    /// Fetch config value from Superposition.
+    fn fetch(
+        superposition_client: &SuperpositionClient,
+        context: Option<ConfigContext>,
+    ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
+    where
+        open_feature::Client: GetValue<Self::Output>,
+    {
+        async move {
+            match superposition_client
+                .get_config_value::<Self::Output>(Self::SUPERPOSITION_KEY, context.as_ref())
+                .await
+            {
+                Ok(value) => {
+                    router_env::logger::info!(
+                        "Superposition config hit: key='{}', type='{}'",
+                        Self::SUPERPOSITION_KEY,
+                        std::any::type_name::<Self::Output>()
+                    );
+                    Ok(value)
+                }
+                Err(e) => {
+                    router_env::logger::warn!(
+                        "Superposition config miss: key='{}', type='{}', error='{:?}'",
+                        Self::SUPERPOSITION_KEY,
+                        std::any::type_name::<Self::Output>(),
+                        e
+                    );
+                    Err(e)
+                }
+            }
+        }
+    }
+}

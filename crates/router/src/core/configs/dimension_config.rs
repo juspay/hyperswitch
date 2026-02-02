@@ -1,43 +1,78 @@
+use external_services::superposition;
+use hyperswitch_domain_models::configs::ConfigInterface;
+
 use super::{
     dimension_state::{Dimensions, HasMerchantId},
-    Config,
+    fetch_db_with_dimensions, DatabaseBackedConfig,
 };
-use crate::{consts::superposition as superposition_consts, routes::SessionState};
+use crate::consts::superposition as superposition_consts;
 
-/// Config definition for requiring CVV
-pub struct RequiresCvv;
+/// Macro to generate config struct and superposition::Config trait implementation
+/// Note: Manually implement `DatabaseBackedConfig` for the config struct:
+/// The `fetch_db` method is provided by the default implementation in DatabaseBackedConfig.
+#[macro_export]
+macro_rules! config {
+    (
+        $config:ident => $output:ty,
+        superposition_key = $superposition_key:expr,
+        default = $default:expr,
+        requires = $requirement:ty,
+        method = $method:ident
+    ) => {
+        /// Config definition
+        pub struct $config;
 
-impl Config for RequiresCvv {
-    type Output = bool;
+        impl superposition::Config for $config {
+            type Output = $output;
 
-    const SUPERPOSITION_KEY: &'static str = superposition_consts::REQUIRES_CVV;
+            const SUPERPOSITION_KEY: &'static str = $superposition_key;
 
+            const DEFAULT_VALUE: $output = $default;
+        }
+
+        /// Get $config - ONLY available when Dimensions has required state
+        impl<O, P> Dimensions<$requirement, O, P>
+        where
+            O: Send + Sync,
+            P: Send + Sync,
+        {
+            pub async fn $method(
+                &self,
+                storage: &(dyn ConfigInterface<Error = storage_impl::errors::StorageError>
+                      + Send
+                      + Sync),
+                superposition_client: Option<&superposition::SuperpositionClient>,
+            ) -> $output {
+                fetch_db_with_dimensions::<$config, $requirement, O, P>(
+                    storage,
+                    superposition_client,
+                    self,
+                )
+                .await
+            }
+        }
+    };
+}
+
+// Define RequiresCvv struct and superposition::Config using the macro
+config! {
+    RequiresCvv => bool,
+    superposition_key = superposition_consts::REQUIRES_CVV,
+    default = true,
+    requires = HasMerchantId,
+    method = get_requires_cvv
+}
+
+// Manual implementation of DatabaseBackedConfig for RequiresCvv
+// This is REQUIRED by the trait and enforces db_key implementation
+impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
 
-    const DEFAULT_VALUE: bool = true;
-}
-
-impl RequiresCvv {
-    /// Generate the database key for this config from dimensions
-    /// Returns Some(db_key) if merchant_id is available, None otherwise
-    pub fn db_key<O, P>(dimensions: &Dimensions<HasMerchantId, O, P>) -> Option<String> {
-        dimensions
-            .merchant_id()
-            .ok()
-            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
-    }
-}
-
-/// Get requires_cvv config
-impl<O, P> Dimensions<HasMerchantId, O, P> {
-    pub async fn get_requires_cvv(&self, state: &SessionState) -> bool {
-        // Generate db_key, return default if merchant_id unavailable
-        let db_key = match RequiresCvv::db_key(self) {
-            Some(key) => key,
-            None => return RequiresCvv::DEFAULT_VALUE,
-        };
-
-        // Fetch the value using the db_key
-        RequiresCvv::fetch(state, &db_key, self.to_superposition_context()).await
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
     }
 }
