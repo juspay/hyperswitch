@@ -990,7 +990,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             _ => Ok(()),
         }
     }
-
 }
 
 #[async_trait]
