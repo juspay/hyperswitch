@@ -7,7 +7,7 @@ use external_services::superposition::{self, ConfigContext};
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
-    routes::SessionState,
+    routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{api, transformers::ForeignInto},
 };
@@ -175,6 +175,7 @@ where
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let default_value = C::DEFAULT_VALUE;
+    let config_type = C::KEY;
 
     let superposition_result = match superposition_client {
         Some(client) => C::fetch(client, context).await,
@@ -186,7 +187,13 @@ where
     };
 
     match superposition_result {
-        Ok(value) => value,
+        Ok(value) => {
+            metrics::CONFIG_SUPERPOSITION_FETCH.add(
+                1,
+                router_env::metric_attributes!(("config_type", config_type)),
+            );
+            value
+        }
         Err(_) => {
             router_env::logger::info!("Retrieving config from database for key '{}'", db_key);
 
@@ -201,9 +208,22 @@ where
                 .ok()
                 .and_then(|config| C::Output::from_config_str(&config.config).ok())
             {
-                Some(value) => value,
+                Some(value) => {
+                    metrics::CONFIG_DATABASE_FETCH.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", config_type)),
+                    );
+                    value
+                }
                 None => {
-                    router_env::logger::info!("Using default config value for key '{}'", db_key);
+                    router_env::logger::info!(
+                        "Using default config value for key '{}'",
+                        db_key
+                    );
+                    metrics::CONFIG_DEFAULT_FALLBACK.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", config_type)),
+                    );
                     default_value
                 }
             }
