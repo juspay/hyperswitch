@@ -642,20 +642,21 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
-    let payment_method_info = if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-        &*state.store,
-        &platform.get_processor().get_account().organization_id,
-    )
-    .await
-    {
-        logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
-        operation
-            .to_domain()?
-            .fetch_payment_method(state, &req, platform)
-            .await?
-    }else {
-        None
-    };
+    let payment_method_info =
+        if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+            &*state.store,
+            &platform.get_processor().get_account().organization_id,
+        )
+        .await
+        {
+            logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
+            operation
+                .to_domain()?
+                .fetch_payment_method(state, &req, platform)
+                .await?
+        } else {
+            None
+        };
 
     //fetch in gettrackers trait
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
@@ -675,7 +676,7 @@ where
             platform,
             auth_flow,
             &header_payload,
-            payment_method_info
+            payment_method_info,
         )
         .await?;
 

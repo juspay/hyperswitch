@@ -40,8 +40,8 @@ use crate::{
         payment_methods::{transformers as pm_transformers, utils as pm_utils},
         payments::{
             self, helpers, operations,
-            operations::payment_confirm::unified_authentication_service::ThreeDsMetaData, populate_surcharge_details, CustomerDetails,
-            PaymentAddress, PaymentData,
+            operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
+            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -679,7 +679,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             {
                 (
                     None,
-                    payment_method_wrapper.clone().and_then(|pm| Some(pm.payment_method.0)),
+                    payment_method_wrapper
+                        .clone()
+                        .and_then(|pm| Some(pm.payment_method.0)),
                 )
             } else {
                 if let Some(token) = token.clone() {
@@ -820,8 +822,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .and_then(|pmd| pmd.billing.clone()));
 
-        let unified_address =
-            address.unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
+        let unified_address = address
+            .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
 
         // If processor_payment_token is passed in request then populating the same in PaymentData
         let mandate_id = request
@@ -883,17 +885,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         //setting vault operation to existing vault data if raw payment method data is present in pm_info
-        let vault_operation = payment_method_wrapper.and_then(|pm| match pm.raw_payment_method_data {
-            Some(pmd) => match pmd {
-                domain::PaymentMethodData::Card(card) => {
-                    Some(domain_payments::VaultOperation::ExistingVaultData(
-                        domain_payments::VaultData::Card(card),
-                    ))
-                }
-                _ => None,
-            },
-            None => None,
-        });
+        let vault_operation =
+            payment_method_wrapper.and_then(|pm| match pm.raw_payment_method_data {
+                Some(pmd) => match pmd {
+                    domain::PaymentMethodData::Card(card) => {
+                        Some(domain_payments::VaultOperation::ExistingVaultData(
+                            domain_payments::VaultData::Card(card),
+                        ))
+                    }
+                    _ => None,
+                },
+                None => None,
+            });
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -1146,7 +1149,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         Ok(())
     }
 
-        #[instrument(skip_all)]
+    #[instrument(skip_all)]
     async fn fetch_payment_method(
         &self,
         state: &SessionState,
@@ -1159,7 +1162,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         let pm_info = if let Some(payment_token) = &req.payment_token {
             logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
             //fetch req/payment_method_data, if CardToken, then send it in fetch call else None
-            let payment_method_data = if let Some(payment_method_data) = req.payment_method_data.as_ref().and_then(|pmd| pmd.payment_method_data.clone()) {
+            let payment_method_data = if let Some(payment_method_data) = req
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone())
+            {
                 if let api_models::payments::PaymentMethodData::CardToken(ref token) =
                     payment_method_data
                 {

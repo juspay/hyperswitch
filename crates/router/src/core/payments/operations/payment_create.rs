@@ -148,7 +148,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-
         let m_pm_wrapper = payment_method_wrapper.clone();
         let m_helpers::MandateGenericData {
             token,
