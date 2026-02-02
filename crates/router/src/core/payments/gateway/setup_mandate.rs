@@ -108,6 +108,7 @@ where
             state,
             setup_mandate_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, setup_mandate_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_setup_mandate_granular(
                     setup_mandate_request,
@@ -149,6 +150,9 @@ where
                 ucs_data.connector_response.map(|connector_response| {
                     router_data.connector_response = Some(connector_response);
                 });
+
+                router_data.amount_captured = ucs_data.amount_captured;
+                router_data.minor_amount_captured = ucs_data.minor_amount_captured;
 
                 Ok((router_data, (), setup_mandate_response))
             },

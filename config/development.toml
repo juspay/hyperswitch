@@ -432,7 +432,7 @@ private_key = ""  # RSA private key used for signing ID tokens (Generate using: 
 [oidc.client.c1]
 client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
 client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
-redirect_uri = ""  # Redirect URI registered for the OIDC client 
+redirect_uri = ""  # Redirect URI registered for the OIDC client
 
 
 [bank_config.eps]
@@ -1507,3 +1507,5 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
+payment_methods_prefix = "v2"
+
