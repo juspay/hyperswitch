@@ -353,7 +353,11 @@ impl RouterDataPSync
                     });
                 Ok(cloned_router_data)
             }
-            payments::CallConnectorAction::StatusUpdate { status: _, error_code: _, error_message: _ } => {
+            payments::CallConnectorAction::StatusUpdate {
+                status: _,
+                error_code: _,
+                error_message: _,
+            } => {
                 // Status update without calling connector
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.response =
