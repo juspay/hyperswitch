@@ -257,6 +257,7 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector_customer: connector_customer_id,
+        connector: merchant_connector_account.get_connector_name(),
         payment_id: payment_data
             .payment_attempt
             .payment_id
@@ -457,6 +458,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         ),
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
+        ucs_authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
         guest_customer: None,
@@ -4736,6 +4738,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .clone()
                 .map(|m| m.expose()),
             authentication_data: None,
+            ucs_authentication_data: None,
             request_extended_authorization: None,
             split_payments: None,
             guest_customer: None,
@@ -4777,6 +4780,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        use hyperswitch_domain_models::router_request_types::UcsAuthenticationData;
+
         let payment_data = additional_data.payment_data.clone();
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
@@ -4976,6 +4981,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .as_ref()
                     .map(AuthenticationData::foreign_try_from)
                     .transpose()?),
+            ucs_authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(UcsAuthenticationData::foreign_try_from)
+                .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,

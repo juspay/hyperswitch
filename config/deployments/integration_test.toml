@@ -216,7 +216,7 @@ payout_connector_list = "nomupay,stripe,wise"
 connectors_with_delayed_session_response = "trustpay,payme"     # List of connectors which have delayed session response
 
 [save_payment_method_on_session.unsupported_payment_methods]
-pay_later = "klarna,affirm"
+pay_later = "klarna,affirm,afterpay_clearpay"
 
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
@@ -925,7 +925,7 @@ paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_met
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
-[l2_l3_data_config]  
+[l2_l3_data_config]
 enabled = "true"
 
 [webhook_source_verification_call]
