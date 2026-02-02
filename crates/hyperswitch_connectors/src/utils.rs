@@ -120,6 +120,20 @@ pub(crate) fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64
     utc_datetime.unix_timestamp() * 1000
 }
 
+pub(crate) fn parse_date_string_to_timestamp(date_str: &str) -> Option<i64> {
+    // Define the format
+    let format = time::macros::format_description!("[year]-[month]-[day]");
+
+    // Parse the string into a Date object
+    let date = time::Date::parse(date_str, &format).ok()?;
+
+    // Combine with Midnight to create a PrimitiveDateTime
+    let datetime = PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
+
+    // Convert to milliseconds
+    Some(get_timestamp_in_milliseconds(&datetime))
+}
+
 pub(crate) fn get_amount_as_string(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
@@ -6244,7 +6258,7 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QrImage {
     pub data: String,
 }

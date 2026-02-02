@@ -1,5 +1,5 @@
 use api_models::payments::{ExpiryType, QrCodeInformation, VoucherNextStepData};
-use common_enums::{enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType};
+use common_enums::{enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, PixKeyType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, ValueExt},
@@ -39,12 +39,13 @@ use crate::{
             SantanderValue,
         },
         responses::{
-            FunctionType, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            FunctionType, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
-            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
-            SantanderVoidResponse, SantanderVoidStatus, SantanderWebhookBody,
+            SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
+            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
+            SantanderWebhookBody,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -411,6 +412,45 @@ impl
                     .or(Some(boleto_mca_metadata.covenant_code.clone()))
             });
 
+        let key_type = value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|data| data.get_optional_pix_key_type())
+            .or(Some(boleto_mca_metadata.pix_key_type))
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata.boleto_additional_details.pix_key.type",
+            })?;
+
+        let key = Some(Key {
+            key_type: Some(SantanderPixKeyType::from(key_type)),
+            dict_key: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|data| data.get_optional_pix_key_value())
+                .or(Some(boleto_mca_metadata.pix_key_value.clone())),
+        });
+
+        let messages = value
+            .0
+            .router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|data| {
+                data.statement_descriptor.map(|s| {
+                    vec![
+                        s,
+                        value.0.router_data.description.clone().unwrap_or_default(),
+                    ]
+                })
+            });
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
             nsu_code,
@@ -480,16 +520,9 @@ impl
             max_value_or_percentage: None,
             iof_percentage: None,
             sharing: None,
-            key: None,
-            tx_id: None,
-            messages: value
-                .0
-                .router_data
-                .request
-                .billing_descriptor
-                .clone()
-                .and_then(|data| data.statement_descriptor)
-                .map(|s| vec![s]),
+            key,
+            tx_id: Some(value.0.router_data.connector_request_reference_id.clone()),
+            messages,
         })))
     }
 }
@@ -597,8 +630,8 @@ impl
             .request
             .feature_metadata
             .clone()
-            .and_then(|data| data.get_optional_pix_key())
-            .or(Some(pix_mca_metadata.pix_key.clone()));
+            .and_then(|data| data.get_optional_pix_key_value())
+            .or(Some(pix_mca_metadata.pix_key_value.clone()));
 
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calendario: calendar,
@@ -626,6 +659,18 @@ impl From<SantanderPaymentStatus> for AttemptStatus {
             SantanderPaymentStatus::Concluida => Self::Charged,
             SantanderPaymentStatus::RemovidaPeloUsuarioRecebedor => Self::Voided,
             SantanderPaymentStatus::RemovidaPeloPsp => Self::Failure,
+        }
+    }
+}
+
+impl From<PixKeyType> for SantanderPixKeyType {
+    fn from(item: PixKeyType) -> Self {
+        match item {
+            PixKeyType::Cpf => Self::Cpf,
+            PixKeyType::Cnpj => Self::Cnpj,
+            PixKeyType::Email => Self::Email,
+            PixKeyType::Phone => Self::Cellular,
+            PixKeyType::EvpToken => Self::Evp,
         }
     }
 }
@@ -814,31 +859,41 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 }
             }
             SantanderPaymentsResponse::Boleto(boleto_data) => {
+                let qr_code_url = if let Some(data) = boleto_data.qr_code_pix.clone() {
+                    let qr_image = QrImage::new_from_data(data)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let url_str = &qr_image.data;
+                    Some(
+                        Url::parse(url_str)
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                    )
+                } else {
+                    None
+                };
+
+                let expires_at =
+                    crate::utils::parse_date_string_to_timestamp(&boleto_data.due_date);
+
                 let voucher_data = VoucherNextStepData {
                     digitable_line: boleto_data.digitable_line.clone(),
-                    expires_at: None, // have to convert a date to seconds in i64
+                    expires_at,
                     reference: boleto_data.nsu_code.clone(),
                     entry_date: boleto_data.entry_date.clone(),
                     download_url: None,
                     instructions_url: None,
+                    qr_code_url,
                 };
 
                 let connector_metadata = Some(voucher_data.encode_to_value())
                     .transpose()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-                let bank_slip_id = format!(
-                    "{}.{}.P.{}.{}",
-                    boleto_data.nsu_code.clone(),
-                    boleto_data.nsu_date.clone(),
-                    boleto_data.covenant_code.clone().expose(),
-                    boleto_data.bank_number.clone(),
-                );
-
                 Ok(Self {
                     status: AttemptStatus::AuthenticationPending,
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(bank_slip_id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            boleto_data.bank_number.clone(),
+                        ),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata,
@@ -1239,8 +1294,8 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
                     .request
                     .feature_metadata
                     .clone()
-                    .and_then(|data| data.get_optional_pix_key())
-                    .or(Some(pix_mca_metadata.pix_key.clone()));
+                    .and_then(|data| data.get_optional_pix_key_value())
+                    .or(Some(pix_mca_metadata.pix_key_value.clone()));
 
                 Ok(Self {
                     calendario: calendar,

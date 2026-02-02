@@ -168,6 +168,7 @@ impl ToDieselBoletoAdditionalDetails for api_models::payments::BoletoAdditionalD
             document_kind: self.document_kind,
             payment_type: self.payment_type,
             covenant_code: self.covenant_code.clone(),
+            pix_key: self.pix_key.as_ref().map(convert_to_diesel_pix_key),
         }
     }
 }
@@ -179,6 +180,7 @@ impl ToApiBoletiAdditionalDetails for diesel_models::types::BoletoAdditionalDeta
             document_kind: self.document_kind,
             payment_type: self.payment_type,
             covenant_code: self.covenant_code.clone(),
+            pix_key: self.pix_key.as_ref().map(convert_to_api_pix_key),
         }
     }
 }
@@ -191,20 +193,39 @@ pub trait ToApiPixQR {
     fn to_api(&self) -> api_models::payments::PixAdditionalDetails;
 }
 
+// Add a helper function for the struct conversion
+fn convert_to_diesel_pix_key(
+    item: &api_models::payments::PixKeyDetails,
+) -> diesel_models::types::PixKeyDetails {
+    diesel_models::types::PixKeyDetails {
+        key_type: item.key_type,
+        key: item.key.clone(),
+    }
+}
+
+fn convert_to_api_pix_key(
+    item: &diesel_models::types::PixKeyDetails,
+) -> api_models::payments::PixKeyDetails {
+    api_models::payments::PixKeyDetails {
+        key_type: item.key_type,
+        key: item.key.clone(),
+    }
+}
+
 impl ToDieselPixQR for api_models::payments::PixAdditionalDetails {
     fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails {
         match self {
             Self::Immediate(v) => diesel_models::types::PixAdditionalDetails::Immediate(
                 diesel_models::types::ImmediateExpirationTime {
                     time: v.time,
-                    pix_key: v.pix_key.clone(),
+                    pix_key: v.pix_key.as_ref().map(convert_to_diesel_pix_key),
                 },
             ),
             Self::Scheduled(v) => diesel_models::types::PixAdditionalDetails::Scheduled(
                 diesel_models::types::ScheduledExpirationTime {
                     date: v.date.clone(),
                     validity_after_expiration: v.validity_after_expiration,
-                    pix_key: v.pix_key.clone(),
+                    pix_key: v.pix_key.as_ref().map(convert_to_diesel_pix_key),
                 },
             ),
         }
@@ -217,14 +238,14 @@ impl ToApiPixQR for diesel_models::types::PixAdditionalDetails {
             Self::Immediate(v) => api_models::payments::PixAdditionalDetails::Immediate(
                 api_models::payments::ImmediateExpirationTime {
                     time: v.time,
-                    pix_key: v.pix_key.clone(),
+                    pix_key: v.pix_key.as_ref().map(convert_to_api_pix_key),
                 },
             ),
             Self::Scheduled(v) => api_models::payments::PixAdditionalDetails::Scheduled(
                 api_models::payments::ScheduledExpirationTime {
                     date: v.date.clone(),
                     validity_after_expiration: v.validity_after_expiration,
-                    pix_key: v.pix_key.clone(),
+                    pix_key: v.pix_key.as_ref().map(convert_to_api_pix_key),
                 },
             ),
         }

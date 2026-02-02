@@ -61,15 +61,17 @@ pub struct BoletoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
     pub workspace_id: Secret<String>,
-    // It’s a number that identifies the merchant’s boleto contract with Santander (max size = 9)
     pub covenant_code: Secret<String>,
+    pub pix_key_value: Secret<String>,
+    pub pix_key_type: common_enums::enums::PixKeyType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PixMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub pix_key: Secret<String>,
+    pub pix_key_value: Secret<String>,
+    pub pix_key_type: common_enums::enums::PixKeyType,
     pub merchant_name: String,
     pub merchant_city: String,
 }

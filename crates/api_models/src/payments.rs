@@ -6897,6 +6897,10 @@ pub struct VoucherNextStepData {
     /// Human-readable numeric version of the barcode.
     #[smithy(value_type = "Option<String>")]
     pub digitable_line: Option<Secret<String>>,
+    /// The url for Pix Qr code given by the connector associated with the voucher
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub qr_code_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -11314,12 +11318,29 @@ impl FeatureMetadata {
             .map(|metadata| metadata.total_retry_count)
     }
     /// Helper to extract the optional pix_key from nested PIX details
-    pub fn get_optional_pix_key(&self) -> Option<Secret<String>> {
+    pub fn get_optional_pix_key_value(&self) -> Option<Secret<String>> {
         self.pix_additional_details
             .as_ref()
             .and_then(|pix| match pix {
-                PixAdditionalDetails::Immediate(details) => details.pix_key.clone(),
-                PixAdditionalDetails::Scheduled(details) => details.pix_key.clone(),
+                PixAdditionalDetails::Immediate(details) => {
+                    details.pix_key.as_ref().map(|k| k.key.clone())
+                }
+                PixAdditionalDetails::Scheduled(details) => {
+                    details.pix_key.as_ref().map(|k| k.key.clone())
+                }
+            })
+    }
+    /// Helper to extract the optional pix_key from nested PIX details
+    pub fn get_optional_pix_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
+        self.pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(details) => {
+                    details.pix_key.as_ref().map(|k| k.key_type)
+                }
+                PixAdditionalDetails::Scheduled(details) => {
+                    details.pix_key.as_ref().map(|k| k.key_type)
+                }
             })
     }
     /// Helper to extract the optional covenant_code from boleto details
@@ -11367,12 +11388,29 @@ pub struct FeatureMetadata {
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
     /// Helper to extract the optional pix_key from nested PIX details
-    pub fn get_optional_pix_key(&self) -> Option<Secret<String>> {
+    pub fn get_optional_pix_key_value(&self) -> Option<Secret<String>> {
         self.pix_additional_details
             .as_ref()
             .and_then(|pix| match pix {
-                PixAdditionalDetails::Immediate(details) => details.pix_key.clone(),
-                PixAdditionalDetails::Scheduled(details) => details.pix_key.clone(),
+                PixAdditionalDetails::Immediate(details) => {
+                    details.pix_key.as_ref().map(|k| k.key.clone())
+                }
+                PixAdditionalDetails::Scheduled(details) => {
+                    details.pix_key.as_ref().map(|k| k.key.clone())
+                }
+            })
+    }
+    /// Helper to extract the optional pix_key from nested PIX details
+    pub fn get_optional_pix_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
+        self.pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(details) => {
+                    details.pix_key.as_ref().map(|k| k.key_type.clone())
+                }
+                PixAdditionalDetails::Scheduled(details) => {
+                    details.pix_key.as_ref().map(|k| k.key_type.clone())
+                }
             })
     }
     /// Helper to extract the optional covenant_code from boleto details
@@ -11419,6 +11457,9 @@ pub struct BoletoAdditionalDetails {
     pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
     pub covenant_code: Option<Secret<String>>,
+    /// Pix identification details
+    #[schema(value_type = Option<PixKeyDetails>)]
+    pub pix_key: Option<PixKeyDetails>,
 }
 
 impl BoletoAdditionalDetails {
@@ -11428,14 +11469,16 @@ impl BoletoAdditionalDetails {
             document_kind: self.document_kind.or(other.document_kind),
             payment_type: self.payment_type.or(other.payment_type),
             covenant_code: self.covenant_code.or(other.covenant_code),
+            pix_key: self.pix_key.or(other.pix_key),
         }
     }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum PixAdditionalDetails {
+    #[serde(rename = "immediate")]
     Immediate(ImmediateExpirationTime),
+    #[serde(rename = "scheduled")]
     Scheduled(ScheduledExpirationTime),
 }
 
@@ -11443,9 +11486,20 @@ pub enum PixAdditionalDetails {
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: i32,
-    /// Unique key for pix transfer
-    #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
-    pub pix_key: Option<Secret<String>>,
+    /// Pix identification details
+    #[schema(value_type = Option<PixKeyDetails>)]
+    pub pix_key: Option<PixKeyDetails>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PixKeyDetails {
+    /// The category of the Pix Key.
+    #[schema(value_type = Option<PixKeyType>, example="email")]
+    #[serde(rename = "type")]
+    pub key_type: common_enums::enums::PixKeyType,
+    /// The actual value of the Pix Key. Max length is typically 77 characters per BACEN regulations.
+    #[schema(value_type = String, example="teste_api_projeto_cobranca@santander.com.br")]
+    pub key: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -11454,9 +11508,9 @@ pub struct ScheduledExpirationTime {
     pub date: String,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<i32>,
-    /// Unique key for pix transfer
-    #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
-    pub pix_key: Option<Secret<String>>,
+    /// Pix identification details
+    #[schema(value_type = Option<PixKeyDetails>)]
+    pub pix_key: Option<PixKeyDetails>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]

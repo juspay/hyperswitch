@@ -5115,6 +5115,7 @@ pub fn get_present_to_shopper_metadata(
                 instructions_url: response.action.instructions_url.clone(),
                 entry_date: None,
                 digitable_line: None,
+                qr_code_url: None,
             };
 
             Some(voucher_data.encode_to_value())

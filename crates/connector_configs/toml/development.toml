@@ -7072,9 +7072,16 @@ required=true
 type="Text"
 
 [[santander.metadata.pix]]
-name="pix_key"
+name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+
+[[santander.metadata.pix]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Text"
 
@@ -7117,6 +7124,20 @@ type="Text"
 name="covenant_code"
 label="Covenant Code"
 placeholder="Enter the covenant code"
+required=true
+type="Text"
+
+[[santander.metadata.boleto]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+
+[[santander.metadata.boleto]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Text"
 

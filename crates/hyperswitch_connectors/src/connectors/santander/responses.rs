@@ -605,8 +605,18 @@ pub struct Sharing {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Key {
     #[serde(rename = "type")]
-    pub key_type: Option<String>,
+    pub key_type: Option<SantanderPixKeyType>,
     pub dict_key: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum SantanderPixKeyType {
+    Cpf,
+    Cnpj,
+    Email,
+    Cellular,
+    Evp,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
