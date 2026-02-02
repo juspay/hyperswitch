@@ -642,6 +642,10 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
+    //instead of calling again, construct state to have modular merchant config
+// FeatureSet{
+//     AllowedModular: true
+// }
     let payment_method_info =
         if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
             &*state.store,

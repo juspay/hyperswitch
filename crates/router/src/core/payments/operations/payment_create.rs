@@ -826,7 +826,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 platform.get_provider().get_account().get_id(),
                 &profile_id,
                 payment_token,
-                // None
+                None // CVC token data is not passed in create api
             )
             .await?;
             logger::info!("Payment method fetched from PM Modular Service.");
