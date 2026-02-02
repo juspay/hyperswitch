@@ -673,7 +673,7 @@ pub async fn resolve_pre_routed_connectors(
 }
 
 pub fn try_get_attempt_connector<F, D>(
-    state: &SessionState,
+    connectors: &hyperswitch_interfaces::configs::Connectors,
     payment_data: &D,
     routing_data: &mut RoutingData,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
@@ -686,7 +686,7 @@ where
     };
 
     let connector_data = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
+        connectors,
         connector_name,
         api::GetToken::Connector,
         payment_data
@@ -707,7 +707,7 @@ where
 }
 
 pub fn try_get_mandate_connector<F, D>(
-    state: &SessionState,
+    connectors: &hyperswitch_interfaces::configs::Connectors,
     payment_data: &D,
     routing_data: &mut RoutingData,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
@@ -720,7 +720,7 @@ where
     };
 
     let connector_data = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
+        connectors,
         &mandate_connector_details.connector,
         api::GetToken::Connector,
         mandate_connector_details.merchant_connector_id.clone(),
@@ -742,7 +742,7 @@ where
 }
 
 pub fn try_get_pre_determined_connector<F, D>(
-    state: &SessionState,
+    connectors: &hyperswitch_interfaces::configs::Connectors,
     payment_data: &D,
     routing_data: &mut RoutingData,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
@@ -750,11 +750,108 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    if let Some(result) = try_get_attempt_connector::<F, D>(state, payment_data, routing_data)? {
+    if let Some(result) = try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)?
+    {
         return Ok(Some(result));
     }
 
-    try_get_mandate_connector::<F, D>(state, payment_data, routing_data)
+    try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data)
+}
+
+pub async fn try_pre_routing_connectors<F, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    if let (None, Some(payment_method_type)) = (
+        payment_data.get_token_data(),
+        payment_data
+            .get_payment_attempt()
+            .payment_method_type
+            .as_ref(),
+    ) {
+        logger::debug!("euclid: considering pre-routing result");
+        let pre_routing_input = PreRoutingInput {
+            pre_routing_results: &routing_data.routing_info.pre_routing_results,
+            payment_method_type,
+            connectors: &state.conf.connectors,
+            platform,
+            business_profile,
+            creds_identifier: payment_data.get_creds_identifier(),
+        };
+
+        if let Ok(PreRoutingOutcome::Connectors(connectors)) =
+            resolve_pre_routed_connectors(pre_routing_input).await
+        {
+            let first_connector = connectors
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            #[cfg(feature = "retry")]
+            let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
+                &*state.store,
+                platform.get_processor().get_account().get_id(),
+                business_profile,
+            )
+            .await;
+
+            #[cfg(feature = "retry")]
+            if payment_data.get_payment_attempt().payment_method_type
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
+            {
+                let retryable_connector_data =
+                    crate::core::payments::helpers::get_apple_pay_retryable_connectors(
+                        state,
+                        platform,
+                        payment_data.get_creds_identifier(),
+                        &connectors.clone(),
+                        first_connector
+                            .connector_data
+                            .merchant_connector_id
+                            .clone()
+                            .as_ref(),
+                        business_profile.clone(),
+                    )
+                    .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    if connector_data_list.len() > 1 {
+                        logger::info!("Constructed apple pay retryable connector list");
+                        return Ok(Some(api::ConnectorCallType::Retryable(connector_data_list)));
+                    }
+                }
+            }
+
+            routing_data.routed_through = Some(
+                first_connector
+                    .connector_data
+                    .connector_name
+                    .to_string()
+                    .clone(),
+            );
+
+            routing_data.merchant_connector_id =
+                first_connector.connector_data.merchant_connector_id.clone();
+
+            crate::core::payments::helpers::override_setup_future_usage_to_on_session(
+                &*state.store,
+                payment_data,
+            )
+            .await?;
+
+            return Ok(Some(api::ConnectorCallType::PreDetermined(
+                first_connector.clone(),
+            )));
+        }
+    };
+    Ok(None)
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

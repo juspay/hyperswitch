@@ -76,9 +76,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use routing::{
-    PreRoutingInput, RoutingStage, StraightThroughRoutingInput, StraightThroughRoutingStage,
-};
+use routing::{RoutingStage, StraightThroughRoutingInput, StraightThroughRoutingStage};
 use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
@@ -634,7 +632,7 @@ where
         .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
         .await;
 
-    let connector = get_connector_choice(
+    let connector = choose_connector(
         &operation,
         state,
         &req,
@@ -8863,7 +8861,7 @@ pub async fn get_vault_operation_for_pre_network_tokenization(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn get_connector_choice<F, Req, D>(
+pub async fn choose_connector<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     req: &Req,
@@ -8902,7 +8900,7 @@ where
             }
 
             api::ConnectorChoice::StraightThrough(straight_through) => {
-                connector_selection(
+                perform_routing_for_connector_selection(
                     state,
                     platform,
                     business_profile,
@@ -8915,7 +8913,7 @@ where
             }
 
             api::ConnectorChoice::Decide => {
-                connector_selection(
+                perform_routing_for_connector_selection(
                     state,
                     platform,
                     business_profile,
@@ -9066,7 +9064,7 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn connector_selection<F, D>(
+pub async fn perform_routing_for_connector_selection<F, D>(
     state: &SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
@@ -9318,89 +9316,26 @@ where
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
     // with the connector have to be made using the same connector account.
-    if let Some(connector_result) =
-        routing::try_get_pre_determined_connector::<F, D>(&state, payment_data, routing_data)?
-    {
+    if let Some(connector_result) = routing::try_get_pre_determined_connector::<F, D>(
+        &state.conf.connectors,
+        payment_data,
+        routing_data,
+    )? {
         return Ok(connector_result);
     }
 
-    // Pre Routing
-    if let (None, Some(payment_method_type)) = (
-        payment_data.get_token_data(),
-        payment_data
-            .get_payment_attempt()
-            .payment_method_type
-            .as_ref(),
-    ) {
-        logger::debug!("euclid: performing pre-routing");
-        let pre_routing_input = PreRoutingInput {
-            pre_routing_results: &routing_data.routing_info.pre_routing_results,
-            payment_method_type,
-            connectors: &state.conf.connectors,
-            platform,
-            business_profile,
-            creds_identifier: payment_data.get_creds_identifier(),
-        };
-
-        if let Ok(routing::PreRoutingOutcome::Connectors(connectors)) =
-            routing::resolve_pre_routed_connectors(pre_routing_input).await
-        {
-            let first_connector = connectors
-                .first()
-                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
-
-            #[cfg(feature = "retry")]
-            let should_do_retry = retry::config_should_call_gsm(
-                &*state.store,
-                platform.get_processor().get_account().get_id(),
-                business_profile,
-            )
-            .await;
-
-            #[cfg(feature = "retry")]
-            if payment_data.get_payment_attempt().payment_method_type
-                == Some(storage_enums::PaymentMethodType::ApplePay)
-                && should_do_retry
-            {
-                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
-                    &state,
-                    platform,
-                    payment_data.get_creds_identifier(),
-                    &connectors.clone(),
-                    first_connector
-                        .connector_data
-                        .merchant_connector_id
-                        .clone()
-                        .as_ref(),
-                    business_profile.clone(),
-                )
-                .await?;
-
-                if let Some(connector_data_list) = retryable_connector_data {
-                    if connector_data_list.len() > 1 {
-                        logger::info!("Constructed apple pay retryable connector list");
-                        return Ok(ConnectorCallType::Retryable(connector_data_list));
-                    }
-                }
-            }
-
-            // pre-determined
-            routing_data.routed_through = Some(
-                first_connector
-                    .connector_data
-                    .connector_name
-                    .to_string()
-                    .clone(),
-            );
-
-            routing_data.merchant_connector_id =
-                first_connector.connector_data.merchant_connector_id.clone();
-
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
-
-            return Ok(ConnectorCallType::PreDetermined(first_connector.clone()));
-        }
-    };
+    // Check if pre_routing connector is present
+    if let Some(connector_call_type) = routing::try_pre_routing_connectors::<F, D>(
+        &state,
+        platform,
+        business_profile,
+        payment_data,
+        routing_data,
+    )
+    .await?
+    {
+        return Ok(connector_call_type);
+    }
 
     // Straight through routing block
     let request_straight_through_routing_stage =
@@ -9447,7 +9382,7 @@ where
             )
         } else {
             // static & dynamic routing block
-            let routing_outcome_with_approach = route_connector_v1_for_payments(
+            let routing_outcome_with_approach = static_dynamic_routing_v1_for_payments(
                 &state,
                 platform,
                 business_profile,
@@ -10265,7 +10200,7 @@ pub async fn route_connector_v2_for_payments(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn route_connector_v1_for_payments(
+pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
@@ -10273,6 +10208,16 @@ pub async fn route_connector_v1_for_payments(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
 ) -> RouterResult<routing::RoutingResultWithApproach> {
     let mut routing_approach = common_enums::RoutingApproach::DefaultFallback;
+
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        business_profile.get_id().get_string_repr(),
+        &transaction_type_from_payments_dsl(&transaction_data),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("euclid: failed to fetch fallback config")?;
+
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
@@ -10285,16 +10230,6 @@ pub async fn route_connector_v1_for_payments(
 
         algorithm_ref.algorithm_id
     };
-
-    let fallback_config = routing_helpers::get_merchant_default_config(
-        &*state.clone().store,
-        business_profile.get_id().get_string_repr(),
-        &transaction_type_from_payments_dsl(&transaction_data),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("euclid: failed to fetch fallback config")?;
-
     let cached_algorithm = if let Some(routing_algorithm_id) = routing_algorithm_id {
         match routing::ensure_algorithm_cached_v1(
             state,
