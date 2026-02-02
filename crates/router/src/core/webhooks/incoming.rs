@@ -536,9 +536,6 @@ async fn process_ucs_webhook_transform<'a>(
             merchant_connector_account,
         )
         .await?;
-
-    logger::info!(payload = ?String::from_utf8_lossy(body), "coming from ucs");
-
     Ok(WebhookProcessingResult {
         event_type,
         source_verified,
@@ -646,7 +643,6 @@ async fn process_shadow_ucs_webhook_transform<'a>(
                 merchant_id = ?platform.get_processor().get_account().get_id(),
                 "Shadow UCS: Both UCS and Direct calls succeeded"
             );
-            logger::info!(payload = ?String::from_utf8_lossy(body), "coming from ucs");
 
             // Create ShadowUcsData with UCS results
             let shadow_ucs_data = ShadowUcsData {

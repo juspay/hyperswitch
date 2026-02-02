@@ -1508,33 +1508,3 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
 
-[proxy]
-http_url = "http://localhost:8081"
-https_url = "http://localhost:8081"
-bypass_proxy_hosts = ""
-mitm_enabled = true
-mitm_ca_certificate = """-----BEGIN CERTIFICATE-----
-MIIDNTCCAh2gAwIBAgIUVcHP7B4MtPylCIveUb4QCqWq6iswDQYJKoZIhvcNAQEL
-BQAwKDESMBAGA1UEAwwJbWl0bXByb3h5MRIwEAYDVQQKDAltaXRtcHJveHkwHhcN
-MjUxMTE0MDUyOTA1WhcNMzUxMTE0MDUyOTA1WjAoMRIwEAYDVQQDDAltaXRtcHJv
-eHkxEjAQBgNVBAoMCW1pdG1wcm94eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
-AQoCggEBAKVdJUw96KuIj/73ERW7IU+DQttDRpY6zXgXUguTWVg4PAUzTT0cMCYI
-w0DaLobi++WS9b2AxIvIoGPcNFKH4CujHFl2H8Awj0u88zSnnxentZ8ijkocM05/
-RiNfi4HLlkkvfMeRa8n4lRCruZphGr+KD46cGb3SWQ2JXTPG4bbXlA62qiBeN+bH
-F+RARHmeEzBr0S6Rt21ez6Y/0yewaX5oL83fPDWuvKdsXWnpY24n51Pb6JAhMjMZ
-t+RSHXh2fmFeps3tBHBqix9HS6g/1UdAUDKvqMRv07idbsSp+DnH48M3X0MhnluN
-YgJVtByl0tiNbmhDoYqKsp0geXAA9IMCAwEAAaNXMFUwDwYDVR0TAQH/BAUwAwEB
-/zATBgNVHSUEDDAKBggrBgEFBQcDATAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE
-FIR+k2Ieh43ALRJ5llATOz0qjJT3MA0GCSqGSIb3DQEBCwUAA4IBAQBkArOp+9C3
-Tx06BIzLEVZya1dDWbp4OXy2vETDr7BBB+EO4Iqhg/Nj+Cna60JN1oWsq4pxJCNN
-c99z6FUTSz746HIin02YOY6gyC1za4mQOwykrs/CIZg76aIIwwS+ztJfKC/MLcaF
-f2L3CFinQlLoqyWBDvUYGNhCWEpKsWyXjudkuFG7lyEqw1mQxjG/u58e5OXc/qfT
-NPunmpgMPBdm2eOoS70w4nKagx7oAWBpEdCN/HfSoLsglMmqFM/WSsWpHNfjlj9p
-M7+bIVvVGoteNId4HxzgtjvFESSReHDxf27yhrYX9WH2iGd26PFOXR8EQIqjuNOm
-Ja/Zn6RfeKa+
------END CERTIFICATE-----"""
-
-[comparison_service]
-url = "http://app:9000/receive"
-enabled = true
-timeout_secs = 90
