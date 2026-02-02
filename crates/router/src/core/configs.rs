@@ -216,10 +216,7 @@ where
                     value
                 }
                 None => {
-                    router_env::logger::info!(
-                        "Using default config value for key '{}'",
-                        db_key
-                    );
+                    router_env::logger::info!("Using default config value for key '{}'", db_key);
                     metrics::CONFIG_DEFAULT_FALLBACK.add(
                         1,
                         router_env::metric_attributes!(("config_type", config_type)),

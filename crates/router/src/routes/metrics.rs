@@ -151,6 +151,6 @@ counter_metric!(CHAT_REQUEST_COUNT, GLOBAL_METER);
 counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);
 
 // Config Fetch Metrics
-counter_metric!(CONFIG_SUPERPOSITION_FETCH, GLOBAL_METER);  // When fetched from superposition
-counter_metric!(CONFIG_DATABASE_FETCH, GLOBAL_METER);      // When fetched from database  
-counter_metric!(CONFIG_DEFAULT_FALLBACK, GLOBAL_METER);     // When defaulted to application default
+counter_metric!(CONFIG_SUPERPOSITION_FETCH, GLOBAL_METER); // When fetched from superposition
+counter_metric!(CONFIG_DATABASE_FETCH, GLOBAL_METER); // When fetched from database
+counter_metric!(CONFIG_DEFAULT_FALLBACK, GLOBAL_METER); // When defaulted to application default
