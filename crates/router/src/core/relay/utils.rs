@@ -171,7 +171,7 @@ pub async fn construct_relay_capture_router_data(
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
-    
+
     let connector_name = &connector_account.get_connector_name_as_string();
 
     let webhook_url = Some(payments::helpers::create_webhook_url(
@@ -341,15 +341,17 @@ pub async fn construct_relay_incremental_authorization_router_data(
         .clone()
         .get_required_value("incremental authorization relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to obtain relay data to construct relay incremental authorization data")?
-    {
-        hyperswitch_domain_models::relay::RelayData::IncrementalAuthorization(relay_incremental_authorization_data) => {
-            Ok(relay_incremental_authorization_data)
-        }
+        .attach_printable(
+            "Failed to obtain relay data to construct relay incremental authorization data",
+        )? {
+        hyperswitch_domain_models::relay::RelayData::IncrementalAuthorization(
+            relay_incremental_authorization_data,
+        ) => Ok(relay_incremental_authorization_data),
         hyperswitch_domain_models::relay::RelayData::Refund(_)
         | hyperswitch_domain_models::relay::RelayData::Capture(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to obtain relay data to construct relay incremental authorization data")
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Failed to obtain relay data to construct relay incremental authorization data",
+            )
         }
     }?;
 
@@ -375,14 +377,19 @@ pub async fn construct_relay_incremental_authorization_router_data(
         amount_captured: None,
         payment_method_status: None,
         minor_amount_captured: None,
-        request: hyperswitch_domain_models::router_request_types::PaymentsIncrementalAuthorizationData {
-            total_amount: relay_incremental_authorization_data.additional_amount.get_amount_as_i64(),
-            additional_amount: relay_incremental_authorization_data.additional_amount.get_amount_as_i64(),
-            currency: relay_incremental_authorization_data.currency,
-            reason: None,
-            connector_transaction_id: relay_record.connector_resource_id.clone(),
-            connector_meta: None,
-        },
+        request:
+            hyperswitch_domain_models::router_request_types::PaymentsIncrementalAuthorizationData {
+                total_amount: relay_incremental_authorization_data
+                    .additional_amount
+                    .get_amount_as_i64(),
+                additional_amount: relay_incremental_authorization_data
+                    .additional_amount
+                    .get_amount_as_i64(),
+                currency: relay_incremental_authorization_data.currency,
+                reason: None,
+                connector_transaction_id: relay_record.connector_resource_id.clone(),
+                connector_meta: None,
+            },
         response: Err(ErrorResponse::default()),
         access_token: None,
         session_token: None,
