@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix1
+
+### Miscellaneous Tasks
+
+- Fix for setupmandate and complete authorize for granular flows ([#11114](https://github.com/juspay/hyperswitch/pull/11114)) ([`11101f5`](https://github.com/juspay/hyperswitch/commit/11101f5111b5a6588f26d1d0e07f96d4af2f987d))
+
+**Full Changelog:** [`2026.01.28.1...2026.01.28.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1...2026.01.28.1-hotfix1)
+
+- - -
+
 ## 2026.01.28.1
 
 ### Features
