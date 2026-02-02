@@ -4544,6 +4544,7 @@ fn construct_zero_auth_payments_request(
         merchant_reference_id: None,
         routing_algorithm_id: None,
         capture_method: None,
+        settlement_status: None,
         authentication_type: None,
         // We have already passed payment method billing address
         billing: None,

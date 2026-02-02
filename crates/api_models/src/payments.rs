@@ -1167,6 +1167,11 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
+    /// Indicates the settlement status for the payment
+    #[schema(value_type = Option<String>, example = "pending")]
+    #[smithy(value_type = "Option<String>")]
+    pub settlement_status: Option<String>,
+
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
@@ -1743,6 +1748,7 @@ impl PaymentsRequest {
 #[cfg(test)]
 mod payments_request_test {
     use common_utils::generate_customer_id_of_default_length;
+    use serde_json::json;
 
     use super::*;
 
@@ -1807,6 +1813,24 @@ mod payments_request_test {
             payments_request.validate_customer_details_in_request(),
             Some(vec!["customer_id and customer.id"])
         );
+    }
+
+    #[test]
+    fn test_settlement_status_roundtrip() {
+        let payments_request = PaymentsRequest {
+            settlement_status: Some("pending".to_string()),
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_value(&payments_request)
+            .expect("error serializing payments request");
+        assert_eq!(serialized.get("settlement_status"), Some(&json!("pending")));
+
+        let deserialized: PaymentsRequest = serde_json::from_value(json!({
+            "settlement_status": "pending"
+        }))
+        .expect("error de-serializing payments request");
+        assert_eq!(deserialized.settlement_status.as_deref(), Some("pending"));
     }
 }
 
@@ -8167,6 +8191,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             merchant_reference_id: request.merchant_reference_id.clone(),
             routing_algorithm_id: request.routing_algorithm_id.clone(),
             capture_method: request.capture_method,
+            settlement_status: request.settlement_status.clone(),
             authentication_type: request.authentication_type,
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
