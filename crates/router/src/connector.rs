@@ -24,7 +24,7 @@ pub use hyperswitch_connectors::connectors::{
     flexiti::Flexiti, forte, forte::Forte, getnet, getnet::Getnet, gigadat, gigadat::Gigadat,
     globalpay, globalpay::Globalpay, globepay, globepay::Globepay, gocardless,
     gocardless::Gocardless, gpayments, gpayments::Gpayments, helcim, helcim::Helcim, hipay,
-    hipay::Hipay, hyperswitch_vault, hyperswitch_vault::HyperswitchVault, hyperwallet,
+    hipay::Hipay, hyperpg, hyperpg::Hyperpg, hyperswitch_vault, hyperswitch_vault::HyperswitchVault, hyperwallet,
     hyperwallet::Hyperwallet, iatapay, iatapay::Iatapay, inespay, inespay::Inespay, itaubank,
     itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, juspaythreedsserver,
     juspaythreedsserver::Juspaythreedsserver, katapult, katapult::Katapult, klarna, klarna::Klarna,
