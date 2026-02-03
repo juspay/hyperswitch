@@ -15,12 +15,12 @@ use serde::{Deserialize, Serialize};
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
-pub struct DecisionmanagerRouterData<T> {
+pub struct CybersourcedecisionmanagerRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for DecisionmanagerRouterData<T> {
+impl<T> From<(StringMinorUnit, T)> for CybersourcedecisionmanagerRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
@@ -32,13 +32,13 @@ impl<T> From<(StringMinorUnit, T)> for DecisionmanagerRouterData<T> {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct DecisionmanagerPaymentsRequest {
+pub struct CybersourcedecisionmanagerPaymentsRequest {
     amount: StringMinorUnit,
-    card: DecisionmanagerCard,
+    card: CybersourcedecisionmanagerCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct DecisionmanagerCard {
+pub struct CybersourcedecisionmanagerCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -46,12 +46,12 @@ pub struct DecisionmanagerCard {
     complete: bool,
 }
 
-impl TryFrom<&DecisionmanagerRouterData<&PaymentsAuthorizeRouterData>>
-    for DecisionmanagerPaymentsRequest
+impl TryFrom<&CybersourcedecisionmanagerRouterData<&PaymentsAuthorizeRouterData>>
+    for CybersourcedecisionmanagerPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &DecisionmanagerRouterData<&PaymentsAuthorizeRouterData>,
+        item: &CybersourcedecisionmanagerRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
@@ -65,11 +65,11 @@ impl TryFrom<&DecisionmanagerRouterData<&PaymentsAuthorizeRouterData>>
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct DecisionmanagerAuthType {
+pub struct CybersourcedecisionmanagerAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for DecisionmanagerAuthType {
+impl TryFrom<&ConnectorAuthType> for CybersourcedecisionmanagerAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -84,36 +84,43 @@ impl TryFrom<&ConnectorAuthType> for DecisionmanagerAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum DecisionmanagerPaymentStatus {
+pub enum CybersourcedecisionmanagerPaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<DecisionmanagerPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: DecisionmanagerPaymentStatus) -> Self {
+impl From<CybersourcedecisionmanagerPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: CybersourcedecisionmanagerPaymentStatus) -> Self {
         match item {
-            DecisionmanagerPaymentStatus::Succeeded => Self::Charged,
-            DecisionmanagerPaymentStatus::Failed => Self::Failure,
-            DecisionmanagerPaymentStatus::Processing => Self::Authorizing,
+            CybersourcedecisionmanagerPaymentStatus::Succeeded => Self::Charged,
+            CybersourcedecisionmanagerPaymentStatus::Failed => Self::Failure,
+            CybersourcedecisionmanagerPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DecisionmanagerPaymentsResponse {
-    status: DecisionmanagerPaymentStatus,
+pub struct CybersourcedecisionmanagerPaymentsResponse {
+    status: CybersourcedecisionmanagerPaymentStatus,
     id: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, DecisionmanagerPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F, T>
+    TryFrom<
+        ResponseRouterData<F, CybersourcedecisionmanagerPaymentsResponse, T, PaymentsResponseData>,
+    > for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, DecisionmanagerPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            CybersourcedecisionmanagerPaymentsResponse,
+            T,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -137,16 +144,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, DecisionmanagerPaymentsResponse, T, Pay
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct DecisionmanagerRefundRequest {
+pub struct CybersourcedecisionmanagerRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&DecisionmanagerRouterData<&RefundsRouterData<F>>>
-    for DecisionmanagerRefundRequest
+impl<F> TryFrom<&CybersourcedecisionmanagerRouterData<&RefundsRouterData<F>>>
+    for CybersourcedecisionmanagerRefundRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &DecisionmanagerRouterData<&RefundsRouterData<F>>,
+        item: &CybersourcedecisionmanagerRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
@@ -215,7 +222,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DecisionmanagerErrorResponse {
+pub struct CybersourcedecisionmanagerErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,

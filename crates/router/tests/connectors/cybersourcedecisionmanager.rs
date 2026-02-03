@@ -6,13 +6,13 @@ use test_utils::connector_auth;
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
-struct DecisionmanagerTest;
-impl ConnectorActions for DecisionmanagerTest {}
-impl utils::Connector for DecisionmanagerTest {
+struct CybersourcedecisionmanagerTest;
+impl ConnectorActions for CybersourcedecisionmanagerTest {}
+impl utils::Connector for CybersourcedecisionmanagerTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Decisionmanager;
+        use router::connector::Cybersourcedecisionmanager;
         utils::construct_connector_data_old(
-            Box::new(Decisionmanager::new()),
+            Box::new(Cybersourcedecisionmanager::new()),
             types::Connector::Plaid,
             api::GetToken::Connector,
             None,
@@ -22,18 +22,18 @@ impl utils::Connector for DecisionmanagerTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
-                .decisionmanager
+                .cybersourcedecisionmanager
                 .expect("Missing connector authentication configuration")
                 .into(),
         )
     }
 
     fn get_name(&self) -> String {
-        "decisionmanager".to_string()
+        "cybersourcedecisionmanager".to_string()
     }
 }
 
-static CONNECTOR: DecisionmanagerTest = DecisionmanagerTest {};
+static CONNECTOR: CybersourcedecisionmanagerTest = CybersourcedecisionmanagerTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

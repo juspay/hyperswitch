@@ -34,8 +34,8 @@ mod checkout;
 mod coinbase;
 mod cryptopay;
 mod cybersource;
+mod cybersourcedecisionmanager;
 mod datatrans;
-mod decisionmanager;
 mod deutschebank;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]

@@ -43,16 +43,16 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
-use transformers as decisionmanager;
+use transformers as cybersourcedecisionmanager;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Decisionmanager {
+pub struct Cybersourcedecisionmanager {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Decisionmanager {
+impl Cybersourcedecisionmanager {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -60,26 +60,27 @@ impl Decisionmanager {
     }
 }
 
-impl api::Payment for Decisionmanager {}
-impl api::PaymentSession for Decisionmanager {}
-impl api::ConnectorAccessToken for Decisionmanager {}
-impl api::MandateSetup for Decisionmanager {}
-impl api::PaymentAuthorize for Decisionmanager {}
-impl api::PaymentSync for Decisionmanager {}
-impl api::PaymentCapture for Decisionmanager {}
-impl api::PaymentVoid for Decisionmanager {}
-impl api::Refund for Decisionmanager {}
-impl api::RefundExecute for Decisionmanager {}
-impl api::RefundSync for Decisionmanager {}
-impl api::PaymentToken for Decisionmanager {}
+impl api::Payment for Cybersourcedecisionmanager {}
+impl api::PaymentSession for Cybersourcedecisionmanager {}
+impl api::ConnectorAccessToken for Cybersourcedecisionmanager {}
+impl api::MandateSetup for Cybersourcedecisionmanager {}
+impl api::PaymentAuthorize for Cybersourcedecisionmanager {}
+impl api::PaymentSync for Cybersourcedecisionmanager {}
+impl api::PaymentCapture for Cybersourcedecisionmanager {}
+impl api::PaymentVoid for Cybersourcedecisionmanager {}
+impl api::Refund for Cybersourcedecisionmanager {}
+impl api::RefundExecute for Cybersourcedecisionmanager {}
+impl api::RefundSync for Cybersourcedecisionmanager {}
+impl api::PaymentToken for Cybersourcedecisionmanager {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Decisionmanager
+    for Cybersourcedecisionmanager
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Decisionmanager
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Cybersourcedecisionmanager
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -98,16 +99,13 @@ where
     }
 }
 
-impl ConnectorCommon for Decisionmanager {
+impl ConnectorCommon for Cybersourcedecisionmanager {
     fn id(&self) -> &'static str {
-        "decisionmanager"
+        "cybersourcedecisionmanager"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -115,15 +113,16 @@ impl ConnectorCommon for Decisionmanager {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.decisionmanager.base_url.as_ref()
+        connectors.cybersourcedecisionmanager.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = decisionmanager::DecisionmanagerAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth =
+            cybersourcedecisionmanager::CybersourcedecisionmanagerAuthType::try_from(auth_type)
+                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.expose().into_masked(),
@@ -135,9 +134,9 @@ impl ConnectorCommon for Decisionmanager {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: decisionmanager::DecisionmanagerErrorResponse = res
+        let response: cybersourcedecisionmanager::CybersourcedecisionmanagerErrorResponse = res
             .response
-            .parse_struct("DecisionmanagerErrorResponse")
+            .parse_struct("CybersourcedecisionmanagerErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -159,7 +158,7 @@ impl ConnectorCommon for Decisionmanager {
     }
 }
 
-impl ConnectorValidation for Decisionmanager {
+impl ConnectorValidation for Cybersourcedecisionmanager {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -185,22 +184,24 @@ impl ConnectorValidation for Decisionmanager {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Decisionmanager {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
+    for Cybersourcedecisionmanager
+{
     //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Decisionmanager
+    for Cybersourcedecisionmanager
 {
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Decisionmanager
+    for Cybersourcedecisionmanager
 {
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Decisionmanager
+    for Cybersourcedecisionmanager
 {
     fn get_headers(
         &self,
@@ -233,9 +234,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = decisionmanager::DecisionmanagerRouterData::from((amount, req));
+        let connector_router_data =
+            cybersourcedecisionmanager::CybersourcedecisionmanagerRouterData::from((amount, req));
         let connector_req =
-            decisionmanager::DecisionmanagerPaymentsRequest::try_from(&connector_router_data)?;
+            cybersourcedecisionmanager::CybersourcedecisionmanagerPaymentsRequest::try_from(
+                &connector_router_data,
+            )?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -267,9 +271,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: decisionmanager::DecisionmanagerPaymentsResponse = res
+        let response: cybersourcedecisionmanager::CybersourcedecisionmanagerPaymentsResponse = res
             .response
-            .parse_struct("Decisionmanager PaymentsAuthorizeResponse")
+            .parse_struct("Cybersourcedecisionmanager PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -289,7 +293,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Decisionmanager {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
+    for Cybersourcedecisionmanager
+{
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -331,9 +337,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dec
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: decisionmanager::DecisionmanagerPaymentsResponse = res
+        let response: cybersourcedecisionmanager::CybersourcedecisionmanagerPaymentsResponse = res
             .response
-            .parse_struct("decisionmanager PaymentsSyncResponse")
+            .parse_struct("cybersourcedecisionmanager PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -353,7 +359,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dec
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Decisionmanager {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
+    for Cybersourcedecisionmanager
+{
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -408,9 +416,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: decisionmanager::DecisionmanagerPaymentsResponse = res
+        let response: cybersourcedecisionmanager::CybersourcedecisionmanagerPaymentsResponse = res
             .response
-            .parse_struct("Decisionmanager PaymentsCaptureResponse")
+            .parse_struct("Cybersourcedecisionmanager PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -430,9 +438,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Decisionmanager {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
+    for Cybersourcedecisionmanager
+{
+}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Decisionmanager {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
+    for Cybersourcedecisionmanager
+{
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -465,9 +478,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Decisio
         )?;
 
         let connector_router_data =
-            decisionmanager::DecisionmanagerRouterData::from((refund_amount, req));
+            cybersourcedecisionmanager::CybersourcedecisionmanagerRouterData::from((
+                refund_amount,
+                req,
+            ));
         let connector_req =
-            decisionmanager::DecisionmanagerRefundRequest::try_from(&connector_router_data)?;
+            cybersourcedecisionmanager::CybersourcedecisionmanagerRefundRequest::try_from(
+                &connector_router_data,
+            )?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -496,9 +514,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Decisio
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: decisionmanager::RefundResponse = res
+        let response: cybersourcedecisionmanager::RefundResponse = res
             .response
-            .parse_struct("decisionmanager RefundResponse")
+            .parse_struct("cybersourcedecisionmanager RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -518,7 +536,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Decisio
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Decisionmanager {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cybersourcedecisionmanager {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -563,9 +581,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Decisionm
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: decisionmanager::RefundResponse = res
+        let response: cybersourcedecisionmanager::RefundResponse = res
             .response
-            .parse_struct("decisionmanager RefundSyncResponse")
+            .parse_struct("cybersourcedecisionmanager RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -586,7 +604,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Decisionm
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Decisionmanager {
+impl webhooks::IncomingWebhook for Cybersourcedecisionmanager {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -609,28 +627,28 @@ impl webhooks::IncomingWebhook for Decisionmanager {
     }
 }
 
-static DECISIONMANAGER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static CYBERSOURCEDECISIONMANAGER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(SupportedPaymentMethods::new);
 
-static DECISIONMANAGER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Decisionmanager",
-    description: "Decisionmanager connector",
+static CYBERSOURCEDECISIONMANAGER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Cybersourcedecisionmanager",
+    description: "Cybersourcedecisionmanager connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static DECISIONMANAGER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static CYBERSOURCEDECISIONMANAGER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Decisionmanager {
+impl ConnectorSpecifications for Cybersourcedecisionmanager {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&DECISIONMANAGER_CONNECTOR_INFO)
+        Some(&CYBERSOURCEDECISIONMANAGER_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*DECISIONMANAGER_SUPPORTED_PAYMENT_METHODS)
+        Some(&*CYBERSOURCEDECISIONMANAGER_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&DECISIONMANAGER_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&CYBERSOURCEDECISIONMANAGER_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
