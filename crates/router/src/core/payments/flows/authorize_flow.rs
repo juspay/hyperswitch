@@ -1411,14 +1411,13 @@ pub async fn call_unified_connector_service_pre_authenticate(
         types::PaymentsResponseData,
     >,
     state: &SessionState,
-    _header_payload: &domain_payments::HeaderPayload,
+    header_payload: &domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
     (
         types::RouterData<
@@ -1450,7 +1449,9 @@ pub async fn call_unified_connector_service_pre_authenticate(
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = merchant_order_reference_id
+    let merchant_reference_id = header_payload
+        .x_reference_id
+        .clone()
         .and_then(|id| {
             id_type::PaymentReferenceId::from_str(id.as_str())
                 .inspect_err(|err| {

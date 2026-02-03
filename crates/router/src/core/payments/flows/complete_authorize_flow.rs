@@ -618,14 +618,13 @@ pub async fn call_unified_connector_service_authenticate(
         types::PaymentsResponseData,
     >,
     state: &SessionState,
-    _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
     types::RouterData<
         api::Authenticate,
@@ -653,7 +652,9 @@ pub async fn call_unified_connector_service_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = merchant_order_reference_id
+    let merchant_reference_id = header_payload
+        .x_reference_id
+        .clone()
         .and_then(|id| {
             id_type::PaymentReferenceId::from_str(id.as_str())
                 .inspect_err(|err| {
@@ -676,7 +677,9 @@ pub async fn call_unified_connector_service_authenticate(
         })
         .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"))
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
@@ -745,13 +748,12 @@ pub async fn call_unified_connector_service_post_authenticate(
         types::PaymentsResponseData,
     >,
     state: &SessionState,
-    _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PostAuthenticate,
@@ -779,7 +781,9 @@ pub async fn call_unified_connector_service_post_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = merchant_order_reference_id
+    let merchant_reference_id = header_payload
+        .x_reference_id
+        .clone()
         .and_then(|id| {
             id_type::PaymentReferenceId::from_str(id.as_str())
                 .inspect_err(|err| {
@@ -802,7 +806,9 @@ pub async fn call_unified_connector_service_post_authenticate(
         })
         .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"))
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
