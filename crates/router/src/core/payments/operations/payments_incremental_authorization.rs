@@ -10,7 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-            errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,

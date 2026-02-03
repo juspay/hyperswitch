@@ -1136,8 +1136,7 @@ pub async fn call_modular_payment_method_update(
     profile_id: &id_type::ProfileId,
     payment_method_id: &str,
     payload: UpdatePaymentMethodV1Payload,
-) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError>
-{
+) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError> {
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
