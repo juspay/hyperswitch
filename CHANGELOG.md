@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix4
+
+### Features
+
+- **core:** PSync Redirection Data in HS <> UCS Integration ([#11141](https://github.com/juspay/hyperswitch/pull/11141)) ([`39c5c3a`](https://github.com/juspay/hyperswitch/commit/39c5c3a3ea474f83b90dc5bd30b09bebb1952006))
+
+### Refactors
+
+- **core:** Derive card_isin in payment_token flow for routing dsl input ([#11135](https://github.com/juspay/hyperswitch/pull/11135)) ([`34b5134`](https://github.com/juspay/hyperswitch/commit/34b51340d41d582cacee2d1f74f481bc291ad761))
+
+**Full Changelog:** [`2026.01.28.1-hotfix3...2026.01.28.1-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1-hotfix3...2026.01.28.1-hotfix4)
+
+- - -
+
 ## 2026.01.28.1-hotfix3
 
 ### Bug Fixes
