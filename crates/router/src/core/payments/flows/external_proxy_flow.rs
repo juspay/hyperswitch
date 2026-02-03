@@ -407,6 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             state,
             payment_authorize_request.clone(),
             headers_builder,
+            unified_connector_service_execution_mode,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 let response = Box::pin(client
                     .payment_authorize(
@@ -423,6 +424,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 let ucs_data =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
                         payment_authorize_response.clone(),
+                        router_data.status,
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;

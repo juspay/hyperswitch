@@ -137,6 +137,7 @@ where
             state,
             payment_get_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, payment_get_request, grpc_headers| async move {
                 let response = client
                     .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
@@ -148,6 +149,7 @@ where
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_get(
                         payment_get_response.clone(),
+                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
