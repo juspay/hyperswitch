@@ -19,13 +19,29 @@ pub async fn link_token_create(
     let flow = Flow::PmAuthLinkTokenCreate;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
-        req.headers(),
-        &payload,
-        api_auth,
-    ) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
+    let (auth, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match crate::services::authentication::check_sdk_auth_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match crate::services::authentication::check_client_secret_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
     };
 
     let header_payload =
@@ -65,13 +81,29 @@ pub async fn exchange_token(
     let flow = Flow::PmAuthExchangeToken;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
-        req.headers(),
-        &payload,
-        api_auth,
-    ) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
+    let (auth, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match crate::services::authentication::check_sdk_auth_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match crate::services::authentication::check_client_secret_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
     };
     Box::pin(api::server_wrap(
         flow,

@@ -53,8 +53,7 @@ pub async fn authentication_eligibility(
     let api_auth = auth::ApiKeyAuth::default();
     let payload = json_payload.into_inner();
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    {
+    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -96,7 +95,7 @@ pub async fn authentication_authenticate(
     };
 
     let (auth, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -137,7 +136,7 @@ pub async fn authentication_eligibility_check(
     };
 
     let (auth, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -212,7 +211,7 @@ pub async fn authentication_sync(
         ..json_payload.into_inner()
     };
     let (auth, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -282,7 +281,7 @@ pub async fn authentication_session_token(
     };
 
     let (auth, _auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };

@@ -158,11 +158,22 @@ pub async fn payouts_confirm(
     payload.confirm = Some(true);
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth_type, _auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth_type, _auth_flow) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+    };
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,

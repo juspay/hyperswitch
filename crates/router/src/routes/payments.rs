@@ -1470,8 +1470,7 @@ pub async fn payments_complete_authorize(
     };
 
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payment_confirm_req, api_auth)
-        {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payment_confirm_req, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -2525,7 +2524,7 @@ pub async fn payments_submit_eligibility(
     };
 
     let (auth_type, _auth_flow) =
-        match auth::check_client_secret_and_get_auth(http_req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(http_req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
