@@ -100,7 +100,10 @@ use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionS
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
-    core::{errors::{self, CustomResult, RouterResult}, utils as core_utils},
+    core::{
+        errors::{self, CustomResult, RouterResult},
+        utils as core_utils,
+    },
     routes::{app::ReqState, SessionState},
     services,
     types::{
