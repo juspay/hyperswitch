@@ -90,36 +90,27 @@ where
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
         let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .and_then(|id| {
-                id_type::PaymentReferenceId::from_str(id.as_str())
-                    .inspect_err(|err| {
-                        logger::warn!(
-                            error = ?err,
-                            "Invalid Merchant ReferenceId found"
-                        )
-                    })
-                    .ok()
-            })
-            .or_else(|| {
-                id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-                    .inspect_err(|err| {
-                        logger::warn!(
-                            error = ?err,
-                            "Invalid PaymentId for UCS reference id"
-                        )
-                    })
-                    .ok()
-            })
-            .map(ucs_types::UcsReferenceId::Payment);
+        .x_reference_id
+        .clone()
+        .or(Some(router_data.payment_id.clone()))
+        .and_then(|id| {
+            id_type::PaymentReferenceId::from_str(id.as_str())
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "Invalid Merchant ReferenceId found"
+                    )
+                })
+                .ok()
+        })
+        .map(ucs_types::UcsReferenceId::Payment);
 
         let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
             .inspect_err(
                 |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
             )
             .ok()
-            .map(ucs_types::UcsReferenceId::Payment);
+            .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let header_payload = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
