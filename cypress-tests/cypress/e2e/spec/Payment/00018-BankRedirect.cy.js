@@ -498,7 +498,7 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Interac"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({globalState, data});
     });
   });
 });
