@@ -61,6 +61,7 @@ use api_models::analytics::{
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
 use error_stack::report;
+use masking::PeekInterface;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -73,6 +74,7 @@ use self::{
     active_payments::metrics::{ActivePaymentsMetric, ActivePaymentsMetricRow},
     auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
     frm::metrics::{FrmMetric, FrmMetricRow},
+    opensearch::{OpenSearchClient, OpenSearchConfig},
     payment_intents::metrics::{PaymentIntentMetric, PaymentIntentMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
@@ -92,7 +94,21 @@ pub enum AnalyticsProvider {
     CombinedSqlx(SqlxClient, ClickhouseClient),
 }
 
+#[derive(Clone, Debug)]
+pub enum SearchProvider {
+    Sqlx(SqlxClient),
+    Opensearch(OpenSearchClient),
+    CombinedOpensearch(SqlxClient, OpenSearchClient),
+    CombinedSqlx(SqlxClient, OpenSearchClient),
+}
+
 impl Default for AnalyticsProvider {
+    fn default() -> Self {
+        Self::Sqlx(SqlxClient::default())
+    }
+}
+
+impl Default for SearchProvider {
     fn default() -> Self {
         Self::Sqlx(SqlxClient::default())
     }
@@ -108,6 +124,19 @@ impl std::fmt::Display for AnalyticsProvider {
         };
 
         write!(f, "{analytics_provider}")
+    }
+}
+
+impl std::fmt::Display for SearchProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let search_provider = match self {
+            Self::Opensearch(_) => "Opensearch",
+            Self::Sqlx(_) => "Sqlx",
+            Self::CombinedOpensearch(_, _) => "CombinedOpensearch",
+            Self::CombinedSqlx(_, _) => "CombinedSqlx",
+        };
+
+        write!(f, "{search_provider}")
     }
 }
 
@@ -1038,6 +1067,293 @@ impl AnalyticsConfig {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum SearchConfig {
+    Sqlx {
+        sqlx: Database,
+    },
+    Opensearch {
+        opensearch: OpenSearchConfig,
+    },
+    CombinedOpensearch {
+        sqlx: Database,
+        opensearch: OpenSearchConfig,
+    },
+    CombinedSqlx {
+        sqlx: Database,
+        opensearch: OpenSearchConfig,
+    },
+}
+
+impl<'de> serde::Deserialize<'de> for SearchConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        #[derive(serde::Deserialize)]
+        struct SearchConfigHelper {
+            #[serde(default)]
+            opensearch: Option<OpenSearchConfig>,
+            #[serde(default)]
+            sqlx: Option<Database>,
+            #[serde(default)]
+            source: Option<String>,
+        }
+
+        let helper = SearchConfigHelper::deserialize(deserializer)?;
+
+        // If source field exists (old format), use it for backwards compatibility
+        if let Some(source) = helper.source {
+            return match source.as_str() {
+                "opensearch" => {
+                    let opensearch = helper.opensearch.ok_or_else(|| {
+                        D::Error::custom("opensearch config required when source=opensearch")
+                    })?;
+                    Ok(Self::Opensearch { opensearch })
+                }
+                "sqlx" => {
+                    let sqlx = helper
+                        .sqlx
+                        .ok_or_else(|| D::Error::custom("sqlx config required when source=sqlx"))?;
+                    Ok(Self::Sqlx { sqlx })
+                }
+                _ => Err(D::Error::custom(format!("unknown source: {}", source))),
+            };
+        }
+
+        // New format: automatically detect from presence of fields
+        match (helper.opensearch, helper.sqlx) {
+            (Some(opensearch), Some(sqlx)) => {
+                // Both present - use CombinedOpensearch if opensearch is enabled
+                if opensearch.enabled {
+                    Ok(Self::CombinedOpensearch { sqlx, opensearch })
+                } else {
+                    Ok(Self::Sqlx { sqlx })
+                }
+            }
+            (Some(opensearch), None) => {
+                // Only opensearch present
+                if opensearch.enabled {
+                    Ok(Self::Opensearch { opensearch })
+                } else {
+                    // OpenSearch disabled, fall back to default
+                    logger::warn!("OpenSearch is disabled, falling back to default");
+                    Ok(Self::default())
+                }
+            }
+            (None, Some(sqlx)) => {
+                // Only sqlx present
+                logger::debug!("Only sqlx present");
+                Ok(Self::Sqlx { sqlx })
+            }
+            (None, None) => {
+                // Neither present, use default
+                logger::warn!("Neither opensearch nor sqlx present in config, using default");
+                Ok(Self::default())
+            }
+        }
+    }
+}
+
+impl SearchConfig {
+    pub fn should_use_opensearch(&self) -> bool {
+        match self {
+            Self::Sqlx { .. } => false,
+            Self::Opensearch { .. }
+            | Self::CombinedOpensearch { .. }
+            | Self::CombinedSqlx { .. } => true,
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), storage_impl::errors::ApplicationError> {
+        match self {
+            Self::Sqlx { .. } => Ok(()),
+            Self::Opensearch { opensearch }
+            | Self::CombinedOpensearch { opensearch, .. }
+            | Self::CombinedSqlx { opensearch, .. } => opensearch.validate(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl health_check::HealthCheck for SearchProvider {
+    async fn deep_health_check(&self) -> CustomResult<(), types::QueryExecutionError> {
+        match self {
+            Self::Sqlx(client) => client.deep_health_check().await,
+            Self::Opensearch(client) => client.deep_health_check().await,
+            Self::CombinedOpensearch(sqlx_client, opensearch_client)
+            | Self::CombinedSqlx(sqlx_client, opensearch_client) => {
+                sqlx_client.deep_health_check().await?;
+                opensearch_client.deep_health_check().await
+            }
+        }
+    }
+}
+
+impl SearchProvider {
+    pub async fn search_results(
+        &self,
+        req: api_models::analytics::search::GetSearchRequestWithIndex,
+        auth: Vec<AuthInfo>,
+    ) -> CustomResult<api_models::analytics::search::GetSearchResponse, opensearch::OpenSearchError>
+    {
+        match self {
+            Self::Opensearch(client) => search::search_results(client, req, auth).await,
+            Self::Sqlx(_) => Err(error_stack::report!(
+                opensearch::OpenSearchError::NotImplemented
+            )),
+            Self::CombinedOpensearch(_sqlx_client, opensearch_client) => {
+                let os_res = search::search_results(opensearch_client, req, auth).await;
+                // Currently returning OS result, SQLx logic can be added later for comparison
+                os_res
+            }
+            Self::CombinedSqlx(_sqlx_client, opensearch_client) => {
+                let os_res = search::search_results(opensearch_client, req, auth).await;
+                // Currently returning OS result, SQLx logic can be added later for comparison
+                os_res
+            }
+        }
+    }
+
+    pub async fn msearch_results(
+        &self,
+        req: api_models::analytics::search::GetGlobalSearchRequest,
+        search_params: Vec<AuthInfo>,
+        indexes: Vec<api_models::analytics::search::SearchIndex>,
+    ) -> CustomResult<
+        Vec<api_models::analytics::search::GetSearchResponse>,
+        opensearch::OpenSearchError,
+    > {
+        match self {
+            Self::Opensearch(client) => {
+                search::msearch_results(client, req, search_params, indexes).await
+            }
+            Self::Sqlx(_) => Err(error_stack::report!(
+                opensearch::OpenSearchError::NotImplemented
+            )),
+            Self::CombinedOpensearch(_sqlx_client, opensearch_client) => {
+                let os_res =
+                    search::msearch_results(opensearch_client, req, search_params, indexes).await;
+                os_res
+            }
+            Self::CombinedSqlx(_sqlx_client, opensearch_client) => {
+                let os_res =
+                    search::msearch_results(opensearch_client, req, search_params, indexes).await;
+                os_res
+            }
+        }
+    }
+
+    pub fn is_opensearch_enabled(&self) -> bool {
+        !matches!(self, Self::Sqlx(_))
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for SearchConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let (sqlx_decrypted_password, opensearch_decrypted_password) = match value.get_inner() {
+            Self::Sqlx { sqlx } => {
+                let decrypted = secret_management_client
+                    .get_secret(sqlx.password.clone())
+                    .await?;
+                (Some(decrypted), None)
+            }
+            Self::Opensearch { opensearch } => {
+                let decrypted = match &opensearch.auth {
+                    opensearch::OpenSearchAuth::Basic { password, .. } => Some(
+                        secret_management_client
+                            .get_secret(masking::Secret::new(password.clone()))
+                            .await?,
+                    ),
+                    opensearch::OpenSearchAuth::Aws { .. } => None,
+                };
+                (None, decrypted)
+            }
+            Self::CombinedOpensearch { sqlx, opensearch }
+            | Self::CombinedSqlx { sqlx, opensearch } => {
+                let sqlx_decrypted = secret_management_client
+                    .get_secret(sqlx.password.clone())
+                    .await?;
+                let opensearch_decrypted = match &opensearch.auth {
+                    opensearch::OpenSearchAuth::Basic { password, .. } => Some(
+                        secret_management_client
+                            .get_secret(masking::Secret::new(password.clone()))
+                            .await?,
+                    ),
+                    opensearch::OpenSearchAuth::Aws { .. } => None,
+                };
+                (Some(sqlx_decrypted), opensearch_decrypted)
+            }
+        };
+
+        Ok(value.transition_state(|conf| match conf {
+            Self::Sqlx { sqlx } => Self::Sqlx {
+                sqlx: Database {
+                    password: sqlx_decrypted_password.unwrap_or_default(),
+                    ..sqlx
+                },
+            },
+            Self::Opensearch { mut opensearch } => {
+                if let (Some(decrypted), opensearch::OpenSearchAuth::Basic { username, .. }) =
+                    (opensearch_decrypted_password, &opensearch.auth)
+                {
+                    opensearch.auth = opensearch::OpenSearchAuth::Basic {
+                        username: username.clone(),
+                        password: decrypted.peek().clone(),
+                    };
+                }
+                Self::Opensearch { opensearch }
+            }
+            Self::CombinedOpensearch {
+                sqlx,
+                mut opensearch,
+            } => {
+                if let (Some(decrypted), opensearch::OpenSearchAuth::Basic { username, .. }) =
+                    (opensearch_decrypted_password, &opensearch.auth)
+                {
+                    opensearch.auth = opensearch::OpenSearchAuth::Basic {
+                        username: username.clone(),
+                        password: decrypted.peek().clone(),
+                    };
+                }
+                Self::CombinedOpensearch {
+                    sqlx: Database {
+                        password: sqlx_decrypted_password.unwrap_or_default(),
+                        ..sqlx
+                    },
+                    opensearch,
+                }
+            }
+            Self::CombinedSqlx {
+                sqlx,
+                mut opensearch,
+            } => {
+                if let (Some(decrypted), opensearch::OpenSearchAuth::Basic { username, .. }) =
+                    (opensearch_decrypted_password, &opensearch.auth)
+                {
+                    opensearch.auth = opensearch::OpenSearchAuth::Basic {
+                        username: username.clone(),
+                        password: decrypted.peek().clone(),
+                    };
+                }
+                Self::CombinedSqlx {
+                    sqlx: Database {
+                        password: sqlx_decrypted_password.unwrap_or_default(),
+                        ..sqlx
+                    },
+                    opensearch,
+                }
+            }
+        }))
+    }
+}
+
 #[async_trait::async_trait]
 impl SecretsHandler for AnalyticsConfig {
     async fn convert_to_raw_secret(
@@ -1100,6 +1416,15 @@ impl SecretsHandler for AnalyticsConfig {
                 forex_enabled,
             },
         }))
+    }
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self::CombinedOpensearch {
+            sqlx: Database::default(),
+            opensearch: OpenSearchConfig::default(),
+        }
     }
 }
 

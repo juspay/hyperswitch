@@ -8262,6 +8262,7 @@ pub async fn list_payments(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
+#[allow(clippy::large_futures)]
 pub async fn list_payments(
     state: SessionState,
     platform: domain::Platform,
@@ -8269,6 +8270,137 @@ pub async fn list_payments(
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
+            let merchant_id = platform.get_processor().get_account().get_id();
+            if state.search_provider.is_opensearch_enabled() {
+                logger::info!("Attempting to query OpenSearch for payment list");
+
+                let org_id = platform.get_processor().get_account().get_org_id();
+                let auth_info = vec![
+                    common_utils::types::authentication::AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    },
+                ];
+
+                let filters = api_models::analytics::search::SearchFilters {
+                    payment_method: constraints
+                        .connector
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    currency: constraints
+                        .currency
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    status: constraints
+                        .status
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    connector: constraints
+                        .connector
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    payment_method_type: constraints
+                        .payment_method_type
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    authentication_type: constraints
+                        .authentication_type
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    card_network: constraints
+                        .card_network
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    customer_id: constraints
+                        .customer_id
+                        .as_ref()
+                        .map(|v| vec![v.get_string_repr().to_string()]),
+                    payment_id: constraints
+                        .payment_id
+                        .as_ref()
+                        .map(|v| vec![v.get_string_repr().to_string()]),
+                    profile_id: constraints
+                        .profile_id
+                        .as_ref()
+                        .map(|v| vec![v.get_string_repr().to_string()]),
+                    merchant_connector_id: constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.get_string_repr().to_string()).collect()),
+                    card_discovery: None,
+                    merchant_order_reference_id: constraints
+                        .merchant_order_reference_id
+                        .as_ref()
+                        .map(|v| vec![v.clone()]),
+                    customer_email: None,
+                    search_tags: None,
+                    card_last_4: None,
+                    amount: None,
+                    amount_filter: Some(api_models::payments::AmountFilter {
+                        start_amount: constraints.start_amount,
+                        end_amount: constraints.end_amount,
+                    }),
+                };
+
+                let time_range = match (
+                    constraints.created_gt.or(constraints.created_gte),
+                    constraints.created_lt.or(constraints.created_lte),
+                ) {
+                    (Some(start), Some(end)) => Some(common_utils::types::TimeRange {
+                        start_time: start,
+                        end_time: Some(end),
+                    }),
+                    (Some(start), None) => Some(common_utils::types::TimeRange {
+                        start_time: start,
+                        end_time: Some(common_utils::date_time::now()),
+                    }),
+                    (None, Some(end)) => Some(common_utils::types::TimeRange {
+                        start_time: common_utils::date_time::now() - time::Duration::days(30),
+                        end_time: Some(end),
+                    }),
+                    _ => None,
+                };
+
+                let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
+                    index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
+                    search_req: api_models::analytics::search::GetSearchRequest {
+                        offset: i64::from(constraints.offset.unwrap_or(0)),
+                        count: i64::from(constraints.limit),
+                        query: String::new(),
+                        filters: Some(filters),
+                        time_range,
+                    },
+                };
+
+                match state
+                    .search_provider
+                    .search_results(search_req, auth_info)
+                    .await
+                {
+                    Ok(response) => {
+                        let data: Vec<api_models::payments::PaymentsListResponseItem> = response
+                            .hits
+                            .into_iter()
+                            .map(transformers::get_payments_response_from_opensearch_hit)
+                            .collect();
+
+                        return Ok(services::ApplicationResponse::Json(
+                            api_models::payments::PaymentListResponse {
+                                count: data.len(),
+                                total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
+                                data,
+                            },
+                        ));
+                    }
+                    Err(error) => {
+                        logger::error!(
+                            ?error,
+                            "OpenSearch query failed, falling back to PostgreSQL"
+                        );
+                    }
+                }
+            }
+
             let limit = &constraints.limit;
             helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
@@ -8488,13 +8620,166 @@ pub async fn apply_filters_on_payments(
 ) -> RouterResponse<api::PaymentListResponseV2> {
     common_utils::metrics::utils::record_operation_time(
         async {
+            let merchant_id = platform.get_processor().get_account().get_id();
+            if state.search_provider.is_opensearch_enabled() {
+                logger::info!("Attempting to query OpenSearch for payment list with filters");
+
+                let (merchant_id_opt, profile_id_opt) =
+                    if let Some(ref profile_ids) = profile_id_list {
+                        if let Some(profile_id) = profile_ids.first() {
+                            (Some(merchant_id.clone()), Some(profile_id.clone()))
+                        } else {
+                            (Some(merchant_id.clone()), None)
+                        }
+                    } else {
+                        (Some(merchant_id.clone()), None)
+                    };
+
+                let org_id = platform.get_processor().get_account().get_org_id();
+                let auth_info = match (merchant_id_opt, profile_id_opt) {
+                    (Some(mid), Some(pid)) => {
+                        vec![
+                            common_utils::types::authentication::AuthInfo::ProfileLevel {
+                                org_id: org_id.clone(),
+                                merchant_id: mid,
+                                profile_ids: vec![pid],
+                            },
+                        ]
+                    }
+                    (Some(mid), None) => {
+                        vec![
+                            common_utils::types::authentication::AuthInfo::MerchantLevel {
+                                org_id: org_id.clone(),
+                                merchant_ids: vec![mid],
+                            },
+                        ]
+                    }
+                    _ => vec![common_utils::types::authentication::AuthInfo::OrgLevel {
+                        org_id: org_id.clone(),
+                    }],
+                };
+
+                let filters = api_models::analytics::search::SearchFilters {
+                    payment_method: constraints
+                        .payment_method
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    currency: constraints
+                        .currency
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    status: constraints
+                        .status
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    connector: constraints
+                        .connector
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    payment_method_type: constraints
+                        .payment_method_type
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    authentication_type: constraints
+                        .authentication_type
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    card_network: constraints
+                        .card_network
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    customer_id: constraints
+                        .customer_id
+                        .as_ref()
+                        .map(|v| vec![v.get_string_repr().to_string()]),
+                    payment_id: constraints
+                        .payment_id
+                        .as_ref()
+                        .map(|v| vec![v.get_string_repr().to_string()]),
+                    profile_id: constraints
+                        .profile_id
+                        .as_ref()
+                        .map(|v| vec![v.get_string_repr().to_string()]),
+                    merchant_connector_id: constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.get_string_repr().to_string()).collect()),
+                    card_discovery: constraints
+                        .card_discovery
+                        .as_ref()
+                        .map(|v| v.iter().map(|i| i.to_string()).collect()),
+                    merchant_order_reference_id: constraints
+                        .merchant_order_reference_id
+                        .as_ref()
+                        .map(|v| vec![v.clone()]),
+                    customer_email: constraints.customer_email.as_ref().map(|emails| {
+                        emails
+                            .iter()
+                            .map(|email| {
+                                common_utils::hashing::HashedString::from(Secret::new(
+                                    email.peek().to_string(),
+                                ))
+                            })
+                            .collect()
+                    }),
+                    search_tags: None,
+                    card_last_4: None,
+                    amount: None,
+                    amount_filter: constraints.amount_filter.clone(),
+                };
+
+                let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
+                    index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
+                    search_req: api_models::analytics::search::GetSearchRequest {
+                        offset: constraints.offset.unwrap_or(0) as i64,
+                        count: constraints.limit as i64,
+                        query: String::new(),
+                        filters: Some(filters),
+                        time_range: constraints.time_range,
+                    },
+                };
+
+                match state
+                    .search_provider
+                    .search_results(search_req, auth_info)
+                    .await
+                {
+                    Ok(response) => {
+                        logger::info!(
+                            count = response.hits.len(),
+                            total = response.count,
+                            "Successfully retrieved payments from OpenSearch"
+                        );
+                        let payments_list: Vec<payments_api::PaymentsResponse> = response
+                            .hits
+                            .into_iter()
+                            .map(transformers::get_payments_response_from_opensearch_hit)
+                            .collect();
+
+                        return Ok(services::ApplicationResponse::Json(
+                            payments_api::PaymentListResponseV2 {
+                                count: payments_list.len(),
+                                total_count: response.count as i64,
+                                data: payments_list,
+                            },
+                        ));
+                    }
+                    Err(error) => {
+                        logger::error!(
+                            ?error,
+                            "OpenSearch query failed, falling back to PostgreSQL"
+                        );
+                    }
+                }
+            }
+
             let limit = &constraints.limit;
             helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
             let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
+                    merchant_id,
                     &pi_fetch_constraints,
                     platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
@@ -8513,7 +8798,7 @@ pub async fn apply_filters_on_payments(
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
+                    merchant_id,
                     &pi_fetch_constraints,
                     platform.get_processor().get_account().storage_scheme,
                 )
@@ -8526,7 +8811,7 @@ pub async fn apply_filters_on_payments(
                     .attach_printable("Error while converting from usize to i64")
             } else {
                 db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
+                    merchant_id,
                     &active_attempt_ids,
                     constraints.connector,
                     constraints.payment_method,
@@ -8542,7 +8827,7 @@ pub async fn apply_filters_on_payments(
             }?;
 
             Ok(services::ApplicationResponse::Json(
-                api::PaymentListResponseV2 {
+                payments_api::PaymentListResponseV2 {
                     count: data.len(),
                     total_count,
                     data,

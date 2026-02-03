@@ -15,7 +15,13 @@ pub struct SearchFilters {
     pub card_last_4: Option<Vec<String>>,
     pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
+    pub amount_filter: Option<super::super::payments::AmountFilter>,
     pub customer_id: Option<Vec<String>>,
+    pub profile_id: Option<Vec<String>>,
+    pub authentication_type: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<String>>,
+    pub card_discovery: Option<Vec<String>>,
+    pub merchant_order_reference_id: Option<Vec<String>>,
 }
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
@@ -30,7 +36,13 @@ impl SearchFilters {
             && self.card_last_4.is_none()
             && self.payment_id.is_none()
             && self.amount.is_none()
+            && self.amount_filter.is_none()
             && self.customer_id.is_none()
+            && self.profile_id.is_none()
+            && self.authentication_type.is_none()
+            && self.merchant_connector_id.is_none()
+            && self.card_discovery.is_none()
+            && self.merchant_order_reference_id.is_none()
     }
 }
 

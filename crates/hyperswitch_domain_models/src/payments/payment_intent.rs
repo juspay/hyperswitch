@@ -1643,6 +1643,7 @@ pub struct PaymentIntentListParams {
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
+    pub customer_email: Option<Vec<Email>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1704,6 +1705,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             card_network: None,
             card_discovery: None,
             merchant_order_reference_id: None,
+            customer_email: None,
         }))
     }
 }
@@ -1795,6 +1797,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             card_network: None,
             card_discovery: None,
             merchant_order_reference_id: None,
+            customer_email: None,
         }))
     }
 }
@@ -1821,6 +1824,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             card_network,
             card_discovery,
             merchant_order_reference_id,
+            customer_email,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
@@ -1846,6 +1850,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 card_network,
                 card_discovery,
                 merchant_order_reference_id,
+                customer_email,
             }))
         }
     }

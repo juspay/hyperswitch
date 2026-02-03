@@ -233,9 +233,10 @@ pub async fn search_results(
             .filters
             .as_ref()
             .is_none_or(|filters| filters.is_all_none())
+        && search_params.is_empty()
     {
         return Err(OpenSearchError::BadRequestError(
-            "Both query and filters are empty".to_string(),
+            "Query, filters and search_params are all empty".to_string(),
         )
         .into());
     }
@@ -308,6 +309,65 @@ pub async fn search_results(
                         ),
                     )
                     .switch()?;
+            }
+        };
+        if let Some(profile_id) = filters.profile_id {
+            if !profile_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "profile_id.keyword".to_string(),
+                        convert_to_value(profile_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(authentication_type) = filters.authentication_type {
+            if !authentication_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "authentication_type.keyword".to_string(),
+                        convert_to_value(authentication_type),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(merchant_connector_id) = filters.merchant_connector_id {
+            if !merchant_connector_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "merchant_connector_id.keyword".to_string(),
+                        convert_to_value(merchant_connector_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_discovery) = filters.card_discovery {
+            if !card_discovery.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "card_discovery.keyword".to_string(),
+                        convert_to_value(card_discovery),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(merchant_order_reference_id) = filters.merchant_order_reference_id {
+            if !merchant_order_reference_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "merchant_order_reference_id.keyword".to_string(),
+                        convert_to_value(merchant_order_reference_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(amount_filter) = filters.amount_filter.as_ref() {
+            if amount_filter.start_amount.is_some() || amount_filter.end_amount.is_some() {
+                let amount_range = crate::opensearch::OpensearchAmountRange {
+                    gte: amount_filter.start_amount,
+                    lte: amount_filter.end_amount,
+                };
+                query_builder.set_amount_range(amount_range).switch()?;
             }
         };
         if let Some(connector) = filters.connector {
