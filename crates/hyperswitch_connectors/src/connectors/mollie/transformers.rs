@@ -155,7 +155,7 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesIt
 
         let total_amount_value = convert_amount(
             mollie_converter,
-            order_details.get_optional_order_total_amount()?,
+            order_details.get_order_total_amount()?,
             currency,
         )?;
 

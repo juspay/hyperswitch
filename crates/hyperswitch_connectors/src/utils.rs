@@ -3187,7 +3187,7 @@ pub trait OrderDetailsWithAmountData {
     fn get_order_description(&self) -> Result<String, Error>;
     fn get_order_quantity(&self) -> u16;
     fn get_optional_order_quantity_unit(&self) -> Option<String>;
-    fn get_optional_order_total_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_order_total_amount(&self) -> Result<MinorUnit, Error>;
     fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit>;
     fn get_optional_sku(&self) -> Option<String>;
     fn get_optional_product_img_link(&self) -> Option<String>;
@@ -3209,7 +3209,7 @@ impl OrderDetailsWithAmountData for OrderDetailsWithAmount {
     fn get_order_unit_price(&self) -> MinorUnit {
         self.amount
     }
-    fn get_optional_order_total_amount(&self) -> Result<MinorUnit, Error> {
+    fn get_order_total_amount(&self) -> Result<MinorUnit, Error> {
         self.total_amount
             .ok_or_else(missing_field_err("order_details.total_amount"))
     }
