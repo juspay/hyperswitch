@@ -34859,6 +34859,17 @@
                 "$ref": "#/components/schemas/RelayCaptureRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "incremental_authorization"
+            ],
+            "properties": {
+              "incremental_authorization": {
+                "$ref": "#/components/schemas/RelayIncrementalAuthorizationRequestData"
+              }
+            }
           }
         ]
       },
@@ -34876,6 +34887,24 @@
           "message": {
             "type": "string",
             "description": "The error message"
+          }
+        }
+      },
+      "RelayIncrementalAuthorizationRequestData": {
+        "type": "object",
+        "required": [
+          "additional_amount",
+          "currency"
+        ],
+        "properties": {
+          "additional_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount by which the payment needs to be incremented",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },
@@ -35009,7 +35038,8 @@
         "type": "string",
         "enum": [
           "refund",
-          "capture"
+          "capture",
+          "incremental_authorization"
         ]
       },
       "RequestPaymentMethodTypes": {
