@@ -7794,7 +7794,6 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    //old merchant flow
                     if !pm_utils::get_organization_eligibility_config_for_pm_modular_service(
                         &*state.store,
                         &platform.get_processor().get_account().organization_id,
@@ -7814,11 +7813,12 @@ where
                             .await?;
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
-                    } else {
-
+                    } else{
+                        //Merchant enabled for PM Modular service
+                        let pm_id = payment_data.get_payment_method_info().payment_method_id.clone();
+                        //Payment method data is already set in get trackers flow if modular pm service is enabled
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
-
-                    //new merchant flow, return vault operation.pmd, and comment abt temp storage.
 
                     TokenizationAction::SkipConnectorTokenization
                 }
@@ -7845,7 +7845,10 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
-                        //new merchant flow
+                        //Merchant enabled for PM Modular service
+                        let pm_id = payment_data.get_payment_method_info().payment_method_id.clone();
+                        //Payment method data is already set in get trackers flow if modular pm service is enabled
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
                     TokenizationAction::TokenizeInConnector
                 }

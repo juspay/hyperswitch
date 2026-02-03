@@ -81,7 +81,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_wrapper: Option<pm_transformers::PaymentMethodWrapper>,
+        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -518,8 +518,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let n_payment_method_billing_address_id =
             payment_attempt.payment_method_billing_address_id.clone();
 
-            //req data should be given priority
-        let n_request_payment_method_billing_address = payment_method_wrapper
+        //req data should be given priority
+        let n_request_payment_method_billing_address = payment_method_with_raw_data
             .clone()
             .and_then(|pm| {
                 pm.payment_method
@@ -582,7 +582,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
 
-        let m_pm_wrapper = payment_method_wrapper.clone();
+        let m_pm_wrapper = payment_method_with_raw_data.clone();
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
@@ -643,7 +643,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             {
                 (
                     None,
-                    payment_method_wrapper
+                    payment_method_with_raw_data
                         .clone()
                         .and_then(|pm| Some(pm.payment_method.0)),
                 )
@@ -751,7 +751,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = payment_method_wrapper
+        let payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_after_card_bin_call.map(Into::into));
@@ -767,7 +767,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile.use_billing_as_payment_method_billing,
         );
 
-        let payment_method_data_billing = payment_method_wrapper
+        let payment_method_data_billing = payment_method_with_raw_data
             .clone()
             .and_then(|pm| {
                 pm.payment_method
@@ -850,7 +850,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         //setting vault operation to existing vault data if raw payment method data is present in pm_info
         let vault_operation =
-            payment_method_wrapper.and_then(|pm| match pm.raw_payment_method_data {
+            payment_method_with_raw_data.and_then(|pm| match pm.raw_payment_method_data {
                 Some(pmd) => match pmd {
                     domain::PaymentMethodData::Card(card) => {
                         Some(domain_payments::VaultOperation::ExistingVaultData(
@@ -861,6 +861,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 },
                 None => None,
             });
+
+        //set paymeny_attempt.pm_id
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -1119,7 +1121,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
-    ) -> RouterResult<Option<operations::PaymentMethodWrapper>> {
+    ) -> RouterResult<Option<operations::PaymentMethodWithRawData>> {
     //have the config here
         let profile_id = req.profile_id.clone().get_required_value("profile_id")?;
         //check for req.payment_method_data, if card token, and req.payment_token is present then fetch payment method from pm service

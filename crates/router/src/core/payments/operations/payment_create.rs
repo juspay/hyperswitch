@@ -72,7 +72,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_wrapper: Option<pm_transformers::PaymentMethodWrapper>,
+        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -147,7 +147,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let m_pm_wrapper = payment_method_wrapper.clone();
+        let m_pm_wrapper = payment_method_with_raw_data.clone();
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -201,7 +201,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let payment_method_data_billing = payment_method_wrapper
+        let payment_method_data_billing = payment_method_with_raw_data
             .clone()
             .and_then(|pm| {
                 pm.payment_method
@@ -510,7 +510,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = payment_method_wrapper
+        let payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_after_card_bin_call.map(Into::into));
@@ -573,7 +573,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile.use_billing_as_payment_method_billing,
         );
 
-        let payment_method_data_billing = payment_method_wrapper
+        let payment_method_data_billing = payment_method_with_raw_data
             .clone()
             .and_then(|pm| {
                 pm.payment_method
@@ -809,7 +809,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
-    ) -> RouterResult<Option<pm_transformers::PaymentMethodWrapper>> {
+    ) -> RouterResult<Option<pm_transformers::PaymentMethodWithRawData>> {
         let profile_id = req
             .profile_id
             .clone()

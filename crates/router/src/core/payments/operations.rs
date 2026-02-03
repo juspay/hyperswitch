@@ -99,10 +99,11 @@ pub use self::{
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v2")]
 use crate::core::payments;
+#[cfg(feature = "v1")]
+use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult},
-        payments::pm_transformers::PaymentMethodWrapper,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -216,7 +217,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_wrapper: Option<PaymentMethodWrapper>,
+        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -321,7 +322,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _request: &R,
         _platform: &domain::Platform,
-    ) -> RouterResult<Option<PaymentMethodWrapper>> {
+    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
         Ok(None)
     }
 

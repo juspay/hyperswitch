@@ -1127,7 +1127,8 @@ pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
 #[derive(Clone, Debug)]
-pub struct PaymentMethodWrapper {
+#[cfg(feature = "v1")]
+pub struct PaymentMethodWithRawData {
     pub payment_method: DomainPaymentMethodWrapper,
     pub raw_payment_method_data: Option<domain::PaymentMethodData>,
 }
@@ -1204,8 +1205,7 @@ impl TryFrom<(
                 // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
                 let card_cvc = card_token
                 .as_ref()
-                    .and_then(|token| token.card_cvc.clone())
-                    .or(card_detail.card_cvc).get_required_value("card_cvc")?;
+                    .and_then(|token| token.card_cvc.clone()).or(card_detail.card_cvc.clone()).get_required_value("card_cvc")?;
                 let card_holder_name = card_token.and_then(|token| token.card_holder_name.clone()).or(card_detail.card_holder_name.clone());
 
                 Ok(Self(domain::PaymentMethodData::Card(hyperswitch_domain_models::payment_method_data::Card {
@@ -1271,7 +1271,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             client_secret: None,
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
-            version: common_enums::ApiVersion::V1, //to be updated later
+            version: common_enums::ApiVersion::V1,
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1290,7 +1290,7 @@ pub async fn fetch_payment_method_from_modular_service(
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
     pmd_card_token: Option<domain::CardToken>,
-) -> CustomResult<PaymentMethodWrapper, errors::ApiErrorResponse> { //Own error instead of api errors
+) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> { //Own error instead of api errors
 
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
@@ -1306,7 +1306,7 @@ pub async fn fetch_payment_method_from_modular_service(
         retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req)
             .await?;
 
-    //Convert PMResponse to PaymentMethodWrapper
+    //Convert PMResponse to PaymentMethodWithRawData
     let payment_method = DomainPaymentMethodWrapper::try_from(&pm_response)?;
 
     //Convert RawPaymentMethodData to domain::PaymentMethodData
@@ -1318,7 +1318,7 @@ pub async fn fetch_payment_method_from_modular_service(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to convert raw payment method data")?;
 
-    let pm_wrapper = PaymentMethodWrapper { //change the naming
+    let pm_wrapper = PaymentMethodWithRawData { 
         payment_method,
         raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
@@ -1336,18 +1336,17 @@ pub async fn retrieve_pm_modular_service_call(
         .conf
         .internal_merchant_id_profile_id_auth
         .internal_api_key;
-    //headers
     let mut parent_headers = Headers::new();
     parent_headers.insert((
-        "X-Profile-Id".to_string(),
+        headers::X_PROFILE_ID.to_string(),
         profile_id.get_string_repr().to_string().into_masked(),
     ));
     parent_headers.insert((
-        "X-Internal-Api-Key".to_string(),
+        headers::X_INTERNAL_API_KEY.to_string(),
         internal_api_key.clone().expose().to_string().into_masked(),
     ));
     parent_headers.insert((
-        "X-Merchant-Id".to_string(),
+        headers::X_MERCHANT_ID.to_string(),
         merchant_id.get_string_repr().to_string().into_masked(),
     ));
 
@@ -1373,7 +1372,7 @@ pub async fn retrieve_pm_modular_service_call(
     Ok(pm_response)
 }
 
-// //Create Payment Method from Modular Service
+//Create Payment Method from Modular Service
 #[cfg(feature = "v1")]
 pub async fn create_payment_method_in_modular_service(
     state: &routes::SessionState,
@@ -1384,7 +1383,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_data: domain::PaymentMethodData,
     _billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
-) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> { //change the error type
+) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     //Request body construction
 
     let payment_method_request = CreatePaymentMethodV1Request {
@@ -1405,10 +1404,10 @@ pub async fn create_payment_method_in_modular_service(
         create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
             .await?;
 
-    //Convert PMResponse to PaymentMethodWrapper
-    let payment_method_wrapper = DomainPaymentMethodWrapper::try_from(pm_response)?;
+    //Convert PMResponse to PaymentMethodWithRawData
+    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
-    Ok(payment_method_wrapper.0)
+    Ok(payment_method_with_raw_data.0)
 }
 
 #[cfg(feature = "v1")]
@@ -1422,18 +1421,17 @@ pub async fn create_pm_modular_service_call(
         .conf
         .internal_merchant_id_profile_id_auth
         .internal_api_key;
-    //headers
     let mut parent_headers = Headers::new();
     parent_headers.insert((
-        "X-Profile-Id".to_string(),
+        headers::X_PROFILE_ID.to_string(),
         profile_id.get_string_repr().to_string().into_masked(),
     ));
     parent_headers.insert((
-        "X-Internal-Api-Key".to_string(),
+        headers::X_INTERNAL_API_KEY.to_string(),
         internal_api_key.clone().expose().to_string().into_masked(),
     ));
     parent_headers.insert((
-        "X-Merchant-Id".to_string(),
+        headers::X_MERCHANT_ID.to_string(),
         merchant_id.get_string_repr().to_string().into_masked(),
     ));
 
