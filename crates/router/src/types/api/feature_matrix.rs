@@ -209,6 +209,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::HyperswitchVault => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
                 }
+                enums::Connector::Hyperpg => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hyperpg::new())))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
