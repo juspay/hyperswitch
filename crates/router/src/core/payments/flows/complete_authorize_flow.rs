@@ -654,14 +654,24 @@ pub async fn call_unified_connector_service_authenticate(
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = merchant_order_reference_id
-        .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-        .transpose()
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
-        .ok()
-        .flatten()
+        .and_then(|id| {
+            id_type::PaymentReferenceId::from_str(id.as_str())
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "Invalid Merchant ReferenceId found"
+                    )
+                })
+                .ok()
+        })
         .or_else(|| {
             id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-                .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "Invalid PaymentId for UCS reference id"
+                    )
+                })
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
@@ -770,14 +780,24 @@ pub async fn call_unified_connector_service_post_authenticate(
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = merchant_order_reference_id
-        .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-        .transpose()
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
-        .ok()
-        .flatten()
+        .and_then(|id| {
+            id_type::PaymentReferenceId::from_str(id.as_str())
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "Invalid Merchant ReferenceId found"
+                    )
+                })
+                .ok()
+        })
         .or_else(|| {
             id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-                .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+                .inspect_err(|err| {
+                    logger::warn!(
+                        error = ?err,
+                        "Invalid PaymentId for UCS reference id"
+                    )
+                })
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
