@@ -399,7 +399,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 .ok()
         })
         .or_else(|| {
-            id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            id_type::PaymentReferenceId::from_str(self.payment_id.as_str())
                 .inspect_err(|err| {
                     logger::warn!(
                         error = ?err,
