@@ -344,6 +344,14 @@ pub enum GsmDecision {
 }
 
 #[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum ApiKeyType {
+    Internal,
+    External,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -360,12 +368,19 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum RecommendedAction {
     DoNotRetry,
+    #[serde(rename = "retry_after_10_days")]
     RetryAfter10Days,
+    #[serde(rename = "retry_after_1_hour")]
     RetryAfter1Hour,
+    #[serde(rename = "retry_after_24_hours")]
     RetryAfter24Hours,
+    #[serde(rename = "retry_after_2_days")]
     RetryAfter2Days,
+    #[serde(rename = "retry_after_4_days")]
     RetryAfter4Days,
+    #[serde(rename = "retry_after_6_days")]
     RetryAfter6Days,
+    #[serde(rename = "retry_after_8_days")]
     RetryAfter8Days,
     RetryAfterInstrumentUpdate,
     RetryLater,
@@ -10520,6 +10535,28 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    ManualRetry,
+    AutoRetry,
 }
 
 #[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]

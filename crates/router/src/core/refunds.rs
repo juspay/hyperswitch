@@ -13,7 +13,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
-use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
+use hyperswitch_interfaces::{
+    consts as interfaces_consts,
+    integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
+};
 use router_env::{instrument, tracing, tracing::Instrument};
 use scheduler::{
     consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
@@ -314,24 +317,29 @@ pub async fn trigger_refund_to_gateway(
         Err(err) => {
             let option_gsm = helpers::get_gsm_record(
                 state,
-                Some(err.code.clone()),
-                Some(err.message.clone()),
                 connector.connector_name.to_string(),
                 consts::REFUND_FLOW_STR,
                 consts::DEFAULT_SUBFLOW_STR,
+                Some(err.code.clone()),
+                Some(err.message.clone()),
+                err.network_decline_code.clone(),
+                None, // card_network not available in refund context
             )
             .await;
+
             // Note: Some connectors do not have a separate list of refund errors
             // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
             // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
             let option_gsm = if option_gsm.is_none() {
                 helpers::get_gsm_record(
                     state,
-                    Some(err.code.clone()),
-                    Some(err.message.clone()),
                     connector.connector_name.to_string(),
                     consts::PAYMENT_FLOW_STR,
                     consts::AUTHORIZE_FLOW_STR,
+                    Some(err.code.clone()),
+                    Some(err.message.clone()),
+                    err.network_decline_code.clone(),
+                    None, // card_network
                 )
                 .await
             } else {
@@ -352,10 +360,26 @@ pub async fn trigger_refund_to_gateway(
                 )
             };
 
+            let refund_status = match err.status_code {
+                // If status code is 5xx, we do not change the refund status here
+                500..=511 => None,
+                // For other errors, we mark the refund as Failure, since these are definite failures
+                _ => Some(enums::RefundStatus::Failure),
+            };
+
+            let (refund_error_message, refund_error_code) =
+                if err.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
+                    // In case of timeout, we don't have specific error code/message from connector
+                    // So we don't update those fields in the refund record
+                    (None, None)
+                } else {
+                    (err.reason.or(Some(err.message)), Some(err.code))
+                };
+
             diesel_refund::RefundUpdate::ErrorUpdate {
-                refund_status: Some(enums::RefundStatus::Failure),
-                refund_error_message: err.reason.or(Some(err.message)),
-                refund_error_code: Some(err.code),
+                refund_status,
+                refund_error_message,
+                refund_error_code,
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
                 processor_refund_data: None,
@@ -958,10 +982,21 @@ pub async fn sync_refund_with_gateway(
                 200..=299 => Some(enums::RefundStatus::Failure),
                 _ => None,
             };
+            let (refund_error_message, refund_error_code) =
+                if error_message.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
+                    // In case of timeout, we don't have specific error code/message from connector
+                    // So we don't update those fields in the refund record
+                    (None, None)
+                } else {
+                    (
+                        error_message.reason.or(Some(error_message.message)),
+                        Some(error_message.code),
+                    )
+                };
             diesel_refund::RefundUpdate::ErrorUpdate {
                 refund_status,
-                refund_error_message: error_message.reason.or(Some(error_message.message)),
-                refund_error_code: Some(error_message.code),
+                refund_error_message,
+                refund_error_code,
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
                 processor_refund_data: None,

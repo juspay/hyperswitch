@@ -259,16 +259,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
-    /// This will populate raw customer details in payment intent (processor context)
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError>;
-
-    #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -317,8 +307,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         state: &'a SessionState,
         payment_data: &mut D,
         storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -513,7 +502,6 @@ pub trait UpdateTracker<F, D, Req>: Send {
         req_state: ReqState,
         processor: &domain::Processor,
         payment_data: D,
-        customer: Option<domain::Customer>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
@@ -587,6 +575,22 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     {
         Ok(())
     }
+
+    /// Updates payment method mandate details after a successful payment.
+    /// This should be called with the appropriate provider that owns the payment method.
+    #[cfg(feature = "v1")]
+    async fn update_pm_and_mandate<'b>(
+        &self,
+        _state: &SessionState,
+        _provider: &domain::Provider,
+        _payment_data: &D,
+        _router_data: &types::RouterData<F, R, PaymentsResponseData>,
+    ) -> RouterResult<()>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -600,17 +604,6 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest, Data = D>,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
@@ -667,8 +660,7 @@ where
         _state: &'a SessionState,
         _payment_data: &mut D,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -698,17 +690,6 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Data = D>,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
@@ -772,8 +753,7 @@ where
         _state: &'a SessionState,
         _payment_data: &mut D,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -813,17 +793,6 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Data = D>,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
@@ -887,8 +856,7 @@ where
         _state: &'a SessionState,
         _payment_data: &mut D,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -927,17 +895,6 @@ impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectReque
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest, Data = D>,
 {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -980,8 +937,7 @@ where
         _state: &'a SessionState,
         _payment_data: &mut D,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

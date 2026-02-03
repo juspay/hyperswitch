@@ -18,10 +18,7 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
-    payments::{
-        payment_attempt::PaymentAttempt, payment_intent::CustomerData,
-        FromRequestEncryptablePaymentIntent,
-    },
+    payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -36,7 +33,6 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -52,7 +48,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -630,17 +626,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentCreate {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -789,8 +774,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -802,8 +786,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Box::new(self),
             state,
             payment_data,
-            merchant_key_store,
-            customer,
+            platform,
             storage_scheme,
             business_profile,
             should_retry_with_pan,
@@ -852,7 +835,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
@@ -929,21 +911,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = customer
-            .map(|customer| CustomerData::foreign_try_from(customer.clone()))
-            .transpose()?;
-        let key_manager_state = state.into();
-        // Updation of Customer Details for the cases where both customer_id and specific customer
-        // details are provided in Payment Create Request
-        let customer_details = raw_customer_details
-            .clone()
-            .async_map(|customer_details| {
-                create_encrypted_data(&key_manager_state, key_store, customer_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt customer details")?;
+        let customer_details = payment_data.payment_intent.customer_details.clone();
 
         payment_data.payment_intent = state
             .store
@@ -1442,6 +1410,7 @@ impl PaymentCreate {
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                retry_type: None,
             },
             additional_pm_data,
 
@@ -1510,22 +1479,9 @@ impl PaymentCreate {
         let split_payments = request.split_payments.clone();
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
-            && (request.name.is_some()
-                || request.email.is_some()
-                || request.phone.is_some()
-                || request.phone_country_code.is_some())
-        {
-            Some(CustomerData {
-                name: request.name.clone(),
-                phone: request.phone.clone(),
-                email: request.email.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-                tax_registration_id: None,
-            })
-        } else {
-            None
-        };
+        let raw_customer_details =
+            helpers::get_customer_details_from_request(request).get_customer_data();
+
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

@@ -300,8 +300,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         _state: &'a SessionState,
         _payment_data: &mut PaymentConfirmData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -366,7 +365,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>

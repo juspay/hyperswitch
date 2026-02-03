@@ -168,7 +168,6 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentIntentData<F>,
-        customer: Option<domain::Customer>,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -255,8 +254,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

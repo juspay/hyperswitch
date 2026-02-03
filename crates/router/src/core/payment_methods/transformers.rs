@@ -566,6 +566,7 @@ pub fn generate_payment_method_response(
     storage_type: Option<common_enums::StorageType>,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     customer_id: Option<id_type::GlobalCustomerId>,
+    raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -633,6 +634,7 @@ pub fn generate_payment_method_response(
             .network_transaction_id
             .clone()
             .map(Secret::new),
+        raw_payment_method_data,
     };
 
     Ok(resp)
@@ -989,6 +991,7 @@ pub fn generate_payment_method_session_response(
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
+    payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1025,6 +1028,7 @@ pub fn generate_payment_method_session_response(
         associated_token_id: token_id,
         storage_type,
         card_cvc_token_storage,
+        payment_method_data,
     }
 }
 
