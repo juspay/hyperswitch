@@ -519,9 +519,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt.payment_method_billing_address_id.clone();
 
         //req data should be given priority
-        let n_request_payment_method_billing_address = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| {
+
+        let n_request_payment_method_billing_address = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .or(payment_method_with_raw_data.clone().and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -532,11 +535,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .parse_value("payment method billing address")
                             .ok()
                     })
-            })
-            .or(request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.billing.clone()));
+            }));
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
@@ -645,29 +644,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None,
                     payment_method_with_raw_data
                         .clone()
-                        .and_then(|pm| Some(pm.payment_method.0)),
+                        .map(|pm| pm.payment_method.0),
                 )
-            } else {
-                if let Some(token) = token.clone() {
-                    let token_data = helpers::retrieve_payment_token_data(
-                        state,
-                        token,
-                        payment_method.or(payment_attempt.payment_method),
-                    )
-                    .await?;
+            } else if let Some(token) = token.clone() {
+                let token_data = helpers::retrieve_payment_token_data(
+                    state,
+                    token,
+                    payment_method.or(payment_attempt.payment_method),
+                )
+                .await?;
 
-                    let payment_method_info =
-                        helpers::retrieve_payment_method_from_db_with_token_data(
-                            state,
-                            platform.get_provider().get_key_store(),
-                            &token_data,
-                            storage_scheme,
-                        )
-                        .await?; //pm_info.or(retrieve payment method using token data)
-                    (Some(token_data), payment_method_info)
-                } else {
-                    (None, payment_method_info)
-                }
+                let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    &token_data,
+                    storage_scheme,
+                )
+                .await?; //pm_info.or(retrieve payment method using token data)
+                (Some(token_data), payment_method_info)
+            } else {
+                (None, payment_method_info)
             };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
@@ -767,9 +763,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile.use_billing_as_payment_method_billing,
         );
 
-        let payment_method_data_billing = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| {
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .or(payment_method_with_raw_data.clone().and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -780,11 +778,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .parse_value("payment method billing address")
                             .ok()
                     })
-            })
-            .or(request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.billing.clone()));
+            }));
 
         let unified_address = address
             .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
@@ -849,18 +843,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         //setting vault operation to existing vault data if raw payment method data is present in pm_info
-        let vault_operation =
-            payment_method_with_raw_data.and_then(|pm| match pm.raw_payment_method_data {
-                Some(pmd) => match pmd {
-                    domain::PaymentMethodData::Card(card) => {
+        let vault_operation = payment_method_with_raw_data.and_then(|pm| {
+            match pm.raw_payment_method_data {
+                Some(domain::PaymentMethodData::Card(card) ) => {
                         Some(domain_payments::VaultOperation::ExistingVaultData(
                             domain_payments::VaultData::Card(card),
                         ))
-                    }
-                    _ => None,
                 },
-                None => None,
-            });
+                _ => None,
+            }
+        });
 
         //set paymeny_attempt.pm_id
 
@@ -1122,7 +1114,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
     ) -> RouterResult<Option<operations::PaymentMethodWithRawData>> {
-    //have the config here
+        //have the config here
         let profile_id = req.profile_id.clone().get_required_value("profile_id")?;
         //check for req.payment_method_data, if card token, and req.payment_token is present then fetch payment method from pm service
 
@@ -1132,25 +1124,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let pmd = req
                 .payment_method_data
                 .clone()
-                .and_then(|pmd| pmd.payment_method_data).map(Into::into);
-            let payment_method_data = if let Some(payment_method_data) = pmd
-            {
-                if let domain::PaymentMethodData::CardToken(ref token) =
-                    payment_method_data
-                {
+                .and_then(|pmd| pmd.payment_method_data)
+                .map(Into::into);
+            let payment_method_data =
+                if let Some(domain::PaymentMethodData::CardToken(ref token)) = pmd {
                     Some(token.clone())
                 } else {
                     None
-                }
-            } else {
-                None
-            };
+                };
             // Fetch payment method using PM Modular Service
             let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform.get_provider().get_account().get_id(),
                 &profile_id,
-                &payment_token,
+                payment_token,
                 payment_method_data,
             )
             .await?;

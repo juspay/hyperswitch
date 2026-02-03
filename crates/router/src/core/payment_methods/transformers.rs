@@ -14,6 +14,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use masking::Mask;
+#[cfg(feature = "v1")]
 use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
@@ -29,6 +30,7 @@ use crate::{
         payment_methods::cards::call_vault_service,
     },
     headers,
+    logger,
     pii::{prelude::*, Secret},
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
@@ -1121,9 +1123,11 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 
+#[cfg(feature = "v1")]
 pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
 #[derive(Clone, Debug)]
@@ -1133,6 +1137,7 @@ pub struct PaymentMethodWithRawData {
     pub raw_payment_method_data: Option<domain::PaymentMethodData>,
 }
 
+#[cfg(feature = "v1")]
 // from to convert payment method response to domain payment method
 impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -1186,6 +1191,7 @@ impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
     }
 }
 
+#[cfg(feature = "v1")]
 // from to convert payment method response to domain payment method
 impl TryFrom<(
     payment_methods::types::RawPaymentMethodData,
@@ -1230,6 +1236,7 @@ impl TryFrom<(
     }
 }
 
+#[cfg(feature = "v1")]
 impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
@@ -1316,7 +1323,7 @@ pub async fn fetch_payment_method_from_modular_service(
             DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
         })
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to convert raw payment method data")?;
+        .attach_printable("Failed to convert raw payment method data")?;
 
     let pm_wrapper = PaymentMethodWithRawData { 
         payment_method,
@@ -1365,15 +1372,16 @@ pub async fn retrieve_pm_modular_service_call(
         pm_client::RetrievePaymentMethod::call(state, &client, payment_method_fetch_req)
             .await
             .map_err(|err| {
-                println!("Error in creating payment method: {:?}", err);
+                logger::debug!("Error in retrieving payment method: {:?}", err);
                 errors::ApiErrorResponse::InternalServerError
-            })?;
+            }).attach_printable("Failed to retrieve payment method from modular service")?;
 
     Ok(pm_response)
 }
 
 //Create Payment Method from Modular Service
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method_in_modular_service(
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
@@ -1450,9 +1458,9 @@ pub async fn create_pm_modular_service_call(
         pm_client::CreatePaymentMethod::call(state, &client, payment_method_create_req)
             .await
             .map_err(|err| {
-                println!("Error in creating payment method: {:?}", err);
+                logger::debug!("Error in creating payment method: {:?}", err);
                 errors::ApiErrorResponse::InternalServerError
-            })?;
+            }).attach_printable("Failed to create payment method in modular service")?;
 
     Ok(pm_response)
 }

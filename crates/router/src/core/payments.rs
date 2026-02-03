@@ -7815,7 +7815,7 @@ where
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else{
                         //Merchant enabled for PM Modular service
-                        let pm_id = payment_data.get_payment_method_info().payment_method_id.clone();
+                        let pm_id = payment_data.get_payment_method_info().map(|pm| pm.payment_method_id.clone());
                         //Payment method data is already set in get trackers flow if modular pm service is enabled
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
@@ -7846,7 +7846,7 @@ where
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
                         //Merchant enabled for PM Modular service
-                        let pm_id = payment_data.get_payment_method_info().payment_method_id.clone();
+                        let pm_id = payment_data.get_payment_method_info().map(|pm| pm.payment_method_id.clone());
                         //Payment method data is already set in get trackers flow if modular pm service is enabled
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     }

@@ -317,6 +317,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    #[cfg(feature = "v1")]
     async fn fetch_payment_method(
         &self,
         _state: &SessionState,

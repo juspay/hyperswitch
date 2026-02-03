@@ -201,9 +201,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let payment_method_data_billing = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| {
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .or(payment_method_with_raw_data.clone().and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -214,11 +216,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .parse_value("payment method billing address")
                             .ok()
                     })
-            })
-            .or(request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.billing.clone()));
+            }));
 
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
@@ -573,9 +571,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile.use_billing_as_payment_method_billing,
         );
 
-        let payment_method_data_billing = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| {
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .or(payment_method_with_raw_data.clone().and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -586,11 +586,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .parse_value("payment method billing address")
                             .ok()
                     })
-            })
-            .or(request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.billing.clone()));
+            }));
 
         let unified_address = address
             .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
@@ -821,7 +817,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 state,
                 platform.get_provider().get_account().get_id(),
                 &profile_id,
-                &payment_token,
+                payment_token,
                 None // CVC token data is not passed in create api
             )
             .await?;
