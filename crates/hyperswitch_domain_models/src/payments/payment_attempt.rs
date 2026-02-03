@@ -866,6 +866,35 @@ impl PaymentAttempt {
         self.connector_payment_id.as_deref()
     }
 
+    /// Extract and encode additional_payment_method_data (only non-sensitive data like upi_source, masked vpa_id)
+    /// We should NOT store raw payment_method_data as it may contain sensitive info
+    #[cfg(feature = "v2")]
+    fn get_payment_method_data(
+        payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    ) -> Option<pii::SecretSerdeValue> {
+        use api_models::payments::AdditionalPaymentData;
+
+        use crate::payment_method_data::PaymentMethodData as DomainPMD;
+
+        let additional_data: Option<AdditionalPaymentData> =
+            payment_method_data.and_then(|api_pmd| {
+                let domain_pmd: DomainPMD = api_pmd.into();
+                match domain_pmd {
+                    DomainPMD::Upi(upi) => {
+                        // Convert to AdditionalPaymentData using the same pattern as v1
+                        Some(AdditionalPaymentData::Upi {
+                            details: Some(upi.into()),
+                        })
+                    }
+                    _ => None,
+                }
+            });
+
+        additional_data
+            .and_then(|data| serde_json::to_value(data).ok())
+            .map(pii::SecretSerdeValue::new)
+    }
+
     /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
     #[cfg(feature = "v2")]
     pub async fn create_domain_model(
@@ -902,34 +931,8 @@ impl PaymentAttempt {
 
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
-        // Extract and encode additional_payment_method_data (only non-sensitive data like upi_source, masked vpa_id)
-        // We should NOT store raw payment_method_data as it may contain sensitive info
-        let payment_method_data: Option<pii::SecretSerdeValue> = {
-            use api_models::payments::AdditionalPaymentData;
-
-            use crate::payment_method_data::PaymentMethodData as DomainPMD;
-
-            let additional_data: Option<AdditionalPaymentData> = request
-                .payment_method_data
-                .payment_method_data
-                .clone()
-                .and_then(|api_pmd| {
-                    let domain_pmd: DomainPMD = api_pmd.into();
-                    match domain_pmd {
-                        DomainPMD::Upi(upi) => {
-                            // Convert to AdditionalPaymentData using the same pattern as v1
-                            Some(AdditionalPaymentData::Upi {
-                                details: Some(upi.into()),
-                            })
-                        }
-                        _ => None,
-                    }
-                });
-
-            additional_data
-                .and_then(|data| serde_json::to_value(data).ok())
-                .map(pii::SecretSerdeValue::new)
-        };
+        let payment_method_data =
+            Self::get_payment_method_data(request.payment_method_data.payment_method_data.clone());
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),

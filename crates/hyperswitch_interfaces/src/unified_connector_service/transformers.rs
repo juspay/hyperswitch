@@ -382,19 +382,18 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             }
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 Ok(Self::Upi {
-                    upi_mode: upi_data.upi_mode,
+                    upi_mode: upi_data.upi_mode
+                        .and_then(|mode| payments_grpc::UpiSource::try_from(mode).ok())
+                        .and_then(|grpc_upi_source| {
+                            hyperswitch_domain_models::payment_method_data::UpiSource::foreign_try_from(grpc_upi_source).ok()
+                        }),
                 })
             }
-            None => {
-                // Default to empty Card variant for backward compatibility
-                Ok(Self::Card {
-                    authentication_data: None,
-                    payment_checks: None,
-                    card_network: None,
-                    domestic_network: None,
-                    auth_code: None,
-                })
-            }
+            None => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "payment_method_data",
+                },
+            )),
         }
     }
 }
@@ -630,6 +629,23 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("Unknown BankNames variant")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::UpiSource>
+    for hyperswitch_domain_models::payment_method_data::UpiSource
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(upi_source: payments_grpc::UpiSource) -> Result<Self, Self::Error> {
+        match upi_source {
+            payments_grpc::UpiSource::UpiCc => Ok(Self::UpiCc),
+            payments_grpc::UpiSource::UpiCl => Ok(Self::UpiCl),
+            payments_grpc::UpiSource::UpiAccount => Ok(Self::UpiAccount),
+            payments_grpc::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
+            payments_grpc::UpiSource::UpiPpi => Ok(Self::UpiPpi),
+            payments_grpc::UpiSource::UpiVoucher => Ok(Self::UpiVoucher),
         }
     }
 }

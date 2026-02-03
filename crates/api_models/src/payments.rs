@@ -4649,6 +4649,10 @@ pub enum UpiSource {
     UpiAccount,
     /// UPI payment using a combination of credit card and credit line
     UpiCcCl,
+    /// UPI payment using a prepaid payment instrument
+    UpiPpi,
+    /// UPI payment using a voucher
+    UpiVoucher,
 }
 
 #[derive(

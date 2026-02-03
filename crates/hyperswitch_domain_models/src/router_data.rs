@@ -722,8 +722,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         interac: Option<InteracCustomerInfo>,
     },
     Upi {
-        /// UPI mode detected from the connector response (e.g., "UPICC", "UPICL", "UPI_ACCOUNT")
-        upi_mode: Option<String>,
+        /// UPI mode detected from the connector response
+        upi_mode: Option<payment_method_data::UpiSource>,
     },
     GooglePay {
         auth_code: Option<String>,

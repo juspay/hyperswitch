@@ -894,6 +894,8 @@ pub enum UpiSource {
     UpiCl,      // UPI Credit Line
     UpiAccount, // UPI Bank Account (Savings)
     UpiCcCl,    // UPI Credit Card + Credit Line
+    UpiPpi,     // UPI Prepaid Payment Instrument
+    UpiVoucher, // UPI Voucher
 }
 
 impl From<api_models::payments::UpiSource> for UpiSource {
@@ -903,6 +905,8 @@ impl From<api_models::payments::UpiSource> for UpiSource {
             api_models::payments::UpiSource::UpiCl => Self::UpiCl,
             api_models::payments::UpiSource::UpiAccount => Self::UpiAccount,
             api_models::payments::UpiSource::UpiCcCl => Self::UpiCcCl,
+            api_models::payments::UpiSource::UpiPpi => Self::UpiPpi,
+            api_models::payments::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }
@@ -914,6 +918,8 @@ impl From<UpiSource> for api_models::payments::UpiSource {
             UpiSource::UpiCl => Self::UpiCl,
             UpiSource::UpiAccount => Self::UpiAccount,
             UpiSource::UpiCcCl => Self::UpiCcCl,
+            UpiSource::UpiPpi => Self::UpiPpi,
+            UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }

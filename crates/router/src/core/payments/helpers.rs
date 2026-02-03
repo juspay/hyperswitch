@@ -7517,9 +7517,9 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
             );
             // Handle UPI upi_mode override for v2
             #[cfg(feature = "v2")]
-            let additional_pm_data = if let Some(upi_mode_str) = upi_mode_override {
+            let additional_pm_data = if let Some(ref upi_mode) = upi_mode_override {
                 let mut data = additional_pm_data;
-                override_upi_source_in_additional_payment_data(&mut data, &upi_mode_str);
+                override_upi_source_in_additional_payment_data(&mut data, upi_mode);
                 data
             } else {
                 additional_pm_data
@@ -7542,7 +7542,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 #[cfg(feature = "v2")]
 pub fn override_upi_source_in_additional_payment_data(
     additional_payment_data: &mut api_models::payments::AdditionalPaymentData,
-    upi_mode: &str,
+    upi_mode: &hyperswitch_domain_models::payment_method_data::UpiSource,
 ) {
     use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 
@@ -7551,10 +7551,24 @@ pub fn override_upi_source_in_additional_payment_data(
     } = additional_payment_data
     {
         let upi_source = match upi_mode {
-            "UPI_CC" | "UPICC" => Some(UpiSource::UpiCc),
-            "UPI_CL" | "UPICL" => Some(UpiSource::UpiCl),
-            "UPI_ACCOUNT" => Some(UpiSource::UpiAccount),
-            _ => return,
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCc => {
+                Some(UpiSource::UpiCc)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCl => {
+                Some(UpiSource::UpiCl)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiAccount => {
+                Some(UpiSource::UpiAccount)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => {
+                Some(UpiSource::UpiCcCl)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiPpi => {
+                Some(UpiSource::UpiPpi)
+            }
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiVoucher => {
+                Some(UpiSource::UpiVoucher)
+            }
         };
         *details = match details {
             UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
