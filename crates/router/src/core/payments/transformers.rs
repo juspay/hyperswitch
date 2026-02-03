@@ -4207,20 +4207,8 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
-impl
-    ForeignFrom<(
-        storage::PaymentIntent,
-        storage::PaymentAttempt,
-        Option<api_models::platform::Initiator>,
-    )> for api::PaymentsResponse
-{
-    fn foreign_from(
-        (pi, pa, api_initiator): (
-            storage::PaymentIntent,
-            storage::PaymentAttempt,
-            Option<api_models::platform::Initiator>,
-        ),
-    ) -> Self {
+impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+    fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
             payment_id: pi.payment_id,
@@ -4297,7 +4285,7 @@ impl
             net_amount: pa.net_amount.get_total_amount(),
             amount_received: None,
             processor_merchant_id: pi.processor_merchant_id,
-            initiator: api_initiator,
+            initiator: None,
             refunds: None,
             disputes: None,
             attempts: None,
