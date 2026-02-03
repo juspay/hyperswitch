@@ -846,6 +846,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     encrypted_payment_method_data: payment_attempt
                         .encrypted_payment_method_data
                         .clone(),
+                    retry_type: payment_attempt.retry_type,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
