@@ -253,6 +253,14 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        if req.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "WorldpayWPG".to_string(),
+            }
+            .into());
+        }
+
         let authorize_req = utils::convert_payment_authorize_router_response((
             req,
             utils::convert_setup_mandate_router_data_to_authorize_router_data(req),

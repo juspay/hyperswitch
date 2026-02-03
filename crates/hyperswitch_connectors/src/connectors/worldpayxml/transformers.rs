@@ -214,17 +214,16 @@ struct OrderStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Token {
-    #[serde(rename = "authenticatedShopperID")]
-    authenticated_shopper_id: String,
+    authenticated_shopper_i_d: String,
     token_details: TokenDetails,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TokenDetails {
     #[serde(rename = "@tokenEvent")]
     token_event: String,
-    #[serde(rename = "paymentTokenID")]
-    payment_token_id: Secret<String>,
+    payment_token_i_d: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -404,11 +403,8 @@ struct CompleteAuthSession {
 pub struct WorldpayxmlShopper {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shopper_email_address: Option<pii::Email>,
-    #[serde(
-        rename = "authenticatedShopperID",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub authenticated_shopper_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authenticated_shopper_i_d: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser: Option<WPGBrowserData>,
 }
@@ -587,11 +583,11 @@ enum PaymentMethod {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TokenData {
     #[serde(rename = "@tokenScope")]
     token_scope: Secret<String>,
-    #[serde(rename = "paymentTokenID")]
-    payment_token_id: Secret<String>,
+    payment_token_i_d: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -767,7 +763,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentDetails {
             action: None,
             payment_method: PaymentMethod::TokenSSL(TokenData {
                 token_scope: Secret::new("shopper".to_string()),
-                payment_token_id: Secret::new(item.get_connector_mandate_id()?),
+                payment_token_i_d: Secret::new(item.get_connector_mandate_id()?),
             }),
             session: None,
             stored_credentials,
@@ -935,7 +931,7 @@ fn get_shopper_details(
             time_zone: browser_info.time_zone,
         });
 
-    let authenticated_shopper_id =
+    let authenticated_shopper_i_d =
         if item.request.payment_method_data == PaymentMethodData::MandatePayment {
             let mandate_data = item.request.get_connector_mandate_data().ok_or(
                 errors::ConnectorError::MissingRequiredField {
@@ -973,11 +969,11 @@ fn get_shopper_details(
                 .transpose()?
         };
 
-    if shopper_email.is_some() || browser_info.is_some() || authenticated_shopper_id.is_some() {
+    if shopper_email.is_some() || browser_info.is_some() || authenticated_shopper_i_d.is_some() {
         Ok(Some(WorldpayxmlShopper {
             shopper_email_address: shopper_email,
             browser: browser_info,
-            authenticated_shopper_id,
+            authenticated_shopper_i_d,
         }))
     } else {
         Ok(None)
@@ -1361,6 +1357,23 @@ fn get_attempt_status(
         LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
             Ok(common_enums::AttemptStatus::Charged)
         }
+        LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        _ => Err(errors::ConnectorError::UnexpectedResponseError(
+            bytes::Bytes::from("Invalid LastEvent".to_string()),
+        )),
+    }
+}
+
+fn get_attempt_status_for_setup_mandate(
+    last_event: LastEvent,
+) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
+    match last_event {
+        LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
+        LastEvent::Cancelled => Ok(common_enums::AttemptStatus::Voided),
+        LastEvent::Authorised
+        | LastEvent::Captured
+        | LastEvent::Settled
+        | LastEvent::SettledByMerchant => Ok(common_enums::AttemptStatus::Charged),
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
@@ -1973,7 +1986,7 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
+                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
 
                 let response = process_payment_response(
                     status,
@@ -2822,19 +2835,17 @@ fn process_payment_response(
     } else {
         let mandate_metadata: Option<Secret<Value, WithType>> = token
             .as_ref()
-            .map(|token| &token.authenticated_shopper_id)
+            .map(|token| &token.authenticated_shopper_i_d)
             .map(|customer_id| Secret::new(json!({ "customer_id": customer_id })));
 
-        let mandate_reference = token.map(|token| {
-            MandateReference {
-                connector_mandate_id: Some(token.token_details.payment_token_id.expose()),
-                payment_method_id: None,
-                mandate_metadata,
-                connector_mandate_request_reference_id: payment_data
-                    .scheme_response
-                    .as_ref()
-                    .map(|response| response.transaction_identifier.clone()),
-            }
+        let mandate_reference = token.map(|token| MandateReference {
+            connector_mandate_id: Some(token.token_details.payment_token_i_d.expose()),
+            payment_method_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: payment_data
+                .scheme_response
+                .as_ref()
+                .map(|response| response.transaction_identifier.clone()),
         });
 
         Ok(PaymentsResponseData::TransactionResponse {
