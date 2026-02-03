@@ -827,15 +827,11 @@ where
             .await?;
 
         let merchant_id_from_route = self.0.clone();
-        let merchant_id_from_api_key = auth_type
-            .get_merchant_id()
-            .ok_or(report!(errors::ApiErrorResponse::Unauthorized))
-            .attach_printable("Merchant ID not found in API key authentication type")?;
+        let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
 
-        if merchant_id_from_route != *merchant_id_from_api_key {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
-                "Merchant ID from route and Merchant ID from api-key in header do not match",
-            );
+        if merchant_id_from_route != *processor_merchant_id {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Merchant ID from route and Processor Merchant Id do not match");
         }
 
         Ok((auth_data, auth_type))
