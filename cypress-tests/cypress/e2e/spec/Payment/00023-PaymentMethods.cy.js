@@ -6,11 +6,7 @@ let globalState;
 let saveCardBody;
 
 describe(
-  "Payment Methods Tests",
-  {
-    retries: 2,
-  },
-  () => {
+  "Payment Methods Tests", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);

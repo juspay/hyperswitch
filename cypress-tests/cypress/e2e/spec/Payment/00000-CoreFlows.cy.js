@@ -5,11 +5,7 @@ import { payment_methods_enabled } from "../../configs/Payment/Commons";
 let globalState;
 
 describe(
-  "Core flows",
-  {
-    retries: 2,
-  },
-  () => {
+  "Core flows", () => {
     context("Merchant core flows", () => {
       before("seed global state", () => {
         cy.task("getGlobalState").then((state) => {
