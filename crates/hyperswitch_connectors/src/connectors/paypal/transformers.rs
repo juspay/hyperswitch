@@ -3251,7 +3251,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: storage_enums::RefundStatus::from(item.response.status),
+                refund_status: storage_enums::RefundStatus::Pending, //  storage_enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
@@ -3272,7 +3272,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: storage_enums::RefundStatus::from(item.response.status),
+                refund_status: storage_enums::RefundStatus::Pending, // storage_enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
@@ -3606,7 +3606,7 @@ pub struct PaypalSourceVerificationRequest {
     pub transmission_sig: String,
     pub auth_algo: String,
     pub webhook_id: String,
-    pub webhook_event: serde_json::Value,
+    pub webhook_event: Secret<serde_json::Value>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -3879,7 +3879,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
                 .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)
                 .attach_printable("Could not convert secret to UTF-8")?,
-            webhook_event: req_body,
+            webhook_event: Secret::new(req_body),
         })
     }
 }
