@@ -127,6 +127,7 @@ where
                 state,
                 payment_repeat_request,
                 grpc_headers,
+                unified_connector_service_execution_mode,
                 |mut router_data, payment_repeat_request, grpc_headers| async move {
                     logger::debug!("Calling UCS payment_repeat gRPC method");
                     let response = Box::pin(client.payment_repeat(
@@ -141,6 +142,7 @@ where
 
                     let ucs_data = handle_unified_connector_service_response_for_payment_repeat(
                         payment_repeat_response.clone(),
+                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
@@ -198,6 +200,7 @@ where
                 state,
                 granular_authorize_request,
                 grpc_headers,
+                unified_connector_service_execution_mode,
                 |mut router_data, granular_authorize_request, grpc_headers| async move {
                     let response = Box::pin(client.payment_authorize_granular(
                         granular_authorize_request,
@@ -211,6 +214,7 @@ where
 
                     let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
                         payment_authorize_response.clone(),
+                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 

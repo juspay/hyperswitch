@@ -405,13 +405,16 @@ where
             connector.clone(),
             operation,
             payment_data,
-            customer,
             validate_result,
             business_profile,
             should_retry_with_pan,
             routing_decision,
         )
         .await?;
+
+    let connector_customer_map = customer
+        .as_ref()
+        .and_then(|customer| customer.connector_customer.as_ref());
 
     let (updated_customer, call_connector_service_response, updated_state) =
         payments::decide_unified_connector_service_call(
@@ -420,7 +423,7 @@ where
             connector.clone(),
             operation,
             payment_data,
-            customer,
+            connector_customer_map,
             payments::CallConnectorAction::Trigger,
             None,
             validate_result,
@@ -449,7 +452,6 @@ where
         platform.get_processor(),
         operation,
         payment_data,
-        customer,
         business_profile,
         None,
         connector,
@@ -504,7 +506,7 @@ where
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
-    let new_payment_attempt = make_new_payment_attempt(
+    let new_payment_attempt = make_new_auto_retry_payment_attempt(
         connector,
         payment_data.get_payment_attempt().clone(),
         new_attempt_count,
@@ -751,7 +753,7 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub fn make_new_payment_attempt(
+pub fn make_new_auto_retry_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
@@ -845,6 +847,7 @@ pub fn make_new_payment_attempt(
         debit_routing_savings: Default::default(),
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
+        retry_type: Some(storage_enums::RetryType::AutoRetry),
     }
 }
 

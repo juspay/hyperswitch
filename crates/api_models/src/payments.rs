@@ -6986,7 +6986,7 @@ pub struct SepaBankTransferInstructions {
     pub reference: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
     pub directory_server_id: String,
     pub three_ds_method_url: String,
@@ -7286,19 +7286,19 @@ pub struct PaymentsResponse {
     /// This field will be deprecated soon. Please refer to `customer.email` object
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub email: crypto::OptionalEncryptableEmail,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     /// This field will be deprecated soon. Please refer to `customer.name` object
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub name: crypto::OptionalEncryptableName,
+    pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub phone: Option<Secret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
@@ -9017,9 +9017,9 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub email: crypto::OptionalEncryptableEmail,
-    pub name: crypto::OptionalEncryptableName,
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub email: Option<Email>,
+    pub name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
