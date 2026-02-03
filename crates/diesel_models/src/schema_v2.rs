@@ -774,6 +774,8 @@ diesel::table! {
         #[max_length = 64]
         connector_authorization_id -> Nullable<Varchar>,
         previously_authorized_amount -> Int8,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
     }
 }
 
