@@ -276,6 +276,7 @@ pub struct ConnectorConfig {
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
+    pub decisionmanager: Option<ConnectorTomlConfig>,
     pub deutschebank: Option<ConnectorTomlConfig>,
     pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,

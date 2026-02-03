@@ -31,6 +31,7 @@ pub mod ctp_mastercard;
 pub mod custombilling;
 pub mod cybersource;
 pub mod datatrans;
+pub mod decisionmanager;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
@@ -149,11 +150,11 @@ pub use self::{
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,
-    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
-    ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti, forte::Forte,
-    getnet::Getnet, gigadat::Gigadat, globalpay::Globalpay, globepay::Globepay,
-    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    decisionmanager::Decisionmanager, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo,
+    dlocal::Dlocal, dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon, envoy::Envoy,
+    facilitapay::Facilitapay, finix::Finix, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu,
+    flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, globalpay::Globalpay,
+    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
     inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
