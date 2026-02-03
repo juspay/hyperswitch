@@ -602,8 +602,8 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _state: &SessionState,
         _resp: &types::RouterData<F, R, PaymentsResponseData>,
         _platform: &domain::Platform,
-        /// `PaymentData` is kept mutable for updating `payment_attempt.connector_mandate_detail`
-        /// Ideally, this update should be moved to `update_trackers`
+        // `PaymentData` is kept mutable for updating `payment_attempt.connector_mandate_detail`
+        // Ideally, this update should be moved to `update_trackers`
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
         _request_payment_method_data: Option<&domain::PaymentMethodData>,
