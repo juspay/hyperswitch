@@ -1344,6 +1344,17 @@ pub fn build_unified_connector_service_auth_metadata(
     }
 }
 
+pub fn parse_merchant_reference_id(id: &str) -> Option<id_type::PaymentReferenceId> {
+    id_type::PaymentReferenceId::from_str(id)
+        .inspect_err(|err| {
+            logger::warn!(
+                error = ?err,
+                "Invalid Merchant ReferenceId found"
+            )
+        })
+        .ok()
+}
+
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,

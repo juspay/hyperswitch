@@ -1451,17 +1451,10 @@ pub async fn call_unified_connector_service_pre_authenticate(
         .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
         .x_reference_id
-        .clone()
-        .or(Some(router_data.payment_id.clone()))
-        .and_then(|id| {
-            id_type::PaymentReferenceId::from_str(id.as_str())
-                .inspect_err(|err| {
-                    logger::warn!(
-                        error = ?err,
-                        "Invalid Merchant ReferenceId found"
-                    )
-                })
-                .ok()
+        .as_deref()
+        .and_then(unified_connector_service::parse_merchant_reference_id)
+        .or_else(|| {
+            unified_connector_service::parse_merchant_reference_id(router_data.payment_id.as_str())
         })
         .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
