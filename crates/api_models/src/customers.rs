@@ -1,13 +1,11 @@
-use common_enums::enums::DocumentKind;
-use common_types::primitive_wrappers::CustomerListLimit;
+use common_types::{customers::DocumentKind, primitive_wrappers::CustomerListLimit};
 use common_utils::{
     crypto, custom_serde,
-    errors::ValidationError,
+    errors::{ParsingError, ValidationError},
     ext_traits::{Encode, ValueExt},
     id_type, pii,
     types::Description,
 };
-use error_stack::Report;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -492,56 +490,38 @@ pub struct CustomerListResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 pub struct CustomerDocumentDetails {
     /// The customer's document type
-    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
+    #[schema(value_type = DocumentKind, example = "cpf")]
     pub document_type: DocumentKind,
     /// The customer's document number
-    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    /// Length of the document number depends upon the document_type.
+    /// For CPF/CNPJ it is typically 11/14 digits long
+    #[schema(max_length = 255, value_type = String, example = "12345678911")]
     pub document_number: Secret<String>,
 }
 
 impl CustomerDocumentDetails {
-    pub fn from(value: &Option<pii::SecretSerdeValue>) -> Option<Self> {
-        value
-            .as_ref()?
-            .peek()
-            .clone()
-            .parse_value("CustomerDocumentDetails")
-            .map_err(|e| {
-                router_env::logger::error!(error = ?e, "Failed to parse CustomerDocumentDetails");
-                e
-            })
-            .ok()
+    pub fn from(value: &Option<pii::SecretSerdeValue>) -> Result<Option<Self>, ParsingError> {
+        match value {
+            None => Ok(None),
+            Some(pii_value) => {
+                let parsed = pii_value
+                .peek()
+                .clone()
+                .parse_value::<Self>("CustomerDocumentDetails")
+                .map_err(|e| {
+                    router_env::logger::error!(error = ?e, "Failed to parse CustomerDocumentDetails");
+                    ParsingError::StructParseFailure("CustomerDocumentDetails")
+                })?;
+                Ok(Some(parsed))
+            }
+        }
     }
 
-    pub fn to(value: &Option<Self>) -> Option<pii::SecretSerdeValue> {
-        value
-            .as_ref()
-            .and_then(|details| details.encode_to_value().ok().map(Secret::new))
-    }
-
-    pub fn encode_to_secret(
-        &self,
-    ) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, common_utils::errors::ParsingError>
-    {
+    pub fn to(&self) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, ParsingError> {
         self.encode_to_value().map(Secret::new)
     }
 
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        let doc_type = &self.document_type;
-        let raw_number = self.document_number.peek();
-
-        let expected_len = doc_type.expected_length();
-        let actual_len = raw_number.len();
-
-        if actual_len != expected_len {
-            return Err(Report::new(ValidationError::IncorrectValueProvided {
-                field_name: Box::leak(
-                    format!("document_number (expected {expected_len} chars, got {actual_len})")
-                        .into_boxed_str(),
-                ),
-            }));
-        }
-
-        Ok(())
+        self.document_type.validate(self.document_number.peek())
     }
 }

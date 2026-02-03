@@ -1922,18 +1922,36 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .document_details
                     .clone()
                     .async_lift(|inner| async move {
-                        types::crypto_operation(
+                        let encoded_inner = inner
+                            .as_ref()
+                            .map(CustomerDocumentDetails::to)
+                            .transpose()
+                            .change_context(storage_impl::StorageError::EncryptionError)
+                            .attach_printable(
+                                "Failed to encode customer document details for encryption",
+                            )?;
+
+                        let crypto_result = types::crypto_operation(
                             key_manager_state,
                             type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(CustomerDocumentDetails::to(&inner)),
+                            CryptoOperation::EncryptOptional(encoded_inner),
                             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
                             key,
                         )
                         .await
-                        .and_then(|val| val.try_into_optionaloperation())
                         .change_context(storage_impl::StorageError::EncryptionError)
+                        .attach_printable(
+                            "Crypto operation failed during document details encryption",
+                        )?;
+
+                        crypto_result
+                            .try_into_optionaloperation()
+                            .change_context(storage_impl::StorageError::EncryptionError)
+                            .attach_printable("Failed to parse encrypted document details result")
                     })
-                    .await?
+                    .await
+                    .change_context(storage_impl::StorageError::EncryptionError)
+                    .attach_printable("Lift operation failed for document_details")?
             } else {
                 customer_data
                     .as_ref()

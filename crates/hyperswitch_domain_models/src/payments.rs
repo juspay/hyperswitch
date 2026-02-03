@@ -384,17 +384,17 @@ impl PaymentIntent {
     pub fn get_customer_document_details(
         &self,
     ) -> Result<Option<CustomerDocumentDetails>, common_utils::errors::ParsingError> {
-        let decrypted_value = match &self.customer_details {
-            Some(details) => details.clone().into_inner().expose(),
-            None => return Ok(None),
-        };
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
 
-        let customer_data: CustomerData =
-            ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData").map_err(
-                |_| common_utils::errors::ParsingError::StructParseFailure("CustomerData"),
-            )?;
-
-        Ok(customer_data.customer_document_details)
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+                    .map(|data| data.customer_document_details)
+            })
+            .transpose()
+            .map(|opt| opt.flatten())
+            .map_err(|report| (*report.current_context()).clone())
     }
 }
 

@@ -200,9 +200,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
-                    document_details: api_models::customers::CustomerDocumentDetails::from(
-                        &c.document_details.map(Encryptable::into_inner),
-                    ),
+                    document_details: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),

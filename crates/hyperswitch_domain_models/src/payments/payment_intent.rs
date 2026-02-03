@@ -1,3 +1,4 @@
+use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
@@ -160,7 +161,7 @@ pub struct CustomerData {
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
-    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 impl CustomerData {

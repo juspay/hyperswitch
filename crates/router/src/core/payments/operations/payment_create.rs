@@ -291,7 +291,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_expiry,
             &business_profile,
             request.is_payment_id_from_merchant,
-            payment_method_info.as_ref(),
         )
         .await?;
 
@@ -1432,7 +1431,6 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
         is_payment_id_from_merchant: bool,
-        payment_method: Option<&hyperswitch_domain_models::payment_methods::PaymentMethod>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1479,55 +1477,8 @@ impl PaymentCreate {
         let split_payments = request.split_payments.clone();
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if let Some(customer_id) = request.get_customer_id() {
-            let existing_customer_data = state
-                .store
-                .find_customer_optional_by_customer_id_merchant_id(
-                    customer_id,
-                    platform.get_provider().get_account().get_id(),
-                    platform.get_provider().get_key_store(),
-                    platform.get_provider().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(format!(
-                    "Failed while fetching customer data for customer_id: {:?}",
-                    customer_id
-                ))?;
-
-            let document_details = if let Some(pm) = payment_method.as_ref() {
-                pm.customer_details
-                    .clone()
-                    .map(|encryptable| encryptable.into_inner())
-            } else {
-                existing_customer_data
-                    .as_ref()
-                    .and_then(|cust| cust.document_details.clone().map(|doc| doc.into_inner()))
-            };
-
-            let customer_document_details = document_details.as_ref().and_then(|secret| {
-                secret
-                    .clone()
-                    .expose()
-                    .parse_value::<api_models::customers::CustomerDocumentDetails>(
-                        std::any::type_name::<api_models::customers::CustomerDocumentDetails>(),
-                    )
-                    .ok()
-            });
-
-            Some(
-                hyperswitch_domain_models::payments::payment_intent::CustomerData {
-                    name: request.name.clone(),
-                    email: request.email.clone(),
-                    phone: request.phone.clone(),
-                    phone_country_code: request.phone_country_code.clone(),
-                    tax_registration_id: None,
-                    customer_document_details,
-                },
-            )
-        } else {
-            None
-        };
+        let raw_customer_details =
+            helpers::get_customer_details_from_request(request).get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

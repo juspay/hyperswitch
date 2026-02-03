@@ -5757,9 +5757,9 @@ pub struct BoletoVoucherData {
     pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
-    #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf", default = "cnpj")]
     #[smithy(value_type = "Option<DocumentKind>")]
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<common_types::customers::DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
     #[schema(value_type = Option<String>)]
