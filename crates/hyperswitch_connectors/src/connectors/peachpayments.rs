@@ -716,7 +716,7 @@ impl webhooks::IncomingWebhook for Peachpayments {
         let description = webhook_body
             .transaction
             .as_ref()
-            .and_then(|txn| Some(txn.transaction_type.description.clone()));
+            .map(|txn| txn.transaction_type.description.clone());
 
         if description == Some(REFUND.to_string()) {
             let refund_id = webhook_body
@@ -751,7 +751,7 @@ impl webhooks::IncomingWebhook for Peachpayments {
         let description = webhook_body
             .transaction
             .as_ref()
-            .and_then(|txn| Some(txn.transaction_type.description.clone()));
+            .map(|txn| txn.transaction_type.description.clone());
 
         match webhook_body.webhook_type.as_str() {
             "transaction" => {
