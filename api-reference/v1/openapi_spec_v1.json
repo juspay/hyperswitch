@@ -28320,7 +28320,7 @@
           },
           "sdk_authorization": {
             "type": "string",
-            "description": "Authorization token containing encoded information for sdk authorization.",
+            "description": "Token containing encoded information for sdk authorization.",
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
@@ -29914,7 +29914,7 @@
           },
           "sdk_authorization": {
             "type": "string",
-            "description": "Authorization token containing encoded information for sdk authorization.",
+            "description": "Token containing encoded information for sdk authorization.",
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
