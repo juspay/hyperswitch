@@ -374,15 +374,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_registration_id: None,
         });
 
-        let feature_set = crate::core::utils::get_feature_set(state, platform).await;
-
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details,
             payment_data,
             business_profile,
             mandate_type,
-            feature_set,
         };
 
         Ok(get_trackers_response)

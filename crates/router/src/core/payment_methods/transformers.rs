@@ -35,7 +35,6 @@ use crate::{
     core::{
         errors::{self, CustomResult},
         payment_methods::cards::call_vault_service,
-        payments::PaymentData,
     },
     headers,
     pii::Secret,
@@ -1131,35 +1130,22 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
 }
 
 #[cfg(feature = "v1")]
-pub async fn call_modular_payment_method_update<F>(
+pub async fn call_modular_payment_method_update(
     state: &routes::SessionState,
-    payment_data: &PaymentData<F>,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
     payment_method_id: &str,
     payload: UpdatePaymentMethodV1Payload,
 ) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError>
-where
-    F: Clone,
 {
     let mut parent_headers = Headers::new();
-    if let Some(profile_id) = payment_data
-        .payment_intent
-        .profile_id
-        .clone()
-        .or(Some(payment_data.payment_attempt.profile_id.clone()))
-    {
-        parent_headers.insert((
-            headers::X_PROFILE_ID.to_string(),
-            profile_id.get_string_repr().to_string().into(),
-        ));
-    }
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into(),
+    ));
     parent_headers.insert((
         headers::X_MERCHANT_ID.to_string(),
-        payment_data
-            .payment_intent
-            .merchant_id
-            .get_string_repr()
-            .to_string()
-            .into(),
+        merchant_id.get_string_repr().to_string().into(),
     ));
     parent_headers.insert((
         headers::X_INTERNAL_API_KEY.to_string(),

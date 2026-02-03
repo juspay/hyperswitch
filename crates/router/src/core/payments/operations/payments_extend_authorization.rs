@@ -8,9 +8,8 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
+            errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
-        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -205,14 +204,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
             external_authentication_data: None,
         };
 
-        let feature_set = core_utils::get_feature_set(state, platform).await;
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: None,
             payment_data,
             business_profile,
             mandate_type: None,
-            feature_set,
         };
 
         Ok(get_trackers_response)

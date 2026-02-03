@@ -32,7 +32,6 @@ pub struct UpdatePaymentMethodV1Request {
 
 /// V1-facing update payload.
 #[derive(Clone, Debug, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct UpdatePaymentMethodV1Payload {
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
@@ -44,7 +43,6 @@ pub struct UpdatePaymentMethodV1Payload {
 
 /// Modular service update request payload.
 #[derive(Clone, Debug, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct ModularPMUpdateRequest {
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
@@ -56,7 +54,6 @@ pub struct ModularPMUpdateRequest {
 
 /// Payment method update data.
 #[derive(Debug, Serialize, Clone)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
@@ -65,7 +62,6 @@ pub enum PaymentMethodUpdateData {
 
 /// Card update payload for the modular service.
 #[derive(Debug, Serialize, Clone)]
-#[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card holder name.
     pub card_holder_name: Option<Secret<String>>,
@@ -147,14 +143,14 @@ impl UpdatePaymentMethod {
         &self,
         request: &UpdatePaymentMethodV1Request,
     ) -> Result<(), MicroserviceClientError> {
-        if request.payment_method_id.trim().is_empty() {
-            return Err(MicroserviceClientError {
+        common_utils::fp_utils::when(request.payment_method_id.trim().is_empty(), || {
+            Err(MicroserviceClientError {
                 operation: std::any::type_name::<Self>().to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
                     "Payment method ID cannot be empty".to_string(),
                 ),
-            });
-        }
+            })
+        })?;
         Ok(())
     }
 

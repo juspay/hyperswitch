@@ -85,17 +85,11 @@ where
         Some(enums::PaymentMethod::Card)
     ) && !resp.status.is_payment_terminal_failure()
     {
-        // #1 - Resolve payment_method_id from attempt or stored payment_method_info.
+        // #1 - Retrieve payment_method_id from payment_method_info.
         let payment_method_id = payment_data
-            .payment_attempt
-            .payment_method_id
-            .clone()
-            .or_else(|| {
-                payment_data
-                    .payment_method_info
-                    .as_ref()
-                    .map(|info| info.get_id().clone())
-            })
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.get_id().clone())
             .ok_or_else(|| {
                 logger::error!("Missing required Param payment_method_id");
                 ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
@@ -119,7 +113,7 @@ where
                     Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
                         card_holder_name: card.card_holder_name.clone(),
                         nick_name: card.nick_name.clone(),
-                        card_cvc: Some(card.card_cvc.clone()),
+                        card_cvc: None,
                     }))
                 }
                 _ => None,
@@ -186,8 +180,14 @@ where
             || payload.connector_token_details.is_some()
             || payload.network_transaction_id.is_some()
         {
-            call_modular_payment_method_update(state, payment_data, &payment_method_id, payload)
-                .await?;
+            call_modular_payment_method_update(
+                state,
+                &payment_data.payment_attempt.merchant_id,
+                &payment_data.payment_attempt.profile_id,
+                &payment_method_id,
+                payload,
+            )
+            .await?;
             payment_data.payment_attempt.payment_method_id = Some(payment_method_id);
         }
     }
@@ -663,11 +663,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
+        feature_set: &crate::core::utils::FeatureSet,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+        if !feature_set.is_modular_merchant {
+            Box::pin(async {
+                update_pm_connector_mandate_details(state, provider, payment_data, router_data)
+                    .await
+            })
+            .await
+        } else {
+            Ok(())
+        }
     }
 
     #[cfg(feature = "v1")]
@@ -949,11 +958,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        feature_set: &crate::core::utils::FeatureSet,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+        if !feature_set.is_modular_merchant {
+            Box::pin(async {
+                update_pm_connector_mandate_details(state, provider, payment_data, router_data)
+                    .await
+            })
+            .await
+        } else {
+            Ok(())
+        }
     }
 
     #[cfg(feature = "v1")]
@@ -1678,6 +1696,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
+        _feature_set: &crate::core::utils::FeatureSet,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1800,11 +1819,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
+        feature_set: &crate::core::utils::FeatureSet,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+        if !feature_set.is_modular_merchant {
+            Box::pin(async {
+                update_pm_connector_mandate_details(state, provider, payment_data, router_data)
+                    .await
+            })
+            .await
+        } else {
+            Ok(())
+        }
     }
 
     #[cfg(feature = "v1")]

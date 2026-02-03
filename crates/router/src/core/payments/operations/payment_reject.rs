@@ -203,15 +203,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             external_authentication_data: None,
         };
 
-        let feature_set = crate::core::utils::get_feature_set(state, platform).await;
-
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: None,
             payment_data,
             business_profile,
             mandate_type: None,
-            feature_set,
         };
 
         Ok(get_trackers_response)

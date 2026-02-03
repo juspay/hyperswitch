@@ -641,6 +641,10 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
+
+    // Create feature_set early to avoid passing entire payment_data to get_trackers
+    let feature_set = core_utils::get_feature_set(state, platform).await;
+
     // get profile from headers
     let operations::GetTrackerResponse {
         operation,
@@ -648,7 +652,6 @@ where
         mut payment_data,
         business_profile,
         mandate_type,
-        feature_set,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -996,17 +999,16 @@ where
                         )
                         .await?;
 
-                    if !feature_set.is_modular_merchant {
-                        operation
-                            .to_post_update_tracker()?
-                            .update_pm_and_mandate(
-                                state,
-                                platform.get_provider(),
-                                &payment_data,
-                                &router_data_for_pm_mandate,
-                            )
-                            .await?;
-                    }
+                    operation
+                        .to_post_update_tracker()?
+                        .update_pm_and_mandate(
+                            state,
+                            platform.get_provider(),
+                            &payment_data,
+                            &router_data_for_pm_mandate,
+                            &feature_set,
+                        )
+                        .await?;
 
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
@@ -1201,17 +1203,16 @@ where
                         )
                         .await?;
 
-                    if !feature_set.is_modular_merchant {
-                        operation
-                            .to_post_update_tracker()?
-                            .update_pm_and_mandate(
-                                state,
-                                platform.get_provider(),
-                                &payment_data,
-                                &router_data_for_pm_mandate,
-                            )
-                            .await?;
-                    }
+                    operation
+                        .to_post_update_tracker()?
+                        .update_pm_and_mandate(
+                            state,
+                            platform.get_provider(),
+                            &payment_data,
+                            &router_data_for_pm_mandate,
+                            &feature_set,
+                        )
+                        .await?;
 
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
@@ -1414,7 +1415,7 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
-    tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
+    let feature_set = core_utils::get_feature_set(state, &platform).await;
 
     let operations::GetTrackerResponse {
         operation,
@@ -1422,7 +1423,6 @@ where
         mut payment_data,
         business_profile,
         mandate_type: _,
-        feature_set: _,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -1556,6 +1556,7 @@ where
             platform.get_provider(),
             &payment_data,
             &router_data_for_pm_mandate,
+            &feature_set,
         )
         .await?;
 

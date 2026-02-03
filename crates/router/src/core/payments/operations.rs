@@ -197,7 +197,6 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub payment_data: D,
     pub business_profile: domain::Profile,
     pub mandate_type: Option<api::MandateTransactionType>,
-    pub feature_set: crate::core::utils::FeatureSet,
 }
 
 /// This trait is used to fetch / create all the tracker related information for a payment
@@ -586,6 +585,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _provider: &domain::Provider,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
+        _feature_set: &crate::core::utils::FeatureSet,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
