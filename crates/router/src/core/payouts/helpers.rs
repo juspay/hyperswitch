@@ -1,5 +1,5 @@
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::{enums, payment_methods::Card, payouts};
+use api_models::{customers::CustomerDocumentDetails, enums, payment_methods::Card, payouts};
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
@@ -848,12 +848,19 @@ pub(super) async fn get_or_create_customer_details(
                     .document_details
                     .clone()
                     .async_lift(|inner| async move {
+                        let encrypted_inner = inner
+                            .as_ref()
+                            .map(CustomerDocumentDetails::to)
+                            .transpose()
+                            .change_context(common_utils::errors::CryptoError::EncodingFailed)
+                            .attach_printable(
+                                "Failed to convert CustomerDocumentDetails to SecretSerdeValue",
+                            )?;
+
                         crypto_operation(
                             &state.into(),
                             common_utils::type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(
-                                api_models::customers::CustomerDocumentDetails::to(&inner),
-                            ),
+                            CryptoOperation::EncryptOptional(encrypted_inner),
                             Identifier::Merchant(
                                 platform.get_processor().get_key_store().merchant_id.clone(),
                             ),

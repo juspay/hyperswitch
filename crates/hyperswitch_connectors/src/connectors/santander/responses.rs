@@ -8,7 +8,7 @@ use crate::connectors::santander::requests;
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    pub document_type: common_enums::DocumentKind,
+    pub document_type: common_types::customers::DocumentKind,
     pub document_number: Option<Secret<String>>,
     pub address: Secret<String>,
     pub neighborhood: Secret<String>,
@@ -21,7 +21,7 @@ pub struct Payer {
 #[serde(rename_all = "camelCase")]
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<common_types::customers::DocumentKind>,
     pub document_number: Option<Secret<String>>,
 }
 
@@ -504,16 +504,16 @@ pub struct SantanderWebhookBody {
     pub payment_channel: PaymentChannel,
     pub payment_kind: PaymentKind,
     pub covenant: String,
-    pub type_of_person_agreement: common_enums::DocumentKind,
+    pub type_of_person_agreement: common_types::customers::DocumentKind,
     pub agreement_document: String,
     pub bank_number: String,
     pub client_number: common_utils::id_type::CustomerId,
     pub participant_code: String,
     pub tx_id: String,
-    pub payer_document_type: common_enums::DocumentKind,
+    pub payer_document_type: common_types::customers::DocumentKind,
     pub payer_document_number: String,
     pub payer_name: String,
-    pub final_beneficiary_document_type: common_enums::DocumentKind,
+    pub final_beneficiary_document_type: common_types::customers::DocumentKind,
     pub final_beneficiary_document_number: String,
     pub final_beneficiary_name: String,
     pub due_date: String,

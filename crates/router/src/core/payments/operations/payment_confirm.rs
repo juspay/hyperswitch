@@ -620,7 +620,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
             let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
                 state,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 &token_data,
                 storage_scheme,
             )

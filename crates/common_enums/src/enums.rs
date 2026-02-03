@@ -344,6 +344,14 @@ pub enum GsmDecision {
 }
 
 #[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum ApiKeyType {
+    Internal,
+    External,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -735,29 +743,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum DocumentKind {
-    Cnpj,
-    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -10527,6 +10512,28 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    ManualRetry,
+    AutoRetry,
 }
 
 #[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]

@@ -1,13 +1,11 @@
-use common_enums::enums::DocumentKind;
-use common_types::primitive_wrappers::CustomerListLimit;
+use common_types::{customers::DocumentKind, primitive_wrappers::CustomerListLimit};
 use common_utils::{
     crypto, custom_serde,
-    errors::ValidationError,
+    errors::{ParsingError, ValidationError},
     ext_traits::{Encode, ValueExt},
     id_type, pii,
     types::Description,
 };
-use error_stack::Report;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -237,7 +235,7 @@ pub struct CustomerResponse {
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
-    pub document_details: crypto::OptionalEncryptableValue,
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -302,7 +300,7 @@ pub struct CustomerResponse {
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
     /// Customer’s country-specific identification number and type used for regulatory or tax purposes
     #[schema(value_type = Option<CustomerDocumentDetails>)]
-    pub document_details: crypto::OptionalEncryptableValue,
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -492,73 +490,38 @@ pub struct CustomerListResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 pub struct CustomerDocumentDetails {
     /// The customer's document type
-    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
+    #[schema(value_type = DocumentKind, example = "cpf")]
     pub document_type: DocumentKind,
     /// The customer's document number
-    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    /// Length of the document number depends upon the document_type.
+    /// For CPF/CNPJ it is typically 11/14 digits long
+    #[schema(max_length = 255, value_type = String, example = "12345678911")]
     pub document_number: Secret<String>,
 }
 
 impl CustomerDocumentDetails {
-    pub fn from(value: &Option<Secret<serde_json::Value>>) -> Option<Self> {
-        value
-            .as_ref()?
-            .peek()
-            .clone()
-            .parse_value("CustomerDocumentDetails")
-            .ok()
+    pub fn from(value: &Option<pii::SecretSerdeValue>) -> Result<Option<Self>, ParsingError> {
+        match value {
+            None => Ok(None),
+            Some(pii_value) => {
+                let parsed = pii_value
+                    .peek()
+                    .clone()
+                    .parse_value::<Self>("CustomerDocumentDetails")
+                    .map_err(|_| {
+                        router_env::logger::error!("Failed to parse CustomerDocumentDetails");
+                        ParsingError::StructParseFailure("CustomerDocumentDetails")
+                    })?;
+                Ok(Some(parsed))
+            }
+        }
     }
 
-    pub fn to(value: &Option<Self>) -> Option<Secret<serde_json::Value>> {
-        value
-            .as_ref()
-            .and_then(|details| serde_json::to_value(details).ok().map(Secret::new))
-    }
-
-    pub fn encode_to_secret(
-        &self,
-    ) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, common_utils::errors::ParsingError>
-    {
+    pub fn to(&self) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, ParsingError> {
         self.encode_to_value().map(Secret::new)
     }
 
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        let doc_type = &self.document_type;
-        let doc_number = &self.document_number;
-        let raw_number = doc_number.peek();
-        if !raw_number.chars().all(|c| c.is_ascii_digit()) {
-            tracing::error!(?doc_type, "Document number contains non-digit characters");
-            return Err(Report::new(ValidationError::InvalidValue {
-                message: format!("{:?} must contain only digits", doc_type),
-            }));
-        }
-
-        // Length check for CPF and CNPJ
-        let expected_len = if matches!(doc_type, DocumentKind::Cpf) {
-            11
-        } else {
-            14
-        };
-
-        if raw_number.len() != expected_len {
-            tracing::error!(
-                ?doc_type,
-                actual_len = raw_number.len(),
-                expected_len,
-                "Document length mismatch"
-            );
-            return Err(Report::new(ValidationError::IncorrectValueProvided {
-                field_name: Box::leak(
-                    format!(
-                        "document_number (expected {} chars, got {})",
-                        expected_len,
-                        raw_number.len()
-                    )
-                    .into_boxed_str(),
-                ),
-            }));
-        }
-
-        Ok(())
+        self.document_type.validate(self.document_number.peek())
     }
 }

@@ -13086,7 +13086,7 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "Cnpj",
+            "default": "cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -16813,20 +16813,18 @@
       },
       "CustomerDocumentDetails": {
         "type": "object",
+        "required": [
+          "document_type",
+          "document_number"
+        ],
         "properties": {
           "document_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/DocumentKind"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/DocumentKind"
           },
           "document_number": {
             "type": "string",
-            "description": "The customer's document number",
-            "example": "123456789",
-            "nullable": true,
+            "description": "The customer's document number\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long",
+            "example": "12345678911",
             "maxLength": 255
           }
         }
@@ -17817,9 +17815,10 @@
       },
       "DocumentKind": {
         "type": "string",
+        "description": "Represents the type of identification document used for validation.",
         "enum": [
-          "CNPJ",
-          "CPF"
+          "cpf",
+          "cnpj"
         ]
       },
       "DokuBankTransferInstructions": {

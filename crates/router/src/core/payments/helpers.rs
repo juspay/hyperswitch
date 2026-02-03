@@ -7,6 +7,7 @@ pub use ::payment_methods::helpers::{
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
+    customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
     payments::{
         additional_info::{self as payment_additional_types},
@@ -1921,20 +1922,36 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .document_details
                     .clone()
                     .async_lift(|inner| async move {
-                        types::crypto_operation(
+                        let encoded_inner = inner
+                            .as_ref()
+                            .map(CustomerDocumentDetails::to)
+                            .transpose()
+                            .change_context(storage_impl::StorageError::EncryptionError)
+                            .attach_printable(
+                                "Failed to encode customer document details for encryption",
+                            )?;
+
+                        let crypto_result = types::crypto_operation(
                             key_manager_state,
                             type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(
-                                api_models::customers::CustomerDocumentDetails::to(&inner),
-                            ),
+                            CryptoOperation::EncryptOptional(encoded_inner),
                             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
                             key,
                         )
                         .await
-                        .and_then(|val| val.try_into_optionaloperation())
                         .change_context(storage_impl::StorageError::EncryptionError)
+                        .attach_printable(
+                            "Crypto operation failed during document details encryption",
+                        )?;
+
+                        crypto_result
+                            .try_into_optionaloperation()
+                            .change_context(storage_impl::StorageError::EncryptionError)
+                            .attach_printable("Failed to parse encrypted document details result")
                     })
-                    .await?
+                    .await
+                    .change_context(storage_impl::StorageError::EncryptionError)
+                    .attach_printable("Lift operation failed for document_details")?
             } else {
                 customer_data
                     .as_ref()
@@ -2058,17 +2075,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .tax_registration_id
                         .clone()
                         .map(|val| val.into_inner()),
-                    customer_document_details: customer.document_details.clone().and_then(
-                        |encryptable| {
+                    customer_document_details: customer
+                        .document_details
+                        .clone()
+                        .map(|encryptable| {
                             encryptable
                                 .into_inner()
                                 .expose()
-                                .parse_value::<api_models::customers::CustomerDocumentDetails>(
-                                    "CustomerDocumentDetails",
-                                )
-                                .ok()
-                        },
-                    ),
+                                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                                .change_context(storage_impl::StorageError::SerializationFailed)
+                        })
+                        .transpose()?,
                 };
 
                 // Merge with existing payment intent customer details if present
@@ -5010,7 +5027,7 @@ impl AttemptType {
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
-    fn make_new_payment_attempt(
+    fn make_new_manual_retry_payment_attempt(
         payment_method_data: Option<&api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
@@ -5116,6 +5133,7 @@ impl AttemptType {
             debit_routing_savings: None,
             is_overcapture_enabled: None,
             error_details: None,
+            retry_type: Some(enums::RetryType::ManualRetry),
         }
     }
 
@@ -5149,7 +5167,7 @@ impl AttemptType {
             Self::New => {
                 let db = &*state.store;
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
-                let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
+                let new_payment_attempt_to_insert = Self::make_new_manual_retry_payment_attempt(
                     request
                         .payment_method_data
                         .as_ref()

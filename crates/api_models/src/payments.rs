@@ -1674,7 +1674,8 @@ impl PaymentsRequest {
         self.customer
             .as_ref()
             .and_then(|data| data.document_details.as_ref())
-            .map_or(Ok(()), |doc| doc.validate())
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
     }
 
     pub fn get_feature_metadata_as_value(
@@ -4886,7 +4887,7 @@ pub enum BankTransferData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DocumentDetails {
     /// Specifies the type of document - Cpf or Cnpj
-    pub document_type: enums::DocumentKind,
+    pub document_type: common_types::customers::DocumentKind,
     /// Cpf or Cnpj number
     pub document_number: Secret<String>,
 }
@@ -5764,9 +5765,9 @@ pub struct BoletoVoucherData {
     pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
-    #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf", default = "cnpj")]
     #[smithy(value_type = "Option<DocumentKind>")]
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<common_types::customers::DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
     #[schema(value_type = Option<String>)]
@@ -7024,7 +7025,7 @@ pub struct SepaBankTransferInstructions {
     pub reference: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
     pub directory_server_id: String,
     pub three_ds_method_url: String,

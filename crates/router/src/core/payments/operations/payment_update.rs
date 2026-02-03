@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
+    customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
+    payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -1092,11 +1093,14 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
             tax_registration_id: value
                 .tax_registration_id
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
-            customer_document_details: api_models::customers::CustomerDocumentDetails::from(
+            customer_document_details: CustomerDocumentDetails::from(
                 &value
                     .document_details
                     .map(|customer_document_details| customer_document_details.into_inner()),
-            ),
+            )
+            .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("Invalid customer document details: {err}"),
+            })?,
         })
     }
 }

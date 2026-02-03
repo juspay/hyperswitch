@@ -1,3 +1,4 @@
+use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
@@ -159,20 +160,33 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .document_details
             .clone()
             .async_lift(|inner| async move {
-                types::crypto_operation(
+                let encoded_inner = inner
+                    .map(|details| CustomerDocumentDetails::to(&details))
+                    .transpose()
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to encode customer document details for encryption",
+                    )?;
+
+                let crypto_result = types::crypto_operation(
                     &state.into(),
                     common_utils::type_name!(domain::Customer),
-                    CryptoOperation::EncryptOptional(
-                        api_models::customers::CustomerDocumentDetails::to(&inner),
-                    ),
+                    CryptoOperation::EncryptOptional(encoded_inner),
                     Identifier::Merchant(merchant_id.clone()),
                     provider.get_key_store().key.peek(),
                 )
                 .await
-                .and_then(|val| val.try_into_optionaloperation())
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Crypto operation failed during document details encryption")?;
+
+                let final_val = crypto_result
+                    .try_into_optionaloperation()
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse encrypted document details")?;
+
+                Ok(final_val)
             })
             .await
-            .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt document_details")?;
 
         let address_from_db = customer_billing_address_struct
@@ -1296,22 +1310,19 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let document_details = hyperswitch_domain_models::type_encryption::crypto_operation(
             key_manager_state,
-            type_name!(api_models::customers::CustomerDocumentDetails),
+            type_name!(CustomerDocumentDetails),
             CryptoOperation::EncryptOptional(
                 self.document_details
-                    .clone()
-                    .map(|struct_value| {
-                        serde_json::to_value(struct_value)
-                            .map(Secret::new)
-                            .map_err(|_| common_utils::errors::CryptoError::EncodingFailed)
+                    .as_ref()
+                    .map(|details| {
+                        details.to().map_err(|e| {
+                            error_stack::Report::new(
+                                errors::CustomersErrorResponse::InternalServerError,
+                            )
+                            .attach_printable(format!("Failed to encode details: {:?}", e))
+                        })
                     })
-                    .transpose()
-                    .map_err(|e| {
-                        error_stack::Report::new(
-                            errors::CustomersErrorResponse::InternalServerError,
-                        )
-                        .attach_printable(e)
-                    })?,
+                    .transpose()?,
             ),
             Identifier::Merchant(provider.get_account().get_id().clone()),
             key,

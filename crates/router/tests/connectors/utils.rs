@@ -1001,6 +1001,7 @@ impl Default for PaymentAuthorizeType {
             request_extended_authorization: None,
             metadata: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,

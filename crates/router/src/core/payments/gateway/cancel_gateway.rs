@@ -108,6 +108,7 @@ where
             state,
             payment_void_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, payment_void_request, grpc_headers| async move {
                 let response = client
                     .payment_cancel(payment_void_request, connector_auth_metadata, grpc_headers)
@@ -119,6 +120,7 @@ where
                 let (router_data_response, status_code) =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_cancel(
                         payment_void_response.clone(),
+                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 

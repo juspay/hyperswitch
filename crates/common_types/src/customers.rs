@@ -1,5 +1,8 @@
 //! Customer related types
 
+use common_utils::errors::ValidationError;
+use error_stack::Report;
+use utoipa::ToSchema;
 /// HashMap containing MerchantConnectorAccountId and corresponding customer id
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
@@ -36,5 +39,59 @@ impl std::ops::Deref for ConnectorCustomerMap {
 impl std::ops::DerefMut for ConnectorCustomerMap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// Represents the type of identification document used for validation.
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Deserialize, serde::Serialize, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentKind {
+    /// Cadastro de Pessoas Físicas - The Brazilian individual taxpayer identifier.
+    Cpf,
+    /// Cadastro Nacional da Pessoa Jurídica - The Brazilian business identifier.
+    Cnpj,
+}
+
+impl DocumentKind {
+    /// Validation function for document number depending on document type
+    pub fn validate(
+        &self,
+        doc_number: &str,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        match self {
+            Self::Cpf => self.validate_cpf(doc_number),
+            Self::Cnpj => self.validate_cnpj(doc_number),
+        }
+    }
+
+    fn validate_cpf(
+        self,
+        doc_number: &str,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let expected_len = 11;
+        if doc_number.len() != expected_len {
+            return Err(self.length_error("CPF", expected_len, doc_number.len()));
+        }
+        Ok(())
+    }
+
+    fn validate_cnpj(
+        self,
+        doc_number: &str,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let expected_len = 14;
+        if doc_number.len() != expected_len {
+            return Err(self.length_error("CNPJ", expected_len, doc_number.len()));
+        }
+        Ok(())
+    }
+
+    fn length_error(self, name: &str, expected: usize, actual: usize) -> Report<ValidationError> {
+        let message = format!("{name} document_number (expected {expected}, got {actual})");
+        Report::new(ValidationError::IncorrectValueProvided {
+            field_name: Box::leak(message.into_boxed_str()),
+        })
     }
 }

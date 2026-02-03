@@ -451,6 +451,26 @@ impl
                 })
             });
 
+        let customer_document_details = value
+            .0
+            .router_data
+            .customer_document_details
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer.document_details",
+            })?;
+
+        let (document_type, document_number) = match customer_document_details.document_type {
+            common_types::customers::DocumentKind::Cpf => (
+                common_types::customers::DocumentKind::Cpf,
+                Some(customer_document_details.document_number),
+            ),
+            common_types::customers::DocumentKind::Cnpj => (
+                common_types::customers::DocumentKind::Cnpj,
+                Some(customer_document_details.document_number),
+            ),
+        };
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
             nsu_code,
@@ -484,12 +504,8 @@ impl
                 .clone(),
             payer: Some(Payer {
                 name: value.0.router_data.get_billing_full_name()?,
-                document_type: voucher_data.document_type.ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "document_type",
-                    }
-                })?,
-                document_number: voucher_data.social_security_number.clone(),
+                document_type,
+                document_number,
                 address: Secret::new(
                     [
                         value.0.router_data.get_billing_line1()?,
@@ -520,8 +536,10 @@ impl
             max_value_or_percentage: None,
             iof_percentage: None,
             sharing: None,
-            key,
-            tx_id: Some(value.0.router_data.connector_request_reference_id.clone()),
+            key: None,
+            tx_id: None,
+            // key,
+            // tx_id: Some(value.0.router_data.connector_request_reference_id.clone()),
             messages,
         })))
     }
@@ -556,8 +574,12 @@ impl
                 field_name: "customer.document_details",
             })?;
         let (cpf, cnpj) = match customer_document_details.document_type {
-            enums::DocumentKind::Cpf => (Some(customer_document_details.document_number), None),
-            enums::DocumentKind::Cnpj => (None, Some(customer_document_details.document_number)),
+            common_types::customers::DocumentKind::Cpf => {
+                (Some(customer_document_details.document_number), None)
+            }
+            common_types::customers::DocumentKind::Cnpj => {
+                (None, Some(customer_document_details.document_number))
+            }
         };
 
         let (calendar, debtor) = match &value

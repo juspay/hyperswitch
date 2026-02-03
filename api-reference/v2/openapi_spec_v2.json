@@ -7771,7 +7771,7 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "Cnpj",
+            "default": "cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -10711,20 +10711,18 @@
       },
       "CustomerDocumentDetails": {
         "type": "object",
+        "required": [
+          "document_type",
+          "document_number"
+        ],
         "properties": {
           "document_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/DocumentKind"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/DocumentKind"
           },
           "document_number": {
             "type": "string",
-            "description": "The customer's document number",
-            "example": "123456789",
-            "nullable": true,
+            "description": "The customer's document number\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long",
+            "example": "12345678911",
             "maxLength": 255
           }
         }
@@ -11523,9 +11521,10 @@
       },
       "DocumentKind": {
         "type": "string",
+        "description": "Represents the type of identification document used for validation.",
         "enum": [
-          "CNPJ",
-          "CPF"
+          "cpf",
+          "cnpj"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -19737,7 +19736,8 @@
           "merchant_id",
           "customer_id",
           "payment_method_type",
-          "network_transaction_id"
+          "network_transaction_id",
+          "raw_payment_method_data"
         ],
         "properties": {
           "id": {
@@ -19831,6 +19831,9 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "raw_payment_method_data": {
+            "$ref": "#/components/schemas/RawPaymentMethodData"
           }
         }
       },
@@ -19945,6 +19948,15 @@
             "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
+      },
+      "PaymentMethodRetrieveRequest": {
+        "type": "object",
+        "properties": {
+          "fetch_raw_detail": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -24629,6 +24641,21 @@
             "example": "mca_28a7367sad8239s67"
           }
         }
+      },
+      "RawPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
       },
       "RealTimePaymentData": {
         "oneOf": [
