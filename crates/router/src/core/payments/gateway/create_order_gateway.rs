@@ -123,6 +123,7 @@ where
             state,
             create_order_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, create_order_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_create_order(
                     create_order_request,

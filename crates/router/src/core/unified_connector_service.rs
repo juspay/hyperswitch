@@ -1859,6 +1859,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOu
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
+    execution_mode: ExecutionMode,
     handler: F,
 ) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
@@ -1945,37 +1946,40 @@ where
         }
     };
 
-    let mut connector_event = ConnectorEvent::new(
-        state.tenant.tenant_id.clone(),
-        connector_name,
-        std::any::type_name::<T>(),
-        grpc_request_body,
-        "grpc://unified-connector-service".to_string(),
-        Method::Post,
-        payment_id,
-        merchant_id,
-        state.request_id.as_ref(),
-        external_latency,
-        refund_id,
-        dispute_id,
-        payout_id,
-        status_code,
-    );
+    // Only emit connector event during primary mode
+    if let ExecutionMode::Primary = execution_mode {
+        let mut connector_event = ConnectorEvent::new(
+            state.tenant.tenant_id.clone(),
+            connector_name,
+            std::any::type_name::<T>(),
+            grpc_request_body,
+            "grpc://unified-connector-service".to_string(),
+            Method::Post,
+            payment_id,
+            merchant_id,
+            state.request_id.as_ref(),
+            external_latency,
+            refund_id,
+            dispute_id,
+            payout_id,
+            status_code,
+        );
 
-    // Set response body based on status code
-    if let Some(body) = response_body {
-        match status_code {
-            400..=599 => {
-                connector_event.set_error_response_body(&body);
-            }
-            _ => {
-                connector_event.set_response_body(&body);
+        // Set response body based on status code
+        if let Some(body) = response_body {
+            match status_code {
+                400..=599 => {
+                    connector_event.set_error_response_body(&body);
+                }
+                _ => {
+                    connector_event.set_response_body(&body);
+                }
             }
         }
-    }
 
-    // Emit event
-    state.event_handler.log_event(&connector_event);
+        // Emit event
+        state.event_handler.log_event(&connector_event);
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -1994,6 +1998,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
+    execution_mode: ExecutionMode,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -2084,37 +2089,40 @@ where
         }
     };
 
-    let mut connector_event = ConnectorEvent::new(
-        state.tenant.tenant_id.clone(),
-        connector_name,
-        std::any::type_name::<T>(),
-        grpc_request_body,
-        "grpc://unified-connector-service".to_string(),
-        Method::Post,
-        payment_id,
-        merchant_id,
-        state.request_id.as_ref(),
-        external_latency,
-        refund_id,
-        dispute_id,
-        payout_id,
-        status_code,
-    );
+    // Only emit connector event during primary mode
+    if let ExecutionMode::Primary = execution_mode {
+        let mut connector_event = ConnectorEvent::new(
+            state.tenant.tenant_id.clone(),
+            connector_name,
+            std::any::type_name::<T>(),
+            grpc_request_body,
+            "grpc://unified-connector-service".to_string(),
+            Method::Post,
+            payment_id,
+            merchant_id,
+            state.request_id.as_ref(),
+            external_latency,
+            refund_id,
+            dispute_id,
+            payout_id,
+            status_code,
+        );
 
-    // Set response body based on status code
-    if let Some(body) = response_body {
-        match status_code {
-            400..=599 => {
-                connector_event.set_error_response_body(&body);
-            }
-            _ => {
-                connector_event.set_response_body(&body);
+        // Set response body based on status code
+        if let Some(body) = response_body {
+            match status_code {
+                400..=599 => {
+                    connector_event.set_error_response_body(&body);
+                }
+                _ => {
+                    connector_event.set_response_body(&body);
+                }
             }
         }
-    }
 
-    // Emit event
-    state.event_handler.log_event(&connector_event);
+        // Emit event
+        state.event_handler.log_event(&connector_event);
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -2288,6 +2296,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         state,
         ucs_refund_request,
         grpc_header_builder,
+        execution_mode,
         |router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             let response = ucs_client
@@ -2380,6 +2389,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         state,
         ucs_refund_sync_request,
         grpc_header_builder,
+        execution_mode,
         |router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             let response = ucs_client

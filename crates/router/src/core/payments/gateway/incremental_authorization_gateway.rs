@@ -134,6 +134,7 @@ where
                 state,
                 incremental_authorization_request,
                 header_payload,
+                unified_connector_service_execution_mode,
                 |mut router_data, incremental_authorization_request, grpc_headers| async move {
                     let response = Box::pin(client.incremental_authorization(
                         incremental_authorization_request,

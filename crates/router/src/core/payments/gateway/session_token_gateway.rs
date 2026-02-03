@@ -126,6 +126,7 @@ where
             state,
             authorize_session_token_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, authorize_session_token_request, grpc_headers| async move {
                 let response = client
                     .payment_session_token_create(

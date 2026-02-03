@@ -798,6 +798,18 @@ pub fn build_unified_connector_service_grpc_headers(
     meta: ConnectorAuthMetadata,
     grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    // Destructure grpc_headers to ensure all fields are handled
+    let GrpcHeadersUcs {
+        tenant_id,
+        request_id,
+        lineage_ids,
+        external_vault_proxy_metadata,
+        merchant_reference_id,
+        resource_id,
+        shadow_mode,
+        config_override,
+    } = grpc_headers;
+
     let mut metadata = MetadataMap::new();
     let parse =
         |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
@@ -850,26 +862,23 @@ pub fn build_unified_connector_service_grpc_headers(
         parse(common_utils_consts::X_MERCHANT_ID, meta.merchant_id.peek())?,
     );
 
-    if let Some(external_vault_proxy_metadata) = grpc_headers.external_vault_proxy_metadata {
+    if let Some(external_vault_proxy_metadata) = external_vault_proxy_metadata {
         metadata.append(
             consts::UCS_HEADER_EXTERNAL_VAULT_METADATA,
             parse("external_vault_metadata", &external_vault_proxy_metadata)?,
         );
     };
 
-    let lineage_ids_str = grpc_headers
-        .lineage_ids
-        .get_url_encoded_string()
-        .map_err(|err| {
-            logger::error!(?err);
-            UnifiedConnectorServiceError::HeaderInjectionFailed(consts::UCS_LINEAGE_IDS.to_string())
-        })?;
+    let lineage_ids_str = lineage_ids.get_url_encoded_string().map_err(|err| {
+        logger::error!(?err);
+        UnifiedConnectorServiceError::HeaderInjectionFailed(consts::UCS_LINEAGE_IDS.to_string())
+    })?;
     metadata.append(
         consts::UCS_LINEAGE_IDS,
         parse(consts::UCS_LINEAGE_IDS, &lineage_ids_str)?,
     );
 
-    if let Some(reference_id) = grpc_headers.merchant_reference_id {
+    if let Some(reference_id) = merchant_reference_id {
         metadata.append(
             consts::UCS_HEADER_REFERENCE_ID,
             parse(
@@ -879,21 +888,21 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     };
 
-    if let Some(resource_id) = grpc_headers.resource_id {
+    if let Some(resource_id) = resource_id {
         metadata.append(
             consts::UCS_HEADER_RESOURCE_ID,
             parse(consts::UCS_HEADER_RESOURCE_ID, resource_id.get_string_repr())?,
         );
     };
 
-    if let Some(ref request_id) = grpc_headers.request_id {
+    if let Some(ref request_id) = request_id {
         metadata.append(
             common_utils_consts::X_REQUEST_ID,
             parse(common_utils_consts::X_REQUEST_ID, request_id.as_str())?,
         );
     };
 
-    if let Some(shadow_mode) = grpc_headers.shadow_mode {
+    if let Some(shadow_mode) = shadow_mode {
         metadata.append(
             common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
             parse(
@@ -903,14 +912,20 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
 
-    if let Err(err) = grpc_headers
-        .tenant_id
+    if let Some(config_override) = config_override {
+        metadata.append(
+            common_utils_consts::X_CONFIG_OVERRIDE,
+            parse(common_utils_consts::X_CONFIG_OVERRIDE, &config_override)?,
+        );
+    }
+
+    if let Err(err) = tenant_id
         .parse()
         .map(|tenant_id| metadata.append(common_utils_consts::TENANT_HEADER, tenant_id))
     {
         logger::error!(
             header_parse_error=?err,
-            tenant_id=?grpc_headers.tenant_id,
+            tenant_id=?tenant_id,
             "Failed to parse tenant_id header for UCS gRPC request: {}",
             common_utils_consts::TENANT_HEADER
         );

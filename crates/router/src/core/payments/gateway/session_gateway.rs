@@ -124,6 +124,7 @@ where
                 state,
                 sdk_session_token_request,
                 header_payload,
+                unified_connector_service_execution_mode,
                 |mut router_data, sdk_session_token_request, grpc_headers| async move {
                     let response = Box::pin(client.sdk_session_token(
                         sdk_session_token_request,

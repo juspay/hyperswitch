@@ -168,11 +168,21 @@ pub struct GrpcHeadersUcs {
     resource_id: Option<ucs_types::UcsReferenceId>,
 
     shadow_mode: Option<bool>,
+    /// Config override as JSON string to pass to UCS
+    config_override: Option<String>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (), (Option<bool>,))>;
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (),
+    (),
+    (),
+    (Option<bool>,),
+    (Option<String>,),
+)>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
@@ -182,6 +192,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<ucs_types::UcsReferenceId>,),
     (Option<ucs_types::UcsReferenceId>,),
     (Option<bool>,),
+    (Option<String>,),
 )>;
 
 /// struct to represent set of Lineage ids
