@@ -72,7 +72,9 @@ impl DocumentKind {
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
         (doc_number.len() == common_utils::consts::CPF_LENGTH)
             .then_some(())
-            .ok_or_else(|| self.length_error("CPF", common_utils::consts::CPF_LENGTH, doc_number.len()))?;
+            .ok_or_else(|| {
+                self.length_error("CPF", common_utils::consts::CPF_LENGTH, doc_number.len())
+            })?;
 
         Ok(())
     }
@@ -83,7 +85,9 @@ impl DocumentKind {
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
         (doc_number.len() == common_utils::consts::CNPJ_LENGTH)
             .then_some(())
-            .ok_or_else(|| self.length_error("CNPJ", common_utils::consts::CNPJ_LENGTH, doc_number.len()))?;
+            .ok_or_else(|| {
+                self.length_error("CNPJ", common_utils::consts::CNPJ_LENGTH, doc_number.len())
+            })?;
 
         Ok(())
     }
