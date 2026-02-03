@@ -25,7 +25,11 @@ use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
 use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
-use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{
+    behaviour,
+    merchant_key_store::MerchantKeyStore,
+    type_encryption::{self as types, AsyncLift},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -212,27 +216,23 @@ impl behaviour::Conversion for Customer {
                 message: "Failed while decrypting customer data".to_string(),
             },
         )?;
-        let document_details = match item.document_details {
-            Some(inner) => {
-                let output = types::crypto_operation(
+        let document_details = item
+            .document_details
+            .async_lift(|inner| async {
+                types::crypto_operation(
                     state,
                     common_utils::type_name!(Self),
-                    types::CryptoOperation::Decrypt(inner),
+                    types::CryptoOperation::DecryptOptional(inner),
                     keymanager::Identifier::Merchant(item.merchant_id.clone()),
                     key.peek(),
                 )
                 .await
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed to decrypt document details".to_string(),
-                })?;
-
-                match output {
-                    types::CryptoOutput::Operation(encryptable) => Some(encryptable),
-                    _ => None,
-                }
-            }
-            None => None,
-        };
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt document details".to_string(),
+            })?;
 
         Ok(Self {
             customer_id: item.customer_id,

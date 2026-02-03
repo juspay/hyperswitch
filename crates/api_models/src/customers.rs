@@ -505,13 +505,13 @@ impl CustomerDocumentDetails {
             None => Ok(None),
             Some(pii_value) => {
                 let parsed = pii_value
-                .peek()
-                .clone()
-                .parse_value::<Self>("CustomerDocumentDetails")
-                .map_err(|e| {
-                    router_env::logger::error!(error = ?e, "Failed to parse CustomerDocumentDetails");
-                    ParsingError::StructParseFailure("CustomerDocumentDetails")
-                })?;
+                    .peek()
+                    .clone()
+                    .parse_value::<Self>("CustomerDocumentDetails")
+                    .map_err(|_| {
+                        router_env::logger::error!("Failed to parse CustomerDocumentDetails");
+                        ParsingError::StructParseFailure("CustomerDocumentDetails")
+                    })?;
                 Ok(Some(parsed))
             }
         }
