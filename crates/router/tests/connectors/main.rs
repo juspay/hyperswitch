@@ -34,6 +34,7 @@ mod checkout;
 mod coinbase;
 mod cryptopay;
 mod cybersource;
+mod cybersourcedecisionmanager;
 mod datatrans;
 mod deutschebank;
 mod dlocal;

@@ -43,6 +43,7 @@ pub struct ConnectorAuthentication {
     pub coingate: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub cybersourcedecisionmanager: Option<HeaderKey>,
     pub datatrans: Option<HeaderKey>,
     pub deutschebank: Option<SignatureKey>,
     pub digitalvirgo: Option<HeaderKey>,
