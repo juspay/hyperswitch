@@ -824,7 +824,7 @@ where
 
         if merchant_id_from_route != *processor_merchant_id {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
-                "Merchant ID from route and Merchant ID from x-connected-merchant-id header do not match",
+                "Merchant ID from route and Processor Merchant Id do not match",
             );
         }
 
