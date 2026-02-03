@@ -6313,7 +6313,7 @@ impl ForeignFrom<payments::FraudCheck> for FrmMessage {
 impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
     fn foreign_from(customer: CustomerDetails) -> Self {
         Self {
-            customer_id: Some(customer.id),
+            customer_id: customer.id,
             name: customer.name,
             email: customer.email,
             phone: customer.phone,

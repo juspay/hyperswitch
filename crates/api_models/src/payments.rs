@@ -124,9 +124,9 @@ pub struct BankCodeResponse {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    #[smithy(value_type = "String")]
-    pub id: id_type::CustomerId,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "Option<String>")]
+    pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
@@ -1596,9 +1596,11 @@ impl PaymentsRequest {
     /// First check the id for `customer.id`
     /// If not present, check for `customer_id` at the root level
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id
-            .as_ref()
-            .or(self.customer.as_ref().map(|customer| &customer.id))
+        self.customer_id.as_ref().or_else(|| {
+            self.customer
+                .as_ref()
+                .and_then(|customer| customer.id.as_ref())
+        })
     }
 
     pub fn validate_and_get_request_extended_authorization(
@@ -1627,7 +1629,7 @@ impl PaymentsRequest {
         }) = self.customer.as_ref()
         {
             let invalid_fields = [
-                are_optional_values_invalid(self.customer_id.as_ref(), Some(id))
+                are_optional_values_invalid(self.customer_id.as_ref(), id.as_ref())
                     .then_some("customer_id and customer.id"),
                 are_optional_values_invalid(self.email.as_ref(), email.as_ref())
                     .then_some("email and customer.email"),
@@ -1764,7 +1766,7 @@ mod payments_request_test {
         let customer_id = generate_customer_id_of_default_length();
 
         let customer_object = CustomerDetails {
-            id: customer_id.clone(),
+            id: Some(customer_id.clone()),
             name: None,
             email: None,
             phone: None,
@@ -1789,7 +1791,7 @@ mod payments_request_test {
         let another_customer_id = generate_customer_id_of_default_length();
 
         let customer_object = CustomerDetails {
-            id: customer_id.clone(),
+            id: Some(customer_id.clone()),
             name: None,
             email: None,
             phone: None,
@@ -9053,9 +9055,9 @@ impl From<&PaymentsRequest> for MandateValidationFields {
             customer_id: req
                 .customer
                 .as_ref()
-                .map(|customer_details| &customer_details.id)
+                .and_then(|customer_details| customer_details.id.as_ref())
                 .or(req.customer_id.as_ref())
-                .map(ToOwned::to_owned),
+                .cloned(),
             mandate_data: req.mandate_data.clone(),
             setup_future_usage: req.setup_future_usage,
             off_session: req.off_session,
