@@ -3251,7 +3251,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: storage_enums::RefundStatus::Pending, //  storage_enums::RefundStatus::from(item.response.status),
+                refund_status: storage_enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
@@ -3272,7 +3272,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: storage_enums::RefundStatus::Pending, // storage_enums::RefundStatus::from(item.response.status),
+                refund_status: storage_enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
