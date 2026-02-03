@@ -100,7 +100,7 @@ use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionS
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{errors::{self, CustomResult, RouterResult}, utils as core_utils},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -585,7 +585,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _provider: &domain::Provider,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
-        _feature_set: &crate::core::utils::FeatureSet,
+        _feature_set: &core_utils::FeatureSet,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,

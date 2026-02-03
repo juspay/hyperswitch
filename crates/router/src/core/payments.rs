@@ -1415,6 +1415,8 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
+    tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
+
     let feature_set = core_utils::get_feature_set(state, &platform).await;
 
     let operations::GetTrackerResponse {
