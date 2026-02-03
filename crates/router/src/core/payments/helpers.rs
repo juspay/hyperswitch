@@ -8009,7 +8009,7 @@ pub fn validate_platform_request_for_marketplace(
 }
 
 /// Returns `true` if either the org or merchant config is set to "true"
-/// 
+///
 /// Priority logic:
 /// 1. If org-level config exists (either "true" or "false"), that decision is final
 ///    - Org = "true" → returns true (authentication enabled)
@@ -8017,7 +8017,7 @@ pub fn validate_platform_request_for_marketplace(
 /// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
 ///    - Merchant = "true" → returns true
 ///    - Merchant = "false" or missing → returns false
-/// 
+///
 /// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
