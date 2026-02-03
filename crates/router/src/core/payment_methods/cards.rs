@@ -5276,10 +5276,13 @@ pub async fn execute_card_tokenization(
     let domain_card = optional_card
         .get_required_value("card")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let customer_id = customer
-        .id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
     let network_token_details = executor
         .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
@@ -5324,10 +5327,13 @@ pub async fn execute_payment_method_tokenization(
         .await?;
     let builder = builder.set_validate_result(&customer);
 
-    let customer_id = customer
-        .id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
 
     // Fetch card from locker
     let card_details = get_card_from_locker(
