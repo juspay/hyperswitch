@@ -47,8 +47,8 @@ impl ForeignFrom<(domain::Customer, Option<payments::AddressDetails>)> for Custo
                     .clone()
                     .into_inner()
                     .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
-                    .map_err(|_| {
-                        router_env::logger::error!("Failed to parse CustomerDocumentDetails");
+                    .map_err(|err| {
+                        router_env::logger::error!(?err, "Failed to parse CustomerDocumentDetails");
                     })
                     .ok()
             }),
@@ -80,8 +80,8 @@ impl ForeignFrom<customer::Customer> for CustomerResponse {
                     .clone()
                     .into_inner()
                     .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
-                    .map_err(|_| {
-                        router_env::logger::error!("Failed to parse CustomerDocumentDetails");
+                    .map_err(|err| {
+                        router_env::logger::error!(?err, "Failed to parse CustomerDocumentDetails");
                     })
                     .ok()
             }),

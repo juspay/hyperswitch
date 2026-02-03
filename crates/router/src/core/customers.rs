@@ -1054,13 +1054,16 @@ pub async fn update_customer(
     provider: domain::Provider,
     update_customer: customers::CustomerUpdateRequestInternal,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
-    if let Some(doc_details) = update_customer.request.document_details.as_ref() {
-        if let Err(err) = doc_details.validate() {
-            Err(errors::CustomersErrorResponse::InvalidRequestData {
-                message: err.to_string(),
-            })?;
-        }
-    }
+    update_customer
+        .request
+        .document_details
+        .as_ref()
+        .map(|doc| doc.validate())
+        .transpose()
+        .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     //Add this in update call if customer can be updated anywhere else

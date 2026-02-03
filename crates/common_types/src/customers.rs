@@ -70,10 +70,10 @@ impl DocumentKind {
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        let expected_len = 11;
-        if doc_number.len() != expected_len {
-            return Err(self.length_error("CPF", expected_len, doc_number.len()));
-        }
+        (doc_number.len() == common_utils::consts::CPF_LENGTH)
+            .then_some(())
+            .ok_or_else(|| self.length_error("CPF", common_utils::consts::CPF_LENGTH, doc_number.len()))?;
+
         Ok(())
     }
 
@@ -81,10 +81,10 @@ impl DocumentKind {
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        let expected_len = 14;
-        if doc_number.len() != expected_len {
-            return Err(self.length_error("CNPJ", expected_len, doc_number.len()));
-        }
+        (doc_number.len() == common_utils::consts::CNPJ_LENGTH)
+            .then_some(())
+            .ok_or_else(|| self.length_error("CNPJ", common_utils::consts::CNPJ_LENGTH, doc_number.len()))?;
+
         Ok(())
     }
 

@@ -1098,8 +1098,9 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                     .document_details
                     .map(|customer_document_details| customer_document_details.into_inner()),
             )
-            .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("Invalid customer document details: {err}"),
+            .map_err(|report| {
+                router_env::logger::error!(error = ?report, "Failed to convert customer document details");
+                errors::ApiErrorResponse::InternalServerError
             })?,
         })
     }
