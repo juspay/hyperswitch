@@ -8612,6 +8612,7 @@ pub async fn revenue_recovery_list_payments(
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]
+#[allow(clippy::large_futures)]
 pub async fn apply_filters_on_payments(
     state: SessionState,
     platform: domain::Platform,
@@ -8731,8 +8732,8 @@ pub async fn apply_filters_on_payments(
                 let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
                     index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
                     search_req: api_models::analytics::search::GetSearchRequest {
-                        offset: constraints.offset.unwrap_or(0) as i64,
-                        count: constraints.limit as i64,
+                        offset: i64::from(constraints.offset.unwrap_or(0)),
+                        count: i64::from(constraints.limit),
                         query: String::new(),
                         filters: Some(filters),
                         time_range: constraints.time_range,
@@ -8759,7 +8760,7 @@ pub async fn apply_filters_on_payments(
                         return Ok(services::ApplicationResponse::Json(
                             payments_api::PaymentListResponseV2 {
                                 count: payments_list.len(),
-                                total_count: response.count as i64,
+                                total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
                                 data: payments_list,
                             },
                         ));

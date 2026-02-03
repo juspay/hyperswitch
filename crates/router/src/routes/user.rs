@@ -78,7 +78,7 @@ pub async fn user_signup(
         &http_req,
         req_payload.clone(),
         |state, _: (), req_body, _| async move {
-            user_core::signup_token_only_flow(state, req_body).await
+            Box::pin(user_core::signup_token_only_flow(state, req_body)).await
         },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,

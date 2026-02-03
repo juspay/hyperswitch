@@ -6976,7 +6976,9 @@ pub fn get_payments_response_from_opensearch_hit(
     let parse_nanos = |key: &str| {
         hit.get(key)
             .and_then(|v| v.as_i64())
-            .and_then(|nanos| time::OffsetDateTime::from_unix_timestamp_nanos(nanos as i128).ok())
+            .and_then(|nanos| {
+                time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos)).ok()
+            })
             .map(common_utils::date_time::convert_to_pdt)
     };
 
@@ -7066,7 +7068,9 @@ pub fn get_payments_response_from_opensearch_hit(
         }),
         profile_id: get_str("profile_id")
             .and_then(|id| common_utils::id_type::ProfileId::try_from(Cow::from(id)).ok()),
-        attempt_count: get_i64("attempt_count").map(|i| i as i16).unwrap_or(0),
+        attempt_count: get_i64("attempt_count")
+            .and_then(|v| i16::try_from(v).ok())
+            .unwrap_or(0),
         customer: None, // Complex to map from sessionizer
         billing: None,  // Complex to map from sessionizer
         shipping: None, // Complex to map from sessionizer
@@ -7086,7 +7090,9 @@ pub fn get_payments_response_from_opensearch_hit(
         capture_on: active_attempt
             .and_then(|a| a.get("capture_on"))
             .and_then(|v| v.as_i64())
-            .and_then(|nanos| time::OffsetDateTime::from_unix_timestamp_nanos(nanos as i128).ok())
+            .and_then(|nanos| {
+                time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos)).ok()
+            })
             .map(common_utils::date_time::convert_to_pdt),
         payment_token: None,
         email: None,
