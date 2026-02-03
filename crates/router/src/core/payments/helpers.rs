@@ -8022,24 +8022,22 @@ pub async fn is_merchant_eligible_authentication_service(
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
         })
-        .is_ok_and(|c| c.config.to_lowercase() == "true");
+        .ok()
+        .map(|c| c.config.to_lowercase() == "true");
 
-    // Early return if org is eligible - no need to check merchant
-    if org_eligible {
-        return Ok(true);
-    }
-
-    // Only fetch merchant config if org is not eligible
-    let merchant_key = merchant_id.get_authentication_service_eligible_key();
-    let merchant_eligible = db
-        .find_config_by_key(&merchant_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
+    Ok(org_eligible
+        .async_unwrap_or_else(|| async {
+            let merchant_key = merchant_id.get_authentication_service_eligible_key();
+            db.find_config_by_key(&merchant_key)
+                .await
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
+                })
+                .ok()
+                .map(|c| c.config.to_lowercase() == "true")
+                .unwrap_or(false)
         })
-        .is_ok_and(|c| c.config.to_lowercase() == "true");
-
-    Ok(merchant_eligible)
+        .await)
 }
 
 #[cfg(feature = "v1")]
