@@ -18,6 +18,7 @@ pub struct ListCustomerPaymentMethodsV1Request {
     pub query_params: Option<PaymentMethodListRequest>,
     pub modular_service_prefix: String,
 }
+#[derive(Debug)]
 pub struct ListCustomerPaymentMethodsV1Response {
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
     pub is_guest_customer: Option<bool>,

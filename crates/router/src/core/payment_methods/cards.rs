@@ -4218,8 +4218,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             let response = payment_methods::list_customer_pml_modular_service_call(
                 &state,
                 profile_id.get_required_value("ProfileId")?,
-                &customer_id,
-                &merchant_id,
+                customer_id,
+                merchant_id,
                 &req,
             )
             .await?;
@@ -4234,7 +4234,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                 &state,
                 platform.clone(),
                 None,
-                &customer_id,
+                customer_id,
                 limit,
             ))
             .await
@@ -4255,7 +4255,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                         &state,
                         profile_id.get_required_value("ProfileId")?,
                         &customer_id,
-                        &merchant_id,
+                        merchant_id,
                         &req,
                     )
                     .await?;

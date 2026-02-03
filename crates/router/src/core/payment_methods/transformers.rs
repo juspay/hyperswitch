@@ -20,7 +20,7 @@ use payment_methods::client::{
     list::ListCustomerPaymentMethods,
     list::{ListCustomerPaymentMethodsV1Request, ListCustomerPaymentMethodsV1Response},
 };
-use router_env::{RequestId, RequestIdentifier};
+use router_env::{logger, RequestId, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -1167,7 +1167,7 @@ pub async fn list_customer_pml_modular_service_call(
     let pm_response = ListCustomerPaymentMethods::call(state, &client, list_customer_pml_request)
         .await
         .map_err(|err| {
-            println!("Error in creating payment method: {:?}", err);
+            logger::error!(payment_method_list_error = ?err, "Error in creating payment method");
             errors::ApiErrorResponse::InternalServerError
         })?;
 
