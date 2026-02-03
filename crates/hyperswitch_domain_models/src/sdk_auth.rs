@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use base64::Engine;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -30,8 +32,7 @@ impl SdkAuthorization {
     ///
     /// Returns base64-encoded string in format: `base64(key1=value1,key2=value2,...)`
     pub fn encode(&self) -> CustomResult<String, ValidationError> {
-        // Use functional style to build parts without mutations
-        let parts: Vec<String> = [
+        let comma_separated = [
             Some(format!("profile_id={}", self.profile_id.get_string_repr())),
             Some(format!("publishable_key={}", self.publishable_key)),
             self.platform_publishable_key
@@ -45,10 +46,10 @@ impl SdkAuthorization {
                 .map(|id| format!("customer_id={}", id.get_string_repr())),
         ]
         .into_iter()
-        .flatten() // Remove None values
-        .collect();
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(",");
 
-        let comma_separated = parts.join(",");
         Ok(BASE64_ENGINE.encode(comma_separated))
     }
 
@@ -72,61 +73,51 @@ impl SdkAuthorization {
                 message: "SDK authorization is not valid UTF-8".to_string(),
             })?;
 
-        let mut profile_id = None;
-        let mut publishable_key = None;
-        let mut platform_publishable_key = None;
-        let mut client_secret = None;
-        let mut customer_id = None;
-
-        for part in comma_separated.split(',') {
-            let (key, value) = part.split_once('=').ok_or_else(|| {
-                report!(ValidationError::InvalidValue {
-                    message: "Invalid SDK authorization format: missing '=' separator".to_string()
-                })
-            })?;
-
-            match key.trim() {
-                "profile_id" => profile_id = Some(value.trim().to_string()),
-                "publishable_key" => publishable_key = Some(value.trim().to_string()),
-                "platform_publishable_key" => {
-                    platform_publishable_key = Some(value.trim().to_string())
-                }
-                "client_secret" => client_secret = Some(value.trim().to_string()),
-                "customer_id" => customer_id = Some(value.trim().to_string()),
-                _ => {
-                    // Ignore unknown keys for forward compatibility
-                }
-            }
-        }
+        let parts: HashMap<&str, &str> = comma_separated
+            .split(',')
+            .map(|part| {
+                part.split_once('=')
+                    .map(|(k, v)| (k.trim(), v.trim()))
+                    .ok_or_else(|| {
+                        report!(ValidationError::InvalidValue {
+                            message: "Invalid SDK authorization format: missing '=' separator"
+                                .to_string()
+                        })
+                    })
+            })
+            .collect::<CustomResult<HashMap<_, _>, _>>()?;
 
         Ok(Self {
-            profile_id: profile_id
+            profile_id: id_type::ProfileId::try_from(std::borrow::Cow::from(
+                parts
+                    .get("profile_id")
+                    .ok_or_else(|| {
+                        report!(ValidationError::InvalidValue {
+                            message: "Missing required field: profile_id".to_string()
+                        })
+                    })?
+                    .to_string(),
+            ))
+            .change_context(ValidationError::InvalidValue {
+                message: "Invalid profile_id format".to_string(),
+            })?,
+            publishable_key: parts
+                .get("publishable_key")
                 .ok_or_else(|| {
                     report!(ValidationError::InvalidValue {
-                        message: "Missing required field: profile_id".to_string()
+                        message: "Missing required field: publishable_key".to_string()
                     })
-                })
-                .and_then(|id_str| {
-                    id_type::ProfileId::try_from(std::borrow::Cow::from(id_str)).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Invalid profile_id format".to_string(),
-                        },
-                    )
-                })?,
-            publishable_key: publishable_key.ok_or_else(|| {
-                report!(ValidationError::InvalidValue {
-                    message: "Missing required field: publishable_key".to_string()
-                })
-            })?,
-            platform_publishable_key,
-            client_secret,
-            customer_id: customer_id
-                .map(|id_str| {
-                    id_type::CustomerId::try_from(std::borrow::Cow::from(id_str)).change_context(
-                        ValidationError::InvalidValue {
+                })?
+                .to_string(),
+            platform_publishable_key: parts.get("platform_publishable_key").map(|v| v.to_string()),
+            client_secret: parts.get("client_secret").map(|v| v.to_string()),
+            customer_id: parts
+                .get("customer_id")
+                .map(|v| {
+                    id_type::CustomerId::try_from(std::borrow::Cow::from(v.to_string()))
+                        .change_context(ValidationError::InvalidValue {
                             message: "Invalid customer_id format".to_string(),
-                        },
-                    )
+                        })
                 })
                 .transpose()?,
         })

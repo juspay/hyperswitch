@@ -7142,7 +7142,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<Initiator>")]
     pub initiator: Option<platform::Initiator>,
 
-    /// Authorization token containing encoded information for sdk authorization.
+    /// Token containing encoded information for sdk authorization.
     #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=")]
     #[smithy(value_type = "Option<String>")]
     pub sdk_authorization: Option<String>,
