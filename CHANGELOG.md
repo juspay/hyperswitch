@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix3
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Pass COF Data as None in MIT Using Limited Card Data Flow ([#11131](https://github.com/juspay/hyperswitch/pull/11131)) ([`56219f9`](https://github.com/juspay/hyperswitch/commit/56219f97e23f603e07729393bde23612a84b3c44))
+
+**Full Changelog:** [`2026.01.28.1-hotfix2...2026.01.28.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1-hotfix2...2026.01.28.1-hotfix3)
+
+- - -
+
 ## 2026.01.28.1-hotfix2
 
 ### Miscellaneous Tasks
