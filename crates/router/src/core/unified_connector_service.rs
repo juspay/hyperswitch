@@ -2282,7 +2282,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
                 )
                 .ok()
         })
-        .map(ucs_types::UcsReferenceId::Refund);
+        .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
@@ -2374,7 +2374,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
                 )
                 .ok()
         })
-        .map(ucs_types::UcsReferenceId::Refund);
+        .map(ucs_types::UcsResourceId::Refund);
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)

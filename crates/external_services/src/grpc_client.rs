@@ -165,7 +165,7 @@ pub struct GrpcHeadersUcs {
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
     /// Resource id
-    resource_id: Option<ucs_types::UcsReferenceId>,
+    resource_id: Option<ucs_types::UcsResourceId>,
 
     shadow_mode: Option<bool>,
     /// Config override as JSON string to pass to UCS
@@ -190,7 +190,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
-    (Option<ucs_types::UcsReferenceId>,),
+    (Option<ucs_types::UcsResourceId>,),
     (Option<bool>,),
     (Option<String>,),
 )>;

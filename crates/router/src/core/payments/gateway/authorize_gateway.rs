@@ -109,7 +109,7 @@ where
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
-        let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
+        let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
             .inspect_err(
                 |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
             )

@@ -667,7 +667,7 @@ pub async fn call_unified_connector_service_authenticate(
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
-    let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
+    let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
         .inspect_err(
             |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
         )
@@ -787,12 +787,12 @@ pub async fn call_unified_connector_service_post_authenticate(
                 .ok()
         })
         .map(ucs_types::UcsReferenceId::Payment);
-    let resource_id = id_type::PaymentReferenceId::from_str(router_data.attempt_id.as_str())
+    let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
         .inspect_err(
             |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
         )
         .ok()
-        .map(ucs_types::UcsReferenceId::Payment);
+        .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
