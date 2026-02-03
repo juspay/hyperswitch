@@ -389,7 +389,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
-        .or(Some(router_data.payment_id.clone()))
+        .or(Some(self.payment_id.clone()))
         .and_then(|id| {
             id_type::PaymentReferenceId::from_str(id.as_str())
                 .inspect_err(|err| {
