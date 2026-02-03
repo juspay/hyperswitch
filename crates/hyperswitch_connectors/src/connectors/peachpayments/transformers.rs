@@ -795,7 +795,7 @@ pub enum PeachpaymentsRefundStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundBalanceData {
     pub amount: AmountDetails,
@@ -803,7 +803,7 @@ pub struct RefundBalanceData {
     pub refund_history: Vec<RefundHistory>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundHistory {
     pub transaction_id: String,
@@ -1158,9 +1158,17 @@ pub struct WebhookTransaction {
     pub reference_id: String,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub error_message: Option<String>,
+    pub transaction_type: TransactionType,
     pub response_code: Option<ResponseCode>,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+    pub refund_balance_data: Option<RefundBalanceData>,
     pub payment_method: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TransactionType {
+    pub value: String,
+    pub description: String,
 }
 
 // Error Response

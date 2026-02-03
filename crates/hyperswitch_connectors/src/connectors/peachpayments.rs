@@ -52,6 +52,7 @@ use crate::{
     utils::{self, RefundsRequestData},
 };
 
+const REFUND: &str = "Refund";
 #[derive(Clone)]
 pub struct Peachpayments {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -712,15 +713,30 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let reference_id = webhook_body
+        let description = webhook_body
             .transaction
             .as_ref()
-            .map(|txn| txn.reference_id.clone())
-            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .and_then(|txn| Some(txn.transaction_type.description.clone()));
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::PaymentAttemptId(reference_id),
-        ))
+        if description == Some(REFUND.to_string()) {
+            let refund_id = webhook_body
+                .transaction
+                .as_ref()
+                .map(|txn| txn.transaction_id.clone())
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_id),
+            ))
+        } else {
+            let transaction_id = webhook_body
+                .transaction
+                .as_ref()
+                .map(|txn| txn.transaction_id.clone())
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
+            ))
+        }
     }
 
     fn get_webhook_event_type(
@@ -732,13 +748,24 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
+        let description = webhook_body
+            .transaction
+            .as_ref()
+            .and_then(|txn| Some(txn.transaction_type.description.clone()));
+
         match webhook_body.webhook_type.as_str() {
             "transaction" => {
                 if let Some(transaction) = webhook_body.transaction {
                     match transaction.transaction_result {
-                        peachpayments::PeachpaymentsPaymentStatus::Successful
-                        | peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
+                        peachpayments::PeachpaymentsPaymentStatus::Successful => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                        }
+                        peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
+                            if description == Some(REFUND.to_string()) {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+                            } else {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                            }
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Authorized
                         | peachpayments::PeachpaymentsPaymentStatus::Approved => {
@@ -749,7 +776,11 @@ impl webhooks::IncomingWebhook for Peachpayments {
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Declined
                         | peachpayments::PeachpaymentsPaymentStatus::Failed => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                            if description == Some(REFUND.to_string()) {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+                            } else {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                            }
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Voided
                         | peachpayments::PeachpaymentsPaymentStatus::Reversed => {
