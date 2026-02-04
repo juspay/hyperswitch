@@ -564,32 +564,27 @@ impl DynamicRoutingStage {
         &self,
         input: &DynamicRoutingInput<'_>,
         routing_type: &api_models::routing::RoutingType,
-    ) -> RoutingResult<DynamicRoutingResult> {
+    ) -> RoutingResult<Option<DynamicRoutingResult>> {
         if !routing_type.is_dynamic_routing()
             || !input.state.conf.open_router.dynamic_routing_enabled
         {
-            Ok(DynamicRoutingResult {
-                connectors: input.static_connectors.to_vec(),
-                routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
-            })
+            Ok(None)
         } else {
             let payment_attempt = input.transaction_data.payment_attempt.clone();
-            let dynamic_result = perform_dynamic_routing_with_open_router(
+            match perform_dynamic_routing_with_open_router(
                 input.state,
                 input.static_connectors.to_vec(),
                 input.business_profile,
                 payment_attempt,
             )
             .await
-            .unwrap_or_else(|e| {
-                logger::error!(open_router_error=?e);
-                DynamicRoutingResult {
-                    connectors: input.static_connectors.to_vec(),
-                    routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
+            {
+                Ok(result) => Ok(Some(result)),
+                Err(e) => {
+                    logger::error!(euclid_open_router_error=?e);
+                    Ok(None)
                 }
-            });
-
-            Ok(dynamic_result)
+            }
         }
     }
 }
@@ -605,16 +600,13 @@ pub struct DynamicRoutingInput<'a> {
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl RoutingStage for DynamicRoutingStage {
     type Input<'a> = DynamicRoutingInput<'a>;
-    type Output = DynamicRoutingResult;
+    type Output = Option<DynamicRoutingResult>;
     type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
             let Some(algo) = input.business_profile.dynamic_routing_algorithm.clone() else {
-                return Ok(DynamicRoutingResult {
-                    connectors: input.static_connectors.to_vec(),
-                    routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
-                });
+                return Ok(None);
             };
 
             let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
@@ -642,7 +634,7 @@ impl RoutingStage for DynamicRoutingStage {
             let routing_choice =
                 perform_dynamic_routing_volume_split(vec![dynamic_split, static_split], None)
                     .change_context(errors::RoutingError::VolumeSplitFailed)
-                    .attach_printable("failed to perform volume split on routing type")?;
+                    .attach_printable("euclid: failed to perform volume split on routing type")?;
 
             self.resolve_dynamic_connectors(&input, &routing_choice.routing_type)
                 .await
@@ -650,7 +642,7 @@ impl RoutingStage for DynamicRoutingStage {
     }
 
     fn routing_approach(&self) -> common_enums::RoutingApproach {
-        common_enums::RoutingApproach::SuccessRateExploration
+        common_enums::RoutingApproach::Other("DynamicRouting".to_string())
     }
 }
 
