@@ -51,7 +51,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask, PeekInterface};
+use masking::{ExposeInterface, Mask};
 use serde_json::Value;
 use transformers as nexixpay;
 use uuid::Uuid;
@@ -1364,37 +1364,18 @@ impl ConnectorSpecifications for Nexixpay {
         Some(&*NEXIXPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn get_preprocessing_flow_if_needed(
-        &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
-    ) -> Option<api::PreProcessingFlowName> {
-        match current_flow_info {
-            api::CurrentFlowInfo::Authorize { .. } => {
-                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
-                None
-            }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-            } => {
-                let redirect_response = request_data.redirect_response.as_ref()?;
-                match redirect_response.params.as_ref() {
-                    Some(param) if !param.peek().is_empty() => {
-                        Some(api::PreProcessingFlowName::Authenticate)
-                    }
-                    Some(_) | None => Some(api::PreProcessingFlowName::PostAuthenticate),
-                }
-            }
-            api::CurrentFlowInfo::SetupMandate { .. } => None,
-        }
-    }
-
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => self.is_3ds_setup_required(request_data, *auth_type),
+            } => {
+                // Mandate payments should skip pre-authentication and go directly to authorize
+                if request_data.is_mandate_payment() {
+                    return false;
+                }
+                self.is_3ds_setup_required(request_data, *auth_type)
+            }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,

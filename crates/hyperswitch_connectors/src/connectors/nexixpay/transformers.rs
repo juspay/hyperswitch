@@ -4,6 +4,7 @@ use cards::CardNumber;
 use common_enums::{
     AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, Currency, RefundStatus,
 };
+use serde_with::skip_serializing_none;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ValueExt,
@@ -455,26 +456,22 @@ pub enum NexixpayPaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[skip_serializing_none]
 pub struct ThreeDSAuthResult {
-    #[serde(skip_serializing_if = "Option::is_none")]
     authentication_value: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     eci: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     xid: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     status: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
 }
 
-impl ForeignTryFrom<(&ThreeDSAuthResult, String, Option<Secret<String>>)>
+impl ForeignTryFrom<(&ThreeDSAuthResult, String)>
     for UcsAuthenticationData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn foreign_try_from(
-        (auth_result, operation_id, pa_res): (&ThreeDSAuthResult, String, Option<Secret<String>>),
+        (auth_result, operation_id): (&ThreeDSAuthResult, String),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             trans_status: auth_result
@@ -489,8 +486,7 @@ impl ForeignTryFrom<(&ThreeDSAuthResult, String, Option<Secret<String>>)>
                 .version
                 .as_ref()
                 .and_then(|v| v.parse::<common_utils::types::SemanticVersion>().ok()),
-            // Store PaRes in ds_trans_id for Authorize flow
-            ds_trans_id: pa_res.map(|s| s.expose()),
+            ds_trans_id: None,
             acs_trans_id: None,
             // CRITICAL: Store operationId in transaction_id for Authorize flow
             transaction_id: Some(operation_id),
@@ -757,7 +753,6 @@ fn process_nexixpay_preprocessing_response(
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     let meta_data = to_connector_meta_from_secret(metadata)?;
-    let pa_res = customer_details_encrypted.pa_res.clone();
     let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
         three_d_s_auth_result: Some(three_ds_data.clone()),
         three_d_s_auth_response: customer_details_encrypted.pa_res,
@@ -773,7 +768,6 @@ fn process_nexixpay_preprocessing_response(
     let authentication_data = UcsAuthenticationData::foreign_try_from((
         &three_ds_data,
         response.operation.operation_id.clone(),
-        pa_res,
     ))
     .ok()
     .map(Box::new);
@@ -1053,42 +1047,56 @@ impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>> for Nexixp
             customer_info,
         };
 
-        // Match the authorize flow's recurrence logic
-        let recurrence_request_obj = if let Some(contract_id) = item
-            .router_data
-            .connector_mandate_request_reference_id
-            .clone()
-        {
-            RecurrenceRequest {
-                action: NexixpayRecurringAction::ContractCreation,
-                contract_id: Some(Secret::new(contract_id)),
-                contract_type: Some(ContractType::MitUnscheduled),
-            }
-        } else {
-            RecurrenceRequest {
-                action: NexixpayRecurringAction::NoRecurring,
-                contract_id: None,
-                contract_type: None,
-            }
+        let payment_data = NexixpayPaymentsRequestData::try_from(item)?;
+
+        Ok(Self {
+            order,
+            payment_data,
+        })
+    }
+}
+
+impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>>
+    for NexixpayPaymentsRequestData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &NexixpayRouterData<&PaymentsPreAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        // PreAuthenticate flow does not support mandates
+        let recurrence_request_obj = RecurrenceRequest {
+            action: NexixpayRecurringAction::NoRecurring,
+            contract_id: None,
+            contract_type: None,
         };
 
-        let payment_data = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(req_card) => {
-                NexixpayPaymentsRequestData::NexixpayNonMandatePaymentRequest(Box::new(
-                    NexixpayNonMandatePaymentRequest {
-                        card: NexixpayCard {
-                            pan: req_card.card_number.clone(),
-                            expiry_date: req_card.get_expiry_date_as_mmyy()?,
-                            cvv: req_card.card_cvc.clone(),
+        match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref req_card) => {
+                if item.router_data.is_three_ds() {
+                    Ok(Self::NexixpayNonMandatePaymentRequest(Box::new(
+                        NexixpayNonMandatePaymentRequest {
+                            card: NexixpayCard {
+                                pan: req_card.card_number.clone(),
+                                expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                                cvv: req_card.card_cvc.clone(),
+                            },
+                            recurrence: recurrence_request_obj,
+                            action_type: if item.router_data.request.minor_amount
+                                == MinorUnit::zero()
+                            {
+                                Some(NexixpayPaymentRequestActionType::Verify)
+                            } else {
+                                None
+                            },
                         },
-                        recurrence: recurrence_request_obj,
-                        action_type: if item.router_data.request.minor_amount == MinorUnit::zero() {
-                            Some(NexixpayPaymentRequestActionType::Verify)
-                        } else {
-                            None
-                        },
-                    },
-                ))
+                    )))
+                } else {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "No threeds is not supported".to_string(),
+                        connector: "nexixpay",
+                    }
+                    .into())
+                }
             }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
@@ -1109,18 +1117,11 @@ impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>> for Nexixp
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkToken(_) => {
-                return Err(errors::ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("nexixpay"),
-                )
-                .into())
-            }
-        };
-
-        Ok(Self {
-            order,
-            payment_data,
-        })
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("nexixpay"),
+            )
+            .into()),
+        }
     }
 }
 
