@@ -517,6 +517,8 @@ impl OpenSearchQueryBuilder {
             time_range: Default::default(),
             amount_range: Default::default(),
             case_sensitive_fields: HashSet::from([
+                "organization_id",
+                "merchant_id",
                 "customer_email.keyword",
                 "search_tags.keyword",
                 "card_last_4.keyword",
@@ -525,15 +527,7 @@ impl OpenSearchQueryBuilder {
                 "customer_id.keyword",
                 "profile_id.keyword",
                 "authentication_type.keyword",
-                "merchant_connector_id.keyword",
-                "card_discovery.keyword",
                 "merchant_order_reference_id.keyword",
-                "connector.keyword",
-                "currency.keyword",
-                "status.keyword",
-                "payment_method.keyword",
-                "payment_method_type.keyword",
-                "card_network.keyword",
             ]),
         }
     }

@@ -331,26 +331,6 @@ pub async fn search_results(
                     .switch()?;
             }
         };
-        if let Some(merchant_connector_id) = filters.merchant_connector_id {
-            if !merchant_connector_id.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "merchant_connector_id.keyword".to_string(),
-                        convert_to_value(merchant_connector_id),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(card_discovery) = filters.card_discovery {
-            if !card_discovery.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "card_discovery.keyword".to_string(),
-                        convert_to_value(card_discovery),
-                    )
-                    .switch()?;
-            }
-        };
         if let Some(merchant_order_reference_id) = filters.merchant_order_reference_id {
             if !merchant_order_reference_id.is_empty() {
                 query_builder

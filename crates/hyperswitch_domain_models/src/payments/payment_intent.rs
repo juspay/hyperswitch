@@ -1643,7 +1643,7 @@ pub struct PaymentIntentListParams {
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
-    pub customer_email: Option<Vec<Email>>,
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v2")]

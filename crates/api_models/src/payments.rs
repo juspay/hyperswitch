@@ -8909,7 +8909,7 @@ pub struct PaymentListFilterConstraints {
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
     /// The list of customer emails to filter payments list
-    pub customer_email: Option<Vec<Email>>,
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v1")]
@@ -8920,8 +8920,6 @@ impl PaymentListFilterConstraints {
             && self.payment_method_type.is_none()
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
-            && self.customer_id.is_none()
-            && self.customer_email.is_none()
             && self.card_network.is_none()
             && self.card_discovery.is_none()
     }

@@ -8583,3 +8583,75 @@ pub fn get_merchant_advice_code_recommended_action(
         _ => None,
     }
 }
+
+pub fn convert_to_string_vec<T: ToString>(val: Option<&Vec<T>>) -> Option<Vec<String>> {
+    val.map(|v| v.iter().map(|i| i.to_string()).collect())
+}
+
+pub fn convert_to_string_vec_map<T, F>(val: Option<&Vec<T>>, f: F) -> Option<Vec<String>>
+where
+    F: Fn(&T) -> String,
+{
+    val.map(|v| v.iter().map(f).collect())
+}
+
+pub fn convert_to_single_element_string_vec<T, F>(val: Option<&T>, f: F) -> Option<Vec<String>>
+where
+    F: FnOnce(&T) -> String,
+{
+    val.map(|v| vec![f(v)])
+}
+
+pub fn convert_to_single_element_vec<T: Clone>(val: Option<&T>) -> Option<Vec<T>> {
+    val.map(|v| vec![v.clone()])
+}
+
+pub fn email_to_hashed_string_vec(
+    email: Option<&pii::Email>,
+) -> Option<Vec<common_utils::hashing::HashedString<pii::EmailStrategy>>> {
+    email.map(|v| {
+        vec![common_utils::hashing::HashedString::from(
+            v.clone().expose(),
+        )]
+    })
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+pub fn get_search_filters(
+    constraints: &api_models::payments::PaymentListFilterConstraints,
+) -> api_models::analytics::search::SearchFilters {
+    api_models::analytics::search::SearchFilters {
+        payment_method: convert_to_string_vec(constraints.payment_method.as_ref()),
+        currency: convert_to_string_vec(constraints.currency.as_ref()),
+        status: convert_to_string_vec(constraints.status.as_ref()),
+        connector: convert_to_string_vec(constraints.connector.as_ref()),
+        payment_method_type: convert_to_string_vec(constraints.payment_method_type.as_ref()),
+        authentication_type: convert_to_string_vec(constraints.authentication_type.as_ref()),
+        card_network: convert_to_string_vec(constraints.card_network.as_ref()),
+        customer_id: convert_to_single_element_string_vec(
+            constraints.customer_id.as_ref(),
+            |v: &id_type::CustomerId| v.get_string_repr().to_string(),
+        ),
+        payment_id: convert_to_single_element_string_vec(
+            constraints.payment_id.as_ref(),
+            |v: &id_type::PaymentId| v.get_string_repr().to_string(),
+        ),
+        profile_id: convert_to_single_element_string_vec(
+            constraints.profile_id.as_ref(),
+            |v: &id_type::ProfileId| v.get_string_repr().to_string(),
+        ),
+        merchant_connector_id: convert_to_string_vec_map(
+            constraints.merchant_connector_id.as_ref(),
+            |i: &id_type::MerchantConnectorAccountId| i.get_string_repr().to_string(),
+        ),
+        card_discovery: convert_to_string_vec(constraints.card_discovery.as_ref()),
+        merchant_order_reference_id: convert_to_single_element_vec(
+            constraints.merchant_order_reference_id.as_ref(),
+        ),
+        customer_email: email_to_hashed_string_vec(constraints.customer_email.as_ref()),
+        search_tags: None,
+        card_last_4: None,
+        amount: None,
+        amount_filter: constraints.amount_filter.clone(),
+    }
+}
