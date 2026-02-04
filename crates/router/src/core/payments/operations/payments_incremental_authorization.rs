@@ -246,6 +246,7 @@ impl<F: Clone + Sync>
             error_message: None,
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
+            processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
         };
         let authorization = state
             .store
