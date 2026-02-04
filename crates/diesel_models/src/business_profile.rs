@@ -30,7 +30,7 @@ pub struct Profile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsStorage>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -99,7 +99,7 @@ pub struct ProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsStorage>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -159,7 +159,7 @@ pub struct ProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsStorage>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -388,7 +388,7 @@ pub struct Profile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsStorage>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -475,7 +475,7 @@ pub struct ProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsStorage>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -539,7 +539,7 @@ pub struct ProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsStorage>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -814,8 +814,7 @@ pub struct MultipleWebhookDetail {
     pub is_legacy_url: bool,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Json)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WebhookDetails {
     pub webhook_version: Option<String>,
     pub webhook_username: Option<String>,
@@ -830,7 +829,60 @@ pub struct WebhookDetails {
     pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
-common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+pub struct WebhookDetailsStorage(pub serde_json::Value);
+
+impl diesel::serialize::ToSql<diesel::sql_types::Json, diesel::pg::Pg> for WebhookDetailsStorage {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        <serde_json::Value as diesel::serialize::ToSql<
+            diesel::sql_types::Json,
+            diesel::pg::Pg,
+        >>::to_sql(&self.0, &mut out.reborrow())
+    }
+}
+
+impl diesel::deserialize::FromSql<diesel::sql_types::Json, diesel::pg::Pg>
+    for WebhookDetailsStorage
+{
+    fn from_sql(
+        bytes: <diesel::pg::Pg as diesel::backend::Backend>::RawValue<'_>,
+    ) -> diesel::deserialize::Result<Self> {
+        let value = <serde_json::Value as diesel::deserialize::FromSql<
+            diesel::sql_types::Json,
+            diesel::pg::Pg,
+        >>::from_sql(bytes)?;
+        Ok(Self(value))
+    }
+}
+
+impl WebhookDetailsStorage {
+    pub fn from_json(json: serde_json::Value) -> Self {
+        Self(json)
+    }
+
+    pub fn as_json(&self) -> &serde_json::Value {
+        &self.0
+    }
+
+    pub fn merge_with_json(&self, new_json: serde_json::Value) -> Self {
+        if let serde_json::Value::Object(mut merged_obj) = new_json {
+            if let serde_json::Value::Object(current_obj) = &self.0 {
+                for (key, value) in current_obj {
+                    if !merged_obj.contains_key(key) {
+                        merged_obj.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+            Self(serde_json::Value::Object(merged_obj))
+        } else {
+            Self(new_json)
+        }
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
