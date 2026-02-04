@@ -72,7 +72,6 @@ impl
 
         let payment_method = self.payment_attempt.payment_method;
         let currency = self.payment_attempt.currency;
-        let frm_id = self.fraud_check.frm_transaction_id.clone();
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,

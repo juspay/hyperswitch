@@ -45,8 +45,9 @@ pub struct DecisionInformation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TransactionProcessingInformation {
-    action: Vec<ActionList>,
+    action_list: Vec<ActionList>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,13 +163,13 @@ impl TryFrom<&FrmTransactionRouterData> for CybersourcedecisionmanagerTransactio
             Some(false) => TransactionDecision::Reject,
             None | Some(true) => TransactionDecision::Accept,
         };
-        let action = match decision {
+        let action_list = match decision {
             TransactionDecision::Accept => vec![ActionList::Capture],
             TransactionDecision::Reject => vec![ActionList::Reverse],
         };
         Ok(Self {
             decision_information: DecisionInformation { decision },
-            processing_information: TransactionProcessingInformation { action },
+            processing_information: TransactionProcessingInformation { action_list },
         })
     }
 }
