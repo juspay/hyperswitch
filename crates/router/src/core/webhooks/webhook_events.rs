@@ -287,9 +287,11 @@ pub async fn retry_delivery_attempt(
         &event_to_retry.primary_object_id,
         event_to_retry.event_type,
         delivery_attempt,
-    )
-    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-    .attach_printable("Failed to generate idempotent event ID")?;
+        event_to_retry
+            .webhook_endpoint_id
+            .as_ref()
+            .map(|id| id.get_string_repr()),
+    );
 
     let now = common_utils::date_time::now();
     let new_event = domain::Event {
@@ -310,6 +312,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
         is_overall_delivery_successful: Some(false),
+        webhook_endpoint_id: None,
     };
 
     let event = store
@@ -329,6 +332,20 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
 
+    let webhook_detail = match super::get_webhook_detail_by_webhook_endpoint_id(
+        &business_profile,
+        &event_to_retry.webhook_endpoint_id,
+    ) {
+        Ok(detail) => detail,
+        Err(e) => {
+            return Err(e
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable(
+                    "Failed to fetch webhook details for the given webhook endpoint ID",
+                ));
+        }
+    };
+
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
@@ -338,6 +355,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt,
         None,
         None,
+        webhook_detail,
     ))
     .await;
 
