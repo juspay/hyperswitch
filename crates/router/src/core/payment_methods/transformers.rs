@@ -18,7 +18,7 @@ use masking::Mask;
 use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
-    retrieve::{RetrievePaymentMethodV1Request, RetrievePaymentMethodResponse},
+    retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
 };
 use router_env::{RequestId, RequestIdentifier};
 use serde::{Deserialize, Serialize};
@@ -29,8 +29,7 @@ use crate::{
         errors::{self, CustomResult},
         payment_methods::cards::call_vault_service,
     },
-    headers,
-    logger,
+    headers, logger,
     pii::{prelude::*, Secret},
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
@@ -1144,7 +1143,10 @@ impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
     fn try_from(response: &RetrievePaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self(domain::PaymentMethod {
             //for guest checkout, where customer id, this will fail.
-            customer_id: response.customer_id.clone().get_required_value("CustomerId")?,
+            customer_id: response
+                .customer_id
+                .clone()
+                .get_required_value("CustomerId")?,
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1193,10 +1195,11 @@ impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
 
 #[cfg(feature = "v1")]
 // from to convert payment method response to domain payment method
-impl TryFrom<(
-    payment_methods::types::RawPaymentMethodData,
-    Option<domain::CardToken>,
-)> for DomainPaymentMethodDataWrapper
+impl
+    TryFrom<(
+        payment_methods::types::RawPaymentMethodData,
+        Option<domain::CardToken>,
+    )> for DomainPaymentMethodDataWrapper
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1210,27 +1213,31 @@ impl TryFrom<(
             payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
                 // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
                 let card_cvc = card_token
-                .as_ref()
-                    .and_then(|token| token.card_cvc.clone()).or(card_detail.card_cvc.clone()).get_required_value("card_cvc")?;
-                let card_holder_name = card_token.and_then(|token| token.card_holder_name.clone()).or(card_detail.card_holder_name.clone());
+                    .as_ref()
+                    .and_then(|token| token.card_cvc.clone())
+                    .or(card_detail.card_cvc.clone())
+                    .get_required_value("card_cvc")?;
+                let card_holder_name = card_token
+                    .and_then(|token| token.card_holder_name.clone())
+                    .or(card_detail.card_holder_name.clone());
 
-                Ok(Self(domain::PaymentMethodData::Card(hyperswitch_domain_models::payment_method_data::Card {
-                    card_number: card_detail.card_number,
-                    card_exp_month: card_detail.card_exp_month,
-                    card_exp_year: card_detail.card_exp_year,
-                    card_cvc,
-                    card_issuer: card_detail.card_issuer,
-                    card_network: card_detail.card_network,
-                    card_type: card_detail
-                        .card_type
-                        .map(|card_type| card_type.to_string()),
-                    card_issuing_country: card_detail.card_issuing_country,
-                    card_issuing_country_code: None,
-                    bank_code: None,
-                    nick_name: card_detail.nick_name,
-                    card_holder_name,
-                    co_badged_card_data: None,
-                })))
+                Ok(Self(domain::PaymentMethodData::Card(
+                    hyperswitch_domain_models::payment_method_data::Card {
+                        card_number: card_detail.card_number,
+                        card_exp_month: card_detail.card_exp_month,
+                        card_exp_year: card_detail.card_exp_year,
+                        card_cvc,
+                        card_issuer: card_detail.card_issuer,
+                        card_network: card_detail.card_network,
+                        card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                        card_issuing_country: card_detail.card_issuing_country,
+                        card_issuing_country_code: None,
+                        bank_code: None,
+                        nick_name: card_detail.nick_name,
+                        card_holder_name,
+                        co_badged_card_data: None,
+                    },
+                )))
             }
         }
     }
@@ -1305,7 +1312,6 @@ pub async fn fetch_payment_method_from_modular_service(
         },
         fetch_raw_detail: true,
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
-        
     };
 
     //Fetch modular service call
@@ -1325,7 +1331,7 @@ pub async fn fetch_payment_method_from_modular_service(
         .transpose()
         .attach_printable("Failed to convert raw payment method data")?;
 
-    let pm_wrapper = PaymentMethodWithRawData { 
+    let pm_wrapper = PaymentMethodWithRawData {
         payment_method,
         raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
@@ -1374,7 +1380,8 @@ pub async fn retrieve_pm_modular_service_call(
             .map_err(|err| {
                 logger::debug!("Error in retrieving payment method: {:?}", err);
                 errors::ApiErrorResponse::InternalServerError
-            }).attach_printable("Failed to retrieve payment method from modular service")?;
+            })
+            .attach_printable("Failed to retrieve payment method from modular service")?;
 
     Ok(pm_response)
 }
@@ -1459,7 +1466,8 @@ pub async fn create_pm_modular_service_call(
             .map_err(|err| {
                 logger::debug!("Error in creating payment method: {:?}", err);
                 errors::ApiErrorResponse::InternalServerError
-            }).attach_printable("Failed to create payment method in modular service")?;
+            })
+            .attach_printable("Failed to create payment method in modular service")?;
 
     Ok(pm_response)
 }

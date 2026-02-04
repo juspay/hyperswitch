@@ -102,9 +102,7 @@ use crate::core::payments;
 #[cfg(feature = "v1")]
 use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
 use crate::{
-    core::{
-        errors::{self, CustomResult, RouterResult},
-    },
+    core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
     services,
     types::{

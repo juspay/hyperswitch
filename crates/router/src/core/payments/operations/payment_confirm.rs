@@ -1089,11 +1089,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone()
                         .get_required_value("customer_id")?,
                 )
-                .await{
+                .await
+                {
                     Ok(pm_info) => {
                         logger::info!("Payment method created in PM Modular service successfully");
                         Some(pm_info)
-                    },
+                    }
                     Err(err) => {
                         logger::error!(
                             "Error creating payment method in PM Modular service: {:?}",
