@@ -367,7 +367,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let customer_details = api::CustomerDetails {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer.name.clone().map(|name| name.into_inner()),
             email: customer.email.clone().map(Email::from),
             phone: customer.phone.clone().map(|phone| phone.into_inner()),
