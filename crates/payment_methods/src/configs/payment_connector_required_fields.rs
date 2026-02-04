@@ -840,7 +840,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.number".to_string(),
                     display_name: "gift_card_number".to_string(),
-                    field_type: FieldType::UserCardNumber,
+                    field_type: FieldType::UserGiftCardNumber,
                     value: None,
                 },
             ),
@@ -849,7 +849,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.cvc".to_string(),
                     display_name: "gift_card_cvc".to_string(),
-                    field_type: FieldType::UserCardCvc,
+                    field_type: FieldType::UserGiftCardPin,
                     value: None,
                 },
             ),
@@ -2914,6 +2914,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     Connector::Stripe,
                     fields(
                         vec![],
+                        vec![],
                         vec![
                             RequiredField::BillingEmail,
                             RequiredField::BillingFirstName(
@@ -2939,7 +2940,6 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             RequiredField::ShippingAddressCountries(vec!["ALL"]),
                             RequiredField::ShippingAddressLine1,
                         ],
-                        vec![],
                     ),
                 ),
                 (
