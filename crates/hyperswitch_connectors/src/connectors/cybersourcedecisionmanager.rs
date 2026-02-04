@@ -542,7 +542,12 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
         req: &FrmTransactionRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        // Override Accept header for Transaction endpoint
+        if let Some(header) = headers.iter_mut().find(|(k, _)| k == headers::ACCEPT) {
+            header.1 = "application/json".to_string().into();
+        }
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
