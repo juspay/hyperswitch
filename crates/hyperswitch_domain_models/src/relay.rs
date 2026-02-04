@@ -317,6 +317,42 @@ pub enum RelayData {
     IncrementalAuthorization(RelayIncrementalAuthorizationData),
 }
 
+impl RelayData {
+    pub fn get_refund_data(&self) -> CustomResult<RelayRefundData, ApiErrorResponse> {
+        match self.clone() {
+            Self::Refund(refund_data) => Ok(refund_data),
+            Self::Capture(_) | Self::IncrementalAuthorization(_) => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("relay data does not contain relay refund data")
+            }
+        }
+    }
+
+    pub fn get_capture_data(&self) -> CustomResult<RelayCaptureData, ApiErrorResponse> {
+        match self.clone() {
+            Self::Capture(capture_data) => Ok(capture_data),
+            Self::Refund(_) | Self::IncrementalAuthorization(_) => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("relay data does not contain relay capture data")
+            }
+        }
+    }
+
+    pub fn get_incremental_authorization_data(
+        &self,
+    ) -> CustomResult<RelayIncrementalAuthorizationData, ApiErrorResponse> {
+        match self.clone() {
+            Self::IncrementalAuthorization(incremental_authorization_data) => {
+                Ok(incremental_authorization_data)
+            }
+            Self::Refund(_) | Self::Capture(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "relay data does not contain relay incremental authorization data",
+                ),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayRefundData {
     pub amount: MinorUnit,
