@@ -2577,7 +2577,9 @@ impl ConnectorSpecifications for Paypal {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data: _,
                 payment_method,
+                ..
             } => payment_method == Some(enums::PaymentMethod::Card),
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

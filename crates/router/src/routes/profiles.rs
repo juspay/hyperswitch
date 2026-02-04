@@ -153,9 +153,9 @@ pub async fn profile_retrieve(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: permissions::Permission::ProfileAccountRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(permissions::Permission::ProfileAccountRead),
             },
             req.headers(),
         ),
@@ -482,8 +482,8 @@ pub async fn toggle_connector_agnostic_mit(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,

@@ -1196,21 +1196,24 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let body: worldpayxml::WorldpayXmlWebhookBody =
-            utils::deserialize_xml_to_struct(request.body)?;
-        let order_code = body.notify.order_status_event.order_code.clone();
-        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event) {
+        let body_str = std::str::from_utf8(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let body: worldpayxml::WorldpayFormWebhookBody = serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let order_code = body.order_code.clone();
+        if worldpayxml::is_refund_event(body.payment_status) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
         }
-        if worldpayxml::is_transaction_event(body.notify.order_status_event.payment.last_event) {
+        if worldpayxml::is_transaction_event(body.payment_status) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(order_code),
             ));
         }
         #[cfg(feature = "payouts")]
-        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
+        if worldpayxml::is_payout_event(body.payment_status) {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
             ));
@@ -1222,19 +1225,24 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let body: worldpayxml::WorldpayXmlWebhookBody =
-            utils::deserialize_xml_to_struct(request.body)?;
+        let body_str = std::str::from_utf8(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let webhook_body: worldpayxml::WorldpayFormWebhookBody =
+            serde_urlencoded::from_str(body_str)
+                .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
         #[cfg(feature = "payouts")]
         {
-            if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
+            if worldpayxml::is_payout_event(webhook_body.payment_status) {
                 return Ok(worldpayxml::get_payout_webhook_event(
-                    body.notify.order_status_event.payment.last_event,
+                    webhook_body.payment_status,
                 ));
             }
         }
 
         Ok(worldpayxml::get_payment_webhook_event(
-            body.notify.order_status_event.payment.last_event,
+            webhook_body.payment_status,
         ))
     }
 
@@ -1242,8 +1250,12 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let body: worldpayxml::WorldpayXmlWebhookBody =
-            utils::deserialize_xml_to_struct(request.body)?;
+        let body_str = std::str::from_utf8(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let body: worldpayxml::WorldpayFormWebhookBody = serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
         Ok(Box::new(body))
     }
 }
@@ -1355,23 +1367,5 @@ impl ConnectorSpecifications for Worldpayxml {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
-    }
-
-    #[cfg(feature = "v1")]
-    fn generate_connector_request_reference_id(
-        &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
-    ) -> String {
-        if is_config_enabled_to_send_payment_id_as_connector_request_id
-            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
-        {
-            payment_attempt.payment_id.get_string_repr().to_owned()
-        } else {
-            let max_payment_reference_id_length =
-                worldpayxml::worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
-            nanoid::nanoid!(max_payment_reference_id_length)
-        }
     }
 }

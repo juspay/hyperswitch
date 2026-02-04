@@ -719,6 +719,11 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+pub struct BalanceCheckResult {
+    pub balance_check_result: Result<Option<PaymentMethodBalance>, ErrorResponse>,
+    pub should_continue_payment: bool,
+}
+
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,
@@ -752,6 +757,8 @@ pub struct UcsSetupMandateResponseData {
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
     pub connector_response: Option<ConnectorResponseData>,
+    pub amount_captured: Option<i64>,
+    pub minor_amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1245,10 +1252,10 @@ impl ForeignFrom<&ExternalVaultProxyPaymentsRouterData> for AuthorizeSessionToke
 impl<'a> ForeignFrom<&'a SetupMandateRouterData> for AuthorizeSessionTokenData {
     fn foreign_from(data: &'a SetupMandateRouterData) -> Self {
         Self {
-            amount_to_capture: data.request.amount,
+            amount_to_capture: Some(data.request.amount),
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
@@ -1310,8 +1317,10 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             request_extended_authorization: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
+            guest_customer: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,
@@ -1400,6 +1409,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
+            customer_document_details: data.customer_document_details.clone(),
         }
     }
 }
@@ -1473,6 +1483,7 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }
