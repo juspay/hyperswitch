@@ -130,9 +130,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{
-            cards, network_tokenization, transformers as pm_transformers
-        },
+        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -7847,8 +7845,7 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    if !feature_config.is_payment_method_modular_allowed
-                    {
+                    if !feature_config.is_payment_method_modular_allowed {
                         let (_operation, payment_method_data, pm_id) = operation
                             .to_domain()?
                             .make_pm_data(
@@ -7876,8 +7873,7 @@ where
                 }
                 TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
                 TokenizationAction::TokenizeInConnectorAndRouter => {
-                    if !feature_config.is_payment_method_modular_allowed
-                    {
+                    if !feature_config.is_payment_method_modular_allowed {
                         let (_operation, payment_method_data, pm_id) = operation
                             .to_domain()?
                             .make_pm_data(
