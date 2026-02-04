@@ -53,7 +53,7 @@ pub use self::{
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
-    payment::{PaymentId, PaymentReferenceId},
+    payment::{PaymentId, PaymentReferenceId, PaymentResourceId},
     profile::ProfileId,
     profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,

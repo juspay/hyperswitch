@@ -296,7 +296,6 @@ pub trait Feature<F, T> {
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _processor: &domain::Processor,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
