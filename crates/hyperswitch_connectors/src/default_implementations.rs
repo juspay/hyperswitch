@@ -9923,6 +9923,7 @@ default_imp_for_connector_webhook_register!(
     connectors::CtpMastercard,
     connectors::Custombilling,
     connectors::Cybersource,
+    connectors::Cybersourcedecisionmanager,
     connectors::Datatrans,
     connectors::Deutschebank,
     connectors::Digitalvirgo,
