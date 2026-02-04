@@ -131,7 +131,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{
-            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
+            cards, network_tokenization, transformers as pm_transformers
         },
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
@@ -926,6 +926,7 @@ where
                             &business_profile,
                             false,
                             None,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1096,6 +1097,7 @@ where
                             &business_profile,
                             false,
                             routing_decision,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1181,6 +1183,7 @@ where
                                 #[cfg(not(feature = "frm"))]
                                 None,
                                 &business_profile,
+                                &feature_config,
                             )
                             .await?;
                         };
@@ -4560,6 +4563,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4663,6 +4667,7 @@ where
         platform,
         business_profile,
         should_retry_with_pan,
+        feature_config,
     )
     .await?;
     *payment_data = pd;
@@ -7783,6 +7788,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -7841,11 +7847,7 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    if !pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-                        &*state.store,
-                        &platform.get_processor().get_account().organization_id,
-                    )
-                    .await
+                    if !feature_config.is_payment_method_modular_allowed
                     {
                         let (_operation, payment_method_data, pm_id) = operation
                             .to_domain()?
@@ -7861,6 +7863,7 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
+                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
                         //Merchant enabled for PM Modular service
                         let pm_id = payment_data
                             .get_payment_method_info()
@@ -7873,11 +7876,7 @@ where
                 }
                 TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
                 TokenizationAction::TokenizeInConnectorAndRouter => {
-                    if !pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-                        &*state.store,
-                        &platform.get_processor().get_account().organization_id,
-                    )
-                    .await
+                    if !feature_config.is_payment_method_modular_allowed
                     {
                         let (_operation, payment_method_data, pm_id) = operation
                             .to_domain()?
@@ -7895,6 +7894,7 @@ where
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
                         //Merchant enabled for PM Modular service
+                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
                         let pm_id = payment_data
                             .get_payment_method_info()
                             .map(|pm| pm.payment_method_id.clone());
