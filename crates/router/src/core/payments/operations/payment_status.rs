@@ -376,7 +376,7 @@ async fn get_tracker_for_sync<
         })?;
 
     let authorizations = db
-        .find_all_authorizations_by_merchant_id_payment_id(
+        .find_all_authorizations_by_processor_merchant_id_payment_id(
             platform.get_processor().get_account().get_id(),
             &payment_id,
         )
