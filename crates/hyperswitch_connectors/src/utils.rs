@@ -7555,6 +7555,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
 #[cfg(feature = "frm")]
 pub trait FraudCheckCheckoutRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+    fn get_email(&self) ->  Result<Email, Error>;
 }
 
 #[cfg(feature = "frm")]
@@ -7563,6 +7564,10 @@ impl FraudCheckCheckoutRequest for FraudCheckCheckoutData {
         self.order_details
             .clone()
             .ok_or_else(missing_field_err("order_details"))
+    }
+
+    fn get_email(&self) ->  Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 

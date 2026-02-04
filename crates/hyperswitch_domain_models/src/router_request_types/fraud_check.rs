@@ -38,6 +38,7 @@ pub struct FraudCheckTransactionData {
     pub connector_transaction_id: Option<String>,
     //The name of the payment gateway or financial institution that processed the transaction.
     pub connector: Option<String>,
+    pub frm_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

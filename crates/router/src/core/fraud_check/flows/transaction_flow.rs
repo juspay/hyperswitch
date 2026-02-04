@@ -112,6 +112,12 @@ impl
                     .get_connector_payment_id()
                     .map(ToString::to_string),
                 connector: self.payment_attempt.connector.clone(),
+                frm_transaction_id: self
+                    .frm_metadata
+                    .as_ref()
+                    .and_then(|meta| meta.peek().get("frm_transaction_id"))
+                    .and_then(|val| val.as_str())
+                    .map(ToString::to_string),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
