@@ -15,9 +15,9 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "v1")]
 use masking::Mask;
+use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "v1")]
 use payment_methods::client::{
     PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,

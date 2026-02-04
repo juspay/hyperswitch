@@ -100,7 +100,7 @@ where
         .response
         .as_ref()
         .map_err(|err| {
-            logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response in modular payment method update call");
+            logger::debug!(error=?err, "Failed to obtain the network_transaction_id from payment response in modular payment method update call");
         })
         .ok()
         .and_then(types::PaymentsResponseData::get_network_transaction_id);
