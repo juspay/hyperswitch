@@ -895,6 +895,75 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::MultibancoBankTransfer {  }
                 )),
             }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+                expiry_date,
+            } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Pix(payments_grpc::PixPayment {
+                    pix_key: pix_key.map(|v| v.expose().into()),
+                    cpf: cpf.map(|v| v.expose().into()),
+                    cnpj: cnpj.map(|v| v.expose().into()),
+                    source_bank_account_id: source_bank_account_id.map(|v| v.expose_inner()),
+                    destination_bank_account_id: destination_bank_account_id.map(|v| v.expose_inner()),
+                    expiry_date: expiry_date.map(|dt| {
+                        dt.format(&time::format_description::well_known::Iso8601::DEFAULT)
+                            .unwrap_or_default()
+                    }),
+                })),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::PermataBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PermataBankTransfer(
+                        payments_grpc::PermataBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BcaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BcaBankTransfer(
+                        payments_grpc::BcaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BniVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BniVaBankTransfer(
+                        payments_grpc::BniVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BriVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BriVaBankTransfer(
+                        payments_grpc::BriVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::CimbVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::CimbVaBankTransfer(
+                        payments_grpc::CimbVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::DanamonVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::DanamonVaBankTransfer(
+                        payments_grpc::DanamonVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::MandiriVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::MandiriVaBankTransfer(
+                        payments_grpc::MandiriVaBankTransfer {},
+                    )),
+                })
+            }
             hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {} =>
                 Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::InstantBankTransfer(payments_grpc::InstantBankTransfer {})),

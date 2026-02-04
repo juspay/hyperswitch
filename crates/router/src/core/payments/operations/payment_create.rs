@@ -1103,8 +1103,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
+                    .and_then(|customer| customer.id.as_ref())),
             )?;
         }
 
