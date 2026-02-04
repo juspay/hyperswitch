@@ -67,7 +67,10 @@ pub struct FeatureConfig {
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_feature_config(state: &SessionState, platform: &domain::Platform) -> FeatureConfig {
+pub async fn get_feature_config(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> FeatureConfig {
     let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
         state.store.as_ref(),
         &platform.get_processor().get_account().organization_id,

@@ -23,8 +23,7 @@ use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
-    UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
-    UpdatePaymentMethodV1Request,
+    UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
 use router_env::RequestId;
 #[cfg(feature = "v1")]
@@ -1366,7 +1365,6 @@ pub async fn fetch_payment_method_from_modular_service(
     payment_method_id: &str, //Currently PM id is string in v1
     pmd_card_token: Option<domain::CardToken>,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
-
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
             payment_method_id: payment_method_id.to_owned(),
@@ -1460,7 +1458,6 @@ pub async fn create_payment_method_in_modular_service(
     _billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
-
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: merchant_id.clone(),
         payment_method,
