@@ -8392,33 +8392,46 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
+/// Returns `true` if either the org or merchant config is set to "true"
+///
+/// Priority logic:
+/// 1. If org-level config exists (either "true" or "false"), that decision is final
+///    - Org = "true" → returns true (authentication enabled)
+///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
+/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
+///    - Merchant = "true" → returns true
+///    - Merchant = "false" or missing → returns false
+///
+/// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let merchants_eligible_for_authentication_service = state
-        .store
-        .as_ref()
-        .find_config_by_key_unwrap_or(
-            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
-            Some("[]".to_string()),
-        )
-        .await;
+    let db = &*state.store;
+    let org_key = org_id.get_authentication_service_eligible_key();
+    let org_eligible = db
+        .find_config_by_key(&org_key)
+        .await
+        .inspect_err(|error| {
+            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
+        })
+        .ok()
+        .map(|c| c.config.to_lowercase() == "true");
 
-    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
-        Ok(config) => serde_json::from_str(&config.config)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?,
-        Err(err) => {
-            logger::error!(
-                "Error fetching authentication service enabled merchant config {:?}",
-                err
-            );
-            Vec::new()
-        }
-    };
-
-    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+    Ok(org_eligible
+        .async_unwrap_or_else(|| async {
+            let merchant_key = merchant_id.get_authentication_service_eligible_key();
+            db.find_config_by_key(&merchant_key)
+                .await
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
+                })
+                .ok()
+                .map(|c| c.config.to_lowercase() == "true")
+                .unwrap_or(false)
+        })
+        .await)
 }
 
 #[cfg(feature = "v1")]
