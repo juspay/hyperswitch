@@ -7,6 +7,7 @@ pub use ::payment_methods::helpers::{
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
+    customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
     payments::{
         additional_info::{self as payment_additional_types},
@@ -33,9 +34,9 @@ use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
-pub use hyperswitch_domain_models::customer;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+pub use hyperswitch_domain_models::{customer, type_encryption::AsyncLift};
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_method_data::{GetPaymentMethodType, PazeWalletData},
@@ -99,7 +100,10 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
-        domain::{self, types},
+        domain::{
+            self,
+            types::{self, CryptoOperation},
+        },
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
@@ -139,7 +143,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                 let encrypted_data = types::crypto_operation(
                     &session_state.into(),
                     type_name!(domain::Address),
-                    types::CryptoOperation::BatchEncrypt(
+                    CryptoOperation::BatchEncrypt(
                         domain::FromRequestEncryptableAddress::to_encryptable(
                             domain::FromRequestEncryptableAddress {
                                 line1: address.address.as_ref().and_then(|a| a.line1.clone()),
@@ -355,29 +359,27 @@ pub async fn get_domain_address(
         let encrypted_data = types::crypto_operation(
             &session_state.into(),
             type_name!(domain::Address),
-            types::CryptoOperation::BatchEncrypt(
-                domain::FromRequestEncryptableAddress::to_encryptable(
-                    domain::FromRequestEncryptableAddress {
-                        line1: address.address.as_ref().and_then(|a| a.line1.clone()),
-                        line2: address.address.as_ref().and_then(|a| a.line2.clone()),
-                        line3: address.address.as_ref().and_then(|a| a.line3.clone()),
-                        state: address.address.as_ref().and_then(|a| a.state.clone()),
-                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
-                        zip: address.address.as_ref().and_then(|a| a.zip.clone()),
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|phone_details| phone_details.number.clone())
-                            .and_then(utils::trim_secret_string),
-                        email: address
-                            .email
-                            .as_ref()
-                            .map(|a| a.clone().expose().switch_strategy()),
-                        origin_zip: address.address.as_ref().and_then(|a| a.origin_zip.clone()),
-                    },
-                ),
-            ),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address.address.as_ref().and_then(|a| a.line1.clone()),
+                    line2: address.address.as_ref().and_then(|a| a.line2.clone()),
+                    line3: address.address.as_ref().and_then(|a| a.line3.clone()),
+                    state: address.address.as_ref().and_then(|a| a.state.clone()),
+                    first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
+                    last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
+                    zip: address.address.as_ref().and_then(|a| a.zip.clone()),
+                    phone_number: address
+                        .phone
+                        .as_ref()
+                        .and_then(|phone_details| phone_details.number.clone())
+                        .and_then(utils::trim_secret_string),
+                    email: address
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address.address.as_ref().and_then(|a| a.origin_zip.clone()),
+                },
+            )),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
@@ -547,9 +549,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
-                                    platform.get_processor().get_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     payment_method_id,
-                                    platform.get_processor().get_account().storage_scheme,
+                                    platform.get_provider().get_account().storage_scheme,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -561,7 +563,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                             verify_mandate_details_for_recurring_payments(
                                 &payment_method_info.merchant_id,
-                                platform.get_processor().get_account().get_id(),
+                                platform.get_provider().get_account().get_id(),
                                 &payment_method_info.customer_id,
                                 customer_id,
                             )?;
@@ -628,9 +630,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    platform.get_processor().get_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     customer_id,
-                                    platform.get_processor().get_account().get_id(),
+                                    platform.get_provider().get_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -683,9 +685,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
-                                        platform.get_processor().get_key_store(),
+                                        platform.get_provider().get_key_store(),
                                         &payment_method_id,
-                                        platform.get_processor().get_account().storage_scheme,
+                                        platform.get_provider().get_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -713,9 +715,9 @@ pub async fn get_token_pm_type_mandate_details(
                     state
                         .store
                         .find_payment_method(
-                            platform.get_processor().get_key_store(),
+                            platform.get_provider().get_key_store(),
                             &payment_method_id,
-                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_provider().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1536,9 +1538,13 @@ pub fn validate_customer_information(
                 "The field names `{mismatched_fields}` sent in both places is ambiguous"
             ),
         })?
-    } else {
-        Ok(())
     }
+    request.validate_document_details().map_err(|err| {
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: err.to_string(),
+        }
+    })?;
+    Ok(())
 }
 
 pub async fn validate_card_ip_blocking_for_business_profile(
@@ -1659,6 +1665,11 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
+    let document_details = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.document_details.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
@@ -1666,6 +1677,7 @@ pub fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
+        document_details,
     }
 }
 
@@ -1727,6 +1739,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
             phone: request_customer_details.phone.clone(),
             phone_country_code: request_customer_details.phone_country_code.clone(),
             tax_registration_id: request_customer_details.tax_registration_id.clone(),
+            customer_document_details: request_customer_details.document_details.clone(),
         })
     } else {
         None
@@ -1768,6 +1781,10 @@ pub async fn populate_raw_customer_details<F: Clone>(
                 .tax_registration_id
                 .clone()
                 .or(parsed_customer_data.tax_registration_id.clone()),
+            customer_document_details: request_customer_details
+                .document_details
+                .clone()
+                .or(parsed_customer_data.customer_document_details.clone()),
         })
         .or(temp_customer_data);
 
@@ -1875,7 +1892,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             let encrypted_data = types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::Customer),
-                types::CryptoOperation::BatchEncrypt(
+                CryptoOperation::BatchEncrypt(
                     domain::FromRequestEncryptableCustomer::to_encryptable(
                         domain::FromRequestEncryptableCustomer {
                             name: request_customer_details.name.clone(),
@@ -1899,6 +1916,48 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                     .change_context(errors::StorageError::SerializationFailed)
                     .attach_printable("Failed while encrypting Customer while Update")?;
+
+            let document_details = if request_customer_details.document_details.is_some() {
+                request_customer_details
+                    .document_details
+                    .clone()
+                    .async_lift(|inner| async move {
+                        let encoded_inner = inner
+                            .as_ref()
+                            .map(CustomerDocumentDetails::to)
+                            .transpose()
+                            .change_context(storage_impl::StorageError::EncryptionError)
+                            .attach_printable(
+                                "Failed to encode customer document details for encryption",
+                            )?;
+
+                        let crypto_result = types::crypto_operation(
+                            key_manager_state,
+                            type_name!(domain::Customer),
+                            CryptoOperation::EncryptOptional(encoded_inner),
+                            Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
+                            key,
+                        )
+                        .await
+                        .change_context(storage_impl::StorageError::EncryptionError)
+                        .attach_printable(
+                            "Crypto operation failed during document details encryption",
+                        )?;
+
+                        crypto_result
+                            .try_into_optionaloperation()
+                            .change_context(storage_impl::StorageError::EncryptionError)
+                            .attach_printable("Failed to parse encrypted document details result")
+                    })
+                    .await
+                    .change_context(storage_impl::StorageError::EncryptionError)
+                    .attach_printable("Lift operation failed for document_details")?
+            } else {
+                customer_data
+                    .as_ref()
+                    .and_then(|c| c.document_details.clone())
+            };
+
             Some(match customer_data {
                 Some(c) => {
                     let implicit_customer_update = configs::get_config_bool(
@@ -1924,6 +1983,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             | request_customer_details.phone.is_some()
                             | request_customer_details.phone_country_code.is_some()
                             | request_customer_details.tax_registration_id.is_some())
+                            | request_customer_details.document_details.is_some()
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
@@ -1943,6 +2003,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             metadata: Box::new(None),
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
+                            document_details: Box::new(document_details),
                             last_modified_by: None,
                         };
 
@@ -1985,6 +2046,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
+                        document_details,
                         // TODO: Populate created_by from authentication context once it is integrated in auth data
                         created_by: None,
                         last_modified_by: None, // Same as created_by on creation
@@ -2013,6 +2075,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .tax_registration_id
                         .clone()
                         .map(|val| val.into_inner()),
+                    customer_document_details: customer
+                        .document_details
+                        .clone()
+                        .map(|encryptable| {
+                            encryptable
+                                .into_inner()
+                                .expose()
+                                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                                .change_context(storage_impl::StorageError::SerializationFailed)
+                        })
+                        .transpose()?,
                 };
 
                 // Merge with existing payment intent customer details if present
@@ -4786,6 +4859,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         l2_l3_data: router_data.l2_l3_data,
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
+        customer_document_details: router_data.customer_document_details,
     }
 }
 
@@ -4953,7 +5027,7 @@ impl AttemptType {
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
-    fn make_new_payment_attempt(
+    fn make_new_manual_retry_payment_attempt(
         payment_method_data: Option<&api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
@@ -5059,6 +5133,7 @@ impl AttemptType {
             debit_routing_savings: None,
             is_overcapture_enabled: None,
             error_details: None,
+            retry_type: Some(enums::RetryType::ManualRetry),
         }
     }
 
@@ -5092,7 +5167,7 @@ impl AttemptType {
             Self::New => {
                 let db = &*state.store;
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
-                let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
+                let new_payment_attempt_to_insert = Self::make_new_manual_retry_payment_attempt(
                     request
                         .payment_method_data
                         .as_ref()

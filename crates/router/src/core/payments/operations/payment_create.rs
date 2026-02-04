@@ -1044,8 +1044,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
+                    .and_then(|customer| customer.id.as_ref())),
             )?;
         }
 
@@ -1410,6 +1409,7 @@ impl PaymentCreate {
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                retry_type: None,
             },
             additional_pm_data,
 
@@ -1480,7 +1480,6 @@ impl PaymentCreate {
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details =
             helpers::get_customer_details_from_request(request).get_customer_data();
-
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),
