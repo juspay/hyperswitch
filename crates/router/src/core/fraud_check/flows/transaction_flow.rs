@@ -112,6 +112,7 @@ impl
                     .get_connector_payment_id()
                     .map(ToString::to_string),
                 connector: self.payment_attempt.connector.clone(),
+                frm_transaction_id: self.fraud_check.frm_transaction_id.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
