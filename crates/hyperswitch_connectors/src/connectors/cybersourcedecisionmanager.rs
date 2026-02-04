@@ -5,22 +5,13 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit,StringMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
-
-use url::Url;
-#[cfg(feature = "frm")]
-use hyperswitch_interfaces::{api::{FraudCheck,FraudCheckCheckout, FraudCheckTransaction },errors::ConnectorError,};
-use time::OffsetDateTime;
-use common_utils::consts;
 use error_stack::{report, Report, ResultExt};
-use ring::{digest, hmac};
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
-
-use crate::utils::convert_amount;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -40,17 +31,9 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_flow_types::{Checkout, Transaction},
-    router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckTransactionData,
-    },
+    router_request_types::fraud_check::{FraudCheckCheckoutData, FraudCheckTransactionData},
     router_response_types::fraud_check::FraudCheckResponseData,
 };
-
-#[cfg(feature = "frm")]
-use crate::types::{
-        FrmCheckoutRouterData, FrmCheckoutType,
-        FrmTransactionRouterData, FrmTransactionType, ResponseRouterData,
-    };
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -61,9 +44,27 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::{
+    api::{FraudCheck, FraudCheckCheckout, FraudCheckTransaction},
+    errors::ConnectorError,
+};
+use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use ring::{digest, hmac};
+use time::OffsetDateTime;
 use transformers as cybersourcedecisionmanager;
+use url::Url;
 
-use crate::{constants::{self, headers}, utils};
+#[cfg(feature = "frm")]
+use crate::types::{
+    FrmCheckoutRouterData, FrmCheckoutType, FrmTransactionRouterData, FrmTransactionType,
+    ResponseRouterData,
+};
+use crate::{
+    constants::{self, headers},
+    utils,
+    utils::convert_amount,
+};
 
 #[derive(Clone)]
 pub struct Cybersourcedecisionmanager {
@@ -166,7 +167,9 @@ where
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         let date = OffsetDateTime::now_utc();
         let cybersource_req = self.get_request_body(req, connectors)?;
-        let auth =  cybersourcedecisionmanager::CybersourcedecisionmanagerAuthType::try_from(&req.connector_auth_type)?;
+        let auth = cybersourcedecisionmanager::CybersourcedecisionmanagerAuthType::try_from(
+            &req.connector_auth_type,
+        )?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.cybersource.base_url.as_str();
         let cybersource_host =
@@ -255,7 +258,9 @@ impl ConnectorCommon for Cybersourcedecisionmanager {
         let response: Result<
             cybersourcedecisionmanager::CybersourceDecisionManagerErrorResponse,
             Report<common_utils::errors::ParsingError>,
-        > = res.response.parse_struct("CybersourceDecisionManagerErrorResponse");
+        > = res
+            .response
+            .parse_struct("CybersourceDecisionManagerErrorResponse");
 
         let error_message = if res.status_code == 401 {
             constants::CONNECTOR_UNAUTHORIZED_ERROR
@@ -400,18 +405,28 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Cybersourcedecisionmanager {}
+    for Cybersourcedecisionmanager
+{
+}
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Cybersourcedecisionmanager {}
+    for Cybersourcedecisionmanager
+{
+}
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Cybersourcedecisionmanager {}
+    for Cybersourcedecisionmanager
+{
+}
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Cybersourcedecisionmanager {}
+    for Cybersourcedecisionmanager
+{
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for Cybersourcedecisionmanager {}
+    for Cybersourcedecisionmanager
+{
+}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cybersourcedecisionmanager {}
 
@@ -422,9 +437,10 @@ impl FraudCheckCheckout for Cybersourcedecisionmanager {}
 #[cfg(feature = "frm")]
 impl FraudCheckTransaction for Cybersourcedecisionmanager {}
 
-
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData> for Cybersourcedecisionmanager {
+impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
+    for Cybersourcedecisionmanager
+{
     fn get_headers(
         &self,
         req: &FrmCheckoutRouterData,
@@ -442,7 +458,11 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
         _req: &FrmCheckoutRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "risk/v1/decisions"))
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "risk/v1/decisions"
+        ))
     }
 
     fn get_request_body(
@@ -450,16 +470,24 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
         req: &FrmCheckoutRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let currency =
-            req.request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
-                })?;
-        let amount = convert_amount(self.amount_converter, MinorUnit::new(req.request.amount), currency)?;
+        let currency = req
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "Currency",
+            })?;
+        let amount = convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.amount),
+            currency,
+        )?;
 
-        let connector_router_data = cybersourcedecisionmanager::CybersourcedecisionmanagerRouterData::from((amount, req));
-        let req_obj = cybersourcedecisionmanager::CybersourcedecisionmanagerCheckoutRequest::try_from(&connector_router_data)?;
+        let connector_router_data =
+            cybersourcedecisionmanager::CybersourcedecisionmanagerRouterData::from((amount, req));
+        let req_obj =
+            cybersourcedecisionmanager::CybersourcedecisionmanagerCheckoutRequest::try_from(
+                &connector_router_data,
+            )?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -498,7 +526,6 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
         })
     }
 
-
     fn get_error_response(
         &self,
         res: Response,
@@ -506,10 +533,11 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-
 }
 
-impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData> for Cybersourcedecisionmanager {
+impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
+    for Cybersourcedecisionmanager
+{
     fn get_headers(
         &self,
         req: &FrmTransactionRouterData,
@@ -527,10 +555,16 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
         req: &FrmTransactionRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let id = req.request.connector_transaction_id.clone().ok_or(ConnectorError::MissingRequiredField {
-            field_name: "connector_transaction_id",
-        })?;
-        Ok(format!("{}risk/v1/decisions/{}/actions", self.base_url(connectors), id))
+        let id = req.request.connector_transaction_id.clone().ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "connector_transaction_id",
+            },
+        )?;
+        Ok(format!(
+            "{}risk/v1/decisions/{}/actions",
+            self.base_url(connectors),
+            id
+        ))
     }
 
     fn get_request_body(
@@ -538,7 +572,10 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
         req: &FrmTransactionRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let req_obj = cybersourcedecisionmanager::CybersourcedecisionmanagerTransactionRequest::try_from(req)?;
+        let req_obj =
+            cybersourcedecisionmanager::CybersourcedecisionmanagerTransactionRequest::try_from(
+                req,
+            )?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
     fn build_request(
@@ -584,11 +621,7 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-
-
-
 }
-
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Cybersourcedecisionmanager {

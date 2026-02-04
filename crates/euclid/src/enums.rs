@@ -566,7 +566,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
             RoutableConnectors::Cybersource => Self::Cybersource,
-            RoutableConnectors::Cybersourcedecisionmanager => Self::Cybersourcedecisionmanager, 
+            RoutableConnectors::Cybersourcedecisionmanager => Self::Cybersourcedecisionmanager,
             RoutableConnectors::Datatrans => Self::Datatrans,
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,

@@ -7,16 +7,14 @@ use hyperswitch_domain_models::{
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use masking::ExposeInterface;
-
 use crate::{
-    types::{
-        FrmCheckoutRouterData, FrmTransactionRouterData, ResponseRouterData,
+    types::{FrmCheckoutRouterData, FrmTransactionRouterData, ResponseRouterData},
+    utils::{
+        AddressDetailsData as _, FrmTransactionRouterDataRequest, RouterData as OtherRouterData,
     },
-    utils::{AddressDetailsData as _, FrmTransactionRouterDataRequest, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -36,7 +34,7 @@ impl<T> From<(StringMajorUnit, T)> for CybersourcedecisionmanagerRouterData<T> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CybersourcedecisionmanagerTransactionRequest{
+pub struct CybersourcedecisionmanagerTransactionRequest {
     decision_information: DecisionInformation,
     processing_information: TransactionProcessingInformation,
 }
@@ -48,7 +46,7 @@ pub struct DecisionInformation {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransactionProcessingInformation {
-    action : Vec<ActionList>,
+    action: Vec<ActionList>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,21 +100,25 @@ pub enum CybersourcedecisionmanagerStatus {
     PendingAuthentication,
     InvalidRequest,
     Challenge,
-    AuthenticationFailed
+    AuthenticationFailed,
 }
 
 impl From<CybersourcedecisionmanagerStatus> for common_enums::FraudCheckStatus {
     fn from(item: CybersourcedecisionmanagerStatus) -> Self {
         match item {
             CybersourcedecisionmanagerStatus::Accepted => Self::Legit,
-            CybersourcedecisionmanagerStatus::Rejected | CybersourcedecisionmanagerStatus::Declined  => Self::Fraud,
-            CybersourcedecisionmanagerStatus::PendingReview | CybersourcedecisionmanagerStatus::Challenge | CybersourcedecisionmanagerStatus::PendingAuthentication => Self::ManualReview,
-            CybersourcedecisionmanagerStatus::InvalidRequest | CybersourcedecisionmanagerStatus::AuthenticationFailed => Self::TransactionFailure,
+            CybersourcedecisionmanagerStatus::Rejected
+            | CybersourcedecisionmanagerStatus::Declined => Self::Fraud,
+            CybersourcedecisionmanagerStatus::PendingReview
+            | CybersourcedecisionmanagerStatus::Challenge
+            | CybersourcedecisionmanagerStatus::PendingAuthentication => Self::ManualReview,
+            CybersourcedecisionmanagerStatus::InvalidRequest
+            | CybersourcedecisionmanagerStatus::AuthenticationFailed => Self::TransactionFailure,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize,Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcedecisionmanagerResponse {
     status: CybersourcedecisionmanagerStatus,
@@ -124,24 +126,18 @@ pub struct CybersourcedecisionmanagerResponse {
     error_information: Option<CybersourcedecisionmanagerErrorInformation>,
 }
 
-#[derive(Debug, Serialize, Deserialize,Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CybersourcedecisionmanagerErrorInformation {
-    reason : Option<String>,
+    reason: Option<String>,
 }
 
 impl<F, T>
-    TryFrom<
-        ResponseRouterData<F, CybersourcedecisionmanagerResponse, T, FraudCheckResponseData>,
-    > for RouterData<F, T, FraudCheckResponseData>
+    TryFrom<ResponseRouterData<F, CybersourcedecisionmanagerResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CybersourcedecisionmanagerResponse,
-            T,
-            FraudCheckResponseData,
-        >,
+        item: ResponseRouterData<F, CybersourcedecisionmanagerResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(FraudCheckResponseData::TransactionResponse {
@@ -149,7 +145,10 @@ impl<F, T>
                 status: common_enums::FraudCheckStatus::from(item.response.status),
                 connector_metadata: None,
                 score: None,
-                reason: item.response.error_information.and_then(|info| info.reason.map(serde_json::Value::from))
+                reason: item
+                    .response
+                    .error_information
+                    .and_then(|info| info.reason.map(serde_json::Value::from)),
             }),
             ..item.data
         })
@@ -158,9 +157,7 @@ impl<F, T>
 
 impl TryFrom<&FrmTransactionRouterData> for CybersourcedecisionmanagerTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &FrmTransactionRouterData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &FrmTransactionRouterData) -> Result<Self, Self::Error> {
         let decision = match item.is_payment_successful() {
             Some(true) => TransactionDecision::Accept,
             Some(false) => TransactionDecision::Reject,
@@ -172,12 +169,8 @@ impl TryFrom<&FrmTransactionRouterData> for CybersourcedecisionmanagerTransactio
             TransactionDecision::Reject => vec![ActionList::Reverse],
         };
         Ok(Self {
-            decision_information: DecisionInformation {
-                decision,
-            },
-            processing_information: TransactionProcessingInformation {
-                action,
-            },
+            decision_information: DecisionInformation { decision },
+            processing_information: TransactionProcessingInformation { action },
         })
     }
 }
@@ -189,20 +182,31 @@ pub struct CybersourcedecisionmanagerTransactionResponse {
     pub status: CybersourcedecisionmanagerTransactionStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize,Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourcedecisionmanagerTransactionStatus {
     Accepted,
-    Rejected
+    Rejected,
 }
 
 impl<F, T>
-    TryFrom<ResponseRouterData<F, CybersourcedecisionmanagerTransactionResponse, T, FraudCheckResponseData>>
-    for RouterData<F, T, FraudCheckResponseData>
-{ 
+    TryFrom<
+        ResponseRouterData<
+            F,
+            CybersourcedecisionmanagerTransactionResponse,
+            T,
+            FraudCheckResponseData,
+        >,
+    > for RouterData<F, T, FraudCheckResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CybersourcedecisionmanagerTransactionResponse, T, FraudCheckResponseData>,
+        item: ResponseRouterData<
+            F,
+            CybersourcedecisionmanagerTransactionResponse,
+            T,
+            FraudCheckResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(FraudCheckResponseData::TransactionResponse {
@@ -210,7 +214,7 @@ impl<F, T>
                 status: common_enums::FraudCheckStatus::from(item.response.status),
                 connector_metadata: None,
                 score: None,
-                reason: None
+                reason: None,
             }),
             ..item.data
         })
@@ -221,11 +225,10 @@ impl From<CybersourcedecisionmanagerTransactionStatus> for common_enums::FraudCh
     fn from(item: CybersourcedecisionmanagerTransactionStatus) -> Self {
         match item {
             CybersourcedecisionmanagerTransactionStatus::Accepted => Self::Legit,
-            CybersourcedecisionmanagerTransactionStatus::Rejected  => Self::Fraud,
+            CybersourcedecisionmanagerTransactionStatus::Rejected => Self::Fraud,
         }
     }
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -407,8 +410,10 @@ impl TryFrom<&CybersourcedecisionmanagerRouterData<&FrmCheckoutRouterData>>
                     card: Card {
                         expiration_month: card_info.card_exp_month.clone(),
                         expiration_year: card_info.card_exp_year.clone(),
-                        card_type : card_info.card_network.clone().and_then(|network| 
-                            get_cybersource_card_type(network))
+                        card_type: card_info
+                            .card_network
+                            .clone()
+                            .and_then(|network| get_cybersource_card_type(network))
                             .map(|s| s.to_string()),
                     },
                 }),
