@@ -531,7 +531,13 @@ pub async fn profile_webhooks_update(
         &req,
         webhook_payload,
         |state, _, webhook_request, _| {
-            update_profile_webhook(state, &merchant_id, &profile_id, &webhook_id, webhook_request)
+            update_profile_webhook(
+                state,
+                &merchant_id,
+                &profile_id,
+                &webhook_id,
+                webhook_request,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
@@ -565,7 +571,13 @@ pub async fn profile_webhooks_delete(
         &req,
         api_models::admin::ProfileWebhooksDeleteRequest {},
         |state, _, webhook_request, _| {
-            delete_profile_webhook(state, &merchant_id, &profile_id, &webhook_id, webhook_request)
+            delete_profile_webhook(
+                state,
+                &merchant_id,
+                &profile_id,
+                &webhook_id,
+                webhook_request,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),

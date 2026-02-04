@@ -217,14 +217,14 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             domain::ProfileUpdate::WebhooksUpdate { webhook_details } => {
                 let new_json =
                     serde_json::to_value(webhook_details).unwrap_or_else(|_| serde_json::json!({}));
-                let current_storage_profile = business_profile::Profile::find_by_profile_id(
-                    &conn, 
-                    current_state.get_id()
-                )
-                .await
-                .map_err(|error| report!(StorageError::from(error)))?;
+                let current_storage_profile =
+                    business_profile::Profile::find_by_profile_id(&conn, current_state.get_id())
+                        .await
+                        .map_err(|error| report!(StorageError::from(error)))?;
 
-                let merged_webhook_details = if let Some(current_storage_webhook) = current_storage_profile.webhook_details.clone() {
+                let merged_webhook_details = if let Some(current_storage_webhook) =
+                    current_storage_profile.webhook_details.clone()
+                {
                     current_storage_webhook.merge_with_json(new_json)
                 } else {
                     business_profile::WebhookDetailsStorage::from_json(new_json)
@@ -298,27 +298,33 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                         .unwrap_or_else(|_| serde_json::json!({}));
 
                     let current_storage_profile = business_profile::Profile::find_by_profile_id(
-                        &conn, 
-                        current_state.get_id()
+                        &conn,
+                        current_state.get_id(),
                     )
                     .await
                     .map_err(|error| report!(StorageError::from(error)))?;
 
-                    let merged_webhook_details = if let Some(current_storage_webhook) = current_storage_profile.webhook_details.clone() {
+                    let merged_webhook_details = if let Some(current_storage_webhook) =
+                        current_storage_profile.webhook_details.clone()
+                    {
                         current_storage_webhook.merge_with_json(new_json)
                     } else {
                         business_profile::WebhookDetailsStorage::from_json(new_json)
                     };
 
-                    let mut profile_update_internal = ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
+                    let mut profile_update_internal =
+                        ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
                     profile_update_internal.webhook_details = Some(merged_webhook_details);
-                    
+
                     (profile_update_internal, current_storage_profile)
                 } else {
                     let storage_profile = Conversion::convert(current_state.clone())
                         .await
                         .change_context(StorageError::EncryptionError)?;
-                    (ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update)), storage_profile)
+                    (
+                        ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update)),
+                        storage_profile,
+                    )
                 }
             }
             #[cfg(feature = "v2")]
@@ -328,27 +334,33 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                         .unwrap_or_else(|_| serde_json::json!({}));
 
                     let current_storage_profile = business_profile::Profile::find_by_profile_id(
-                        &conn, 
-                        current_state.get_id()
+                        &conn,
+                        current_state.get_id(),
                     )
                     .await
                     .map_err(|error| report!(StorageError::from(error)))?;
 
-                    let merged_webhook_details = if let Some(current_storage_webhook) = current_storage_profile.webhook_details.clone() {
+                    let merged_webhook_details = if let Some(current_storage_webhook) =
+                        current_storage_profile.webhook_details.clone()
+                    {
                         current_storage_webhook.merge_with_json(new_json)
                     } else {
                         business_profile::WebhookDetailsStorage::from_json(new_json)
                     };
 
-                    let mut profile_update_internal = ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
+                    let mut profile_update_internal =
+                        ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
                     profile_update_internal.webhook_details = Some(merged_webhook_details);
-                    
+
                     (profile_update_internal, current_storage_profile)
                 } else {
                     let storage_profile = Conversion::convert(current_state.clone())
                         .await
                         .change_context(StorageError::EncryptionError)?;
-                    (ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update)), storage_profile)
+                    (
+                        ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update)),
+                        storage_profile,
+                    )
                 }
             }
             other => {
@@ -596,7 +608,8 @@ impl ProfileInterface for MockDb {
                                 business_profile::WebhookDetailsStorage::from_json(new_json)
                             };
 
-                            let mut update_internal = ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
+                            let mut update_internal =
+                                ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
                             update_internal.webhook_details = Some(merged_webhook_details);
                             update_internal
                         } else {
@@ -617,7 +630,8 @@ impl ProfileInterface for MockDb {
                                 business_profile::WebhookDetailsStorage::from_json(new_json)
                             };
 
-                            let mut update_internal = ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
+                            let mut update_internal =
+                                ProfileUpdateInternal::from(domain::ProfileUpdate::Update(update));
                             update_internal.webhook_details = Some(merged_webhook_details);
                             update_internal
                         } else {

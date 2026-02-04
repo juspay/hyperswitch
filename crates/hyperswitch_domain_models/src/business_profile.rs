@@ -1088,7 +1088,9 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
             },
-            ProfileUpdate::WebhooksUpdate { webhook_details, .. } => {
+            ProfileUpdate::WebhooksUpdate {
+                webhook_details, ..
+            } => {
                 let new_json = serde_json::to_value(webhook_details).unwrap();
                 Self {
                     profile_name: None,
@@ -1149,7 +1151,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     billing_processor_id: None,
                     is_l2_l3_enabled: None,
                 }
-            },
+            }
         }
     }
 }
@@ -1305,9 +1307,9 @@ impl Conversion for Profile {
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details.map(|wds| {
-                serde_json::from_value(wds.0).unwrap()
-            }),
+            webhook_details: item
+                .webhook_details
+                .map(|wds| serde_json::from_value(wds.0).unwrap()),
             metadata: item.metadata,
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
@@ -2596,9 +2598,9 @@ impl Conversion for Profile {
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-                webhook_details: item.webhook_details.map(|wds| {
-                    serde_json::from_value(wds.0).unwrap()
-                }),
+                webhook_details: item
+                    .webhook_details
+                    .map(|wds| serde_json::from_value(wds.0).unwrap()),
                 metadata: item.metadata,
                 is_recon_enabled: item.is_recon_enabled,
                 applepay_verified_domains: item.applepay_verified_domains,
