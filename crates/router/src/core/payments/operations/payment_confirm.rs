@@ -1095,11 +1095,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone()
                         .get_required_value("customer_id")?,
                 )
-                .await{
+                .await
+                {
                     Ok(pm_info) => {
                         logger::info!("Payment method created in PM Modular service successfully");
                         Some(pm_info)
-                    },
+                    }
                     Err(err) => {
                         logger::error!(
                             "Error creating payment method in PM Modular service: {:?}",
@@ -1112,7 +1113,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             _ => {
                 logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
                 None
-            }, //logger error since pmd is not supported for create payment method in confirm
+            } //logger error since pmd is not supported for create payment method in confirm
         };
         //set payment_data.payment_method_info
         payment_data.payment_method_info = payment_method_info;

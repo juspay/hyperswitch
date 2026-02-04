@@ -643,9 +643,9 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     //instead of calling again, construct state to have modular merchant config
-// FeatureSet{
-//     AllowedModular: true
-// }
+    // FeatureSet{
+    //     AllowedModular: true
+    // }
     let payment_method_info =
         if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
             &*state.store,
@@ -7813,9 +7813,11 @@ where
                             .await?;
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
-                    } else{
+                    } else {
                         //Merchant enabled for PM Modular service
-                        let pm_id = payment_data.get_payment_method_info().map(|pm| pm.payment_method_id.clone());
+                        let pm_id = payment_data
+                            .get_payment_method_info()
+                            .map(|pm| pm.payment_method_id.clone());
                         //Payment method data is already set in get trackers flow if modular pm service is enabled
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
@@ -7846,7 +7848,9 @@ where
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
                         //Merchant enabled for PM Modular service
-                        let pm_id = payment_data.get_payment_method_info().map(|pm| pm.payment_method_id.clone());
+                        let pm_id = payment_data
+                            .get_payment_method_info()
+                            .map(|pm| pm.payment_method_id.clone());
                         //Payment method data is already set in get trackers flow if modular pm service is enabled
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
