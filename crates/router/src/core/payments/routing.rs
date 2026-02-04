@@ -579,7 +579,7 @@ impl DynamicRoutingStage {
             )
             .await
             {
-                Ok(result) => Ok(Some(result)),
+                Ok(result) => Ok(result),
                 Err(e) => {
                     logger::error!(euclid_open_router_error=?e);
                     Ok(None)
@@ -1918,7 +1918,7 @@ pub async fn perform_dynamic_routing_with_open_router(
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
     payment_data: oss_storage::PaymentAttempt,
-) -> RoutingResult<DynamicRoutingResult> {
+) -> RoutingResult<Option<DynamicRoutingResult>> {
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
         .clone()
@@ -1973,14 +1973,10 @@ pub async fn perform_dynamic_routing_with_open_router(
                 .await?
             }
         }
-        connectors
+        Some(connectors)
     } else {
-        DynamicRoutingResult {
-            connectors: routable_connectors,
-            routing_approach: utils::RoutingApproach::Default.into(),
-        }
+        None
     };
-
     Ok(connectors)
 }
 
