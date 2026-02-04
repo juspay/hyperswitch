@@ -75,8 +75,8 @@ common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
-host = "http://127.0.0.1:3009"
-mock_locker = false
+host = "http://127.0.0.1:3000"
+mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 
@@ -88,47 +88,8 @@ redis_lock_timeout_in_seconds = 100
 redis_ttl_in_seconds = 172800
 
 [jwekey]
-vault_encryption_key = """
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv8ANasSsNE++LKKz7u0O
-4G1Xq3tLHFUZUnj/lDYaTYXOBq4pasRXFkm3en1aBQfmribCOFNor1tUhRdTAa6g
-yf1SuVVoorNXrv7R9VvnXmRz6UbOppQx574eG4kvXlAfGfD4cavcAkAbZfYBV9pP
-lI5gbLuRW0VRHQzPTQPx5uZmR7XTCHliiP7c2PfT8J/+u/0P25bTQhZrzBzKvyRo
-6fJIKmW1rjELJVZBVqOUNMcg8t4/VXbmbHWSWd31tU2xqHs5KoOIiwVqWYSZUsIY
-g6LiWi0cLYYWtjoYtlmrrfnoBu6illo0OFliBnUdDakdk+tNtISnyNDfB+19HWkD
-dQIDAQAB
------END PUBLIC KEY-----
-"""
-vault_private_key = """
------BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC3uNcrK/RgWcMl
-5kJT5LzKFsoWNB/Doz5PbJjV6KLkKCq8VZFQdhNBvWphoPg0fqQ0oMnbaAVuUH3d
-n18Sfs1dtWrjPWTOvw60KjrP4YMzkSDQeb6ph0aK2jMKa2Uo7uMas8wH0kq2Rn0K
-cBy+yMzKV5otnonMJHUPCxnrb3Yy31h4UEG6moLuwXRGfPo1DGnY/yS8P3OnwTXB
-B+Y39YCij9Wnkj0GDlpO/FgDQ0Vk3J3FsgrY6N0tDKSdLGReAEycZq8gbl8sj/pS
-QMmYTdbv+PXqGuz/G7zPknbBgLMIKbEqA0kwC61pWOWRGKUYLhOM7mhIoJZEictZ
-rCWPRApBAgMBAAECggEAVh6qmf2WJY4eGIdpgwrfZjmtjB/t3daJMFDfCbJtnNap
-RbQ0lEts9m10TwRWJMFSdqsCRDtsBExt27PHrJNM8AbI7nFKblGH8nMzM1vqFQOM
-Jr1S3wPe0Nq8fz9dYYUtZshuNSJhzDSZi4mHJ/VXbegHiSfePxe92YniIgcTGH/l
-NBzIH2tapyKURLC13WQ+6aSR5uYydfJG+rdvqNUPpsPEci01tYzNffYVp++u3CTp
-b8GgAs0THaAkaDCNUerVGRfcwUTFbh3IEYVEAglGA0NFrG+VuGHigPqVHjppCttj
-57Pnd6FBbgYAriPCQyuM15TaJPGBYLRNcfVgEz2mKwKBgQD4eJSrCtMqPLGPkrzp
-Z/0sOQ1niu4wa2VupKo/nrW7EXwwIAcfx2JOLXFm4nHYHlrIwNiD7Nr8Hxa7oHMN
-96jQH4XVGLiSM1iFLGwNoEW3fE1CQMXDazTbfejBW1ysfVbuHbDmeVus9it3oUZt
-b6cqP+0XudKt4czNJIWhra7t8wKBgQC9Sf6CtMQs0kSY9I7GOOLSfn63LSREyemd
-FAVVGQQaHeVdzlyev7YmqngTFwg2A+fuBXQPTtfzlw5je4FuFCzWO5isycCrb/8L
-Y35uZqTtoJnXEldfoq4PqktJ2jFZHArVdJR9zwkGWgY2MvMiZZEwstOtEP0LxVfu
-T1OW0lKP+wKBgDmgvdptyEwjh4slHWuFEtMO6Gz7bAMO5Zej2VioFr4scAE5bG2S
-cNpw77xNCNp3L9cf4xe195RCIaOiswyqRB0BMqkZ8rT187Hve6Ata/4CdmjHXRbV
-5oyBx1oRNo1LBL51ZHIP85NKBQrZ/Nuk6cCC0xqNnq91j2qE7flxrwDBAoGAHxVp
-j/kzRdD5psxyLablyH8xO89T51/o1vyUq5bCD6/dHHxoxUDiHpNbyHa9yHD3wyRu
-HJ1r5PpnSHrdlEAH5N5Agg9Xbk+j6DDccDC24LbAzIqcgn3qa3QhjO0hsWpjdQ4B
-3G8FIl/iKUBQoNNg9khHbmIdy7MKb33jUh8To8UCgYA2eNpDo90BDAYp8+43AC1x
-gsQeUdNOU4bpsO0BoHNyvBAYRpqjqLhrmp24iZ8g8q12I9mDx0oEXkUxBnPlwPtO
-hGNO/6i2l3CyLWlKTPQ1ZTDNMth1jZnUutQ4Xpx3i1EBpYkK/Zp/VAC4AaVkYTZI
-6i3oh3QS3tQ4SKmBVZ5pGw==
------END PRIVATE KEY-----
-"""
+vault_encryption_key = ""
+vault_private_key = ""
 tunnel_private_key = ""
 
 [connectors.supported]
@@ -1505,7 +1466,7 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 connector_list = "worldpayvantiv"
 
 [internal_merchant_id_profile_id_auth]
-enabled = true
+enabled = false
 internal_api_key = "test_internal_api_key"
 
 [internal_services]
@@ -1545,5 +1506,5 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
-payment_methods_prefix = "v1"
+payment_methods_prefix = "v2"
 
