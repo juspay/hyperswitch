@@ -136,6 +136,33 @@ pub async fn customers_list() {}
 #[cfg(feature = "v2")]
 pub async fn customers_create() {}
 
+/// Customers - Create
+///
+/// Creates a customer object and stores the customer details to be reused for future payments.
+/// Incase the customer already exists in the system, this API will respond with the customer details.
+#[utoipa::path(
+    post,
+    path = "/v1/customers",
+    request_body  (
+        content = CustomerRequest,
+        examples  (( "Create a customer with name and email" =(
+        value =json!( {
+            "email": "guest@example.com",
+            "name": "John Doe"
+        })
+        )))
+    ),
+    responses(
+        (status = 200, description = "Customer Created", body = CustomerResponse),
+        (status = 400, description = "Invalid data")
+
+    ),
+    tag = "Customers",
+    operation_id = "Create a Customer",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_create_v1() {}
 /// Customers - Retrieve
 ///
 /// Retrieves a customer's details.
@@ -153,6 +180,24 @@ pub async fn customers_create() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn customers_retrieve() {}
+
+/// Customers - Retrieve
+///
+/// Retrieves a customer's details.
+#[utoipa::path(
+    get,
+    path = "/v1/customers/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    responses(
+        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 404, description = "Customer was not found")
+    ),
+    tag = "Customers",
+    operation_id = "Retrieve a Customer",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_retrieve_v1() {}
 
 /// Customers - Update
 ///
@@ -181,6 +226,33 @@ pub async fn customers_retrieve() {}
 #[cfg(feature = "v2")]
 pub async fn customers_update() {}
 
+/// Customers - Update
+///
+/// Updates the customer's details in a customer object.
+#[utoipa::path(
+    post,
+    path = "/v1/customers/{id}",
+    request_body (
+        content = CustomerUpdateRequest,
+        examples  (( "Update name and email of a customer" =(
+        value =json!( {
+            "email": "guest@example.com",
+            "name": "John Doe"
+        })
+        )))
+    ),
+    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    responses(
+        (status = 200, description = "Customer was Updated", body = CustomerResponse),
+        (status = 404, description = "Customer was not found")
+    ),
+    tag = "Customers",
+    operation_id = "Update a Customer",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_update_v1() {}
+
 /// Customers - Delete
 ///
 /// Delete a customer record.
@@ -199,6 +271,23 @@ pub async fn customers_update() {}
 #[cfg(feature = "v2")]
 pub async fn customers_delete() {}
 
+/// Customers - Delete
+///
+/// Delete a customer record.
+#[utoipa::path(
+    delete,
+    path = "/v1/customers/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    responses(
+        (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
+        (status = 404, description = "Customer was not found")
+    ),
+    tag = "Customers",
+    operation_id = "Delete a Customer",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_delete_v1() {}
 /// Customers - List
 ///
 /// Lists all the customers for a particular merchant id.
@@ -215,3 +304,20 @@ pub async fn customers_delete() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn customers_list() {}
+
+/// Customers - List
+///
+/// Lists all the customers for a particular merchant id.
+#[utoipa::path(
+    get,
+    path = "/v1/customers/list",
+    responses(
+        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Customers",
+    operation_id = "List all Customers for a Merchant",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_list_v1() {}

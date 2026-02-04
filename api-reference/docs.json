@@ -37,6 +37,35 @@
                   "v1/payments/setup--instructions",
                   "v1/payments/payment--flows",
                   {
+                    "group": "Deprecated APIs",
+                    "pages": [
+                      {
+                        "group": "Customers",
+                        "pages": [
+                          "v1/customers/customers--create",
+                          "v1/customers/customers--retrieve",
+                          "v1/customers/customers--update",
+                          "v1/customers/customers--delete",
+                          "v1/customers/customers--list"
+                        ]
+                      },
+                      {
+                        "group": "Payment Methods",
+                        "pages": [
+                          "v1/payment-methods/paymentmethods--create",
+                          "v1/payment-methods/payment-method--retrieve",
+                          "v1/payment-methods/payment-method--update",
+                          "v1/payment-methods/payment-method--delete",
+                          "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
+                          "v1/payment-methods/list-payment-methods-for-a-merchant",
+                          "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+                          "v1/payment-methods/list-payment-methods-for-a-customer",
+                          "v1/customer-set-default-payment-method/customers--set-default-payment-method"
+                        ]
+                      }
+                    ]
+                  },
+                  {
                     "group": "Payments",
                     "pages": [
                       "v1/payments/payments--create",
@@ -60,25 +89,36 @@
                   {
                     "group": "Payment Methods",
                     "pages": [
-                      "v1/payment-methods/paymentmethods--create",
-                      "v1/payment-methods/payment-method--retrieve",
-                      "v1/payment-methods/payment-method--update",
-                      "v1/payment-methods/payment-method--delete",
-                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
-                      "v1/payment-methods/list-payment-methods-for-a-merchant",
-                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-                      "v1/payment-methods/list-payment-methods-for-a-customer",
-                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
+                      "v2/payment-methods/payment-method--create-v1",
+                      "v2/payment-methods/payment-method--retrieve-v1",
+                      "v2/payment-methods/payment-method--update-v1",
+                      "v2/payment-methods/payment-method--delete-v1",
+                      "v2/payment-methods/payment-method--confirm-intent-v1",
+                      "v2/payment-methods/payment-method--create-intent-v1",
+                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
+                      "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1",
+                      "v2/payment-methods/payment-methods--payment-methods-list-v1"
                     ]
                   },
                   {
                     "group": "Customers",
                     "pages": [
-                      "v1/customers/customers--create",
-                      "v1/customers/customers--retrieve",
-                      "v1/customers/customers--update",
-                      "v1/customers/customers--delete",
-                      "v1/customers/customers--list"
+                      "v2/customers/customers--create-v1",
+                      "v2/customers/customers--retrieve-v1",
+                      "v2/customers/customers--update-v1",
+                      "v2/customers/customers--delete-v1",
+                      "v2/customers/customers--list-v1"
+                    ]
+                  },
+                  {
+                    "group": "Payment Method Session",
+                    "pages": [
+                      "v2/payment-method-session/payment-method-session--create-v1",
+                      "v2/payment-method-session/payment-method-session--retrieve-v1",
+                      "v2/payment-method-session/payment-method-session--list-payment-methods-v1",
+                      "v2/payment-method-session/payment-method-session--update-a-saved-payment-method-v1",
+                      "v2/payment-method-session/payment-method-session--confirm-a-payment-method-session-v1",
+                      "v2/payment-method-session/payment-method-session--delete-a-saved-payment-method-v1"
                     ]
                   },
                   {
@@ -269,7 +309,6 @@
                       "v1/subscriptions/pause",
                       "v1/subscriptions/resume",
                       "v1/subscriptions/cancel"
-
                     ]
                   }
                 ]

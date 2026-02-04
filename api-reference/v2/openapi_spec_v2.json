@@ -1596,6 +1596,54 @@
         ]
       }
     },
+    "/v1/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Create",
+        "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Create a customer with name and email": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/customers/{id}": {
       "get": {
         "tags": [
@@ -1733,7 +1781,177 @@
         ]
       }
     },
+    "/v1/customers/{id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve",
+        "description": "Retrieves a customer's details.",
+        "operationId": "Retrieve a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Update",
+        "description": "Updates the customer's details in a customer object.",
+        "operationId": "Update a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer was Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Delete",
+        "description": "Delete a customer record.",
+        "operationId": "Delete a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer was Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/customers/list": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - List",
+        "description": "Lists all the customers for a particular merchant id.",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/customers/list": {
       "get": {
         "tags": [
           "Customers"
@@ -2688,7 +2906,87 @@
         ]
       }
     },
+    "/v1/payment-methods": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Create",
+        "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
+        "operationId": "Create Payment Method",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods/create-intent": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Create Intent",
+        "description": "Creates a payment method for customer with billing information and other metadata.",
+        "operationId": "Create Payment Method Intent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodIntentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method Intent Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-methods/create-intent": {
       "post": {
         "tags": [
           "Payment Methods"
@@ -2768,7 +3066,87 @@
         ]
       }
     },
+    "/v1/payment-methods/{id}/confirm-intent": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Confirm Intent",
+        "description": "Update a payment method with customer's payment method related information.",
+        "operationId": "Confirm Payment Method Intent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodIntentConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method Intent Confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods/{id}/update-saved-payment-method": {
+      "patch": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Update",
+        "description": "Update an existing payment method of a customer.",
+        "operationId": "Update Payment Method",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method Update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-methods/{id}/update-saved-payment-method": {
       "patch": {
         "tags": [
           "Payment Methods"
@@ -2888,7 +3266,126 @@
         ]
       }
     },
+    "/v1/payment-methods/{id}": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "operationId": "Retrieve Payment Method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Delete",
+        "description": "Deletes a payment method of a customer.",
+        "operationId": "Delete Payment Method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods/{payment_method_id}/check-network-token-status": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Check Network Token Status",
+        "description": "Check the status of a network token for a saved payment method",
+        "operationId": "Check Network Token Status",
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Network Token Status Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkTokenStatusCheckResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-methods/{payment_method_id}/check-network-token-status": {
       "get": {
         "tags": [
           "Payment Methods"
@@ -2970,6 +3467,47 @@
         ]
       }
     },
+    "/v1/customers/{id}/saved-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - List Customer Saved Payment Methods",
+        "description": "List the payment methods saved for a customer",
+        "operationId": "List Customer Saved Payment Methods",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods/token/{payment_method_temporary_token}/details": {
       "get": {
         "tags": [
@@ -3011,7 +3549,95 @@
         ]
       }
     },
+    "/v1/payment-methods/token/{payment_method_temporary_token}/details": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Get Payment Method Token Data",
+        "description": "Retrieve the Payment method id associated with a payment method token.",
+        "operationId": "Get Payment Method Token Data",
+        "parameters": [
+          {
+            "name": "payment_method_temporary_token",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Token Data Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodGetTokenDetailsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found | Payment method token either expired or does not exist"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
+      "post": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Create",
+        "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
+        "operationId": "Create a payment method session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionRequest"
+              },
+              "examples": {
+                "Create a payment method session with customer_id": {
+                  "value": {
+                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create the payment method session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3155,7 +3781,145 @@
         ]
       }
     },
+    "/v1/payment-method-sessions/{id}": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Retrieve",
+        "description": "Retrieve the payment method session",
+        "operationId": "Retrieve the payment method session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Delete a saved payment method",
+        "description": "Delete a saved payment method from the given payment method session.",
+        "operationId": "Delete a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionDeleteSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions/{id}/list-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - List Payment Methods",
+        "description": "List payment methods for the given payment method session.\nThis endpoint lists the enabled payment methods for the profile and the saved payment methods of the customer.",
+        "operationId": "List Payment methods for a Payment Method Session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3260,7 +4024,148 @@
         ]
       }
     },
+    "/v1/payment-method-sessions/{id}/update-saved-payment-method": {
+      "put": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Update a saved payment method",
+        "description": "Update a saved payment method from the given payment method session.",
+        "operationId": "Update a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionUpdateSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "456",
+                        "card_holder_name": "Narayan Bhat"
+                      }
+                    },
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Confirm a payment method session",
+        "description": "**Confirms a payment method session object with the payment method data**",
+        "operationId": "Confirm the payment method session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionConfirmRequest"
+              },
+              "examples": {
+                "Confirm the payment method session with card details": {
+                  "value": {
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "payment_method_subtype": "credit",
+                    "payment_method_type": "card"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
