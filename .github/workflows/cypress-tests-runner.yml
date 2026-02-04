@@ -640,28 +640,28 @@ jobs:
                   "name": "batch-1",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-1"
+                  "report_artifact_name": "cypress-test-results-batch-1",
                   "server_logs_artifact": "server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2}"'",
                   "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-2"
+                  "report_artifact_name": "cypress-test-results-batch-2",
                   "server_logs_artifact": "server-logs-batch-2"
                 },
                 {
                   "name": "batch-3",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3}"'",
                   "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-3"
+                  "report_artifact_name": "cypress-test-results-batch-3",
                   "server_logs_artifact": "server-logs-batch-3"
                 },
                 {
                   "name": "batch-4",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4}"'",
                   "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-4"
+                  "report_artifact_name": "cypress-test-results-batch-4",
                   "server_logs_artifact": "server-logs-batch-4"
                 }
               ]
