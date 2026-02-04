@@ -151,11 +151,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_delete_api,
         routes::payment_method::payment_method_delete_api_v1,
         routes::payment_method::network_token_status_check_api,
-        routes::payment_method::network_token_status_check_api_v1,
         routes::payment_method::list_customer_payment_method_api,
         routes::payment_method::list_customer_payment_method_api_v1,
         routes::payment_method::payment_method_get_token_details_api,
-        routes::payment_method::payment_method_get_token_details_api_v1,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,

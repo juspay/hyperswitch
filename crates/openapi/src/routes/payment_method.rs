@@ -348,7 +348,7 @@ pub async fn payment_method_retrieve_api() {}
     path = "/v1/payment-methods/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
-    ),
+      ),
     responses(
         (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method Not Found"),
@@ -460,25 +460,6 @@ pub async fn payment_method_delete_api_v1() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn network_token_status_check_api() {}
-/// Payment Method - Check Network Token Status
-///
-/// Check the status of a network token for a saved payment method
-#[utoipa::path(
-    get,
-    path = "/v1/payment-methods/{payment_method_id}/check-network-token-status",
-    params (
-        ("payment_method_id" = String, Path, description = "The unique identifier for the Payment Method"),
-    ),
-    responses(
-        (status = 200, description = "Network Token Status Retrieved", body = NetworkTokenStatusCheckResponse),
-        (status = 404, description = "Payment Method Not Found"),
-    ),
-    tag = "Payment Methods",
-    operation_id = "Check Network Token Status",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn network_token_status_check_api_v1() {}
 /// Payment Method - Get Payment Method Token Data
 ///
 /// Retrieve the Payment method id associated with a payment method token.
@@ -498,25 +479,6 @@ pub async fn network_token_status_check_api_v1() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn payment_method_get_token_details_api() {}
-/// Payment Method - Get Payment Method Token Data
-///
-/// Retrieve the Payment method id associated with a payment method token.
-#[utoipa::path(
-    get,
-    path = "/v1/payment-methods/token/{payment_method_temporary_token}/details",
-    params (
-        ("payment_method_temporary_token" = String, Path, description = "The unique identifier for the Payment Method Token"),
-    ),
-    responses(
-        (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),
-        (status = 404, description = "Payment Method Not Found | Payment method token either expired or does not exist"),
-    ),
-    tag = "Payment Methods",
-    operation_id = "Get Payment Method Token Data",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn payment_method_get_token_details_api_v1() {}
 /// Payment Method - List Customer Saved Payment Methods
 ///
 /// List the payment methods saved for a customer

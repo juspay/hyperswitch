@@ -3385,47 +3385,6 @@
         ]
       }
     },
-    "/v1/payment-methods/{payment_method_id}/check-network-token-status": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Check Network Token Status",
-        "description": "Check the status of a network token for a saved payment method",
-        "operationId": "Check Network Token Status",
-        "parameters": [
-          {
-            "name": "payment_method_id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Network Token Status Retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NetworkTokenStatusCheckResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Payment Method Not Found"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/v2/customers/{id}/saved-payment-methods": {
       "get": {
         "tags": [
@@ -3509,47 +3468,6 @@
       }
     },
     "/v2/payment-methods/token/{payment_method_temporary_token}/details": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Get Payment Method Token Data",
-        "description": "Retrieve the Payment method id associated with a payment method token.",
-        "operationId": "Get Payment Method Token Data",
-        "parameters": [
-          {
-            "name": "payment_method_temporary_token",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method Token",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment Method Token Data Retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodGetTokenDetailsResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Payment Method Not Found | Payment method token either expired or does not exist"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/v1/payment-methods/token/{payment_method_temporary_token}/details": {
       "get": {
         "tags": [
           "Payment Methods"
