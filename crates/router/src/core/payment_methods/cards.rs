@@ -607,11 +607,9 @@ impl PaymentMethodsController for PmCards<'_> {
     }
 
     #[cfg(feature = "v1")]
-    async fn add_bank_debit_to_locker(
+    async fn add_payment_method_to_locker(
         &self,
         req: api::PaymentMethodCreate,
-        bank_debit_data: api_models::payment_methods::BankDebitDetail,
-        key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
     ) -> errors::CustomResult<
         (
@@ -620,17 +618,47 @@ impl PaymentMethodsController for PmCards<'_> {
         ),
         errors::VaultError,
     > {
+        if let Some(card) = &req.card {
+            return self
+                .add_card_to_locker(req.clone(), card, customer_id, None)
+                .await;
+        }
+
+        if let Some(data) = &req.payment_method_data {
+            return self
+                .add_generic_payment_method_to_locker(req.clone(), data, customer_id)
+                .await;
+        }
+
+        Err(errors::VaultError::SavePaymentMethodFailed)
+            .attach_printable("No payment method data to save")
+    }
+
+    #[cfg(feature = "v1")]
+    async fn add_generic_payment_method_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        payment_method_data: &api_models::payment_methods::PaymentMethodCreateData,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::CustomResult<
+        (
+            api::PaymentMethodResponse,
+            Option<payment_methods::DataDuplicationCheck>,
+        ),
+        errors::VaultError,
+    > {
+        let key_store = self.provider.get_key_store();
         let key = key_store.key.get_inner().peek();
 
         let key_manager_state: KeyManagerState = self.state.into();
         let enc_data = async {
-            serde_json::to_value(bank_debit_data.to_owned())
+            serde_json::to_value(payment_method_data.to_owned())
                 .map_err(|err| {
-                    logger::error!("Error while encoding bank debit data: {err:?}");
+                    logger::error!("Error while encoding payment method data: {err:?}");
                     errors::VaultError::SavePaymentMethodFailed
                 })
                 .change_context(errors::VaultError::SavePaymentMethodFailed)
-                .attach_printable("Unable to encode bank debit data")
+                .attach_printable("Unable to encode payment method data")
                 .ok()
                 .map(|v| {
                     let secret: Secret<String> = Secret::new(v.to_string());
@@ -673,6 +701,7 @@ impl PaymentMethodsController for PmCards<'_> {
         );
         Ok((payment_method_resp, store_resp.duplication_check))
     }
+
     /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
     async fn add_card_to_locker(
         &self,
