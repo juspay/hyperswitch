@@ -8304,15 +8304,11 @@ pub async fn list_payments(
             .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
     //Will collect responses in same order async, leading to sorted responses
 
-    let api_initiator = platform
-        .get_initiator()
-        .and_then(domain::Initiator::to_api_initiator);
-
     //Converting Intent-Attempt array to Response if no error
     let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .into_iter()
-        .map(|(pi, pa)| ForeignFrom::foreign_from((pi, pa, api_initiator)))
+        .map(ForeignFrom::foreign_from)
         .collect();
 
     Ok(services::ApplicationResponse::Json(
@@ -8563,15 +8559,8 @@ pub async fn apply_filters_on_payments(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let api_initiator = platform
-                .get_initiator()
-                .and_then(domain::Initiator::to_api_initiator);
-            let data: Vec<api::PaymentsResponse> = list
-                .into_iter()
-                .map(|(payment_intent, payment_attempt)| {
-                    ForeignFrom::foreign_from((payment_intent, payment_attempt, api_initiator))
-                })
-                .collect();
+            let data: Vec<api::PaymentsResponse> =
+                list.into_iter().map(ForeignFrom::foreign_from).collect();
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(

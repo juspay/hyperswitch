@@ -550,9 +550,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 None => state
                                     .store
                                     .find_payment_method(
-                                        platform.get_processor().get_key_store(),
+                                        platform.get_provider().get_key_store(),
                                         payment_method_id,
-                                        platform.get_processor().get_account().storage_scheme,
+                                        platform.get_provider().get_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -632,9 +632,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    platform.get_processor().get_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     customer_id,
-                                    platform.get_processor().get_account().get_id(),
+                                    platform.get_provider().get_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -689,9 +689,9 @@ pub async fn get_token_pm_type_mandate_details(
                                     state
                                         .store
                                         .find_payment_method(
-                                            platform.get_processor().get_key_store(),
+                                            platform.get_provider().get_key_store(),
                                             &payment_method_id,
-                                            platform.get_processor().get_account().storage_scheme,
+                                            platform.get_provider().get_account().storage_scheme,
                                         )
                                         .await
                                         .to_not_found_response(
@@ -724,9 +724,9 @@ pub async fn get_token_pm_type_mandate_details(
                         state
                             .store
                             .find_payment_method(
-                                platform.get_processor().get_key_store(),
+                                platform.get_provider().get_key_store(),
                                 &payment_method_id,
-                                platform.get_processor().get_account().storage_scheme,
+                                platform.get_provider().get_account().storage_scheme,
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -4965,7 +4965,7 @@ impl AttemptType {
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
-    fn make_new_payment_attempt(
+    fn make_new_manual_retry_payment_attempt(
         payment_method_data: Option<&api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
@@ -5071,6 +5071,7 @@ impl AttemptType {
             debit_routing_savings: None,
             is_overcapture_enabled: None,
             error_details: None,
+            retry_type: Some(enums::RetryType::ManualRetry),
         }
     }
 
@@ -5104,7 +5105,7 @@ impl AttemptType {
             Self::New => {
                 let db = &*state.store;
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
-                let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
+                let new_payment_attempt_to_insert = Self::make_new_manual_retry_payment_attempt(
                     request
                         .payment_method_data
                         .as_ref()

@@ -117,6 +117,10 @@ impl MerchantConnectorAccount {
 
         Ok(Some(provider))
     }
+
+    pub fn should_construct_webhook_setup_capability(&self) -> bool {
+        matches!(self.connector_type, enums::ConnectorType::PaymentProcessor)
+    }
 }
 
 #[cfg(feature = "v2")]
