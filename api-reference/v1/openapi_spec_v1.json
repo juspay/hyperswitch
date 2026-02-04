@@ -34893,14 +34893,21 @@
       "RelayIncrementalAuthorizationRequestData": {
         "type": "object",
         "required": [
+          "total_amount",
           "additional_amount",
           "currency"
         ],
         "properties": {
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Original amount + additional amount of the transaction",
+            "example": 6540
+          },
           "additional_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The amount by which the payment needs to be incremented",
+            "description": "The amount by which the payment needs is incremented",
             "example": 6540
           },
           "currency": {
