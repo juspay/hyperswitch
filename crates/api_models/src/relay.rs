@@ -57,7 +57,10 @@ pub struct RelayCaptureRequestData {
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayIncrementalAuthorizationRequestData {
-    /// The amount by which the payment needs to be incremented
+    /// Original amount + additional amount of the transaction
+    #[schema(value_type = i64 , example = 6540)]
+    pub total_amount: MinorUnit,
+    /// The amount by which the payment needs is incremented
     #[schema(value_type = i64 , example = 6540)]
     pub additional_amount: MinorUnit,
     /// The currency in which the amount is being captured

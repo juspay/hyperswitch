@@ -353,7 +353,7 @@ pub async fn construct_relay_incremental_authorization_router_data(
         request:
             hyperswitch_domain_models::router_request_types::PaymentsIncrementalAuthorizationData {
                 total_amount: relay_incremental_authorization_data
-                    .additional_amount
+                    .total_amount
                     .get_amount_as_i64(),
                 additional_amount: relay_incremental_authorization_data
                     .additional_amount
