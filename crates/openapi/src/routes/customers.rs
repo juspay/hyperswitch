@@ -115,6 +115,13 @@ pub async fn customers_list() {}
 #[utoipa::path(
     post,
     path = "/v2/customers",
+    params (
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body  (
         content = CustomerRequest,
         examples  (( "Create a customer with name and email" =(
@@ -143,6 +150,13 @@ pub async fn customers_create() {}
 #[utoipa::path(
     post,
     path = "/v1/customers",
+    params (
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body  (
         content = CustomerRequest,
         examples  (( "Create a customer with name and email" =(
@@ -169,7 +183,14 @@ pub async fn customers_create_v1() {}
 #[utoipa::path(
     get,
     path = "/v2/customers/{id}",
-    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customer Retrieved", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
@@ -187,7 +208,14 @@ pub async fn customers_retrieve() {}
 #[utoipa::path(
     get,
     path = "/v1/customers/{id}",
-    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customer Retrieved", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
@@ -214,7 +242,14 @@ pub async fn customers_retrieve_v1() {}
         })
         )))
     ),
-    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customer was Updated", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
@@ -241,7 +276,14 @@ pub async fn customers_update() {}
         })
         )))
     ),
-    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customer was Updated", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
@@ -259,7 +301,14 @@ pub async fn customers_update_v1() {}
 #[utoipa::path(
     delete,
     path = "/v2/customers/{id}",
-    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
@@ -277,7 +326,14 @@ pub async fn customers_delete() {}
 #[utoipa::path(
     delete,
     path = "/v1/customers/{id}",
-    params (("id" = String, Path, description = "The unique identifier for the Customer")),
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
@@ -294,6 +350,13 @@ pub async fn customers_delete_v1() {}
 #[utoipa::path(
     get,
     path = "/v2/customers/list",
+    params (
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),
@@ -311,6 +374,13 @@ pub async fn customers_list() {}
 #[utoipa::path(
     get,
     path = "/v1/customers/list",
+    params (
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),

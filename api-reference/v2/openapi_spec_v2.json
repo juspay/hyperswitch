@@ -1556,6 +1556,18 @@
         "summary": "Customers - Create",
         "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1604,6 +1616,18 @@
         "summary": "Customers - Create",
         "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1661,6 +1685,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -1700,6 +1734,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -1757,6 +1801,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -1798,6 +1852,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -1837,6 +1901,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -1894,6 +1968,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -1926,6 +2010,18 @@
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Customers retrieved",
@@ -1959,6 +2055,18 @@
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Customers retrieved",
@@ -2874,6 +2982,18 @@
         "summary": "Payment Method - Create",
         "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
         "operationId": "Create Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2914,6 +3034,18 @@
         "summary": "Payment Method - Create",
         "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
         "operationId": "Create Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2954,6 +3086,27 @@
         "summary": "Payment Method - Create Intent",
         "description": "Creates a payment method for customer with billing information and other metadata.",
         "operationId": "Create Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2994,6 +3147,27 @@
         "summary": "Payment Method - Create Intent",
         "description": "Creates a payment method for customer with billing information and other metadata.",
         "operationId": "Create Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3034,6 +3208,27 @@
         "summary": "Payment Method - Confirm Intent",
         "description": "Update a payment method with customer's payment method related information.",
         "operationId": "Confirm Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3074,6 +3269,27 @@
         "summary": "Payment Method - Confirm Intent",
         "description": "Update a payment method with customer's payment method related information.",
         "operationId": "Confirm Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3114,6 +3330,18 @@
         "summary": "Payment Method - Update",
         "description": "Update an existing payment method of a customer.",
         "operationId": "Update Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3154,6 +3382,18 @@
         "summary": "Payment Method - Update",
         "description": "Update an existing payment method of a customer.",
         "operationId": "Update Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3203,6 +3443,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3242,6 +3492,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3281,6 +3541,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3320,6 +3590,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3402,6 +3682,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3443,6 +3733,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3484,6 +3784,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3516,6 +3826,18 @@
         "summary": "Payment Method Session - Create",
         "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
         "operationId": "Create a payment method session",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3563,6 +3885,18 @@
         "summary": "Payment Method Session - Create",
         "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
         "operationId": "Create a payment method session",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3619,6 +3953,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3638,7 +3982,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "api_key": []
           }
         ]
       },
@@ -3658,6 +4002,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -3694,7 +4048,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3716,6 +4070,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3735,7 +4099,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "api_key": []
           }
         ]
       },
@@ -3755,6 +4119,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -3791,7 +4165,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3813,6 +4187,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3832,7 +4216,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3854,6 +4238,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3873,7 +4267,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3895,6 +4289,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -3937,7 +4341,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3959,6 +4363,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -4001,7 +4415,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -4078,7 +4492,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -4155,7 +4569,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }

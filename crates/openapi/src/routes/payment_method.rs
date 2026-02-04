@@ -207,6 +207,14 @@ pub async fn default_payment_method_set_api() {}
 #[utoipa::path(
     post,
     path = "/v2/payment-methods/create-intent",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodIntentCreate,
     // TODO: Add examples
@@ -227,6 +235,14 @@ pub async fn create_payment_method_intent_api() {}
 #[utoipa::path(
     post,
     path = "/v1/payment-methods/create-intent",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodIntentCreate,
     // TODO: Add examples
@@ -247,6 +263,14 @@ pub async fn create_payment_method_intent_api_v1() {}
 #[utoipa::path(
     post,
     path = "/v2/payment-methods/{id}/confirm-intent",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodIntentConfirm,
     // TODO: Add examples
@@ -267,6 +291,14 @@ pub async fn confirm_payment_method_intent_api() {}
 #[utoipa::path(
     post,
     path = "/v1/payment-methods/{id}/confirm-intent",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodIntentConfirm,
     // TODO: Add examples
@@ -287,6 +319,13 @@ pub async fn confirm_payment_method_intent_api_v1() {}
 #[utoipa::path(
     post,
     path = "/v2/payment-methods",
+    params(
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodCreate,
     // TODO: Add examples
@@ -308,6 +347,13 @@ pub async fn create_payment_method_api() {}
 #[utoipa::path(
     post,
     path = "/v1/payment-methods",
+    params(
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodCreate,
     // TODO: Add examples
@@ -331,6 +377,11 @@ pub async fn create_payment_method_api_v1() {}
     path = "/v2/payment-methods/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
@@ -348,6 +399,11 @@ pub async fn payment_method_retrieve_api() {}
     path = "/v1/payment-methods/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
       ),
     responses(
         (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
@@ -366,6 +422,13 @@ pub async fn payment_method_retrieve_api_v1() {}
 #[utoipa::path(
     patch,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
+    params(
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodUpdate,
     // TODO: Add examples
@@ -387,6 +450,13 @@ pub async fn payment_method_update_api() {}
 #[utoipa::path(
     patch,
     path = "/v1/payment-methods/{id}/update-saved-payment-method",
+    params(
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodUpdate,
     // TODO: Add examples
@@ -409,6 +479,11 @@ pub async fn payment_method_update_api_v1() {}
     path = "/v2/payment-methods/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "Payment Method Retrieved", body = PaymentMethodDeleteResponse),
@@ -429,6 +504,11 @@ pub async fn payment_method_delete_api() {}
     path = "/v1/payment-methods/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "Payment Method Retrieved", body = PaymentMethodDeleteResponse),
@@ -468,6 +548,11 @@ pub async fn network_token_status_check_api() {}
     path = "/v2/payment-methods/token/{payment_method_temporary_token}/details",
     params (
         ("payment_method_temporary_token" = String, Path, description = "The unique identifier for the Payment Method Token"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),
@@ -487,6 +572,11 @@ pub async fn payment_method_get_token_details_api() {}
     path = "/v2/customers/{id}/saved-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
@@ -507,6 +597,11 @@ pub async fn list_customer_payment_method_api() {}
     path = "/v1/customers/{id}/saved-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the customer"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
@@ -527,6 +622,13 @@ pub async fn list_customer_payment_method_api_v1() {}
 #[utoipa::path(
     post,
     path = "/v2/payment-method-sessions",
+    params (
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
@@ -554,6 +656,13 @@ pub fn payment_method_session_create() {}
 #[utoipa::path(
     post,
     path = "/v1/payment-method-sessions",
+    params (
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
     request_body(
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
@@ -581,6 +690,11 @@ pub fn payment_method_session_create_v1() {}
     path = "/v2/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
@@ -588,7 +702,7 @@ pub fn payment_method_session_create_v1() {}
     ),
     tag = "Payment Method Session",
     operation_id = "Retrieve the payment method session",
-    security(("ephemeral_key" = []))
+    security(("api_key" = []))
 )]
 pub fn payment_method_session_retrieve() {}
 
@@ -601,6 +715,11 @@ pub fn payment_method_session_retrieve() {}
     path = "/v1/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
@@ -608,7 +727,7 @@ pub fn payment_method_session_retrieve() {}
     ),
     tag = "Payment Method Session",
     operation_id = "Retrieve the payment method session",
-    security(("ephemeral_key" = []))
+    security(("api_key" = []))
 )]
 pub fn payment_method_session_retrieve_v1() {}
 
@@ -622,6 +741,11 @@ pub fn payment_method_session_retrieve_v1() {}
     path = "/v2/payment-method-sessions/{id}/list-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodListResponseForSession),
@@ -629,7 +753,7 @@ pub fn payment_method_session_retrieve_v1() {}
     ),
     tag = "Payment Method Session",
     operation_id = "List Payment methods for a Payment Method Session",
-    security(("ephemeral_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_list_payment_methods() {}
 
@@ -643,6 +767,11 @@ pub fn payment_method_session_list_payment_methods() {}
     path = "/v1/payment-method-sessions/{id}/list-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     responses(
         (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodListResponseForSession),
@@ -650,7 +779,7 @@ pub fn payment_method_session_list_payment_methods() {}
     ),
     tag = "Payment Method Session",
     operation_id = "List Payment methods for a Payment Method Session",
-    security(("ephemeral_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_list_payment_methods_v1() {}
 
@@ -663,6 +792,11 @@ pub fn payment_method_session_list_payment_methods_v1() {}
     path = "/v2/payment-method-sessions/{id}/update-saved-payment-method",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     request_body(
         content = PaymentMethodSessionUpdateSavedPaymentMethod,
@@ -685,7 +819,7 @@ pub fn payment_method_session_list_payment_methods_v1() {}
     ),
     tag = "Payment Method Session",
     operation_id = "Update a saved payment method",
-    security(("ephemeral_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method() {}
 
@@ -698,6 +832,11 @@ pub fn payment_method_session_update_saved_payment_method() {}
     path = "/v1/payment-method-sessions/{id}/update-saved-payment-method",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     request_body(
         content = PaymentMethodSessionUpdateSavedPaymentMethod,
@@ -720,7 +859,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
     ),
     tag = "Payment Method Session",
     operation_id = "Update a saved payment method",
-    security(("ephemeral_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method_v1() {}
 
@@ -733,6 +872,11 @@ pub fn payment_method_session_update_saved_payment_method_v1() {}
     path = "/v2/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     request_body(
         content = PaymentMethodSessionDeleteSavedPaymentMethod,
@@ -749,7 +893,7 @@ pub fn payment_method_session_update_saved_payment_method_v1() {}
     ),
     tag = "Payment Method Session",
     operation_id = "Delete a saved payment method",
-    security(("ephemeral_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_delete_saved_payment_method() {}
 
@@ -762,6 +906,11 @@ pub fn payment_method_session_delete_saved_payment_method() {}
     path = "/v1/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method session",
+            example = "pro_abcdefghijklmnop"
+        )
     ),
     request_body(
         content = PaymentMethodSessionDeleteSavedPaymentMethod,
@@ -778,7 +927,7 @@ pub fn payment_method_session_delete_saved_payment_method() {}
     ),
     tag = "Payment Method Session",
     operation_id = "Delete a saved payment method",
-    security(("ephemeral_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_delete_saved_payment_method_v1() {}
 /// Card network tokenization - Create using raw card data
@@ -860,7 +1009,7 @@ pub async fn tokenize_card_using_pm_api() {}
   ),
   tag = "Payment Method Session",
   operation_id = "Confirm the payment method session",
-  security(("publishable_key" = [])),
+  security(("publishable_key__client_secret" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payment_method_session_confirm() {}
@@ -905,7 +1054,7 @@ pub fn payment_method_session_confirm() {}
   ),
   tag = "Payment Method Session",
   operation_id = "Confirm the payment method session",
-  security(("publishable_key" = [])),
+  security(("publishable_key__client_secret" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payment_method_session_confirm_v1() {}

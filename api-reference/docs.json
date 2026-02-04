@@ -37,35 +37,6 @@
                   "v1/payments/setup--instructions",
                   "v1/payments/payment--flows",
                   {
-                    "group": "Deprecated APIs",
-                    "pages": [
-                      {
-                        "group": "Customers",
-                        "pages": [
-                          "v1/customers/customers--create",
-                          "v1/customers/customers--retrieve",
-                          "v1/customers/customers--update",
-                          "v1/customers/customers--delete",
-                          "v1/customers/customers--list"
-                        ]
-                      },
-                      {
-                        "group": "Payment Methods",
-                        "pages": [
-                          "v1/payment-methods/paymentmethods--create",
-                          "v1/payment-methods/payment-method--retrieve",
-                          "v1/payment-methods/payment-method--update",
-                          "v1/payment-methods/payment-method--delete",
-                          "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
-                          "v1/payment-methods/list-payment-methods-for-a-merchant",
-                          "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-                          "v1/payment-methods/list-payment-methods-for-a-customer",
-                          "v1/customer-set-default-payment-method/customers--set-default-payment-method"
-                        ]
-                      }
-                    ]
-                  },
-                  {
                     "group": "Payments",
                     "pages": [
                       "v1/payments/payments--create",
@@ -163,6 +134,35 @@
                       "v1/payouts/payouts--list",
                       "v1/payouts/payouts--list-filters",
                       "v1/payouts/payouts--filter"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deprecated APIs",
+                "pages": [
+                  {
+                    "group": "Customers",
+                    "pages": [
+                      "v1/customers/customers--create",
+                      "v1/customers/customers--retrieve",
+                      "v1/customers/customers--update",
+                      "v1/customers/customers--delete",
+                      "v1/customers/customers--list"
+                    ]
+                  },
+                  {
+                    "group": "Payment Methods",
+                    "pages": [
+                      "v1/payment-methods/paymentmethods--create",
+                      "v1/payment-methods/payment-method--retrieve",
+                      "v1/payment-methods/payment-method--update",
+                      "v1/payment-methods/payment-method--delete",
+                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
+                      "v1/payment-methods/list-payment-methods-for-a-merchant",
+                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+                      "v1/payment-methods/list-payment-methods-for-a-customer",
+                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
                     ]
                   }
                 ]
