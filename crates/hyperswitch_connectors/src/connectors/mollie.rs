@@ -1027,6 +1027,16 @@ lazy_static! {
                 specific_features: None,
             },
         );
+         mollie_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Klarna,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
 
         mollie_supported_payment_methods
     };
@@ -1071,3 +1081,5 @@ impl ConnectorSpecifications for Mollie {
             )
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Mollie {}

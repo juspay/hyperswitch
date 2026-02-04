@@ -1247,3 +1247,5 @@ impl ConnectorSpecifications for Globalpay {
         Some(&GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Globalpay {}

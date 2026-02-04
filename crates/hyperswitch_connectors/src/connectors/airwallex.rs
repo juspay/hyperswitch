@@ -1443,3 +1443,5 @@ impl ConnectorSpecifications for Airwallex {
             )
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Airwallex {}

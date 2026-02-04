@@ -612,3 +612,5 @@ impl ConnectorSpecifications for Gpayments {
         None
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Gpayments {}

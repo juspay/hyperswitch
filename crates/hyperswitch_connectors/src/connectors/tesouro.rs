@@ -1032,3 +1032,5 @@ impl ConnectorSpecifications for Tesouro {
         }
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Tesouro {}

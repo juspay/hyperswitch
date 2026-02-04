@@ -645,3 +645,5 @@ impl ConnectorSpecifications for Phonepe {
         Some(&*PHONEPE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Phonepe {}

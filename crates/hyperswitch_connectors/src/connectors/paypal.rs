@@ -2594,3 +2594,5 @@ impl ConnectorSpecifications for Paypal {
         Some(&PAYPAL_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Paypal {}

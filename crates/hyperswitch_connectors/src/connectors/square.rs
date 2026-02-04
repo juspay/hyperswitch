@@ -1005,3 +1005,5 @@ impl ConnectorSpecifications for Square {
         true
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Square {}

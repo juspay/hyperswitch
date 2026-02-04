@@ -969,3 +969,5 @@ impl ConnectorSpecifications for Facilitapay {
         true
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Facilitapay {}

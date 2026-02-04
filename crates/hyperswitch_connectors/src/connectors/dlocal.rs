@@ -816,3 +816,5 @@ impl ConnectorSpecifications for Dlocal {
         Some(&*DLOCAL_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Dlocal {}

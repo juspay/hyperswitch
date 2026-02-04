@@ -980,3 +980,5 @@ impl ConnectorSpecifications for Silverflow {
         Some(&SILVERFLOW_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Silverflow {}

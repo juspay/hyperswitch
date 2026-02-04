@@ -1575,25 +1575,25 @@ impl ConnectorSpecifications for Santander {
 }
 
 impl ConnectorAccessTokenSuffix for Santander {
-    fn get_access_token_key<F, Req, Res>(
+    fn get_access_token_key(
         &self,
-        router_data: &RouterData<F, Req, Res>,
+        router_data: &dyn api::AccessTokenData,
         merchant_connector_id_or_connector_name: String,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let key_suffix = router_data
-            .payment_method_type
-            .as_ref()
-            .map(|pmt| pmt.to_string());
+        let pmt = router_data.get_payment_method_type();
+        let merchant_id = router_data.get_merchant_id();
+
+        let key_suffix = pmt.map(|p| p.to_string());
 
         match key_suffix {
             Some(key) => Ok(format!(
                 "access_token_{}_{}_{}",
-                router_data.merchant_id.get_string_repr(),
+                merchant_id.get_string_repr(),
                 merchant_connector_id_or_connector_name,
                 key
             )),
             None => Ok(common_utils::access_token::get_default_access_token_key(
-                &router_data.merchant_id,
+                &merchant_id,
                 merchant_connector_id_or_connector_name,
             )),
         }

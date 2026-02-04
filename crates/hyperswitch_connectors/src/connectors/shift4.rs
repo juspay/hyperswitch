@@ -1110,3 +1110,5 @@ impl ConnectorSpecifications for Shift4 {
         Some(&SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Shift4 {}

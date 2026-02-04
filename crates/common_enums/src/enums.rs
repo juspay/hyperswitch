@@ -243,6 +243,39 @@ impl AttemptStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
+
+    pub fn should_update_payment_method(self) -> bool {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired => false,
+        }
+    }
 }
 
 #[derive(

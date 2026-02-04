@@ -127,3 +127,5 @@ impl webhooks::IncomingWebhook for CtpMastercard {
 }
 
 impl ConnectorSpecifications for CtpMastercard {}
+
+impl api::ConnectorAccessTokenSuffix for CtpMastercard {}

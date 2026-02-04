@@ -904,3 +904,5 @@ impl ConnectorSpecifications for Payu {
         Some(&PAYU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Payu {}

@@ -1205,3 +1205,5 @@ impl ConnectorRedirectResponse for Xendit {
         }
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Xendit {}

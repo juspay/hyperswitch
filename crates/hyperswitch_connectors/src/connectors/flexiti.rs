@@ -769,3 +769,5 @@ impl ConnectorSpecifications for Flexiti {
         Some(&FLEXITI_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Flexiti {}

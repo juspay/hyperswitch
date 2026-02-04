@@ -549,9 +549,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
-                                    platform.get_processor().get_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     payment_method_id,
-                                    platform.get_processor().get_account().storage_scheme,
+                                    platform.get_provider().get_account().storage_scheme,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -630,9 +630,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    platform.get_processor().get_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     customer_id,
-                                    platform.get_processor().get_account().get_id(),
+                                    platform.get_provider().get_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -685,9 +685,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
-                                        platform.get_processor().get_key_store(),
+                                        platform.get_provider().get_key_store(),
                                         &payment_method_id,
-                                        platform.get_processor().get_account().storage_scheme,
+                                        platform.get_provider().get_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -715,9 +715,9 @@ pub async fn get_token_pm_type_mandate_details(
                     state
                         .store
                         .find_payment_method(
-                            platform.get_processor().get_key_store(),
+                            platform.get_provider().get_key_store(),
                             &payment_method_id,
-                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_provider().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)

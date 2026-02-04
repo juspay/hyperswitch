@@ -1341,3 +1341,5 @@ impl ConnectorSpecifications for Paysafe {
             )
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Paysafe {}

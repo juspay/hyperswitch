@@ -1664,3 +1664,5 @@ impl ConnectorSpecifications for Checkout {
         Some(&CHECKOUT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Checkout {}

@@ -1070,3 +1070,5 @@ impl ConnectorSpecifications for Gigadat {
         Some(&*GIGADAT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Gigadat {}

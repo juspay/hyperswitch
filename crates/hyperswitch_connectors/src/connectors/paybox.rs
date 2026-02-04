@@ -780,3 +780,5 @@ impl ConnectorSpecifications for Paybox {
         Some(&PAYBOX_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Paybox {}

@@ -783,3 +783,5 @@ impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
 }
 
 impl ConnectorSpecifications for UnifiedAuthenticationService {}
+
+impl api::ConnectorAccessTokenSuffix for UnifiedAuthenticationService {}

@@ -840,3 +840,5 @@ impl ConnectorSpecifications for Itaubank {
         Some(&ITAUBANK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Itaubank {}

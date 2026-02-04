@@ -495,3 +495,5 @@ impl ConnectorSpecifications for Zsl {
         Some(&*ZSL_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Zsl {}

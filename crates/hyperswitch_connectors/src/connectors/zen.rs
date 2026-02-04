@@ -887,3 +887,5 @@ impl ConnectorSpecifications for Zen {
         Some(&ZEN_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Zen {}

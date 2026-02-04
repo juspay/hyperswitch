@@ -1509,3 +1509,5 @@ impl ConnectorSpecifications for Bluesnap {
         Some(&BLUESNAP_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Bluesnap {}

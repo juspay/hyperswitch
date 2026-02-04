@@ -456,3 +456,5 @@ impl ConnectorSpecifications for Payone {
         None
     }
 }
+
+impl hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for Payone {}

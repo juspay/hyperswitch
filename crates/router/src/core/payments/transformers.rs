@@ -10,7 +10,7 @@ use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
-use common_enums::{Currency, RequestIncrementalAuthorization};
+use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -37,7 +37,9 @@ use diesel_models::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
+use hyperswitch_domain_models::{
+    payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types, RouterDataV2},
@@ -3935,6 +3937,35 @@ where
             .map(api_payments::PaymentMethodTokenizationDetails::foreign_try_from)
             .transpose()?;
 
+        // Construct SDK authorization for client SDK
+        let sdk_auth_data = SdkAuthorization {
+            profile_id: payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")?,
+            publishable_key: processor.get_account().publishable_key.clone(),
+            platform_publishable_key: initiator.and_then(|init| match init {
+                domain::Initiator::Api {
+                    merchant_account_type,
+                    publishable_key,
+                    ..
+                } => match merchant_account_type {
+                    MerchantAccountType::Platform => Some(publishable_key.clone()),
+                    MerchantAccountType::Standard | MerchantAccountType::Connected => None,
+                },
+                domain::Initiator::Admin
+                | domain::Initiator::Jwt { .. }
+                | domain::Initiator::EmbeddedToken { .. } => None,
+            }),
+            client_secret: payment_intent.client_secret.clone(),
+            customer_id: payment_intent.customer_id.clone(),
+        };
+
+        let sdk_authorization = sdk_auth_data
+            .encode()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode SDK authorization")?;
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3945,6 +3976,7 @@ where
             amount_received: payment_intent.amount_captured,
             processor_merchant_id: processor.get_account().get_id().clone(),
             initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
+            sdk_authorization: Some(sdk_authorization),
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
@@ -4234,20 +4266,8 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
-impl
-    ForeignFrom<(
-        storage::PaymentIntent,
-        storage::PaymentAttempt,
-        Option<api_models::platform::Initiator>,
-    )> for api::PaymentsResponse
-{
-    fn foreign_from(
-        (pi, pa, api_initiator): (
-            storage::PaymentIntent,
-            storage::PaymentAttempt,
-            Option<api_models::platform::Initiator>,
-        ),
-    ) -> Self {
+impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+    fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
             payment_id: pi.payment_id,
@@ -4325,7 +4345,8 @@ impl
             net_amount: pa.net_amount.get_total_amount(),
             amount_received: None,
             processor_merchant_id: pi.processor_merchant_id,
-            initiator: api_initiator,
+            initiator: None,
+            sdk_authorization: None,
             refunds: None,
             disputes: None,
             attempts: None,

@@ -167,6 +167,7 @@ impl ConnectorValidation for Nmi {
         let mandate_supported_pmd = std::collections::HashSet::from([
             utils::PaymentMethodDataType::Card,
             utils::PaymentMethodDataType::ApplePay,
+            utils::PaymentMethodDataType::GooglePay,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -1162,7 +1163,7 @@ static NMI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -1219,3 +1220,5 @@ impl ConnectorSpecifications for Nmi {
         Some(&NMI_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Nmi {}

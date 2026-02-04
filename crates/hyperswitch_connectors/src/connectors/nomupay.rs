@@ -793,3 +793,5 @@ impl ConnectorSpecifications for Nomupay {
         None
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Nomupay {}

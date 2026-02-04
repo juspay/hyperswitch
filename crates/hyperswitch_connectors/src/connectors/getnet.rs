@@ -885,3 +885,5 @@ impl ConnectorSpecifications for Getnet {
         Some(&GETNET_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Getnet {}
