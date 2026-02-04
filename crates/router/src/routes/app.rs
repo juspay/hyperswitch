@@ -1739,7 +1739,11 @@ pub struct PaymentMethodSession;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-method-sessions").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-method-sessions",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         route = route.service(
             web::resource("")
                 .route(web::post().to(payment_methods::payment_methods_session_create)),

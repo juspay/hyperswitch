@@ -3,6 +3,8 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
 use common_enums::CardNetwork;
+#[cfg(feature = "v1")]
+use common_utils::request::Headers;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -13,7 +15,17 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
+#[cfg(feature = "v1")]
+use masking::Mask;
+use masking::{ExposeInterface, PeekInterface};
+#[cfg(feature = "v1")]
+use payment_methods::client::{
+    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethodV1Request,
+};
 use router_env::RequestId;
+#[cfg(feature = "v1")]
+use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,7 +35,7 @@ use crate::{
         payment_methods::cards::call_vault_service,
     },
     headers,
-    pii::{prelude::*, Secret},
+    pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, domain},
@@ -1113,4 +1125,57 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             token: token.clone().token,
         }
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn call_modular_payment_method_update(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method_id: &str,
+    payload: UpdatePaymentMethodV1Payload,
+) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError> {
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into(),
+    ));
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        state
+            .conf
+            .internal_merchant_id_profile_id_auth
+            .internal_api_key
+            .clone()
+            .expose()
+            .to_string()
+            .into_masked(),
+    ));
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+    let client = PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    UpdatePaymentMethod::call(
+        state,
+        &client,
+        UpdatePaymentMethodV1Request {
+            payment_method_id: payment_method_id.to_string(),
+            payload,
+            modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        },
+    )
+    .await
+    .map_err(|err| {
+        logger::error!(error=?err, "modular payment method update failed");
+        ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed
+    })?;
+    Ok(())
 }

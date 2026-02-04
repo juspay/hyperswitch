@@ -357,7 +357,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             // If found, send back CustomerDetails from DB
             |optional_customer| {
                 Ok(optional_customer.map(|customer| api::CustomerDetails {
-                    id: customer.customer_id.clone(),
+                    id: Some(customer.customer_id.clone()),
                     name: customer.name.clone().map(|name| name.into_inner()),
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -457,7 +457,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         })?;
 
         Ok(api::CustomerDetails {
-            id: new_customer_id,
+            id: Some(new_customer_id),
             name: self.customer.name.clone(),
             email: self.customer.email.clone(),
             phone: self.customer.phone.clone(),
