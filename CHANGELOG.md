@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix5
+
+### Bug Fixes
+
+- Add `client_secret` validation in session and eligibility authentication apis ([#11144](https://github.com/juspay/hyperswitch/pull/11144)) ([`52210cd`](https://github.com/juspay/hyperswitch/commit/52210cd9ffc86540f4b0a0f82f3da051a927c5b5))
+
+**Full Changelog:** [`2026.01.28.1-hotfix4...2026.01.28.1-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1-hotfix4...2026.01.28.1-hotfix5)
+
+- - -
+
 ## 2026.01.28.1-hotfix4
 
 ### Features
