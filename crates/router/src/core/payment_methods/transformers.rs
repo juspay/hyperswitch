@@ -15,11 +15,9 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
-#[cfg(feature = "v2")]
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "v1")]
-use masking::Maskable;
-use masking::PeekInterface;
+use masking::Mask;
 #[cfg(feature = "v1")]
 use payment_methods::client::{
     PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
@@ -1148,14 +1146,14 @@ pub async fn call_modular_payment_method_update(
     ));
     parent_headers.insert((
         headers::X_INTERNAL_API_KEY.to_string(),
-        Maskable::Normal(
-            state
-                .conf
-                .internal_merchant_id_profile_id_auth
-                .internal_api_key
-                .peek()
-                .to_string(),
-        ),
+        state
+            .conf
+            .internal_merchant_id_profile_id_auth
+            .internal_api_key
+            .clone()
+            .expose()
+            .to_string()
+            .into_masked(),
     ));
     let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
         .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
