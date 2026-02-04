@@ -616,6 +616,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 created_by: None,
                 last_modified_by: None,
                 customer_details: None,
+                locker_fingerprint_id: None,
             },
             provider.get_account().storage_scheme,
         )

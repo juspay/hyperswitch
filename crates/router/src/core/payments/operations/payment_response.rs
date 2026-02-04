@@ -637,18 +637,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             )
                             .await;
 
-                        #[cfg(feature = "v2")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                &(&state).into(),
-                                &key_store.clone(),
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                            )
-                            .await;
-
                         if let Err(err) = respond {
                             logger::error!("Error updating payment attempt: {:?}", err);
                         };
