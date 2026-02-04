@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Instant};
+use std::{borrow::Cow, str::FromStr, time::Instant};
 
 use api_models::admin;
 #[cfg(feature = "v2")]
@@ -15,6 +15,7 @@ use common_utils::{
     ext_traits::ValueExt,
     id_type,
     request::{Method, RequestBuilder, RequestContent},
+    ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -1343,6 +1344,17 @@ pub fn build_unified_connector_service_auth_metadata(
     }
 }
 
+pub fn parse_merchant_reference_id(id: &str) -> Option<id_type::PaymentReferenceId> {
+    id_type::PaymentReferenceId::from_str(id)
+        .inspect_err(|err| {
+            logger::warn!(
+                error = ?err,
+                "Invalid Merchant ReferenceId found"
+            )
+        })
+        .ok()
+}
+
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1814,6 +1826,7 @@ pub async fn call_unified_connector_service_for_webhook(
         ))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
+        .resource_id(None)
         .build();
 
     // Make UCS call - client availability already verified
@@ -2265,11 +2278,28 @@ pub async fn call_unified_connector_service_for_refund_execute(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
     let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = router_data
+        .refund_id
+        .as_ref()
+        .and_then(|refund_id| {
+            id_type::RefundReferenceId::try_from(Cow::Owned(refund_id.to_string()))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid RefundId for UCS resource id"),
+                )
+                .ok()
+        })
+        .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(None);
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id);
 
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -2340,12 +2370,29 @@ pub async fn call_unified_connector_service_for_refund_sync(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
     let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = router_data
+        .refund_id
+        .as_ref()
+        .and_then(|refund_id| {
+            id_type::RefundReferenceId::try_from(Cow::Owned(refund_id.to_string()))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid RefundId for UCS resource id"),
+                )
+                .ok()
+        })
+        .map(ucs_types::UcsResourceId::Refund);
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(None);
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id);
 
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
