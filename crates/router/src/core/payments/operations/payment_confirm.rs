@@ -843,16 +843,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         //setting vault operation to existing vault data if raw payment method data is present in pm_info
-        let vault_operation = payment_method_with_raw_data.and_then(|pm| {
-            match pm.raw_payment_method_data {
-                Some(domain::PaymentMethodData::Card(card) ) => {
-                        Some(domain_payments::VaultOperation::ExistingVaultData(
-                            domain_payments::VaultData::Card(card),
-                        ))
-                },
+        let vault_operation =
+            payment_method_with_raw_data.and_then(|pm| match pm.raw_payment_method_data {
+                Some(domain::PaymentMethodData::Card(card)) => {
+                    Some(domain_payments::VaultOperation::ExistingVaultData(
+                        domain_payments::VaultData::Card(card),
+                    ))
+                }
                 _ => None,
-            }
-        });
+            });
 
         //set paymeny_attempt.pm_id
 
@@ -1079,7 +1078,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         field_name: "payment_method_data",
                     })?;
 
-                let pm_info = pm_transformers::create_payment_method_in_modular_service(
+                match pm_transformers::create_payment_method_in_modular_service(
                     state,
                     platform.get_provider().get_account().get_id(),
                     business_profile.get_id(),
@@ -1096,11 +1095,24 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone()
                         .get_required_value("customer_id")?,
                 )
-                .await?; // shouldnt throw error
-                logger::info!("Payment method created in PM Modular service");
-                Some(pm_info)
+                .await{
+                    Ok(pm_info) => {
+                        logger::info!("Payment method created in PM Modular service successfully");
+                        Some(pm_info)
+                    },
+                    Err(err) => {
+                        logger::error!(
+                            "Error creating payment method in PM Modular service: {:?}",
+                            err
+                        );
+                        None
+                    }
+                }
             }
-            _ => None, //logger error since pmd is not supported for create payment method in confirm
+            _ => {
+                logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
+                None
+            }, //logger error since pmd is not supported for create payment method in confirm
         };
         //set payment_data.payment_method_info
         payment_data.payment_method_info = payment_method_info;
