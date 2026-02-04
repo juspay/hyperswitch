@@ -31,7 +31,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -46,8 +46,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -64,11 +63,11 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = self.payment_intent.customer_id.clone();
         let currency = self.payment_attempt.clone().currency;
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: platform.get_processor().get_account().get_id().clone(),
+            merchant_id: processor.get_account().get_id().clone(),
             tenant_id: state.tenant.tenant_id.clone(),
             customer_id,
             connector: connector_id.to_string(),

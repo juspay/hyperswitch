@@ -56,6 +56,7 @@ const payment_method_data_3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -730,6 +731,14 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "orderId",
+      // Type of payment reference ID
+      type: "number",
     },
   },
 };

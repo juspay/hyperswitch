@@ -2021,6 +2021,10 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     #[smithy(value_type = "Option<String>")]
     pub client_version: Option<String>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2332,6 +2336,7 @@ pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+    CardWithLimitedData, // indicates the recurring transaction is done by card data only
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
@@ -2389,6 +2394,7 @@ impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }
@@ -4041,6 +4047,8 @@ pub struct AdditionalCardInfo {
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
     pub signature_network: Option<api_enums::CardNetwork>,
+    /// Unique authorisation code generated for the payment.
+    pub auth_code: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5657,8 +5665,10 @@ pub struct ApplepayPaymentMethod {
     #[schema(value_type = Option<String>, example = "12")]
     pub card_exp_month: Option<Secret<String>>,
     /// The card's expiry year
-    #[schema(value_type = Option<String>, example = "25")]
+    #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
+    /// Unique authorisation code generated for the payment
+    pub auth_code: Option<String>,
 }
 
 #[derive(
@@ -5694,6 +5704,8 @@ pub struct CardResponse {
     pub payment_checks: Option<serde_json::Value>,
     #[smithy(value_type = "Option<Object>")]
     pub authentication_data: Option<serde_json::Value>,
+    #[smithy(value_type = "Option<String>")]
+    pub auth_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6462,6 +6474,8 @@ pub struct PaymentsCaptureResponse {
 pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6966,7 +6980,7 @@ pub struct SepaBankTransferInstructions {
     pub reference: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
     pub directory_server_id: String,
     pub three_ds_method_url: String,
@@ -7128,6 +7142,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<Initiator>")]
     pub initiator: Option<platform::Initiator>,
 
+    /// Token containing encoded information for sdk authorization.
+    #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=")]
+    #[smithy(value_type = "Option<String>")]
+    pub sdk_authorization: Option<String>,
+
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
     #[smithy(value_type = "Option<String>")]
@@ -7266,19 +7285,19 @@ pub struct PaymentsResponse {
     /// This field will be deprecated soon. Please refer to `customer.email` object
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub email: crypto::OptionalEncryptableEmail,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     /// This field will be deprecated soon. Please refer to `customer.name` object
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub name: crypto::OptionalEncryptableName,
+    pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub phone: Option<Secret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
@@ -8997,9 +9016,9 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub email: crypto::OptionalEncryptableEmail,
-    pub name: crypto::OptionalEncryptableName,
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub email: Option<Email>,
+    pub name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
@@ -9112,6 +9131,7 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_holder_name: card.card_holder_name,
             payment_checks: card.payment_checks,
             authentication_data: card.authentication_data,
+            auth_code: card.auth_code,
         }
     }
 }
@@ -9172,6 +9192,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
+                            auth_code: apple_pay_pm.auth_code,
                         },
                     ))),
                 })),
@@ -10900,6 +10921,9 @@ pub struct PaymentsCancelRequest {
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// If enabled, provides whole connector response
+    #[smithy(value_type = "Option<bool>")]
+    pub all_keys_required: Option<bool>,
 }
 
 /// Request to cancel a payment when the payment is already captured

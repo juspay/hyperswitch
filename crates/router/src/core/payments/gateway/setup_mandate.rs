@@ -63,7 +63,7 @@ where
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -83,7 +83,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -108,6 +108,7 @@ where
             state,
             setup_mandate_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, setup_mandate_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_setup_mandate_granular(
                     setup_mandate_request,
@@ -121,6 +122,7 @@ where
 
                 let ucs_data = handle_unified_connector_service_response_for_payment_register(
                     setup_mandate_response.clone(),
+                    router_data.status,
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
@@ -148,6 +150,9 @@ where
                 ucs_data.connector_response.map(|connector_response| {
                     router_data.connector_response = Some(connector_response);
                 });
+
+                router_data.amount_captured = ucs_data.amount_captured;
+                router_data.minor_amount_captured = ucs_data.minor_amount_captured;
 
                 Ok((router_data, (), setup_mandate_response))
             },

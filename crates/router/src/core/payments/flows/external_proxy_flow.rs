@@ -49,7 +49,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -66,7 +66,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                platform,
+                processor,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,
@@ -121,7 +121,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -163,14 +163,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             gateway_context,
         )
         .await
-    }
-
-    async fn preprocessing_steps<'a>(
-        self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        todo!()
     }
 
     async fn postprocessing_steps<'a>(
@@ -364,7 +356,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
@@ -383,7 +375,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                platform,
+                processor,
                 self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
@@ -415,6 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             state,
             payment_authorize_request.clone(),
             headers_builder,
+            unified_connector_service_execution_mode,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 let response = Box::pin(client
                     .payment_authorize(
@@ -431,6 +424,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 let ucs_data =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
                         payment_authorize_response.clone(),
+                        router_data.status,
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;

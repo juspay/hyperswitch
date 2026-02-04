@@ -840,7 +840,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.number".to_string(),
                     display_name: "gift_card_number".to_string(),
-                    field_type: FieldType::UserCardNumber,
+                    field_type: FieldType::UserGiftCardNumber,
                     value: None,
                 },
             ),
@@ -849,7 +849,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.cvc".to_string(),
                     display_name: "gift_card_cvc".to_string(),
-                    field_type: FieldType::UserCardCvc,
+                    field_type: FieldType::UserGiftCardPin,
                     value: None,
                 },
             ),
@@ -2918,6 +2918,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     Connector::Stripe,
                     fields(
                         vec![],
+                        vec![],
                         vec![
                             RequiredField::BillingEmail,
                             RequiredField::BillingFirstName(
@@ -2943,7 +2944,6 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             RequiredField::ShippingAddressCountries(vec!["ALL"]),
                             RequiredField::ShippingAddressLine1,
                         ],
-                        vec![],
                     ),
                 ),
                 (
@@ -3059,6 +3059,25 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         .to_tuple()]),
                         common: HashMap::new(),
                     },
+                ),
+                (
+                    Connector::Mollie,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingAddressCountries(vec![
+                                "DE", "AT", "NL", "BE", "FR", "UK", "IT", "ES", "PT", "SE", "DK",
+                                "FI", "NO", "CH", "IR", "CZ", "PL", "GR", "SK",
+                            ]),
+                            RequiredField::BillingEmail,
+                            RequiredField::BillingAddressLine1,
+                            RequiredField::BillingAddressZip,
+                            RequiredField::BillingAddressCity,
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                        ],
+                        vec![],
+                    ),
                 ),
             ]),
         ),

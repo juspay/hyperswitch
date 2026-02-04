@@ -65,7 +65,7 @@ where
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -85,7 +85,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -111,6 +111,7 @@ where
                 state,
                 sdk_session_token_request,
                 header_payload,
+                unified_connector_service_execution_mode,
                 |mut router_data, sdk_session_token_request, grpc_headers| async move {
                     let response = Box::pin(client.sdk_session_token(
                         sdk_session_token_request,
