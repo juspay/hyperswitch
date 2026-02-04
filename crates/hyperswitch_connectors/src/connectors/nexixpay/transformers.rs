@@ -4,7 +4,6 @@ use cards::CardNumber;
 use common_enums::{
     AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, Currency, RefundStatus,
 };
-use serde_with::skip_serializing_none;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ValueExt,
@@ -36,6 +35,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use strum::Display;
 
 use crate::{
@@ -465,9 +465,7 @@ pub struct ThreeDSAuthResult {
     version: Option<String>,
 }
 
-impl ForeignTryFrom<(&ThreeDSAuthResult, String)>
-    for UcsAuthenticationData
-{
+impl ForeignTryFrom<(&ThreeDSAuthResult, String)> for UcsAuthenticationData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn foreign_try_from(
