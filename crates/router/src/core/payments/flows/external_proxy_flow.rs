@@ -386,15 +386,13 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .as_deref()
-            .and_then(unified_connector_service::parse_merchant_reference_id)
-            .or_else(|| {
-                unified_connector_service::parse_merchant_reference_id(self.payment_id.as_str())
-            })
-            .map(ucs_types::UcsReferenceId::Payment);
-
+        let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
+            header_payload
+                .x_reference_id
+                .as_deref()
+                .unwrap_or(self.payment_id.as_str()),
+        )
+        .map(ucs_types::UcsReferenceId::Payment);
         let resource_id = id_type::PaymentResourceId::from_str(self.attempt_id.as_str())
             .inspect_err(
                 |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),

@@ -652,12 +652,13 @@ pub async fn call_unified_connector_service_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .as_deref()
-        .and_then(ucs_core::parse_merchant_reference_id)
-        .or_else(|| ucs_core::parse_merchant_reference_id(router_data.payment_id.as_str()))
-        .map(ucs_types::UcsReferenceId::Payment);
+    let merchant_reference_id = ucs_core::parse_merchant_reference_id(
+        header_payload
+            .x_reference_id
+            .as_deref()
+            .unwrap_or(router_data.payment_id.as_str()),
+    )
+    .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
         .inspect_err(
             |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
@@ -763,12 +764,13 @@ pub async fn call_unified_connector_service_post_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .as_deref()
-        .and_then(ucs_core::parse_merchant_reference_id)
-        .or_else(|| ucs_core::parse_merchant_reference_id(router_data.payment_id.as_str()))
-        .map(ucs_types::UcsReferenceId::Payment);
+    let merchant_reference_id = ucs_core::parse_merchant_reference_id(
+        header_payload
+            .x_reference_id
+            .as_deref()
+            .unwrap_or(router_data.payment_id.as_str()),
+    )
+    .map(ucs_types::UcsReferenceId::Payment);
     let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
         .inspect_err(
             |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
