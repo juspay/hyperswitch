@@ -766,6 +766,8 @@ pub struct UcsSetupMandateResponseData {
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
     pub connector_response: Option<ConnectorResponseData>,
+    pub amount_captured: Option<i64>,
+    pub minor_amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1324,6 +1326,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             request_extended_authorization: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             guest_customer: None,

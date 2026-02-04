@@ -14903,6 +14903,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperpg",
           "hyperswitch_vault",
           "inespay",
           "iatapay",
@@ -28428,6 +28429,12 @@
             ],
             "nullable": true
           },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -30014,6 +30021,12 @@
                 "$ref": "#/components/schemas/Initiator"
               }
             ],
+            "nullable": true
+          },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
           "connector": {
@@ -35723,6 +35736,7 @@
           "gocardless",
           "hipay",
           "helcim",
+          "hyperpg",
           "iatapay",
           "inespay",
           "itaubank",

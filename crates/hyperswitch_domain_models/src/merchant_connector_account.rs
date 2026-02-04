@@ -119,6 +119,10 @@ impl MerchantConnectorAccount {
         Ok(Some(provider))
     }
 
+    pub fn should_construct_webhook_setup_capability(&self) -> bool {
+        matches!(self.connector_type, enums::ConnectorType::PaymentProcessor)
+    }
+
     pub fn get_connector_webhook_registration_details(&self) -> Option<Value> {
         self.connector_webhook_registration_details.clone()
     }

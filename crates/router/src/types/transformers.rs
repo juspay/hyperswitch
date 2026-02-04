@@ -1067,9 +1067,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?,
         };
 
-        let webhook_setup_details =
-            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
-                .get_api_webhook_config();
+        let webhook_setup_capabilities = item
+            .should_construct_webhook_setup_capability()
+            .then(|| api_types::ConnectorData::convert_connector(item.connector_name.as_str()))
+            .transpose()?
+            .map(|connector_enum| connector_enum.get_api_webhook_config().clone());
 
         #[cfg(feature = "v1")]
         let response = Self {
@@ -1126,7 +1128,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities: Some(webhook_setup_details.clone()),
+            webhook_setup_capabilities,
         };
         Ok(response)
     }
