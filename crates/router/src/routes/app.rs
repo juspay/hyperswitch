@@ -2414,6 +2414,16 @@ impl Profile {
                 .service(
                     web::resource("/toggle_connector_agnostic_mit")
                         .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
+                )
+                .service(
+                    web::resource("/webhooks")
+                        .route(web::post().to(profiles::profile_webhooks_add))
+                        .route(web::get().to(profiles::profile_webhooks_list)),
+                )
+                .service(
+                    web::resource("/webhooks/{webhook_id}")
+                        .route(web::put().to(profiles::profile_webhooks_update))
+                        .route(web::delete().to(profiles::profile_webhooks_delete)),
                 ),
         );
 
