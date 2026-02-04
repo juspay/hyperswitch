@@ -2269,7 +2269,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::AchBankTransfer {} => Self::Ach {},
 
             BankTransferData::SepaBankTransfer {} => Self::Sepa(Box::new(
-                api_models::payments::additional_info::SepaBankTransferAdditionalData {
+                api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData {
                     debitor_iban: None,
                     debitor_bic: None,
                     debitor_name: None,

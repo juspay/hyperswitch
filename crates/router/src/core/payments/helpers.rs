@@ -7510,7 +7510,7 @@ pub fn add_connector_response_to_additional_payment_data(
         ) => api_models::payments::AdditionalPaymentData::BankTransfer {
             details: Some(
                 api_models::payments::additional_info::BankTransferAdditionalData::Sepa(Box::new(
-                    api_models::payments::additional_info::SepaBankTransferAdditionalData {
+                    api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData {
                         debitor_iban,
                         debitor_bic,
                         debitor_name,

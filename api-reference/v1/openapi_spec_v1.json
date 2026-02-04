@@ -12209,7 +12209,7 @@
             ],
             "properties": {
               "sepa": {
-                "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
+                "$ref": "#/components/schemas/SepaBankTransferPaymentAdditionalData"
               }
             }
           },
@@ -36419,6 +36419,35 @@
           "reference": {
             "type": "string",
             "example": "U2PVVSEV4V9Y"
+          }
+        }
+      },
+      "SepaBankTransferPaymentAdditionalData": {
+        "type": "object",
+        "properties": {
+          "debitor_iban": {
+            "type": "string",
+            "description": "debitor IBAN",
+            "example": "DE89370400440532013000",
+            "nullable": true
+          },
+          "debitor_bic": {
+            "type": "string",
+            "description": "debitor BIC",
+            "example": "MARKDEF1100",
+            "nullable": true
+          },
+          "debitor_name": {
+            "type": "string",
+            "description": "debitor name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "debitor_email": {
+            "type": "string",
+            "description": "debitor email",
+            "example": "johndoe@example.com",
+            "nullable": true
           }
         }
       },

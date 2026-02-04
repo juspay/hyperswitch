@@ -197,9 +197,9 @@ pub struct GiropayBankRedirectAdditionalData {
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct SepaBankTransferAdditionalData {
+pub struct SepaBankTransferPaymentAdditionalData {
     ///   debitor IBAN
-    #[schema(value_type = Option<String>, example = "DE8937******013000")]
+    #[schema(value_type = Option<String>, example =  "DE89370400440532013000")]
     #[smithy(value_type = "Option<String>")]
     pub debitor_iban: Option<Secret<String>>,
 
@@ -226,8 +226,8 @@ pub struct SepaBankTransferAdditionalData {
 pub enum BankTransferAdditionalData {
     #[smithy(nested_value_type)]
     Ach {},
-    #[smithy(value_type = "SepaBankTransferAdditionalData")]
-    Sepa(Box<SepaBankTransferAdditionalData>),
+    #[smithy(value_type = "SepaBankTransferPaymentAdditionalData")]
+    Sepa(Box<SepaBankTransferPaymentAdditionalData>),
     #[smithy(nested_value_type)]
     Bacs {},
     #[smithy(nested_value_type)]

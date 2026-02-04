@@ -1071,10 +1071,11 @@ pub fn handle_webhook_response(
     ),
     errors::ConnectorError,
 > {
-    let status = enums::AttemptStatus::try_from(payment_information.status)?;
+    let status = enums::AttemptStatus::try_from(payment_information.status.clone())?;
     let error = if utils::is_payment_failure(status) {
         let reason_info = payment_information
             .status_reason_information
+            .clone()
             .unwrap_or_default();
         Some(ErrorResponse {
             code: reason_info
@@ -1111,34 +1112,7 @@ pub fn handle_webhook_response(
         authentication_data: None,
         charges: None,
     };
-    let connector_response = {
-        let (debitor_iban, debitor_bic, debitor_name, debitor_email) = (
-            payment_information.debtor_account.and_then(|acc| acc.iban),
-            payment_information.debtor_agent.and_then(|agent| agent.bic),
-            payment_information
-                .debtor
-                .as_ref()
-                .and_then(|debtor| debtor.name.clone()),
-            payment_information.debtor.and_then(|debtor| debtor.email),
-        );
-
-        if debitor_iban.is_some()
-            || debitor_bic.is_some()
-            || debitor_name.is_some()
-            || debitor_email.is_some()
-        {
-            Some(ConnectorResponseData::with_additional_payment_method_data(
-                AdditionalPaymentMethodConnectorResponse::SepaBankTransfer {
-                    debitor_iban,
-                    debitor_bic,
-                    debitor_name,
-                    debitor_email,
-                },
-            ))
-        } else {
-            None
-        }
-    };
+    let connector_response = payment_information.get_connector_response();
 
     Ok((status, error, payment_response_data, connector_response))
 }
@@ -2181,6 +2155,38 @@ pub struct DebtorAgent {
 pub struct TrustpayWebhookResponse {
     pub payment_information: WebhookPaymentInformation,
     pub signature: String,
+}
+
+impl WebhookPaymentInformation {
+    pub fn get_connector_response(&self) -> Option<ConnectorResponseData> {
+        let (debitor_iban, debitor_bic, debitor_name, debitor_email) = (
+            self.debtor_account
+                .as_ref()
+                .and_then(|acc| acc.iban.clone()),
+            self.debtor_agent
+                .as_ref()
+                .and_then(|agent| agent.bic.clone()),
+            self.debtor.as_ref().and_then(|debtor| debtor.name.clone()),
+            self.debtor.as_ref().and_then(|debtor| debtor.email.clone()),
+        );
+
+        if debitor_iban.is_some()
+            || debitor_bic.is_some()
+            || debitor_name.is_some()
+            || debitor_email.is_some()
+        {
+            Some(ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::SepaBankTransfer {
+                    debitor_iban,
+                    debitor_bic,
+                    debitor_name,
+                    debitor_email,
+                },
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 impl From<Errors> for utils::ErrorCodeAndMessage {
