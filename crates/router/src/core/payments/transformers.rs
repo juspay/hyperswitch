@@ -7050,15 +7050,8 @@ pub fn get_payments_response_from_opensearch_hit(
             common_utils::id_type::MerchantId::try_from(Cow::from(merchant_id_str.clone()))
                 .unwrap_or_default()
         }),
-        initiator: get_str("initiator").and_then(|s| {
-            // Initiator is usually a string like "platform" or "connected" in sessionizer
-            // We need to map it to api_models::platform::Initiator
-            match s.as_str() {
-                "platform" => Some(api_models::platform::Initiator::Platform),
-                "connected" => Some(api_models::platform::Initiator::Connected),
-                _ => None,
-            }
-        }),
+        initiator: None,
+        sdk_authorization: None,
         status,
         amount,
         net_amount: get_att_i64("net_amount")
