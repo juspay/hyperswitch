@@ -526,7 +526,7 @@ where
                 .await;
                 // Log warning if transaction flow failed (but don't propagate error)
                 if let Err(e) = _router_data_result {
-                    logger::warn!("FRM transaction flow failed (ignoring since FRM transaction flow is not critical): {:?}", e);
+                    logger::warn!("FRM transaction flow failed : {:?}", e);
                 }
                 let frm_data_updated = fraud_check_operation
                     .to_update_tracker()?

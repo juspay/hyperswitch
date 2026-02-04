@@ -43,11 +43,11 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::Response,
     webhooks,
+    errors::ConnectorError,
 };
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::{
     api::{FraudCheck, FraudCheckCheckout, FraudCheckTransaction},
-    errors::ConnectorError,
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
@@ -535,6 +535,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
     }
 }
 
+#[cfg(feature = "frm")]
 impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
     for Cybersourcedecisionmanager
 {
@@ -555,9 +556,9 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
         req: &FrmTransactionRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let id = req.request.connector_transaction_id.clone().ok_or(
+        let id = req.request.frm_transaction_id.clone().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "connector_transaction_id",
+                field_name: "frm_transaction_id",
             },
         )?;
         Ok(format!(
