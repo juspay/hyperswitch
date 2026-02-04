@@ -1297,7 +1297,7 @@ pub async fn fetch_payment_method_from_modular_service(
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
     pmd_card_token: Option<domain::CardToken>,
-) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> { //Own error instead of api errors
+) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
 
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
@@ -1308,7 +1308,7 @@ pub async fn fetch_payment_method_from_modular_service(
         
     };
 
-    //fn to take state, construct request and call modular service
+    //Fetch modular service call
     let pm_response =
         retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req)
             .await?;
@@ -1392,7 +1392,6 @@ pub async fn create_payment_method_in_modular_service(
     _billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
-    //Request body construction
 
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: merchant_id.clone(),
@@ -1407,7 +1406,7 @@ pub async fn create_payment_method_in_modular_service(
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
 
-    //fn to take state, construct request and call modular service
+    //Create modular service call
     let pm_response =
         create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
             .await?;

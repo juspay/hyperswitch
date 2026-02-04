@@ -642,10 +642,6 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
-    //instead of calling again, construct state to have modular merchant config
-// FeatureSet{
-//     AllowedModular: true
-// }
     let payment_method_info =
         if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
             &*state.store,
@@ -662,9 +658,8 @@ where
             None
         };
 
-    //fetch in gettrackers trait
+
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
-    // get profile from headers
     let operations::GetTrackerResponse {
         operation,
         customer_details,
@@ -11603,6 +11598,7 @@ pub trait OperationSessionSetters<F> {
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>);
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>);
     fn set_email_if_not_present(&mut self, email: pii::Email);
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
@@ -11863,6 +11859,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>) {
         self.payment_method_token = payment_method_token;
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+        self.payment_method_info = payment_method_info;
     }
 
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>) {
@@ -12204,6 +12204,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+       todo!()
+    }
+
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
         todo!()
     }
@@ -12507,6 +12511,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 
     fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
+        todo!()
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
         todo!()
     }
 
@@ -12817,6 +12825,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+        todo!()
+    }
+
     fn set_payment_method_id_in_attempt(&mut self, _payment_method_id: Option<String>) {
         todo!()
     }
@@ -13118,6 +13130,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
+        todo!()
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
         todo!()
     }
 
@@ -13578,6 +13594,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
+        todo!()
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
         todo!()
     }
 

@@ -716,7 +716,6 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            //pm_info.or(find payment method)
             let payment_method_info = match pm_info {
                 Some(pm) => Some(pm.clone()),
                 None => payment_method_id

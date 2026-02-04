@@ -205,7 +205,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.clone().and_then(|pm| {
+            .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -508,9 +508,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
+        let payment_method_data = payment_method_with_raw_data.as_ref()
+            .and_then(|pm| pm.raw_payment_method_data.clone())
             .or(payment_method_data_after_card_bin_call.map(Into::into));
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
@@ -575,7 +574,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.clone().and_then(|pm| {
+            .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -806,11 +805,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
     ) -> RouterResult<Option<pm_transformers::PaymentMethodWithRawData>> {
-        let profile_id = req
-            .profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .attach_printable("Profile id is a mandatory parameter")?;
+        let profile_id = req.profile_id.clone().or(platform.get_provider().get_account().get_default_profile().clone()).get_required_value("profile_id")?;
+
         let pm_info = if let Some(payment_token) = &req.payment_token {
             // Fetch payment method using PM Modular Service
             let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
