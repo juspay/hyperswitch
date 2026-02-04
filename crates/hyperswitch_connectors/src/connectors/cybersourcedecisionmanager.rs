@@ -34,20 +34,18 @@ use hyperswitch_domain_models::{
     router_request_types::fraud_check::{FraudCheckCheckoutData, FraudCheckTransactionData},
     router_response_types::fraud_check::FraudCheckResponseData,
 };
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::api::{FraudCheck, FraudCheckCheckout, FraudCheckTransaction};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
     configs::Connectors,
+    errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
     webhooks,
-    errors::ConnectorError,
-};
-#[cfg(feature = "frm")]
-use hyperswitch_interfaces::{
-    api::{FraudCheck, FraudCheckCheckout, FraudCheckTransaction},
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
@@ -556,11 +554,13 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
         req: &FrmTransactionRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let id = req.request.frm_transaction_id.clone().ok_or(
-            ConnectorError::MissingRequiredField {
-                field_name: "frm_transaction_id",
-            },
-        )?;
+        let id =
+            req.request
+                .frm_transaction_id
+                .clone()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "frm_transaction_id",
+                })?;
         Ok(format!(
             "{}risk/v1/decisions/{}/actions",
             self.base_url(connectors),

@@ -226,8 +226,9 @@ where
         .await?;
 
         // Extract frm_transaction_id from checkout response
-        if let Ok(FraudCheckResponseData::TransactionResponse { ref resource_id, .. }) =
-            router_data.response
+        if let Ok(FraudCheckResponseData::TransactionResponse {
+            ref resource_id, ..
+        }) = router_data.response
         {
             frm_data.fraud_check.frm_transaction_id = match resource_id {
                 ResponseId::NoResponseId => None,

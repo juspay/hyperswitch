@@ -770,10 +770,10 @@ where
                 Err(e) => {
                     // Log the error
                     logger::warn!(
-                "FRM call before connector failed : payment_id={:?}, error={:?}",
-                payment_data.get_payment_intent().payment_id,
-                e
-            );
+                        "FRM call before connector failed : payment_id={:?}, error={:?}",
+                        payment_data.get_payment_intent().payment_id,
+                        e
+                    );
                     metrics::FRM_FAILURE.add(
                         1,
                         router_env::metric_attributes!(
