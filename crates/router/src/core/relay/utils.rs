@@ -59,22 +59,13 @@ pub async fn construct_relay_refund_router_data<F>(
         None
     };
 
-    let relay_refund_data = match relay_record
+    let relay_refund_data = relay_record
         .request_data
         .clone()
         .get_required_value("refund relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to obtain relay data to construct relay refund data")?
-    {
-        hyperswitch_domain_models::relay::RelayData::Refund(relay_refund_data) => {
-            Ok(relay_refund_data)
-        }
-        hyperswitch_domain_models::relay::RelayData::Capture(_)
-        | hyperswitch_domain_models::relay::RelayData::IncrementalAuthorization(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to obtain relay data to construct relay refund data")
-        }
-    }?;
+        .get_refund_data()?;
 
     let relay_id_string = relay_record.id.get_string_repr().to_string();
 
@@ -203,22 +194,13 @@ pub async fn construct_relay_capture_router_data(
         None
     };
 
-    let relay_capture_data = match relay_record
+    let relay_capture_data = relay_record
         .request_data
         .clone()
         .get_required_value("capture relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to obtain relay data to construct relay capture data")?
-    {
-        hyperswitch_domain_models::relay::RelayData::Capture(relay_capture_data) => {
-            Ok(relay_capture_data)
-        }
-        hyperswitch_domain_models::relay::RelayData::Refund(_)
-        | hyperswitch_domain_models::relay::RelayData::IncrementalAuthorization(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to obtain relay data to construct relay capture data")
-        }
-    }?;
+        .get_capture_data()?;
 
     let relay_id_string = relay_record.id.get_string_repr().to_string();
 
@@ -336,24 +318,15 @@ pub async fn construct_relay_incremental_authorization_router_data(
         None
     };
 
-    let relay_incremental_authorization_data = match relay_record
+    let relay_incremental_authorization_data = relay_record
         .request_data
         .clone()
         .get_required_value("incremental authorization relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to obtain relay data to construct relay incremental authorization data",
-        )? {
-        hyperswitch_domain_models::relay::RelayData::IncrementalAuthorization(
-            relay_incremental_authorization_data,
-        ) => Ok(relay_incremental_authorization_data),
-        hyperswitch_domain_models::relay::RelayData::Refund(_)
-        | hyperswitch_domain_models::relay::RelayData::Capture(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Failed to obtain relay data to construct relay incremental authorization data",
-            )
-        }
-    }?;
+        )?
+        .get_incremental_authorization_data()?;
 
     let relay_id_string = relay_record.id.get_string_repr().to_string();
 
