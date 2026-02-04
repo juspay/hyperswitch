@@ -1624,6 +1624,9 @@ pub async fn add_payment_method_data(
                             network_token_locker_id: None,
                             network_token_payment_method_data: None,
                             last_modified_by: None,
+                            metadata: None,
+                            last_used_at: None,
+                            connector_mandate_details: None,
                         };
 
                         db.update_payment_method(
@@ -2268,18 +2271,33 @@ where
 }
 
 #[cfg(feature = "v1")]
-pub async fn update_payment_method_metadata_and_last_used(
+pub async fn update_payment_method_metadata_and_network_token_data_and_last_used(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
     pm_metadata: Option<serde_json::Value>,
+    network_token_requestor_reference_id: Option<String>,
+    network_token_locker_id: Option<String>,
+    pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
-        metadata: pm_metadata,
-        last_used_at: common_utils::date_time::now(),
+    // Should we update network_transaction_id here too?
+    let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
+        locker_id: None,
+        payment_method_data: None,
+        status: None,
+        payment_method: None,
+        payment_method_type: None,
+        payment_method_issuer: None,
+        network_token_requestor_reference_id,
+        network_token_locker_id,
+        network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
         last_modified_by: None,
+        metadata: pm_metadata,
+        last_used_at: Some(common_utils::date_time::now()),
+        connector_mandate_details: None,
     };
+
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
@@ -2346,6 +2364,47 @@ pub async fn update_payment_method_connector_mandate_details(
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details_value,
         last_modified_by: None,
+    };
+
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn update_payment_method_connector_mandate_details_and_network_token_data(
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    connector_mandate_details: Option<CommonMandateReference>,
+    network_token_requestor_reference_id: Option<String>,
+    network_token_locker_id: Option<String>,
+    pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let connector_mandate_details_value = connector_mandate_details
+        .map(|common_mandate| {
+            common_mandate.get_mandate_details_value().map_err(|err| {
+                router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+                errors::VaultError::UpdateInPaymentMethodDataTableFailed
+            })
+        })
+        .transpose()?;
+    let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
+        locker_id: None,
+        payment_method_data: None,
+        status: None,
+        payment_method: None,
+        payment_method_type: None,
+        payment_method_issuer: None,
+        network_token_requestor_reference_id,
+        network_token_locker_id,
+        network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
+        last_modified_by: None,
+        metadata: None,
+        last_used_at: None,
+        connector_mandate_details: connector_mandate_details_value,
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
