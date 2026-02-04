@@ -2885,6 +2885,8 @@ payment_method_type = "przelewy24"
 payment_method_type = "bancontact_card"
 [[mollie.wallet]]
 payment_method_type = "paypal"
+[[mollie.pay_later]]
+  payment_method_type = "klarna"
 [mollie.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Profile Token"
