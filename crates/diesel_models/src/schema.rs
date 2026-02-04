@@ -419,6 +419,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
+        document_details -> Nullable<Bytea>,
     }
 }
 
@@ -1350,6 +1351,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
+        customer_details -> Nullable<Bytea>,
     }
 }
 

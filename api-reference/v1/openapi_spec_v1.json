@@ -13076,7 +13076,7 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "Cnpj",
+            "default": "cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -16669,6 +16669,14 @@
             "description": "The tax registration identifier of the customer.",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16711,6 +16719,14 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "customer_document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16785,6 +16801,24 @@
           "desktop",
           "gaming_console"
         ]
+      },
+      "CustomerDocumentDetails": {
+        "type": "object",
+        "required": [
+          "document_type",
+          "document_number"
+        ],
+        "properties": {
+          "document_type": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "document_number": {
+            "type": "string",
+            "description": "The customer's document number\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long",
+            "example": "12345678911",
+            "maxLength": 255
+          }
+        }
       },
       "CustomerId": {
         "type": "string",
@@ -17132,6 +17166,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17216,6 +17258,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17277,6 +17327,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17748,9 +17806,10 @@
       },
       "DocumentKind": {
         "type": "string",
+        "description": "Represents the type of identification document used for validation.",
         "enum": [
-          "CNPJ",
-          "CPF"
+          "cpf",
+          "cnpj"
         ]
       },
       "DokuBankTransferInstructions": {

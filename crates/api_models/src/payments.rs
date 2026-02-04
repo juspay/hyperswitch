@@ -28,6 +28,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
+use crate::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
@@ -152,6 +153,11 @@ pub struct CustomerDetails {
     #[schema(value_type=Option<String>,max_length = 255)]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -193,6 +199,11 @@ pub struct CustomerDetailsResponse {
     #[schema(max_length = 2, example = "+1")]
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
+
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1657,6 +1668,16 @@ impl PaymentsRequest {
         }
     }
 
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.customer
+            .as_ref()
+            .and_then(|data| data.document_details.as_ref())
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
+    }
+
     pub fn get_feature_metadata_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<
@@ -1772,6 +1793,7 @@ mod payments_request_test {
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1797,6 +1819,7 @@ mod payments_request_test {
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -5734,9 +5757,9 @@ pub struct BoletoVoucherData {
     pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
-    #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf", default = "cnpj")]
     #[smithy(value_type = "Option<DocumentKind>")]
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<common_types::customers::DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
     #[schema(value_type = Option<String>)]
