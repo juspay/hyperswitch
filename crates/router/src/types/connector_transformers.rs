@@ -79,6 +79,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             }
             api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::Hyperpg => Self::Hyperpg,
             api_enums::Connector::HyperswitchVault => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Hyperswitch Vault is not a routable connector".to_string(),
