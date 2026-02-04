@@ -135,6 +135,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
         };
 
         let creds_identifier = request

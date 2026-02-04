@@ -1559,7 +1559,6 @@ impl PaymentCreate {
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details =
             helpers::get_customer_details_from_request(request).get_customer_data();
-
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

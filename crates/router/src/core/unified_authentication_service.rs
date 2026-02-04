@@ -934,6 +934,7 @@ impl
                 phone: details.phone,
                 phone_country_code: details.phone_country_code,
                 tax_registration_id: details.tax_registration_id,
+                document_details: details.customer_document_details,
             })
         } else {
             None
