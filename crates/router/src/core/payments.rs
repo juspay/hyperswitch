@@ -769,7 +769,7 @@ where
                 Ok(configs) => configs,
                 Err(e) => {
                     // Log the error
-                    logger::warn!(
+                    logger::info!(
                         "FRM call before connector failed : payment_id={:?}, error={:?}",
                         payment_data.get_payment_intent().payment_id,
                         e
