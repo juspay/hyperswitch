@@ -18,7 +18,7 @@ env:
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe cybersource"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu worldpay zift"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu redsys zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
@@ -622,8 +622,7 @@ jobs:
 
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: github.event_name == 'merge_group' ||
-         (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: github.event_name == 'merge_group'
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -671,8 +670,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: github.event_name == 'merge_group' ||
-         (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: github.event_name == 'merge_group'
     needs: [ build-hyperswitch-runners, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
