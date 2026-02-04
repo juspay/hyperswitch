@@ -502,7 +502,8 @@ pub trait RoutingStage: Send + Sync {
     where
         Self: 'a;
 
-    type Fut<'a>: Future<Output = RoutingResult<ConnectorOutcome>> + Send
+    type Output;
+    type Fut<'a>: Future<Output = RoutingResult<Self::Output>> + Send
     where
         Self: 'a;
 
@@ -532,7 +533,8 @@ pub struct StaticRoutingStage {
 
 impl RoutingStage for StaticRoutingStage {
     type Input<'a> = StaticRoutingInput<'a>;
-    type Fut<'a> = BoxFuture<'a, RoutingResult<ConnectorOutcome>>;
+    type Output = ConnectorOutcome;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
@@ -562,11 +564,14 @@ impl DynamicRoutingStage {
         &self,
         input: &DynamicRoutingInput<'_>,
         routing_type: &api_models::routing::RoutingType,
-    ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    ) -> RoutingResult<DynamicRoutingResult> {
         if !routing_type.is_dynamic_routing()
             || !input.state.conf.open_router.dynamic_routing_enabled
         {
-            Ok(input.static_connectors.to_vec())
+            Ok(DynamicRoutingResult {
+                connectors: input.static_connectors.to_vec(),
+                routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
+            })
         } else {
             let payment_attempt = input.transaction_data.payment_attempt.clone();
             let dynamic_result = perform_dynamic_routing_with_open_router(
@@ -580,11 +585,11 @@ impl DynamicRoutingStage {
                 logger::error!(open_router_error=?e);
                 DynamicRoutingResult {
                     connectors: input.static_connectors.to_vec(),
-                    routing_approach: None,
+                    routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
                 }
             });
 
-            Ok(dynamic_result.connectors)
+            Ok(dynamic_result)
         }
     }
 }
@@ -600,13 +605,15 @@ pub struct DynamicRoutingInput<'a> {
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl RoutingStage for DynamicRoutingStage {
     type Input<'a> = DynamicRoutingInput<'a>;
-    type Fut<'a> = BoxFuture<'a, RoutingResult<ConnectorOutcome>>;
+    type Output = DynamicRoutingResult;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
             let Some(algo) = input.business_profile.dynamic_routing_algorithm.clone() else {
-                return Ok(ConnectorOutcome {
+                return Ok(DynamicRoutingResult {
                     connectors: input.static_connectors.to_vec(),
+                    routing_approach: common_enums::RoutingApproach::RuleBasedRouting,
                 });
             };
 
@@ -637,11 +644,8 @@ impl RoutingStage for DynamicRoutingStage {
                     .change_context(errors::RoutingError::VolumeSplitFailed)
                     .attach_printable("failed to perform volume split on routing type")?;
 
-            let connectors = self
-                .resolve_dynamic_connectors(&input, &routing_choice.routing_type)
-                .await?;
-
-            Ok(ConnectorOutcome { connectors })
+            self.resolve_dynamic_connectors(&input, &routing_choice.routing_type)
+                .await
         })
     }
 
@@ -1913,7 +1917,7 @@ pub fn make_dsl_input_for_surcharge(
 
 pub struct DynamicRoutingResult {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
-    pub routing_approach: Option<common_enums::RoutingApproach>,
+    pub routing_approach: common_enums::RoutingApproach,
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1981,7 +1985,7 @@ pub async fn perform_dynamic_routing_with_open_router(
     } else {
         DynamicRoutingResult {
             connectors: routable_connectors,
-            routing_approach: Some(utils::RoutingApproach::Default.into()),
+            routing_approach: utils::RoutingApproach::Default.into(),
         }
     };
 
@@ -2249,10 +2253,8 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 .to_string(),
             );
 
-            let routing_approach = Some(
-                common_enums::RoutingApproach::from_decision_engine_approach(
-                    &decided_gateway.routing_approach,
-                ),
+            let routing_approach = common_enums::RoutingApproach::from_decision_engine_approach(
+                &decided_gateway.routing_approach,
             );
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {

@@ -10413,76 +10413,95 @@ where
         None
     };
 
-    let routable_connectors: Vec<api_models::routing::RoutableConnectorChoice> =
-        if let Some(cached_algorithm) = cached_algorithm {
-            let routing_attempt = async {
-                let static_stage = routing::StaticRoutingStage {
-                    ctx: routing::RoutingContext {
-                        routing_algorithm: cached_algorithm,
-                    },
-                };
+    let (routable_connectors, routing_approach): (
+        Vec<api_models::routing::RoutableConnectorChoice>,
+        common_enums::RoutingApproach,
+    ) = if let Some(cached_algorithm) = cached_algorithm {
+        let routing_attempt = async {
+            let static_stage = routing::StaticRoutingStage {
+                ctx: routing::RoutingContext {
+                    routing_algorithm: cached_algorithm,
+                },
+            };
 
-                let static_input = routing::StaticRoutingInput {
-                    platform,
-                    business_profile,
-                    eligible_connectors: eligible_connectors.as_ref(),
-                    transaction_data: &transaction_data,
-                };
+            let static_input = routing::StaticRoutingInput {
+                platform,
+                business_profile,
+                eligible_connectors: eligible_connectors.as_ref(),
+                transaction_data: &transaction_data,
+            };
 
-                let mut routing_outcome = static_stage.route(static_input).await?;
+            let mut routing_outcome = static_stage.route(static_input).await?;
+            let mut routing_approach = static_stage.routing_approach();
 
-                let eligibility = routing::perform_eligibility_analysis_with_fallback(
-                    state,
-                    platform.get_processor().get_key_store(),
-                    routing_outcome.connectors.clone(),
-                    &TransactionData::Payment(transaction_data.clone()),
-                    eligible_connectors,
-                    business_profile,
-                )
-                .await?;
+            let eligibility = routing::perform_eligibility_analysis_with_fallback(
+                state,
+                platform.get_processor().get_key_store(),
+                routing_outcome.connectors.clone(),
+                &TransactionData::Payment(transaction_data.clone()),
+                eligible_connectors,
+                business_profile,
+            )
+            .await?;
 
-                routing_outcome.connectors = eligibility;
+            routing_outcome.connectors = eligibility;
 
-                #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-                {
-                    if business_profile.dynamic_routing_algorithm.is_some() {
-                        let dynamic_input = routing::DynamicRoutingInput {
-                            state,
-                            business_profile,
-                            transaction_data: &transaction_data,
-                            static_connectors: &routing_outcome.connectors,
-                        };
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            {
+                if business_profile.dynamic_routing_algorithm.is_some() {
+                    let dynamic_input = routing::DynamicRoutingInput {
+                        state,
+                        business_profile,
+                        transaction_data: &transaction_data,
+                        static_connectors: &routing_outcome.connectors,
+                    };
 
-                        let dynamic_stage = routing::DynamicRoutingStage;
+                    let dynamic_stage = routing::DynamicRoutingStage;
 
-                        if let Ok(dynamic_outcome) = dynamic_stage.route(dynamic_input).await {
-                            routing_outcome.connectors = dynamic_outcome.connectors;
-                        }
+                    if let Ok(dynamic_outcome) = dynamic_stage.route(dynamic_input).await {
+                        routing_outcome.connectors = dynamic_outcome.connectors;
+                        routing_approach = dynamic_outcome.routing_approach;
                     }
                 }
-
-                Ok::<_, error_stack::Report<errors::RoutingError>>(routing_outcome.connectors)
             }
-            .await;
 
-            match routing_attempt {
-                Ok(connectors) if !connectors.is_empty() => connectors,
-                Ok(_) => {
-                    logger::warn!("euclid: empty routing result, falling back");
-                    fallback_config.clone()
-                }
-                Err(err) => {
-                    logger::error!(
-                        error=?err,
-                        "euclid: routing failed, falling back to merchant default"
-                    );
-                    fallback_config.clone()
-                }
+            Ok::<_, error_stack::Report<errors::RoutingError>>((
+                routing_outcome.connectors,
+                routing_approach,
+            ))
+        }
+        .await;
+
+        match routing_attempt {
+            Ok((connectors, routing_approach)) if !connectors.is_empty() => {
+                (connectors, routing_approach)
             }
-        } else {
-            fallback_config.clone()
-        };
+            Ok(_) => {
+                logger::warn!("euclid: empty routing result, falling back");
+                (
+                    fallback_config.clone(),
+                    common_enums::RoutingApproach::DefaultFallback,
+                )
+            }
+            Err(err) => {
+                logger::error!(
+                    error=?err,
+                    "euclid: routing failed, falling back to merchant default"
+                );
+                (
+                    fallback_config.clone(),
+                    common_enums::RoutingApproach::DefaultFallback,
+                )
+            }
+        }
+    } else {
+        (
+            fallback_config.clone(),
+            common_enums::RoutingApproach::DefaultFallback,
+        )
+    };
 
+    payment_data.set_routing_approach_in_attempt(Some(routing_approach));
     let connector_data = routable_connectors
         .into_iter()
         .map(|conn| {
