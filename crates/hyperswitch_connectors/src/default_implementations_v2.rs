@@ -5085,6 +5085,7 @@ default_imp_for_new_connector_integration_webhook_register!(
     connectors::Hipay,
     connectors::HyperswitchVault,
     connectors::Hyperwallet,
+    connectors::Hyperpg,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,

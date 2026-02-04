@@ -9948,6 +9948,7 @@ default_imp_for_connector_webhook_register!(
     connectors::Helcim,
     connectors::HyperswitchVault,
     connectors::Hyperwallet,
+    connectors::Hyperpg,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
