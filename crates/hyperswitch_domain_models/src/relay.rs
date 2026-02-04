@@ -82,6 +82,7 @@ impl From<api_models::relay::RelayData> for RelayData {
             api_models::relay::RelayData::IncrementalAuthorization(
                 relay_incremental_authorization_request,
             ) => Self::IncrementalAuthorization(RelayIncrementalAuthorizationData {
+                total_amount: relay_incremental_authorization_request.total_amount,
                 additional_amount: relay_incremental_authorization_request.additional_amount,
                 currency: relay_incremental_authorization_request.currency,
             }),
@@ -114,6 +115,7 @@ impl From<api_models::relay::RelayIncrementalAuthorizationRequestData>
 {
     fn from(relay: api_models::relay::RelayIncrementalAuthorizationRequestData) -> Self {
         Self {
+            total_amount: relay.total_amount,
             additional_amount: relay.additional_amount,
             currency: relay.currency,
         }
@@ -248,6 +250,7 @@ impl From<RelayData> for api_models::relay::RelayData {
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
                 Self::IncrementalAuthorization(
                     api_models::relay::RelayIncrementalAuthorizationRequestData {
+                        total_amount: relay_incremental_authorization_request.total_amount,
                         additional_amount: relay_incremental_authorization_request
                             .additional_amount,
                         currency: relay_incremental_authorization_request.currency,
@@ -288,6 +291,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
                 api_models::relay::RelayData::IncrementalAuthorization(
                     api_models::relay::RelayIncrementalAuthorizationRequestData {
+                        total_amount: relay_incremental_authorization_request.total_amount,
                         additional_amount: relay_incremental_authorization_request
                             .additional_amount,
                         currency: relay_incremental_authorization_request.currency,
@@ -369,6 +373,7 @@ pub struct RelayCaptureData {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayIncrementalAuthorizationData {
+    pub total_amount: MinorUnit,
     pub additional_amount: MinorUnit,
     pub currency: enums::Currency,
 }
