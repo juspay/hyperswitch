@@ -57,7 +57,7 @@ impl<'a> PaymentMethodClient<'a> {
     }
 }
 
-impl<'a> MicroserviceClient for PaymentMethodClient<'a> {
+impl MicroserviceClient for PaymentMethodClient<'_> {
     fn base_url(&self) -> &url::Url {
         self.base_url.as_ref()
     }
