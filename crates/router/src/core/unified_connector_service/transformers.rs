@@ -1095,6 +1095,8 @@ impl
                 .transpose()?,
             connector_metadata: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            description: router_data.description.clone(),
+
         })
     }
 }
