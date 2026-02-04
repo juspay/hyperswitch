@@ -49,7 +49,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, CardData, ForeignTryFrom,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -1972,7 +1972,6 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
