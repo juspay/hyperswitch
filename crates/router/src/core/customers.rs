@@ -38,7 +38,6 @@ use crate::{
             types::{self, CryptoOperation},
         },
         storage::{self, enums},
-        transformers::ForeignFrom,
     },
 };
 
@@ -265,7 +264,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address)),
+            customers::CustomerResponse::try_from((customer.clone(), address))
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -382,7 +383,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from(customer.clone()),
+            customers::CustomerResponse::try_from(customer.clone())
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -562,7 +565,9 @@ pub async fn retrieve_customer(
         None => None,
     };
     Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::foreign_from((response, address)),
+        customers::CustomerResponse::try_from((response, address))
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
 }
 
@@ -585,7 +590,9 @@ pub async fn retrieve_customer(
         .switch()?;
 
     Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::foreign_from(response),
+        customers::CustomerResponse::try_from(response)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
 }
 
@@ -619,14 +626,20 @@ pub async fn list_customers(
     #[cfg(feature = "v1")]
     let customers = domain_customers
         .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
-        .collect();
+        .map(|domain_customer| {
+            customers::CustomerResponse::try_from((domain_customer, None))
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")
+        })
+        .collect::<Result<_, _>>()?;
 
     #[cfg(feature = "v2")]
     let customers = domain_customers
         .into_iter()
-        .map(customers::CustomerResponse::foreign_from)
-        .collect();
+        .map(customers::CustomerResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert domain customer to CustomerResponse")?;
 
     Ok(services::ApplicationResponse::Json(customers))
 }
@@ -661,15 +674,19 @@ pub async fn list_customers_with_count(
     let customers: Vec<customers::CustomerResponse> = domain_customers
         .0
         .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
-        .collect();
+        .map(|domain_customer| customers::CustomerResponse::try_from((domain_customer, None)))
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert domain customer to CustomerResponse")?;
 
     #[cfg(feature = "v2")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers
+    let customers = domain_customers
         .0
         .into_iter()
-        .map(customers::CustomerResponse::foreign_from)
-        .collect();
+        .map(customers::CustomerResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert domain customer to CustomerResponse")?;
 
     Ok(services::ApplicationResponse::Json(
         customers::CustomerListResponse {
@@ -1381,7 +1398,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address)),
+            customers::CustomerResponse::try_from((customer.clone(), address))
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -1493,7 +1512,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from(customer.clone()),
+            customers::CustomerResponse::try_from(customer.clone())
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
