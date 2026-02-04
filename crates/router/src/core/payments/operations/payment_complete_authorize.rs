@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -407,9 +408,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         let db = &*state.store;
         let merchant_key_store = provider.get_key_store();
         let storage_scheme = provider.get_account().storage_scheme;
-        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
-            None => None,
-            Some(customer_id) => {
+        let customer = payment_data
+            .get_payment_intent()
+            .customer_id
+            .as_ref()
+            .async_map(|customer_id| async {
                 // We allow CompleteAuthorize even if customer has been redacted
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
@@ -417,9 +420,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     merchant_key_store,
                     storage_scheme,
                 )
-                .await?
-            }
-        };
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten();
 
         Ok((Box::new(self), customer))
     }
