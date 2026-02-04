@@ -4253,7 +4253,9 @@ pub async fn update_profile_webhook(
         })?
     }
 
-    let mut existing_multiple_webhooks: Vec<hyperswitch_domain_models::business_profile::MultipleWebhookDetail> = business_profile
+    let mut existing_multiple_webhooks: Vec<
+        hyperswitch_domain_models::business_profile::MultipleWebhookDetail,
+    > = business_profile
         .webhook_details
         .as_ref()
         .and_then(|wd| wd.multiple_webhooks_list.as_ref())
@@ -4267,7 +4269,9 @@ pub async fn update_profile_webhook(
 
     if let Some(index) = webhook_index {
         // Check if webhook is already deleted (Deprecated) - prevent updating deleted webhooks
-        if existing_multiple_webhooks[index].status == common_enums::OutgoingWebhookEndpointStatus::Deprecated {
+        if existing_multiple_webhooks[index].status
+            == common_enums::OutgoingWebhookEndpointStatus::Deprecated
+        {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!(
                     "Webhook endpoint with id '{:?}' is deleted and cannot be updated. Create a new webhook instead.",
@@ -4277,10 +4281,19 @@ pub async fn update_profile_webhook(
         }
 
         // Map OutgoingWebhookStatus to OutgoingWebhookEndpointStatus
-        let status = match webhook_request.status.unwrap_or(api_models::admin::OutgoingWebhookStatus::Active) {
-            api_models::admin::OutgoingWebhookStatus::Active => common_enums::OutgoingWebhookEndpointStatus::Active,
-            api_models::admin::OutgoingWebhookStatus::Inactive => common_enums::OutgoingWebhookEndpointStatus::Inactive,
-            api_models::admin::OutgoingWebhookStatus::Deprecated => common_enums::OutgoingWebhookEndpointStatus::Deprecated,
+        let status = match webhook_request
+            .status
+            .unwrap_or(api_models::admin::OutgoingWebhookStatus::Active)
+        {
+            api_models::admin::OutgoingWebhookStatus::Active => {
+                common_enums::OutgoingWebhookEndpointStatus::Active
+            }
+            api_models::admin::OutgoingWebhookStatus::Inactive => {
+                common_enums::OutgoingWebhookEndpointStatus::Inactive
+            }
+            api_models::admin::OutgoingWebhookStatus::Deprecated => {
+                common_enums::OutgoingWebhookEndpointStatus::Deprecated
+            }
         };
 
         existing_multiple_webhooks[index].events = webhook_request.events.into_iter().collect();
@@ -4288,7 +4301,8 @@ pub async fn update_profile_webhook(
     } else {
         return Err(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!("Webhook endpoint with id '{:?}' not found", webhook_id),
-        }.into());
+        }
+        .into());
     }
 
     // Create WebhookDetails with updated multiple_webhooks_list
@@ -4329,10 +4343,15 @@ pub async fn update_profile_webhook(
             .webhook_details
             .as_ref()
             .and_then(|wd| wd.payout_statuses_enabled.clone()),
-        multiple_webhooks_list: Some(hyperswitch_domain_models::business_profile::WebhookUrls(existing_multiple_webhooks)),
+        multiple_webhooks_list: Some(hyperswitch_domain_models::business_profile::WebhookUrls(
+            existing_multiple_webhooks,
+        )),
     };
 
-    let profile_update = hyperswitch_domain_models::business_profile::ProfileUpdate::WebhooksUpdate { webhook_details };
+    let profile_update =
+        hyperswitch_domain_models::business_profile::ProfileUpdate::WebhooksUpdate {
+            webhook_details,
+        };
 
     let updated_business_profile = db
         .update_profile_by_profile_id(
@@ -4386,7 +4405,9 @@ pub async fn delete_profile_webhook(
         })?
     }
 
-    let mut existing_multiple_webhooks: Vec<hyperswitch_domain_models::business_profile::MultipleWebhookDetail> = business_profile
+    let mut existing_multiple_webhooks: Vec<
+        hyperswitch_domain_models::business_profile::MultipleWebhookDetail,
+    > = business_profile
         .webhook_details
         .as_ref()
         .and_then(|wd| wd.multiple_webhooks_list.as_ref())
@@ -4399,11 +4420,13 @@ pub async fn delete_profile_webhook(
         .position(|wh| wh.webhook_endpoint_id == *webhook_id);
 
     if let Some(index) = webhook_index {
-        existing_multiple_webhooks[index].status = common_enums::OutgoingWebhookEndpointStatus::Deprecated;
+        existing_multiple_webhooks[index].status =
+            common_enums::OutgoingWebhookEndpointStatus::Deprecated;
     } else {
         return Err(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!("Webhook endpoint with id '{:?}' not found", webhook_id),
-        }.into());
+        }
+        .into());
     }
 
     let webhook_details = hyperswitch_domain_models::business_profile::WebhookDetails {
@@ -4443,10 +4466,15 @@ pub async fn delete_profile_webhook(
             .webhook_details
             .as_ref()
             .and_then(|wd| wd.payout_statuses_enabled.clone()),
-        multiple_webhooks_list: Some(hyperswitch_domain_models::business_profile::WebhookUrls(existing_multiple_webhooks)),
+        multiple_webhooks_list: Some(hyperswitch_domain_models::business_profile::WebhookUrls(
+            existing_multiple_webhooks,
+        )),
     };
 
-    let profile_update = hyperswitch_domain_models::business_profile::ProfileUpdate::WebhooksUpdate { webhook_details };
+    let profile_update =
+        hyperswitch_domain_models::business_profile::ProfileUpdate::WebhooksUpdate {
+            webhook_details,
+        };
 
     let updated_business_profile = db
         .update_profile_by_profile_id(
@@ -4510,9 +4538,15 @@ pub async fn list_profile_webhooks(
             webhook_url: wh.webhook_url.expose(),
             events: wh.events.into_iter().collect(),
             status: match wh.status {
-                common_enums::OutgoingWebhookEndpointStatus::Active => common_enums::OutgoingWebhookEndpointStatus::Active,
-                common_enums::OutgoingWebhookEndpointStatus::Inactive => common_enums::OutgoingWebhookEndpointStatus::Inactive,
-                common_enums::OutgoingWebhookEndpointStatus::Deprecated => common_enums::OutgoingWebhookEndpointStatus::Deprecated,
+                common_enums::OutgoingWebhookEndpointStatus::Active => {
+                    common_enums::OutgoingWebhookEndpointStatus::Active
+                }
+                common_enums::OutgoingWebhookEndpointStatus::Inactive => {
+                    common_enums::OutgoingWebhookEndpointStatus::Inactive
+                }
+                common_enums::OutgoingWebhookEndpointStatus::Deprecated => {
+                    common_enums::OutgoingWebhookEndpointStatus::Deprecated
+                }
             },
         })
         .collect();
@@ -5192,7 +5226,9 @@ pub async fn add_profile_webhook(
     }
 
     // Transform webhook request into MultipleWebhookDetail object
-    let mut existing_multiple_webhooks: Vec<hyperswitch_domain_models::business_profile::MultipleWebhookDetail> = business_profile
+    let mut existing_multiple_webhooks: Vec<
+        hyperswitch_domain_models::business_profile::MultipleWebhookDetail,
+    > = business_profile
         .webhook_details
         .as_ref()
         .and_then(|wd| wd.multiple_webhooks_list.as_ref())
@@ -5202,10 +5238,19 @@ pub async fn add_profile_webhook(
     let webhook_endpoint_id = common_utils::generate_webhook_endpoint_id_of_default_length();
 
     // Map OutgoingWebhookStatus to OutgoingWebhookEndpointStatus
-    let status = match webhook_request.status.unwrap_or(api_models::admin::OutgoingWebhookStatus::Active) {
-        api_models::admin::OutgoingWebhookStatus::Active => common_enums::OutgoingWebhookEndpointStatus::Active,
-        api_models::admin::OutgoingWebhookStatus::Inactive => common_enums::OutgoingWebhookEndpointStatus::Inactive,
-        api_models::admin::OutgoingWebhookStatus::Deprecated => common_enums::OutgoingWebhookEndpointStatus::Deprecated,
+    let status = match webhook_request
+        .status
+        .unwrap_or(api_models::admin::OutgoingWebhookStatus::Active)
+    {
+        api_models::admin::OutgoingWebhookStatus::Active => {
+            common_enums::OutgoingWebhookEndpointStatus::Active
+        }
+        api_models::admin::OutgoingWebhookStatus::Inactive => {
+            common_enums::OutgoingWebhookEndpointStatus::Inactive
+        }
+        api_models::admin::OutgoingWebhookStatus::Deprecated => {
+            common_enums::OutgoingWebhookEndpointStatus::Deprecated
+        }
     };
 
     let new_webhook = hyperswitch_domain_models::business_profile::MultipleWebhookDetail {
@@ -5256,11 +5301,16 @@ pub async fn add_profile_webhook(
             .webhook_details
             .as_ref()
             .and_then(|wd| wd.payout_statuses_enabled.clone()),
-        multiple_webhooks_list: Some(hyperswitch_domain_models::business_profile::WebhookUrls(existing_multiple_webhooks)),
+        multiple_webhooks_list: Some(hyperswitch_domain_models::business_profile::WebhookUrls(
+            existing_multiple_webhooks,
+        )),
     };
 
     // Create profile update for adding webhooks
-    let profile_update = hyperswitch_domain_models::business_profile::ProfileUpdate::WebhooksUpdate { webhook_details };
+    let profile_update =
+        hyperswitch_domain_models::business_profile::ProfileUpdate::WebhooksUpdate {
+            webhook_details,
+        };
 
     let updated_business_profile = db
         .update_profile_by_profile_id(
@@ -5280,4 +5330,3 @@ pub async fn add_profile_webhook(
             .attach_printable("Failed to parse business profile details")?,
     ))
 }
-
