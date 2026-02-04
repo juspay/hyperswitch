@@ -159,10 +159,8 @@ impl TryFrom<&FrmTransactionRouterData> for CybersourcedecisionmanagerTransactio
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &FrmTransactionRouterData) -> Result<Self, Self::Error> {
         let decision = match item.is_payment_successful() {
-            Some(true) => TransactionDecision::Accept,
             Some(false) => TransactionDecision::Reject,
-            //needs to be tested
-            None => TransactionDecision::Reject,
+            None | Some(true) => TransactionDecision::Accept,
         };
         let action = match decision {
             TransactionDecision::Accept => vec![ActionList::Capture],
