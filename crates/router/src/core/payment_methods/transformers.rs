@@ -9,7 +9,7 @@ use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
-    request::{Headers, RequestContent},
+    request::RequestContent,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -23,7 +23,7 @@ use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
-    PaymentMethodClient, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
     UpdatePaymentMethodV1Request,
 };
 use router_env::RequestId;
@@ -1160,7 +1160,7 @@ pub async fn call_modular_payment_method_update(
     ));
     let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
         .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-    let client = PaymentMethodClient::new(
+    let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
         &trace,

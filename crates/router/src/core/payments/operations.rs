@@ -314,6 +314,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _platform: &domain::Platform,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
+        _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
         Ok(())
     }
@@ -324,6 +325,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _request: &R,
         _platform: &domain::Platform,
+        _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<Option<PaymentMethodWithRawData>> {
         Ok(None)
     }
@@ -612,7 +614,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _provider: &domain::Provider,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
-        _feature_set: &core_utils::FeatureSet,
+        _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,

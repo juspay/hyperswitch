@@ -642,27 +642,15 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
-    let payment_method_info =
-        if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            &*state.store,
-            &platform.get_processor().get_account().organization_id,
-        )
-        .await
-        {
-            logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
-            operation
-                .to_domain()?
-                .fetch_payment_method(state, &req, platform)
-                .await?
-        } else {
-            None
-        };
+    // Create feature_config
+    let feature_config = core_utils::get_feature_config(state, platform).await;
 
+    let payment_method_info = operation
+        .to_domain()?
+        .fetch_payment_method(state, &req, platform, &feature_config)
+        .await?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
-
-    // Create feature_set early to avoid passing entire payment_data to get_trackers
-    let feature_set = core_utils::get_feature_set(state, platform).await;
 
     // get profile from headers
     let operations::GetTrackerResponse {
@@ -694,17 +682,17 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-        &*state.store,
-        &platform.get_processor().get_account().organization_id,
-    )
-    .await
-    {
-        operation
-            .to_domain()?
-            .create_payment_method(state, &req, platform, &mut payment_data, &business_profile)
-            .await?;
-    }
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     let (operation, customer) = operation
         .to_domain()?
@@ -1011,7 +999,7 @@ where
                         &mut payment_data,
                         &business_profile,
                         req.get_payment_method_data(),
-                        &feature_set,
+                        &feature_config,
                     )
                     .await?;
 
@@ -1038,7 +1026,7 @@ where
                             platform.get_provider(),
                             &payment_data,
                             &router_data_for_pm_mandate,
-                            &feature_set,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1215,7 +1203,7 @@ where
                         &mut payment_data,
                         &business_profile,
                         req.get_payment_method_data(),
-                        &feature_set,
+                        &feature_config,
                     )
                     .await?;
 
@@ -1242,7 +1230,7 @@ where
                             platform.get_provider(),
                             &payment_data,
                             &router_data_for_pm_mandate,
-                            &feature_set,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1449,7 +1437,7 @@ where
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
-    let feature_set = core_utils::get_feature_set(state, &platform).await;
+    let feature_config = core_utils::get_feature_config(state, &platform).await;
 
     let operations::GetTrackerResponse {
         operation,
@@ -1591,7 +1579,7 @@ where
             platform.get_provider(),
             &payment_data,
             &router_data_for_pm_mandate,
-            &feature_set,
+            &feature_config,
         )
         .await?;
 
@@ -2295,7 +2283,7 @@ async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     payment_data: &mut D,
     business_profile: &domain::Profile,
     request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    feature_set: &core_utils::FeatureSet,
+    feature_config: &core_utils::FeatureConfig,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone + Send + Sync,
@@ -2303,7 +2291,7 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    if feature_set.is_modular_merchant {
+    if feature_config.is_payment_method_modular_allowed {
         logger::debug!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular merchant detected; calling update_modular_pm_and_mandate"
@@ -11929,7 +11917,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_method_token = payment_method_token;
     }
 
-    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         self.payment_method_info = payment_method_info;
     }
 
@@ -12272,8 +12260,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
-       todo!()
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
+        todo!()
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
@@ -12582,7 +12570,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 
@@ -12893,7 +12881,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 
@@ -13201,7 +13189,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 
@@ -13665,7 +13653,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         todo!()
     }
 
-    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>){
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 

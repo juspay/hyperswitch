@@ -508,7 +508,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = payment_method_with_raw_data.as_ref()
+        let payment_method_data = payment_method_with_raw_data
+            .as_ref()
             .and_then(|pm| pm.raw_payment_method_data.clone())
             .or(payment_method_data_after_card_bin_call.map(Into::into));
 
@@ -804,27 +805,46 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<Option<pm_transformers::PaymentMethodWithRawData>> {
-        let profile_id = req.profile_id.clone().or(platform.get_provider().get_account().get_default_profile().clone()).get_required_value("profile_id")?;
+        match feature_config.is_payment_method_modular_allowed {
+            true => {
+                logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
 
-        let pm_info = if let Some(payment_token) = &req.payment_token {
-            // Fetch payment method using PM Modular Service
-            let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
-                state,
-                platform.get_provider().get_account().get_id(),
-                &profile_id,
-                payment_token,
-                None, // CVC token data is not passed in create api
-            )
-            .await?;
-            logger::info!("Payment method fetched from PM Modular Service.");
+                let profile_id = req
+                    .profile_id
+                    .clone()
+                    .or(platform
+                        .get_provider()
+                        .get_account()
+                        .get_default_profile()
+                        .clone())
+                    .get_required_value("profile_id")?;
 
-            Some(pm_info)
-        } else {
-            None
-        };
+                let pm_info = if let Some(payment_token) = &req.payment_token {
+                    // Fetch payment method using PM Modular Service
+                    let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform.get_provider().get_account().get_id(),
+                        &profile_id,
+                        payment_token,
+                        None, // CVC token data is not passed in create api
+                    )
+                    .await?;
+                    logger::info!("Payment method fetched from PM Modular Service.");
 
-        Ok(pm_info)
+                    Some(pm_info)
+                } else {
+                    None
+                };
+
+                Ok(pm_info)
+            }
+            false => {
+                logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                Ok(None)
+            }
+        }
     }
 
     #[instrument(skip_all)]

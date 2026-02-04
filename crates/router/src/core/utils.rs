@@ -62,19 +62,19 @@ use crate::{
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Default)]
-pub struct FeatureSet {
-    pub is_modular_merchant: bool,
+pub struct FeatureConfig {
+    pub is_payment_method_modular_allowed: bool,
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_feature_set(state: &SessionState, platform: &domain::Platform) -> FeatureSet {
-    let is_modular_merchant = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+pub async fn get_feature_config(state: &SessionState, platform: &domain::Platform) -> FeatureConfig {
+    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
         state.store.as_ref(),
         &platform.get_processor().get_account().organization_id,
     )
     .await;
-    FeatureSet {
-        is_modular_merchant,
+    FeatureConfig {
+        is_payment_method_modular_allowed,
     }
 }
 

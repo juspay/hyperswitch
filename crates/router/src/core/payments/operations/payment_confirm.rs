@@ -39,9 +39,10 @@ use crate::{
         metrics,
         payment_methods::{transformers as pm_transformers, utils as pm_utils},
         payments::{
-            self, helpers, operations,OperationSessionSetters,
+            self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
-            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
+            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -1043,75 +1044,88 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
-        //check for req.payment_method_data, if card, create payment method with pm service
-        let payment_method_info = match req
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.as_ref())
-        {
-            Some(api_models::payments::PaymentMethodData::Card(_)) => {
-                let payment_method =
-                    req.payment_method
-                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "payment_method",
-                        })?;
 
-                let payment_method_type = req.payment_method_type.ok_or(
-                    errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "payment_method_type",
-                    },
-                )?;
-
-                let payment_method_data = req
+        match feature_config.is_payment_method_modular_allowed {
+            true => {
+                logger::info!("Organization is eligible for PM Modular Service, proceeding to create payment method using PM Modular Service.");
+                //check for req.payment_method_data, if card, create payment method with pm service
+                let payment_method_info = match req
                     .payment_method_data
                     .as_ref()
-                    .and_then(|pmd| pmd.payment_method_data.clone())
-                    .map(Into::into)
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "payment_method_data",
-                    })?;
-
-                match pm_transformers::create_payment_method_in_modular_service(
-                    state,
-                    platform.get_provider().get_account().get_id(),
-                    business_profile.get_id(),
-                    payment_method,
-                    payment_method_type,
-                    payment_method_data,
-                    payment_data
-                        .address
-                        .get_request_payment_method_billing()
-                        .cloned(),
-                    payment_data
-                        .payment_intent
-                        .customer_id
-                        .clone()
-                        .get_required_value("customer_id")?,
-                )
-                .await
+                    .and_then(|pmd| pmd.payment_method_data.as_ref())
                 {
-                    Ok(pm_info) => {
-                        logger::info!("Payment method created in PM Modular service successfully");
-                        Some(pm_info)
+                    Some(api_models::payments::PaymentMethodData::Card(_)) => {
+                        let payment_method = req.payment_method.ok_or(
+                            errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "payment_method",
+                            },
+                        )?;
+
+                        let payment_method_type = req.payment_method_type.ok_or(
+                            errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "payment_method_type",
+                            },
+                        )?;
+
+                        let payment_method_data = req
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|pmd| pmd.payment_method_data.clone())
+                            .map(Into::into)
+                            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "payment_method_data",
+                            })?;
+
+                        match pm_transformers::create_payment_method_in_modular_service(
+                            state,
+                            platform.get_provider().get_account().get_id(),
+                            business_profile.get_id(),
+                            payment_method,
+                            payment_method_type,
+                            payment_method_data,
+                            payment_data
+                                .address
+                                .get_request_payment_method_billing()
+                                .cloned(),
+                            payment_data
+                                .payment_intent
+                                .customer_id
+                                .clone()
+                                .get_required_value("customer_id")?,
+                        )
+                        .await
+                        {
+                            Ok(pm_info) => {
+                                logger::info!(
+                                    "Payment method created in PM Modular service successfully"
+                                );
+                                Some(pm_info)
+                            }
+                            Err(err) => {
+                                logger::error!(
+                                    "Error creating payment method in PM Modular service: {:?}",
+                                    err
+                                );
+                                None
+                            }
+                        }
                     }
-                    Err(err) => {
-                        logger::error!(
-                            "Error creating payment method in PM Modular service: {:?}",
-                            err
-                        );
+                    _ => {
+                        logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
                         None
                     }
-                }
+                };
+                //set payment_data.payment_method_info
+                payment_data.set_payment_method_info(payment_method_info);
+                Ok(())
             }
-            _ => {
-                logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
-                None
-            },
-        };
-        //set payment_data.payment_method_info
-        payment_data.set_payment_method_info(payment_method_info);
-        Ok(())
+            false => {
+                logger::info!("Organization is not eligible for PM Modular Service, skipping create payment method.");
+                Ok(())
+            }
+        }
     }
 
     #[instrument(skip_all)]
@@ -1120,41 +1134,58 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<Option<operations::PaymentMethodWithRawData>> {
-        let profile_id = req.profile_id.clone().or(platform.get_provider().get_account().get_default_profile().clone()).get_required_value("profile_id")?;
+        match feature_config.is_payment_method_modular_allowed {
+            true => {
+                let profile_id = req
+                    .profile_id
+                    .clone()
+                    .or(platform
+                        .get_provider()
+                        .get_account()
+                        .get_default_profile()
+                        .clone())
+                    .get_required_value("profile_id")?;
 
-        let pm_info = if let Some(payment_token) = &req.payment_token {
-            logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
-            //fetch req/payment_method_data, if CardToken, then send it in fetch call else None
-            let pmd = req
-                .payment_method_data
-                .clone()
-                .and_then(|pmd| pmd.payment_method_data)
-                .map(Into::into);
-            let payment_method_data =
-                if let Some(domain::PaymentMethodData::CardToken(ref token)) = pmd {
-                    Some(token.clone())
+                let pm_info = if let Some(payment_token) = &req.payment_token {
+                    logger::info!("Organization is eligible for PM Modular Service, proceeding to fetch payment method using PM Modular Service.");
+                    //fetch req/payment_method_data, if CardToken, then send it in fetch call else None
+                    let pmd = req
+                        .payment_method_data
+                        .clone()
+                        .and_then(|pmd| pmd.payment_method_data)
+                        .map(Into::into);
+                    let payment_method_data =
+                        if let Some(domain::PaymentMethodData::CardToken(ref token)) = pmd {
+                            Some(token.clone())
+                        } else {
+                            None
+                        };
+                    // Fetch payment method using PM Modular Service
+                    let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform.get_provider().get_account().get_id(),
+                        &profile_id,
+                        payment_token,
+                        payment_method_data,
+                    )
+                    .await?;
+                    logger::info!("Payment method fetched from PM Modular Service.");
+
+                    Some(pm_info)
                 } else {
                     None
                 };
-            // Fetch payment method using PM Modular Service
-            let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
-                state,
-                platform.get_provider().get_account().get_id(),
-                &profile_id,
-                payment_token,
-                payment_method_data,
-            )
-            .await?;
-            logger::info!("Payment method fetched from PM Modular Service.");
 
-            Some(pm_info)
-        } else {
-            None
-        };
-
-        //the pm_info will be set in payment_data in get trackers
-        Ok(pm_info)
+                //the pm_info will be set in payment_data in get trackers
+                Ok(pm_info)
+            }
+            false => {
+                logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                Ok(None)
+            }
+        }
     }
 
     #[instrument(skip_all)]
