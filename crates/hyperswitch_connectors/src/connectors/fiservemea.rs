@@ -874,3 +874,5 @@ impl ConnectorSpecifications for Fiservemea {
         Some(&FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Fiservemea {}

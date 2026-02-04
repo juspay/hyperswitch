@@ -719,3 +719,5 @@ impl webhooks::IncomingWebhook for Recurly {
 }
 
 impl ConnectorSpecifications for Recurly {}
+
+impl api::ConnectorAccessTokenSuffix for Recurly {}

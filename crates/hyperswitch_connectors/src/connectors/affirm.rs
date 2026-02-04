@@ -843,3 +843,5 @@ impl ConnectorSpecifications for Affirm {
         Some(&AFFIRM_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Affirm {}

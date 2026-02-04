@@ -894,3 +894,5 @@ impl ConnectorSpecifications for Moneris {
         Some(&MONERIS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Moneris {}

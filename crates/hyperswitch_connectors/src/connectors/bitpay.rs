@@ -467,3 +467,5 @@ impl ConnectorSpecifications for Bitpay {
         Some(&BITPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Bitpay {}

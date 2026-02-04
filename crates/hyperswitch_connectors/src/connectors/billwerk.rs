@@ -896,3 +896,5 @@ impl ConnectorSpecifications for Billwerk {
         Some(&BILLWERK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Billwerk {}

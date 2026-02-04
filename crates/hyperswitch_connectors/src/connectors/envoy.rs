@@ -620,3 +620,5 @@ impl ConnectorSpecifications for Envoy {
         Some(&ENVOY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Envoy {}

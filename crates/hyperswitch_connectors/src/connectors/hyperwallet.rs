@@ -625,3 +625,5 @@ impl ConnectorSpecifications for Hyperwallet {
         Some(&HYPERWALLET_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Hyperwallet {}

@@ -796,3 +796,5 @@ impl ConnectorSpecifications for Boku {
         Some(&BOKU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Boku {}

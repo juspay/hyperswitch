@@ -1039,3 +1039,5 @@ impl ConnectorSpecifications for Fiserv {
         Some(&FISERV_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Fiserv {}

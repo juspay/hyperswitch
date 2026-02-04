@@ -672,3 +672,5 @@ impl ConnectorSpecifications for Riskified {
         None
     }
 }
+
+impl hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for Riskified {}

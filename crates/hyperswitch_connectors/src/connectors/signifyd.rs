@@ -745,3 +745,5 @@ impl ConnectorSpecifications for Signifyd {
         None
     }
 }
+
+impl hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for Signifyd {}

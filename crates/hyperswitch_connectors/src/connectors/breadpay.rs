@@ -864,3 +864,5 @@ impl ConnectorRedirectResponse for Breadpay {
         }
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Breadpay {}

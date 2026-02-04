@@ -1745,3 +1745,5 @@ impl ConnectorSpecifications for Worldpayvantiv {
         }
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Worldpayvantiv {}

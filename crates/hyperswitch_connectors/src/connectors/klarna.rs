@@ -1472,3 +1472,5 @@ impl ConnectorSpecifications for Klarna {
         Some(&KLARNA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Klarna {}

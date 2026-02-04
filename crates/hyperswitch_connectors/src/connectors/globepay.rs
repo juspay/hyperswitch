@@ -622,3 +622,5 @@ impl ConnectorSpecifications for Globepay {
         Some(&GLOBEPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Globepay {}

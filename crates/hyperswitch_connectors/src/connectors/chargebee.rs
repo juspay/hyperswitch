@@ -893,3 +893,5 @@ impl ConnectorSpecifications for Chargebee {
         Some(&CHARGEBEE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Chargebee {}

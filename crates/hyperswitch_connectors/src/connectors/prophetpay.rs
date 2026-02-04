@@ -766,3 +766,5 @@ impl ConnectorSpecifications for Prophetpay {
         Some(&PROPHETPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Prophetpay {}

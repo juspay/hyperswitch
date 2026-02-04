@@ -455,3 +455,5 @@ impl webhooks::IncomingWebhook for Vgs {
 }
 
 impl ConnectorSpecifications for Vgs {}
+
+impl api::ConnectorAccessTokenSuffix for Vgs {}

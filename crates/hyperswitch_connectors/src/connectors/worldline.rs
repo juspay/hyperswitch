@@ -927,3 +927,5 @@ impl ConnectorSpecifications for Worldline {
         Some(&WORLDLINE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Worldline {}

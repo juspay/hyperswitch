@@ -895,3 +895,5 @@ impl ConnectorSpecifications for Bambora {
         Some(&*BAMBORA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Bambora {}

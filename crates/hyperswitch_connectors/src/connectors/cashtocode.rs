@@ -509,3 +509,5 @@ impl ConnectorSpecifications for Cashtocode {
         Some(&CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Cashtocode {}

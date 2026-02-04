@@ -576,3 +576,5 @@ impl ConnectorSpecifications for Digitalvirgo {
         Some(&DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Digitalvirgo {}

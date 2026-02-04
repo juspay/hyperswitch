@@ -1220,3 +1220,5 @@ impl ConnectorSpecifications for Nmi {
         Some(&NMI_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Nmi {}

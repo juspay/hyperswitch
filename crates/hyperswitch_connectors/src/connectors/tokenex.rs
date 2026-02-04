@@ -399,3 +399,5 @@ impl ConnectorSpecifications for Tokenex {
         Some(&TOKENEX_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Tokenex {}

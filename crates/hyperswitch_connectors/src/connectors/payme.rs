@@ -1481,3 +1481,5 @@ impl ConnectorSpecifications for Payme {
         Some(&PAYME_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Payme {}

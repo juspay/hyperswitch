@@ -1291,3 +1291,5 @@ impl ConnectorSpecifications for Nordea {
         true
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Nordea {}

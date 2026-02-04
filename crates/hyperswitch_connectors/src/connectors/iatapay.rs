@@ -887,3 +887,5 @@ impl ConnectorSpecifications for Iatapay {
         Some(&*IATAPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Iatapay {}

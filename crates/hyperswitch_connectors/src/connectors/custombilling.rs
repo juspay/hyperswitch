@@ -573,3 +573,5 @@ impl webhooks::IncomingWebhook for Custombilling {
 }
 
 impl ConnectorSpecifications for Custombilling {}
+
+impl api::ConnectorAccessTokenSuffix for Custombilling {}
