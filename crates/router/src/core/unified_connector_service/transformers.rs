@@ -2362,7 +2362,7 @@ impl
         {
             let wait_screen_metadata = build_upi_wait_screen_data()?;
 
-            let mut metadata_map = connector_metadata
+            let mut metadata_map: serde_json::Map<String, serde_json::Value> = connector_metadata
                 .as_ref()
                 .and_then(|meta| meta.as_object())
                 .cloned()
@@ -3741,65 +3741,6 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             exemption_indicator: None,
             network_params: None,
         })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
-        match value.form_type {
-            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
-                endpoint: form.clone().endpoint,
-                method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
-            }),
-            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
-                html_data: html.html_data,
-            }),
-            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "URI form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
-            Some(payments_grpc::redirect_form::FormType::Braintree(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Braintree form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
-            Some(payments_grpc::redirect_form::FormType::Mifinity(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Mifinity form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
-            None => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Missing form type".to_string(),
-                )
-                .into(),
-            ),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::HttpMethod> for Method {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
-        tracing::debug!("Converting gRPC HttpMethod: {:?}", value);
-        match value {
-            payments_grpc::HttpMethod::Get => Ok(Self::Get),
-            payments_grpc::HttpMethod::Post => Ok(Self::Post),
-            payments_grpc::HttpMethod::Put => Ok(Self::Put),
-            payments_grpc::HttpMethod::Delete => Ok(Self::Delete),
-            payments_grpc::HttpMethod::Unspecified => {
-                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                    .attach_printable("Invalid Http Method")
-            }
-        }
     }
 }
 
