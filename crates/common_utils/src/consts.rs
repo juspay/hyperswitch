@@ -226,3 +226,9 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
+
+/// Length of CPF document number, used in Brazil commonly
+pub const CPF_LENGTH: usize = 11;
+
+/// Length of CNPJ document number, used in Brazil commonly
+pub const CNPJ_LENGTH: usize = 14;

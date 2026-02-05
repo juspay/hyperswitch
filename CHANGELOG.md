@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.05.0
+
+### Features
+
+- **auth:** Enable MerchantIdAuth for v2 payments retrieve by merchant reference ID ([#11077](https://github.com/juspay/hyperswitch/pull/11077)) ([`6fe246c`](https://github.com/juspay/hyperswitch/commit/6fe246cc05b58fbb7a980a89c420aa792e09597d))
+- **connector:** [Cybersource Decision Manager] Implement Cybersource Decision Manager (FRM) ([#11149](https://github.com/juspay/hyperswitch/pull/11149)) ([`8f8ade9`](https://github.com/juspay/hyperswitch/commit/8f8ade9a7db41282c857f62ed479c20625c352d6))
+- **core:**
+  - Make customer id optional for guest customer flows ([#11138](https://github.com/juspay/hyperswitch/pull/11138)) ([`c3824fe`](https://github.com/juspay/hyperswitch/commit/c3824fe8823868672657a1fd5b86e35131a92e14))
+  - Add customer_document_number in payment request ([#10683](https://github.com/juspay/hyperswitch/pull/10683)) ([`6e8f28e`](https://github.com/juspay/hyperswitch/commit/6e8f28ed3d1b2bd556fb1038d663bbbfdf947609))
+  - Enable config-based UAS eligibility at org and merchant level ([#10996](https://github.com/juspay/hyperswitch/pull/10996)) ([`cedaa07`](https://github.com/juspay/hyperswitch/commit/cedaa079c021d889ee211d0af3b36a9ee71530ce))
+- **payment_methods:** Add and integrate modular pm update service into payments flow ([#11091](https://github.com/juspay/hyperswitch/pull/11091)) ([`9d7d67f`](https://github.com/juspay/hyperswitch/commit/9d7d67f2febaf237e0a7ea6138e4f089afbf2658))
+- **platform:** Support incremental authorization for platform payments ([#11146](https://github.com/juspay/hyperswitch/pull/11146)) ([`e2f3e94`](https://github.com/juspay/hyperswitch/commit/e2f3e948be0a3dea88382f57edad3da866677fd0))
+- Add bank_transfer support for unified-connector-service ([#10905](https://github.com/juspay/hyperswitch/pull/10905)) ([`345413f`](https://github.com/juspay/hyperswitch/commit/345413fe1ef7391f6edefdb69a9ddf56e7e13d6f))
+
+### Miscellaneous Tasks
+
+- Added Resource ID header for UCS requests HS<>UCS ([#11088](https://github.com/juspay/hyperswitch/pull/11088)) ([`1a05379`](https://github.com/juspay/hyperswitch/commit/1a0537926d0a9dfff6363c83ccb2984e1b58131f))
+
+**Full Changelog:** [`2026.02.04.1...2026.02.05.0`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1...2026.02.05.0)
+
+- - -
+
 ## 2026.02.04.1
 
 ### Features
