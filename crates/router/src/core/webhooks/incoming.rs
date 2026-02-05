@@ -419,9 +419,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     // Extract event_object for audit trail - reuse from webhook_processing_result if available
     // (extracted once in process_ucs_webhook/process_direct_webhook, reused here)
-    let event_object = webhook_processing_result.event_object.unwrap_or_else(|| -> Box<dyn masking::ErasedMaskSerialize> {
-        Box::new(serde_json::Value::Null)
-    });
+    let event_object = webhook_processing_result.event_object.unwrap_or_else(
+        || -> Box<dyn masking::ErasedMaskSerialize> { Box::new(serde_json::Value::Null) },
+    );
 
     let webhook_effect = match process_webhook_further {
         true => {
@@ -728,28 +728,28 @@ async fn process_shadow_webhook_transform<'a>(
         .ok();
 
     // Step 1: Execute Direct path FIRST
-        let decoded_body = connector
-            .decode_webhook_body(
-                request_details,
-                platform.get_processor().get_account().get_id(),
+    let decoded_body = connector
+        .decode_webhook_body(
+            request_details,
+            platform.get_processor().get_account().get_id(),
             merchant_connector_account
                 .as_ref()
                 .and_then(|mca| mca.connector_webhook_details.clone()),
-                connector_name,
-            )
-            .await
-            .switch()
-            .attach_printable(
-                "There was an error in incoming webhook body decoding for shadow processing",
-            )?;
+            connector_name,
+        )
+        .await
+        .switch()
+        .attach_printable(
+            "There was an error in incoming webhook body decoding for shadow processing",
+        )?;
 
     let mut direct_processing_result = process_direct_webhook_transform(
-            state,
-            platform,
-            connector,
-            connector_name,
-            decoded_body.into(),
-            request_details,
+        state,
+        platform,
+        connector,
+        connector_name,
+        decoded_body.into(),
+        request_details,
         merchant_connector_account.clone(),
         object_ref_id.clone(),
     )
@@ -784,14 +784,14 @@ async fn process_shadow_webhook_transform<'a>(
                     .ok();
 
                 if let Some(transform_data) = ucs_processing_result.transform_data {
-            let shadow_ucs_data = ShadowUcsData {
+                    let shadow_ucs_data = ShadowUcsData {
                         ucs_source_verified: ucs_processing_result.source_verified,
                         ucs_event_type: ucs_processing_result.event_type,
                         ucs_transform_data: transform_data,
-                request_details,
+                        request_details,
                         webhook_details: ucs_processing_result.webhook_details,
-            };
-            direct_processing_result.shadow_ucs_data = Some(shadow_ucs_data);
+                    };
+                    direct_processing_result.shadow_ucs_data = Some(shadow_ucs_data);
 
                     // Step 3: Spawn comparison data sending to validation service (fire-and-forget)
                     // Serialize direct result for comparison
@@ -877,8 +877,11 @@ async fn process_direct_webhook_transform<'a>(
         query_params: request_details.query_params.clone(),
         body: &decoded_body,
     };
-    let object_ref_id = object_ref_id
-        .or_else(|| connector.get_webhook_object_reference_id(&updated_request_details).ok());
+    let object_ref_id = object_ref_id.or_else(|| {
+        connector
+            .get_webhook_object_reference_id(&updated_request_details)
+            .ok()
+    });
 
     let webhook_resource_data = match &object_ref_id {
         Some(webhooks::ObjectReferenceId::PaymentId(id)) => {
@@ -951,12 +954,12 @@ async fn process_direct_webhook_transform<'a>(
                 None => {
                     // No MCA provided - fetch from payment_intent using object_ref_id
                     Box::pin(helper_utils::get_mca_from_object_reference_id(
-        state,
-        object_ref_id.clone(),
-        platform,
-        connector_name,
-    ))
-    .await
+                        state,
+                        object_ref_id.clone(),
+                        platform,
+                        connector_name,
+                    ))
+                    .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Could not find merchant connector account from object reference id",
@@ -976,38 +979,17 @@ async fn process_direct_webhook_transform<'a>(
                 &state.conf.webhook_source_verification_call;
 
             let source_verified = if connectors_with_source_verification_call
-            .connectors_with_webhook_source_verification_call
-            .contains(&connector_enum)
-        {
+                .connectors_with_webhook_source_verification_call
+                .contains(&connector_enum)
+            {
                 // External API call for source verification (e.g., PayPal)
-            verify_webhook_source_verification_call(
-                connector.clone(),
-                state,
-                platform,
-                merchant_connector_account.clone(),
-                connector_name,
-                    &updated_request_details,
-            )
-            .await
-            .or_else(|error| match error.current_context() {
-                errors::ConnectorError::WebhookSourceVerificationFailed => {
-                    logger::error!(?error, "Source Verification Failed");
-                    Ok(false)
-                }
-                _ => Err(error),
-            })
-            .switch()
-            .attach_printable("There was an issue in incoming webhook source verification")?
-        } else {
-                // Traditional source verification
-            connector
-                .clone()
-                .verify_webhook_source(
-                        &updated_request_details,
-                    platform.get_processor().get_account().get_id(),
-                    merchant_connector_account.connector_webhook_details.clone(),
-                    merchant_connector_account.connector_account_details.clone(),
+                verify_webhook_source_verification_call(
+                    connector.clone(),
+                    state,
+                    platform,
+                    merchant_connector_account.clone(),
                     connector_name,
+                    &updated_request_details,
                 )
                 .await
                 .or_else(|error| match error.current_context() {
@@ -1018,6 +1000,27 @@ async fn process_direct_webhook_transform<'a>(
                     _ => Err(error),
                 })
                 .switch()
+                .attach_printable("There was an issue in incoming webhook source verification")?
+            } else {
+                // Traditional source verification
+                connector
+                    .clone()
+                    .verify_webhook_source(
+                        &updated_request_details,
+                        platform.get_processor().get_account().get_id(),
+                        merchant_connector_account.connector_webhook_details.clone(),
+                        merchant_connector_account.connector_account_details.clone(),
+                        connector_name,
+                    )
+                    .await
+                    .or_else(|error| match error.current_context() {
+                        errors::ConnectorError::WebhookSourceVerificationFailed => {
+                            logger::error!(?error, "Source Verification Failed");
+                            Ok(false)
+                        }
+                        _ => Err(error),
+                    })
+                    .switch()
                     .attach_printable(
                         "There was an issue in incoming webhook source verification",
                     )?
