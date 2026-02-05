@@ -12,7 +12,10 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -47,6 +50,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, ConnectorCustomerType, PaymentsVoidType, Response, SetupMandateType},
@@ -865,6 +869,49 @@ impl webhooks::IncomingWebhook for Payload {
         Ok(request.body.to_vec())
     }
 
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<DisputePayload, errors::ConnectorError> {
+        let webhook_body: responses::PayloadWebhookEvent = request
+            .body
+            .parse_struct("PayloadWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let payment_context = snapshot.map(|s| s.get_payment_context()).ok_or(
+            errors::ConnectorError::GenericError {
+                error_message: "Payment context not found".to_string(),
+                error_object: serde_json::Value::Null,
+            },
+        )?;
+        let currency = payment_context.currency.ok_or_else(|| {
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            }
+        })?;
+
+        let amount = StringMinorUnitForConnector
+            .convert(payment_context.amount, currency)
+            .change_context(errors::ConnectorError::AmountConversionFailed)?;
+
+        Ok(DisputePayload {
+            amount,
+            currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: webhook_body.triggered_on.transaction_id.ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_dispute_id",
+                }
+            })?,
+            connector_reason: None,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            connector_status: webhook_body.trigger.as_str().to_string(),
+            created_at: None,
+            updated_at: None,
+        })
+    }
+
     fn get_webhook_source_verification_signature(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -900,12 +947,9 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::Decline
             | responses::PayloadWebhooksTrigger::Deposit
             | responses::PayloadWebhooksTrigger::Reject
-            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
-            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+            | responses::PayloadWebhooksTrigger::Chargeback => {
                 let reference_id = webhook_body
                     .triggered_on
                     .transaction_id
@@ -917,9 +961,12 @@ impl webhooks::IncomingWebhook for Payload {
             }
             // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
             // The only differentiator is the distinct IDs received for payment and refund.
-            responses::PayloadWebhooksTrigger::Refund
-            | responses::PayloadWebhooksTrigger::Chargeback
-            | responses::PayloadWebhooksTrigger::ChargebackReversal => {
+            responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear
+            | responses::PayloadWebhooksTrigger::ChargebackReversal
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::Refund => {
                 Err(errors::ConnectorError::WebhooksNotImplemented.into())
             }
         }
@@ -928,13 +975,34 @@ impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: responses::PayloadWebhookEvent =
             request.body.parse_struct("PayloadWebhookEvent").switch()?;
 
-        Ok(api_models::webhooks::IncomingWebhookEvent::from(
-            webhook_body.trigger,
-        ))
+        // Check if this is an ACH late failure (network rejection after payment was already Charged)
+        // These should be treated as disputes, unlike regular Chargeback which uses normal flow
+        let is_ach_late_failure = snapshot
+            .map(|s| {
+                let payment_context = s.get_payment_context();
+                let is_ach =
+                    payment_context.payment_method_type == Some(enums::PaymentMethodType::Ach);
+                let is_charged = payment_context.previous_status == enums::AttemptStatus::Charged;
+                let is_late_failure_trigger = matches!(
+                    webhook_body.trigger,
+                    responses::PayloadWebhooksTrigger::Decline
+                        | responses::PayloadWebhooksTrigger::Reject
+                        | responses::PayloadWebhooksTrigger::BankAccountReject
+                );
+                is_ach && is_charged && is_late_failure_trigger
+            })
+            .unwrap_or(false);
+
+        Ok(if is_ach_late_failure {
+            api_models::webhooks::IncomingWebhookEvent::DisputeLost
+        } else {
+            api_models::webhooks::IncomingWebhookEvent::from(webhook_body.trigger)
+        })
     }
 
     fn get_webhook_resource_object(

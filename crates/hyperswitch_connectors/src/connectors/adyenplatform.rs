@@ -50,7 +50,7 @@ use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications},
     configs::Connectors,
     errors::ConnectorError,
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask as _, Maskable, Secret};
 #[cfg(feature = "payouts")]
@@ -427,6 +427,7 @@ impl IncomingWebhook for Adyenplatform {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {

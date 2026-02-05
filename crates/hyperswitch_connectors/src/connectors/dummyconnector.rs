@@ -41,7 +41,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
         RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
 };
 use masking::{Mask as _, Maskable};
 use transformers as dummyconnector;
@@ -640,6 +640,7 @@ impl<const T: u8> IncomingWebhook for DummyConnector<T> {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }

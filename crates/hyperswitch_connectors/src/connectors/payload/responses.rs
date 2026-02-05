@@ -1,6 +1,5 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -123,6 +122,31 @@ pub enum PayloadWebhooksTrigger {
     TransactionOperation,
     #[serde(rename = "transaction:operation:clear")]
     TransactionOperationClear,
+}
+impl PayloadWebhooksTrigger {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Payment => "payment",
+            Self::Processed => "processed",
+            Self::Authorized => "authorized",
+            Self::Credit => "credit",
+            Self::Refund => "refund",
+            Self::Reversal => "reversal",
+            Self::Void => "void",
+            Self::AutomaticPayment => "automatic_payment",
+            Self::Decline => "decline",
+            Self::Deposit => "deposit",
+            Self::Reject => "reject",
+            Self::PaymentActivationStatus => "payment_activation:status",
+            Self::PaymentLinkStatus => "payment_link:status",
+            Self::ProcessingStatus => "processing_status",
+            Self::BankAccountReject => "bank_account_reject",
+            Self::Chargeback => "chargeback",
+            Self::ChargebackReversal => "chargeback_reversal",
+            Self::TransactionOperation => "transaction:operation",
+            Self::TransactionOperationClear => "transaction:operation:clear",
+        }
+    }
 }
 
 // Webhook response structures

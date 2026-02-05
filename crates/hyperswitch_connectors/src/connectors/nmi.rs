@@ -48,7 +48,7 @@ use hyperswitch_interfaces::{
         PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
 };
 use masking::Maskable;
 use regex::Regex;
@@ -1026,6 +1026,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let event_type_body: nmi::NmiWebhookEventBody = request
             .body
