@@ -164,6 +164,8 @@ pub struct GrpcHeadersUcs {
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+    /// Resource id
+    resource_id: Option<ucs_types::UcsResourceId>,
 
     shadow_mode: Option<bool>,
     /// Config override as JSON string to pass to UCS
@@ -177,6 +179,7 @@ pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (),
     (),
     (),
+    (),
     (Option<bool>,),
     (Option<String>,),
 )>;
@@ -187,6 +190,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
+    (Option<ucs_types::UcsResourceId>,),
     (Option<bool>,),
     (Option<String>,),
 )>;

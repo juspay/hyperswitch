@@ -749,6 +749,7 @@ sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "E
 eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 przelewy24 = { country = "PL", currency = "PLN,EUR" }
+klarna = { country = "DE,AT,NL,BE,FR,GB,IT,ES,PT,SE,DK,FI,NO,CH,IR,CZ,PL,GR,SK", currency = "EUR,GBP,DKK,SEK,NOK,CHF,PLN,CZK" }
 
 [pm_filters.rapyd]
 apple_pay = { country = "BR, CA, CL, CO, DO, SV, MX, PE, PT, US, AT, BE, BG, HR, CY, CZ, DO, DK, EE, FI, FR, GE, DE, GR, GL, HU, IS, IE, IL, IT, LV, LI, LT, LU, MT, MD, MC, ME, NL, NO, PL, RO, SM, SK, SI, ZA, ES, SE, CH, GB, VA, AU, HK, JP, MY, NZ, SG, KR, TW, VN", currency = "AMD, AUD, BGN, BRL, BYN, CAD, CHF, CLP, CNY, COP, CRC, CZK, DKK, DOP, EUR, GBP, GEL, GTQ, HUF, ISK, JPY, KRW, MDL, MXN, MYR, NOK, PAB, PEN, PLN, PYG, RON, RSD, SEK, SGD, TWD, UAH, USD, UYU, VND, ZAR" }
