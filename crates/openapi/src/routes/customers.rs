@@ -231,7 +231,7 @@ pub async fn customers_retrieve_v1() {}
 ///
 /// Updates the customer's details in a customer object.
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/customers/{id}",
     request_body (
         content = CustomerUpdateRequest,
@@ -265,7 +265,7 @@ pub async fn customers_update() {}
 ///
 /// Updates the customer's details in a customer object.
 #[utoipa::path(
-    post,
+    put,
     path = "/v1/customers/{id}",
     request_body (
         content = CustomerUpdateRequest,

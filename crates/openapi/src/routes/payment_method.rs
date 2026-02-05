@@ -229,34 +229,6 @@ pub async fn default_payment_method_set_api() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn create_payment_method_intent_api() {}
-/// Payment Method - Create Intent
-///
-/// Creates a payment method for customer with billing information and other metadata.
-#[utoipa::path(
-    post,
-    path = "/v1/payment-methods/create-intent",
-    params (
-        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
-        (
-            "X-Profile-Id" = String, Header,
-            description = "Profile ID associated to the payment method",
-            example = "pro_abcdefghijklmnop"
-        )
-    ),
-    request_body(
-    content = PaymentMethodIntentCreate,
-    // TODO: Add examples
-    ),
-    responses(
-        (status = 200, description = "Payment Method Intent Created", body = PaymentMethodResponse),
-        (status = 400, description = "Invalid Data"),
-    ),
-    tag = "Payment Methods",
-    operation_id = "Create Payment Method Intent",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn create_payment_method_intent_api_v1() {}
 /// Payment Method - Confirm Intent
 ///
 /// Update a payment method with customer's payment method related information.
@@ -285,34 +257,6 @@ pub async fn create_payment_method_intent_api_v1() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn confirm_payment_method_intent_api() {}
-/// Payment Method - Confirm Intent
-///
-/// Update a payment method with customer's payment method related information.
-#[utoipa::path(
-    post,
-    path = "/v1/payment-methods/{id}/confirm-intent",
-    params (
-        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
-        (
-            "X-Profile-Id" = String, Header,
-            description = "Profile ID associated to the payment method",
-            example = "pro_abcdefghijklmnop"
-        )
-    ),
-    request_body(
-    content = PaymentMethodIntentConfirm,
-    // TODO: Add examples
-    ),
-    responses(
-        (status = 200, description = "Payment Method Intent Confirmed", body = PaymentMethodResponse),
-        (status = 400, description = "Invalid Data"),
-    ),
-    tag = "Payment Methods",
-    operation_id = "Confirm Payment Method Intent",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn confirm_payment_method_intent_api_v1() {}
 /// Payment Method - Create
 ///
 /// Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.
@@ -420,7 +364,7 @@ pub async fn payment_method_retrieve_api_v1() {}
 ///
 /// Update an existing payment method of a customer.
 #[utoipa::path(
-    patch,
+    put,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
     params(
         (
@@ -448,7 +392,7 @@ pub async fn payment_method_update_api() {}
 ///
 /// Update an existing payment method of a customer.
 #[utoipa::path(
-    patch,
+    put,
     path = "/v1/payment-methods/{id}/update-saved-payment-method",
     params(
         (

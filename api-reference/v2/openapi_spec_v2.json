@@ -1718,7 +1718,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Customers"
         ],
@@ -1885,7 +1885,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Customers"
         ],
@@ -3139,67 +3139,6 @@
         ]
       }
     },
-    "/v1/payment-methods/create-intent": {
-      "post": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Create Intent",
-        "description": "Creates a payment method for customer with billing information and other metadata.",
-        "operationId": "Create Payment Method Intent",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Profile-Id",
-            "in": "header",
-            "description": "Profile ID associated to the payment method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "pro_abcdefghijklmnop"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodIntentCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Method Intent Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/v2/payment-methods/{id}/confirm-intent": {
       "post": {
         "tags": [
@@ -3261,69 +3200,8 @@
         ]
       }
     },
-    "/v1/payment-methods/{id}/confirm-intent": {
-      "post": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Method - Confirm Intent",
-        "description": "Update a payment method with customer's payment method related information.",
-        "operationId": "Confirm Payment Method Intent",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Profile-Id",
-            "in": "header",
-            "description": "Profile ID associated to the payment method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "pro_abcdefghijklmnop"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodIntentConfirm"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Method Intent Confirmed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/v2/payment-methods/{id}/update-saved-payment-method": {
-      "patch": {
+      "put": {
         "tags": [
           "Payment Methods"
         ],
@@ -3375,7 +3253,7 @@
       }
     },
     "/v1/payment-methods/{id}/update-saved-payment-method": {
-      "patch": {
+      "put": {
         "tags": [
           "Payment Methods"
         ],
@@ -21515,9 +21393,6 @@
       },
       "PaymentMethodUpdate": {
         "type": "object",
-        "required": [
-          "network_transaction_id"
-        ],
         "properties": {
           "payment_method_data": {
             "allOf": [
@@ -21537,7 +21412,8 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         },
         "additionalProperties": false

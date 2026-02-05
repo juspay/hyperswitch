@@ -64,8 +64,6 @@
                       "v2/payment-methods/payment-method--retrieve-v1",
                       "v2/payment-methods/payment-method--update-v1",
                       "v2/payment-methods/payment-method--delete-v1",
-                      "v2/payment-methods/payment-method--confirm-intent-v1",
-                      "v2/payment-methods/payment-method--create-intent-v1",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1"
                     ]
                   },
