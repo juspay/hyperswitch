@@ -261,7 +261,7 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
-      
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -289,7 +289,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
+          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -489,7 +489,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
+          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -758,7 +758,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
+          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -795,7 +795,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      
+
       - name: Install Cypress and dependencies
         run: |
           npm ci --prefix ./cypress-tests
@@ -1123,7 +1123,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
+          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"

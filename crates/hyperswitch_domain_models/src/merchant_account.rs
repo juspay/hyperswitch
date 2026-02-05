@@ -216,6 +216,12 @@ impl MerchantAccount {
         &self.merchant_id
     }
 
+    #[cfg(feature = "v1")]
+    /// Get the unique identifier of MerchantAccount
+    pub fn get_default_profile(&self) -> &Option<common_utils::id_type::ProfileId> {
+        &self.default_profile
+    }
+
     #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {

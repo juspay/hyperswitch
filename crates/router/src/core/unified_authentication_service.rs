@@ -873,7 +873,7 @@ pub async fn authentication_create_core(
         acquirer_details,
         new_authentication.profile_acquirer_id,
         customer_details,
-        req.customer_details.map(|details| details.id.clone()),
+        req.customer_details.and_then(|details| details.id.clone()),
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -928,12 +928,13 @@ impl
                 .ok_or(ApiErrorResponse::InternalServerError)
                 .attach_printable("Customer id not found in authentication create request")?;
             Some(CustomerDetails {
-                id: customer_id.clone(),
+                id: Some(customer_id.clone()),
                 name: details.name,
                 email: details.email,
                 phone: details.phone,
                 phone_country_code: details.phone_country_code,
                 tax_registration_id: details.tax_registration_id,
+                document_details: details.customer_document_details,
             })
         } else {
             None
@@ -1585,6 +1586,31 @@ pub async fn authentication_eligibility_check_core(
     _auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
     let authentication_id = req.authentication_id.clone();
+    let db = &*state.store;
+    let merchant_account = platform.get_processor().get_account();
+    let merchant_id = merchant_account.get_id();
+    let key_manager_state = (&state).into();
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    req.client_secret
+        .as_ref()
+        .map(|client_secret| {
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                client_secret.peek(),
+                &authentication,
+            )
+        })
+        .transpose()?;
     let eligibility_handler = EligibilityHandler::new(state, platform, req);
     // Run the checks in sequence, short-circuiting on the first that returns a next action
     let sdk_next_action = eligibility_handler
@@ -2217,6 +2243,15 @@ pub async fn authentication_session_core(
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
         })?;
+
+    req.client_secret
+        .map(|client_secret| {
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                client_secret.peek(),
+                &authentication,
+            )
+        })
+        .transpose()?;
 
     let mut session_tokens = Vec::new();
 

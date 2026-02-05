@@ -568,6 +568,9 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error>;
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -1077,6 +1080,11 @@ impl<Flow, Request, Response> RouterData
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
+    }
+    fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error> {
+        Ok(self.customer_document_details.clone())
     }
     fn get_connector_customer_id(&self) -> Result<String, Error> {
         self.connector_customer
@@ -3180,6 +3188,47 @@ impl CryptoData for payment_method_data::CryptoData {
         self.pay_currency
             .clone()
             .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
+}
+
+pub trait OrderDetailsWithAmountData {
+    fn get_order_description(&self) -> Result<String, Error>;
+    fn get_order_quantity(&self) -> u16;
+    fn get_optional_order_quantity_unit(&self) -> Option<String>;
+    fn get_order_total_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit>;
+    fn get_optional_sku(&self) -> Option<String>;
+    fn get_optional_product_img_link(&self) -> Option<String>;
+    fn get_order_unit_price(&self) -> MinorUnit;
+}
+
+impl OrderDetailsWithAmountData for OrderDetailsWithAmount {
+    fn get_order_description(&self) -> Result<String, Error> {
+        self.description
+            .clone()
+            .ok_or_else(missing_field_err("order_details.description"))
+    }
+    fn get_order_quantity(&self) -> u16 {
+        self.quantity
+    }
+    fn get_optional_order_quantity_unit(&self) -> Option<String> {
+        self.unit_of_measure.clone()
+    }
+    fn get_order_unit_price(&self) -> MinorUnit {
+        self.amount
+    }
+    fn get_order_total_amount(&self) -> Result<MinorUnit, Error> {
+        self.total_amount
+            .ok_or_else(missing_field_err("order_details.total_amount"))
+    }
+    fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
+        self.unit_discount_amount
+    }
+    fn get_optional_sku(&self) -> Option<String> {
+        self.sku.clone()
+    }
+    fn get_optional_product_img_link(&self) -> Option<String> {
+        self.product_img_link.clone()
     }
 }
 
@@ -7465,6 +7514,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
+        customer_document_details: data.customer_document_details.clone(),
     }
 }
 
