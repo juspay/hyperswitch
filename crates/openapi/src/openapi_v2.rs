@@ -115,10 +115,15 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for customers
         routes::customers::customers_create,
+        routes::customers::customers_create_v1,
         routes::customers::customers_retrieve,
+        routes::customers::customers_retrieve_v1,
         routes::customers::customers_update,
+        routes::customers::customers_update_v1,
         routes::customers::customers_delete,
+        routes::customers::customers_delete_v1,
         routes::customers::customers_list,
+        routes::customers::customers_list_v1,
 
         //Routes for payments
         routes::payments::payments_create_intent,
@@ -134,23 +139,34 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
+        routes::payment_method::create_payment_method_api_v1,
         routes::payment_method::create_payment_method_intent_api,
         routes::payment_method::confirm_payment_method_intent_api,
         routes::payment_method::payment_method_update_api,
+        routes::payment_method::payment_method_update_api_v1,
         routes::payment_method::payment_method_retrieve_api,
+        routes::payment_method::payment_method_retrieve_api_v1,
         routes::payment_method::payment_method_delete_api,
+        routes::payment_method::payment_method_delete_api_v1,
         routes::payment_method::network_token_status_check_api,
         routes::payment_method::list_customer_payment_method_api,
+        routes::payment_method::list_customer_payment_method_api_v1,
         routes::payment_method::payment_method_get_token_details_api,
         routes::payment_method::payment_method_get_token_details_api_v1,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,
+        routes::payment_method::payment_method_session_create_v1,
         routes::payment_method::payment_method_session_retrieve,
+        routes::payment_method::payment_method_session_retrieve_v1,
         routes::payment_method::payment_method_session_list_payment_methods,
+        routes::payment_method::payment_method_session_list_payment_methods_v1,
         routes::payment_method::payment_method_session_update_saved_payment_method,
+        routes::payment_method::payment_method_session_update_saved_payment_method_v1,
         routes::payment_method::payment_method_session_delete_saved_payment_method,
+        routes::payment_method::payment_method_session_delete_saved_payment_method_v1,
         routes::payment_method::payment_method_session_confirm,
+        routes::payment_method::payment_method_session_confirm_v1,
 
         //Routes for refunds
         routes::refunds::refunds_create,
