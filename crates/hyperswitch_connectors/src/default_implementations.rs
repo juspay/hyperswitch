@@ -10707,5 +10707,12 @@ default_impl_connector_access_token!(
     connectors::Zen,
     connectors::Zift,
     connectors::Zsl,
-    connectors::UnifiedAuthenticationService
+    connectors::UnifiedAuthenticationService,
+    connectors::Envoy,
+    connectors::Hyperwallet,
+    connectors::Katapult,
+    connectors::Mpgs,
+    connectors::Opayo,
+    connectors::Payeezy,
+    connectors::Sift
 );
