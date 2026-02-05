@@ -45,6 +45,35 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
+pub(crate) fn get_event_type(
+    status: common_enums::IntentStatus,
+    state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+) -> Option<common_enums::EventType> {
+    match resolve_override(&status, state_metadata) {
+        common_enums::EventOverride::Override(event) => Some(event),
+        common_enums::EventOverride::Ignore => None,
+        common_enums::EventOverride::NoOverride => status.into(),
+    }
+}
+
+fn resolve_override(
+    status: &common_enums::IntentStatus,
+    state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+) -> common_enums::EventOverride {
+    match (state_metadata.and_then(|metadata| metadata.post_capture_void.as_ref().map(|post_capture_void| post_capture_void.status)), status) {
+        (
+            Some(common_enums::PostCaptureVoidStatus::Succeeded),
+            common_enums::IntentStatus::Succeeded
+                | common_enums::IntentStatus::PartiallyCaptured
+                | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+        ) => common_enums::EventOverride::Override(
+            common_enums::EventType::PaymentCancelledPostCapture,
+        ),
+        (Some(_), _) => common_enums::EventOverride::Ignore,
+        _ => common_enums::EventOverride::NoOverride,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(

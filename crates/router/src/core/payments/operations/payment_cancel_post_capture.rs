@@ -232,13 +232,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             ))
         })?;
 
-        let is_post_capture_void_applied =
-            payment_data.payment_intent.is_post_capture_void_applied();
+        let is_post_capture_void_applied_or_pending =
+            payment_data.payment_intent.is_post_capture_void_applied() || payment_data
+                .payment_intent
+                .is_post_capture_void_pending();
 
-        crate::utils::when(is_post_capture_void_applied, || {
+        crate::utils::when(is_post_capture_void_applied_or_pending, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "This payment is already voided post capture".into()
+                    message: "Voided post capture already attempted".into()
                 }
             ))
         })?;

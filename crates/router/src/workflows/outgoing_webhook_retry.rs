@@ -437,7 +437,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                     })
                 }
             }?;
-            let event_type: Option<EventType> = payments_response.status.into();
+            let event_type: Option<EventType> = 
+            webhooks_core::get_event_type(payments_response.status, payments_response.state_metadata.clone());
             logger::debug!(current_resource_status=%payments_response.status);
 
             Ok((
