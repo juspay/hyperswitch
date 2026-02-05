@@ -141,6 +141,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
+        payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -202,6 +203,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                     created_by: None,
                     last_modified_by: None,
+                    customer_details: payment_method_customer_details_encrypted,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -510,6 +512,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
+            None,
         )
         .await
     }
@@ -1427,6 +1430,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
+                None,
             )
             .await?;
 
@@ -2765,12 +2769,12 @@ pub async fn list_payment_methods(
     let payment_attempt = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &pi.payment_id,
-                &pi.merchant_id,
+                &pi.processor_merchant_id,
                 &pi.active_attempt.get_id(),
-                platform.get_provider().get_account().storage_scheme,
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -4585,12 +4589,12 @@ async fn perform_surcharge_ops(
         .async_map(|payment_intent| async {
             state
                 .store
-                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     payment_intent.get_id(),
-                    platform.get_provider().get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_provider().get_account().storage_scheme,
-                    platform.get_provider().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -5001,16 +5005,20 @@ pub async fn get_bank_from_vault(
 #[cfg(feature = "v1")]
 pub async fn get_bank_debit_from_hs_locker(
     state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
+    provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
-    let payment_method =
-        get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting payment method from locker")?;
+    let payment_method = get_encrypted_data_from_vault(
+        state,
+        provider.get_key_store(),
+        customer_id,
+        provider.get_account().get_id(),
+        token_ref,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error getting payment method from locker")?;
 
     let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
         .peek()
@@ -5272,14 +5280,21 @@ pub async fn execute_card_tokenization(
     let domain_card = optional_card
         .get_required_value("card")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
     let network_token_details = executor
-        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
     let builder = builder.set_token_details(&network_token_details);
 
     // Store card and token in locker
     let store_card_and_token_resp = executor
-        .store_card_and_token_in_locker(&network_token_details, &domain_card, &customer.id)
+        .store_card_and_token_in_locker(&network_token_details, &domain_card, customer_id)
         .await?;
     let builder = builder.set_stored_card_response(&store_card_and_token_resp);
     let builder = builder.set_stored_token_response(&store_card_and_token_resp);
@@ -5290,7 +5305,7 @@ pub async fn execute_card_tokenization(
             &store_card_and_token_resp,
             &network_token_details,
             &domain_card,
-            &customer.id,
+            customer_id,
         )
         .await?;
     let builder = builder.set_payment_method_response(&payment_method);
@@ -5316,10 +5331,18 @@ pub async fn execute_payment_method_tokenization(
         .await?;
     let builder = builder.set_validate_result(&customer);
 
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
+
     // Fetch card from locker
     let card_details = get_card_from_locker(
         executor.state,
-        &customer.id,
+        customer_id,
         executor.merchant_account.get_id(),
         &locker_id,
     )
@@ -5342,7 +5365,7 @@ pub async fn execute_payment_method_tokenization(
     let (optional_card, optional_cvc) = builder.get_optional_card_and_cvc();
     let domain_card = optional_card.get_required_value("card")?;
     let network_token_details = executor
-        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
     let builder = builder.set_token_details(&network_token_details);
 
@@ -5350,7 +5373,7 @@ pub async fn execute_payment_method_tokenization(
     let store_token_resp = executor
         .store_network_token_in_locker(
             &network_token_details,
-            &customer.id,
+            customer_id,
             card_details.name_on_card.clone(),
             card_details.nick_name.clone().map(Secret::new),
         )

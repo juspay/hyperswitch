@@ -243,6 +243,39 @@ impl AttemptStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
+
+    pub fn should_update_payment_method(self) -> bool {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired => false,
+        }
+    }
 }
 
 #[derive(
@@ -344,6 +377,14 @@ pub enum GsmDecision {
 }
 
 #[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum ApiKeyType {
+    Internal,
+    External,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -360,12 +401,19 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum RecommendedAction {
     DoNotRetry,
+    #[serde(rename = "retry_after_10_days")]
     RetryAfter10Days,
+    #[serde(rename = "retry_after_1_hour")]
     RetryAfter1Hour,
+    #[serde(rename = "retry_after_24_hours")]
     RetryAfter24Hours,
+    #[serde(rename = "retry_after_2_days")]
     RetryAfter2Days,
+    #[serde(rename = "retry_after_4_days")]
     RetryAfter4Days,
+    #[serde(rename = "retry_after_6_days")]
     RetryAfter6Days,
+    #[serde(rename = "retry_after_8_days")]
     RetryAfter8Days,
     RetryAfterInstrumentUpdate,
     RetryLater,
@@ -728,29 +776,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum DocumentKind {
-    Cnpj,
-    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2927,6 +2952,8 @@ pub enum RelayStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
     Refund,
+    Capture,
+    IncrementalAuthorization,
 }
 
 #[derive(
@@ -9616,6 +9643,51 @@ impl From<RelayStatus> for RefundStatus {
     }
 }
 
+impl From<AttemptStatus> for RelayStatus {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
+impl From<AuthorizationStatus> for RelayStatus {
+    fn from(authorization_status: AuthorizationStatus) -> Self {
+        match authorization_status {
+            AuthorizationStatus::Failure => Self::Failure,
+            AuthorizationStatus::Processing | AuthorizationStatus::Unresolved => Self::Pending,
+            AuthorizationStatus::Success => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -10484,6 +10556,28 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    ManualRetry,
+    AutoRetry,
 }
 
 #[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]

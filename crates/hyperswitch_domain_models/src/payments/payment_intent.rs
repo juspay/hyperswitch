@@ -1,3 +1,4 @@
+use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
@@ -62,10 +63,10 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_intent_by_payment_id_merchant_id(
+    async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
@@ -89,7 +90,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -98,7 +99,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -107,7 +108,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
@@ -115,7 +116,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -147,7 +148,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, Self::Error>;
@@ -160,6 +161,23 @@ pub struct CustomerData {
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
+}
+
+impl CustomerData {
+    pub fn fill_missing_fields(&mut self, other: &Self) {
+        self.name = self.name.clone().or_else(|| other.name.clone());
+        self.email = self.email.clone().or_else(|| other.email.clone());
+        self.phone = self.phone.clone().or_else(|| other.phone.clone());
+        self.phone_country_code = self
+            .phone_country_code
+            .clone()
+            .or_else(|| other.phone_country_code.clone());
+        self.tax_registration_id = self
+            .tax_registration_id
+            .clone()
+            .or_else(|| other.tax_registration_id.clone());
+    }
 }
 
 #[cfg(feature = "v2")]

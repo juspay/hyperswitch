@@ -1241,7 +1241,7 @@ pub async fn create_recipient(
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
                             &connector_label,
-                            Some(&customer),
+                            customer.connector_customer.as_ref(),
                             recipient_create_data.connector_payout_id.clone(),
                         )
                         .await
@@ -3142,9 +3142,8 @@ pub async fn make_payout_data(
             Some(
                 payment_helpers::get_merchant_connector_account(
                     state,
-                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor(),
                     None,
-                    platform.get_processor().get_key_store(),
                     &profile_id,
                     connector_name.as_str(),
                     payout_attempt.merchant_connector_id.as_ref(),
@@ -3428,9 +3427,8 @@ pub async fn get_mca_from_profile_id(
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         profile_id,
         connector_name,
         merchant_connector_id,

@@ -3,6 +3,8 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
 use common_enums::CardNetwork;
+#[cfg(feature = "v1")]
+use common_utils::request::Headers;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -13,7 +15,19 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
+#[cfg(feature = "v1")]
+use masking::Mask;
+use masking::{ExposeInterface, PeekInterface};
+#[cfg(feature = "v1")]
+use payment_methods::client::{
+    self as pm_client,
+    create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
+    retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
+    UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
+};
 use router_env::RequestId;
+#[cfg(feature = "v1")]
+use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,7 +37,7 @@ use crate::{
         payment_methods::cards::call_vault_service,
     },
     headers,
-    pii::{prelude::*, Secret},
+    pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, domain},
@@ -566,6 +580,7 @@ pub fn generate_payment_method_response(
     storage_type: Option<common_enums::StorageType>,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     customer_id: Option<id_type::GlobalCustomerId>,
+    raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -629,6 +644,11 @@ pub fn generate_payment_method_response(
         network_token,
         storage_type,
         card_cvc_token_storage,
+        network_transaction_id: payment_method
+            .network_transaction_id
+            .clone()
+            .map(Secret::new),
+        raw_payment_method_data,
     };
 
     Ok(resp)
@@ -985,6 +1005,7 @@ pub fn generate_payment_method_session_response(
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
+    payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1021,6 +1042,7 @@ pub fn generate_payment_method_session_response(
         associated_token_id: token_id,
         storage_type,
         card_cvc_token_storage,
+        payment_method_data,
     }
 }
 
@@ -1105,4 +1127,407 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             token: token.clone().token,
         }
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn call_modular_payment_method_update(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method_id: &str,
+    payload: UpdatePaymentMethodV1Payload,
+) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError> {
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into(),
+    ));
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        state
+            .conf
+            .internal_merchant_id_profile_id_auth
+            .internal_api_key
+            .clone()
+            .expose()
+            .to_string()
+            .into_masked(),
+    ));
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    UpdatePaymentMethod::call(
+        state,
+        &client,
+        UpdatePaymentMethodV1Request {
+            payment_method_id: payment_method_id.to_string(),
+            payload,
+            modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        },
+    )
+    .await
+    .map_err(|err| {
+        logger::error!(error=?err, "modular payment method update failed");
+        ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed
+    })?;
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
+
+#[cfg(feature = "v1")]
+pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
+
+#[derive(Clone, Debug)]
+#[cfg(feature = "v1")]
+pub struct PaymentMethodWithRawData {
+    pub payment_method: DomainPaymentMethodWrapper,
+    pub raw_payment_method_data: Option<domain::PaymentMethodData>,
+}
+
+#[cfg(feature = "v1")]
+// from to convert payment method response to domain payment method
+impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(response: &RetrievePaymentMethodResponse) -> Result<Self, Self::Error> {
+        Ok(Self(domain::PaymentMethod {
+            //for guest checkout, where customer id, this will fail.
+            customer_id: response
+                .customer_id
+                .clone()
+                .get_required_value("CustomerId")?,
+            merchant_id: response.merchant_id.clone(),
+            payment_method_id: response.payment_method_id.clone(),
+            accepted_currency: None,
+            scheme: None,
+            token: None,
+            cardholder_name: None,
+            issuer_name: None,
+            issuer_country: None,
+            payer_country: None,
+            is_stored: None,
+            swift_code: None,
+            direct_debit_token: None,
+            created_at: response
+                .created
+                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
+            payment_method: Some(response.payment_method),
+            payment_method_type: Some(response.payment_method_type),
+            payment_method_issuer: None,
+            payment_method_issuer_code: None,
+            metadata: None,
+            payment_method_data: None, //this is not required in any flow, hence None
+            locker_id: None,           //This id will always be with PM Service
+            last_used_at: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
+            connector_mandate_details: None,
+            customer_acceptance: None,
+            status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
+            network_transaction_id: None,
+            client_secret: None,
+            payment_method_billing_address: None, //Should be sent from PM service
+            updated_by: None,
+            version: common_enums::ApiVersion::V1, //to be updated later
+            network_token_requestor_reference_id: None, //to be added later
+            network_token_locker_id: None,
+            network_token_payment_method_data: None,
+            vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
+            created_by: None,
+            last_modified_by: None,
+            customer_details: None,
+        }))
+    }
+}
+
+#[cfg(feature = "v1")]
+// from to convert payment method response to domain payment method
+impl
+    TryFrom<(
+        payment_methods::types::RawPaymentMethodData,
+        Option<domain::CardToken>,
+    )> for DomainPaymentMethodDataWrapper
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(
+        (raw_data, card_token): (
+            payment_methods::types::RawPaymentMethodData,
+            Option<domain::CardToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match raw_data {
+            payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
+                // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
+                let card_cvc = card_token
+                    .as_ref()
+                    .and_then(|token| token.card_cvc.clone())
+                    .or(card_detail.card_cvc.clone())
+                    .get_required_value("card_cvc")?;
+                let card_holder_name = card_token
+                    .and_then(|token| token.card_holder_name.clone())
+                    .or(card_detail.card_holder_name.clone());
+
+                Ok(Self(domain::PaymentMethodData::Card(
+                    hyperswitch_domain_models::payment_method_data::Card {
+                        card_number: card_detail.card_number,
+                        card_exp_month: card_detail.card_exp_month,
+                        card_exp_year: card_detail.card_exp_year,
+                        card_cvc,
+                        card_issuer: card_detail.card_issuer,
+                        card_network: card_detail.card_network,
+                        card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                        card_issuing_country: card_detail.card_issuing_country,
+                        card_issuing_country_code: None,
+                        bank_code: None,
+                        nick_name: card_detail.nick_name,
+                        card_holder_name,
+                        co_badged_card_data: None,
+                    },
+                )))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
+        Ok(Self(domain::PaymentMethod {
+            //for guest checkout, where customer id, this will fail.
+            customer_id: response.customer_id.get_required_value("CustomerId")?,
+            merchant_id: response.merchant_id,
+            payment_method_id: response.payment_method_id,
+            accepted_currency: None,
+            scheme: None,
+            token: None,
+            cardholder_name: None,
+            issuer_name: None,
+            issuer_country: None,
+            payer_country: None,
+            is_stored: None,
+            swift_code: None,
+            direct_debit_token: None,
+            created_at: response
+                .created
+                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
+            payment_method: response.payment_method,
+            payment_method_type: response.payment_method_type,
+            payment_method_issuer: None,
+            payment_method_issuer_code: None,
+            metadata: None,
+            payment_method_data: None, //use response.card to convert to OptionalEncryptableValue
+            locker_id: None,           //This id will always be with PM Service
+            last_used_at: response
+                .last_used_at
+                .unwrap_or_else(common_utils::date_time::now),
+            connector_mandate_details: None,
+            customer_acceptance: None,
+            status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
+            network_transaction_id: None,
+            client_secret: None,
+            payment_method_billing_address: None, //Should be sent from PM service
+            updated_by: None,
+            version: common_enums::ApiVersion::V1,
+            network_token_requestor_reference_id: None, //to be added later
+            network_token_locker_id: None,
+            network_token_payment_method_data: None,
+            vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
+            created_by: None,
+            last_modified_by: None,
+            customer_details: None,
+        }))
+    }
+}
+
+//Fetch Payment Method from Modular Service
+#[cfg(feature = "v1")]
+pub async fn fetch_payment_method_from_modular_service(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method_id: &str, //Currently PM id is string in v1
+    pmd_card_token: Option<domain::CardToken>,
+) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
+    let payment_method_fetch_req = RetrievePaymentMethodV1Request {
+        payment_method_id: api_models::payment_methods::PaymentMethodId {
+            payment_method_id: payment_method_id.to_owned(),
+        },
+        fetch_raw_detail: true,
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+    };
+
+    //Fetch modular service call
+    let pm_response =
+        retrieve_pm_modular_service_call(state, merchant_id, profile_id, payment_method_fetch_req)
+            .await?;
+
+    //Convert PMResponse to PaymentMethodWithRawData
+    let payment_method = DomainPaymentMethodWrapper::try_from(&pm_response)?;
+
+    //Convert RawPaymentMethodData to domain::PaymentMethodData
+    let raw_payment_method_data = pm_response
+        .raw_payment_method_data
+        .map(|raw_data| {
+            DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
+        })
+        .transpose()
+        .attach_printable("Failed to convert raw payment method data")?;
+
+    let pm_wrapper = PaymentMethodWithRawData {
+        payment_method,
+        raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
+    };
+    Ok(pm_wrapper)
+}
+
+#[cfg(feature = "v1")]
+pub async fn retrieve_pm_modular_service_call(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method_fetch_req: RetrievePaymentMethodV1Request,
+) -> CustomResult<RetrievePaymentMethodResponse, errors::ApiErrorResponse> {
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+
+    //pm client construction
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    //Modular service call
+    let pm_response =
+        pm_client::RetrievePaymentMethod::call(state, &client, payment_method_fetch_req)
+            .await
+            .map_err(|err| {
+                logger::debug!("Error in retrieving payment method: {:?}", err);
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable("Failed to retrieve payment method from modular service")?;
+
+    Ok(pm_response)
+}
+
+//Create Payment Method from Modular Service
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_payment_method_in_modular_service(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: common_enums::PaymentMethodType,
+    payment_method_data: domain::PaymentMethodData,
+    _billing_address: Option<hyperswitch_domain_models::address::Address>,
+    customer_id: id_type::CustomerId,
+) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
+    let payment_method_request = CreatePaymentMethodV1Request {
+        merchant_id: merchant_id.clone(),
+        payment_method,
+        payment_method_type,
+        metadata: None,
+        customer_id,
+        payment_method_data,
+        billing: None,
+        network_tokenization: None,
+        storage_type: Some(common_enums::StorageType::Persistent),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+    };
+
+    //Create modular service call
+    let pm_response =
+        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
+            .await?;
+
+    //Convert PMResponse to PaymentMethodWithRawData
+    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
+
+    Ok(payment_method_with_raw_data.0)
+}
+
+#[cfg(feature = "v1")]
+pub async fn create_pm_modular_service_call(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method_create_req: CreatePaymentMethodV1Request,
+) -> CustomResult<CreatePaymentMethodResponse, errors::ApiErrorResponse> {
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+
+    //pm client construction
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    //Modular service call
+    let pm_response =
+        pm_client::CreatePaymentMethod::call(state, &client, payment_method_create_req)
+            .await
+            .map_err(|err| {
+                logger::debug!("Error in creating payment method: {:?}", err);
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable("Failed to create payment method in modular service")?;
+
+    Ok(pm_response)
 }

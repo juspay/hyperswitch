@@ -176,6 +176,7 @@ run_tests() {
       print_color yellow " Starting Parallel Execution for '$service' (Jobs: $jobs)"
 
       parallel --jobs "$jobs" \
+               --delay 10 \
                --group \
                --joblog "$job_log" \
                execute_test {} "$service" "$tmp_file" {%} \

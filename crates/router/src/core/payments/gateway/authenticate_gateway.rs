@@ -4,9 +4,7 @@ use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    router_data::RouterData, router_flow_types as domain, router_request_types,
-};
+use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -33,10 +31,7 @@ impl<RCD>
         types::PaymentsAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
     > for domain::Authenticate
 where
     RCD: Clone
@@ -64,10 +59,7 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
-            RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -75,7 +67,6 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let merchant_order_reference_id = header_payload.x_reference_id.clone();
         let connector_enum =
             common_enums::connector_enums::Connector::from_str(&router_data.connector)
                 .change_context(ConnectorError::InvalidConnectorName)
@@ -89,7 +80,6 @@ where
             processor,
             connector_enum,
             unified_connector_service_execution_mode,
-            merchant_order_reference_id,
         )
         .await
     }
@@ -105,10 +95,7 @@ impl<RCD>
         types::PaymentsAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (
-            RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
-            Option<router_request_types::UcsAuthenticationData>,
-        ),
+        RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
     > for domain::Authenticate
 where
     RCD: Clone
@@ -127,10 +114,7 @@ where
             types::PaymentsAuthenticateData,
             types::PaymentsResponseData,
             RouterGatewayContext,
-            (
-                RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
-                Option<router_request_types::UcsAuthenticationData>,
-            ),
+            RouterData<Self, types::PaymentsAuthenticateData, types::PaymentsResponseData>,
         >,
     > {
         match execution_path {
