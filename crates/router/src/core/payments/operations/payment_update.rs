@@ -55,6 +55,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -162,6 +163,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             payment_intent.customer_id.as_ref(),
+            None,
         ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -1098,8 +1100,9 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                     .document_details
                     .map(|customer_document_details| customer_document_details.into_inner()),
             )
-            .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("Invalid customer document details: {err}"),
+            .map_err(|report| {
+                router_env::logger::error!(error = ?report, "Failed to convert customer document details");
+                errors::ApiErrorResponse::InternalServerError
             })?,
         })
     }
