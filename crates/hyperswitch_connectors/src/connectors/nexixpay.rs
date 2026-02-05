@@ -1243,16 +1243,11 @@ impl ConnectorSpecifications for Nexixpay {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
             api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
                 payment_method,
-            } => {
-                payment_method == Some(enums::PaymentMethod::Card)
-                    && request_data
-                        .redirect_response
-                        .as_ref()
-                        .and_then(|redirect_response| redirect_response.payload.as_ref())
-                        .is_some()
-            }
+                auth_type,
+                ..
+            } => payment_method == Some(enums::PaymentMethod::Card) && auth_type.is_three_ds(),
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 

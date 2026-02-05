@@ -419,6 +419,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
+        document_details -> Nullable<Bytea>,
     }
 }
 
@@ -760,6 +761,8 @@ diesel::table! {
         #[max_length = 64]
         connector_authorization_id -> Nullable<Varchar>,
         previously_authorized_amount -> Int8,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -1136,6 +1139,8 @@ diesel::table! {
         tokenization -> Nullable<Varchar>,
         encrypted_payment_method_data -> Nullable<Bytea>,
         error_details -> Nullable<Jsonb>,
+        #[max_length = 64]
+        retry_type -> Nullable<Varchar>,
     }
 }
 
@@ -1246,6 +1251,7 @@ diesel::table! {
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
+        state_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1345,6 +1351,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
+        customer_details -> Nullable<Bytea>,
     }
 }
 
@@ -1705,6 +1712,8 @@ diesel::table! {
         #[max_length = 64]
         email_entity_name -> Varchar,
         email_entity_logo_url -> Text,
+        #[max_length = 32]
+        theme_config_version -> Varchar,
     }
 }
 

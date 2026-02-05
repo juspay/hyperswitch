@@ -60,6 +60,24 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Default)]
+pub struct FeatureSet {
+    pub is_modular_merchant: bool,
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_feature_set(state: &SessionState, platform: &domain::Platform) -> FeatureSet {
+    let is_modular_merchant = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+        state.store.as_ref(),
+        &platform.get_processor().get_account().organization_id,
+    )
+    .await;
+    FeatureSet {
+        is_modular_merchant,
+    }
+}
+
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
@@ -200,6 +218,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
+                    document_details: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -239,6 +258,7 @@ pub async fn construct_payout_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -415,6 +435,7 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -607,6 +628,10 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
 
     Ok(router_data)
@@ -967,9 +992,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         &dispute.connector,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1053,6 +1077,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1078,9 +1106,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1160,6 +1187,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1187,9 +1218,8 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1276,6 +1306,7 @@ pub async fn construct_upload_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
     Ok(router_data)
 }
@@ -1352,6 +1383,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     })
 }
 
@@ -1376,9 +1408,8 @@ pub async fn construct_dispute_sync_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1461,6 +1492,10 @@ pub async fn construct_dispute_sync_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1592,6 +1627,10 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1617,9 +1656,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1702,6 +1740,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
     Ok(router_data)
 }
@@ -1725,9 +1767,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         profile_id,
         connector_id,
         file_metadata.merchant_connector_id.as_ref(),
@@ -1805,6 +1846,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
     Ok(router_data)
 }
@@ -1828,6 +1870,12 @@ pub fn get_connector_request_reference_id(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_name: &str,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
+    // If there's already a connector_request_reference_id stored in the payment_attempt,
+    // reuse it to maintain consistency across multiple connector calls
+    if let Some(existing_reference_id) = &payment_attempt.connector_request_reference_id {
+        return Ok(existing_reference_id.clone());
+    }
+
     let is_config_enabled_to_send_payment_id_as_connector_request_id =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, processor);
 

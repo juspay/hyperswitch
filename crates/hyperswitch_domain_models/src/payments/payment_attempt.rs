@@ -22,7 +22,8 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use diesel_models::{
-    ConnectorMandateReferenceId, NetworkDetails, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+    ConnectorMandateReferenceId, ErrorDetails as DieselErrorDetails, NetworkDetails,
+    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use diesel_models::{
     PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
@@ -98,29 +99,29 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
         &self,
         connector_transaction_id: &ConnectorTransactionId,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
@@ -134,9 +135,9 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+    async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
@@ -152,20 +153,20 @@ pub trait PaymentAttemptInterface {
     ) -> CustomResult<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+    async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         attempt_id: &str,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
@@ -187,18 +188,18 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
         &self,
         preprocessing_id: &str,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_attempts_by_merchant_id_payment_id(
+    async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
@@ -208,7 +209,7 @@ pub trait PaymentAttemptInterface {
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, Self::Error>;
 
@@ -216,7 +217,7 @@ pub trait PaymentAttemptInterface {
     #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
@@ -392,6 +393,323 @@ impl From<ErrorDetails> for api_models::payments::RecordAttemptErrorDetails {
             network_decline_code: error_details.network_decline_code,
             network_advice_code: error_details.network_advice_code,
             network_error_message: error_details.network_error_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PaymentAttemptErrorDetails {
+    pub unified_details: Option<UnifiedErrorDetails>,
+    pub issuer_details: Option<IssuerErrorDetails>,
+    pub connector_details: Option<ConnectorErrorDetails>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentAttemptErrorDetails {
+    fn new(
+        unified_details: Option<Option<UnifiedErrorDetails>>,
+        issuer_details: Option<Option<IssuerErrorDetails>>,
+        connector_details: Option<Option<ConnectorErrorDetails>>,
+    ) -> Option<Option<Self>> {
+        if connector_details.is_none() && unified_details.is_none() && issuer_details.is_none() {
+            None
+        } else {
+            let unified_details_val = unified_details.flatten();
+            let issuer_details_val = issuer_details.flatten();
+            let connector_details_val = connector_details.flatten();
+
+            if connector_details_val.is_some()
+                || unified_details_val.is_some()
+                || issuer_details_val.is_some()
+            {
+                Some(Some(Self {
+                    unified_details: unified_details_val,
+                    issuer_details: issuer_details_val,
+                    connector_details: connector_details_val,
+                }))
+            } else {
+                Some(None)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct UnifiedErrorDetails {
+    pub category: Option<String>,
+    pub message: Option<String>,
+    pub standardised_code: Option<storage_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
+    pub recommended_action: Option<storage_enums::RecommendedAction>,
+}
+
+#[cfg(feature = "v1")]
+impl UnifiedErrorDetails {
+    fn new(
+        category: Option<Option<String>>,
+        message: Option<Option<String>>,
+        standardised_code: Option<Option<storage_enums::StandardisedCode>>,
+        description: Option<Option<String>>,
+        user_guidance_message: Option<Option<String>>,
+        recommended_action: Option<Option<storage_enums::RecommendedAction>>,
+    ) -> Option<Option<Self>> {
+        if category.is_none()
+            && message.is_none()
+            && standardised_code.is_none()
+            && description.is_none()
+            && user_guidance_message.is_none()
+            && recommended_action.is_none()
+        {
+            None
+        } else {
+            let category_val = category.flatten();
+            let message_val = message.flatten();
+            let standardised_code_val = standardised_code.flatten();
+            let description_val = description.flatten();
+            let user_guidance_message_val = user_guidance_message.flatten();
+            let recommended_action_val = recommended_action.flatten();
+
+            if category_val.is_some()
+                || message_val.is_some()
+                || standardised_code_val.is_some()
+                || description_val.is_some()
+                || user_guidance_message_val.is_some()
+                || recommended_action_val.is_some()
+            {
+                Some(Some(Self {
+                    category: category_val,
+                    message: message_val,
+                    standardised_code: standardised_code_val,
+                    description: description_val,
+                    user_guidance_message: user_guidance_message_val,
+                    recommended_action: recommended_action_val,
+                }))
+            } else {
+                Some(None)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct IssuerErrorDetails {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub network_details: Option<NetworkErrorDetails>,
+}
+
+#[cfg(feature = "v1")]
+impl IssuerErrorDetails {
+    fn new(
+        code: Option<Option<String>>,
+        message: Option<Option<String>>,
+        network_details: Option<Option<NetworkErrorDetails>>,
+    ) -> Option<Option<Self>> {
+        if code.is_none() && message.is_none() && network_details.is_none() {
+            None
+        } else {
+            let code_val = code.flatten();
+            let message_val = message.flatten();
+            let network_details_val = network_details.flatten();
+
+            if code_val.is_some() || message_val.is_some() || network_details_val.is_some() {
+                Some(Some(Self {
+                    code: code_val,
+                    message: message_val,
+                    network_details: network_details_val,
+                }))
+            } else {
+                Some(None)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct NetworkErrorDetails {
+    pub name: Option<storage_enums::CardNetwork>,
+    pub advice_code: Option<String>,
+    pub advice_message: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl NetworkErrorDetails {
+    fn new(
+        network_details: Option<Option<NetworkDetails>>,
+        network_error_message: Option<Option<String>>,
+        card_network: Option<storage_enums::CardNetwork>,
+    ) -> Option<Option<Self>> {
+        if network_details.is_none() && network_error_message.is_none() {
+            None
+        } else {
+            let network_details_val = network_details.flatten();
+            let network_error_message_val = network_error_message.flatten();
+
+            if network_details_val.is_some() || network_error_message_val.is_some() {
+                Some(Some(Self {
+                    name: card_network,
+                    advice_code: network_details_val.and_then(|n| n.network_advice_code),
+                    advice_message: network_error_message_val,
+                }))
+            } else {
+                Some(None)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorErrorDetails {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl ConnectorErrorDetails {
+    fn new(
+        code: Option<Option<String>>,
+        message: Option<Option<String>>,
+        reason: Option<Option<String>>,
+    ) -> Option<Option<Self>> {
+        if code.is_none() && message.is_none() && reason.is_none() {
+            None
+        } else {
+            let code_val = code.flatten();
+            let message_val = message.flatten();
+            let reason_val = reason.flatten();
+
+            if code_val.is_some() || message_val.is_some() || reason_val.is_some() {
+                Some(Some(Self {
+                    code: code_val,
+                    message: message_val,
+                    reason: reason_val,
+                }))
+            } else {
+                Some(None)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentAttemptErrorDetails> for DieselErrorDetails {
+    fn from(domain: PaymentAttemptErrorDetails) -> Self {
+        Self {
+            unified_details: domain.unified_details.map(Into::into),
+            issuer_details: domain.issuer_details.map(Into::into),
+            connector_details: domain.connector_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<DieselErrorDetails> for PaymentAttemptErrorDetails {
+    fn from(diesel: DieselErrorDetails) -> Self {
+        Self {
+            unified_details: diesel.unified_details.map(Into::into),
+            issuer_details: diesel.issuer_details.map(Into::into),
+            connector_details: diesel.connector_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<UnifiedErrorDetails> for diesel_models::UnifiedErrorDetails {
+    fn from(domain: UnifiedErrorDetails) -> Self {
+        Self {
+            category: domain.category,
+            message: domain.message,
+            standardised_code: domain.standardised_code,
+            description: domain.description,
+            user_guidance_message: domain.user_guidance_message,
+            recommended_action: domain.recommended_action,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::UnifiedErrorDetails> for UnifiedErrorDetails {
+    fn from(diesel: diesel_models::UnifiedErrorDetails) -> Self {
+        Self {
+            category: diesel.category,
+            message: diesel.message,
+            standardised_code: diesel.standardised_code,
+            description: diesel.description,
+            user_guidance_message: diesel.user_guidance_message,
+            recommended_action: diesel.recommended_action,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<IssuerErrorDetails> for diesel_models::IssuerErrorDetails {
+    fn from(domain: IssuerErrorDetails) -> Self {
+        Self {
+            code: domain.code,
+            message: domain.message,
+            network_details: domain.network_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::IssuerErrorDetails> for IssuerErrorDetails {
+    fn from(diesel: diesel_models::IssuerErrorDetails) -> Self {
+        Self {
+            code: diesel.code,
+            message: diesel.message,
+            network_details: diesel.network_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<NetworkErrorDetails> for diesel_models::NetworkErrorDetails {
+    fn from(domain: NetworkErrorDetails) -> Self {
+        Self {
+            name: domain.name,
+            advice_code: domain.advice_code,
+            advice_message: domain.advice_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::NetworkErrorDetails> for NetworkErrorDetails {
+    fn from(diesel: diesel_models::NetworkErrorDetails) -> Self {
+        Self {
+            name: diesel.name,
+            advice_code: diesel.advice_code,
+            advice_message: diesel.advice_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ConnectorErrorDetails> for diesel_models::ConnectorErrorDetails {
+    fn from(domain: ConnectorErrorDetails) -> Self {
+        Self {
+            code: domain.code,
+            message: domain.message,
+            reason: domain.reason,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::ConnectorErrorDetails> for ConnectorErrorDetails {
+    fn from(diesel: diesel_models::ConnectorErrorDetails) -> Self {
+        Self {
+            code: diesel.code,
+            message: diesel.message,
+            reason: diesel.reason,
         }
     }
 }
@@ -1062,6 +1380,10 @@ pub struct PaymentAttempt {
     pub authorized_amount: Option<MinorUnit>,
     #[encrypt(ty = Value)]
     pub encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    pub error_details: Option<PaymentAttemptErrorDetails>,
+    /// Indicates the type of retry for this payment attempt (None for initial attempt)
+    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 #[cfg(feature = "v1")]
@@ -1433,6 +1755,22 @@ impl PaymentAttempt {
             self.payment_method_data.clone()
         }
     }
+
+    // Check if the payment method type does not support saving during on-session payments
+    pub fn is_save_payment_method_not_supported_for_on_session(
+        &self,
+        unsupported_payment_methods: &std::collections::HashMap<
+            common_enums::PaymentMethod,
+            std::collections::HashSet<common_enums::PaymentMethodType>,
+        >,
+    ) -> bool {
+        self.payment_method_type.is_some_and(|pm_type| {
+            self.payment_method
+                .as_ref()
+                .and_then(|method| unsupported_payment_methods.get(method))
+                .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1465,6 +1803,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1565,18 +1905,27 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        standardised_code: Option<Option<storage_enums::StandardisedCode>>,
+        description: Option<Option<String>>,
+        user_guidance_message: Option<Option<String>>,
         capture_before: Option<PrimitiveDateTime>,
         extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
         extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<Value>,
         encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
-        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        connector_mandate_detail: Box<Option<ConnectorMandateReferenceId>>,
         tokenization: Option<common_enums::Tokenization>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
+        issuer_error_code: Option<Option<String>>,
+        issuer_error_message: Option<Option<String>>,
+        network_details: Option<Option<NetworkDetails>>,
+        network_error_message: Option<Option<String>>,
+        recommended_action: Option<Option<storage_enums::RecommendedAction>>,
+        card_network: Option<storage_enums::CardNetwork>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1603,14 +1952,20 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        standardised_code: Option<Option<storage_enums::StandardisedCode>>,
+        description: Option<Option<String>>,
+        user_guidance_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
         payment_method_data: Option<Value>,
         encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
         authentication_type: Option<storage_enums::AuthenticationType>,
-        issuer_error_code: Option<String>,
-        issuer_error_message: Option<String>,
-        network_details: Option<NetworkDetails>,
+        issuer_error_code: Option<Option<String>>,
+        issuer_error_message: Option<Option<String>>,
+        network_details: Option<Option<NetworkDetails>>,
+        network_error_message: Option<Option<String>>,
+        recommended_action: Option<Option<storage_enums::RecommendedAction>>,
+        card_network: Option<storage_enums::CardNetwork>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -1688,6 +2043,8 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 payment_method_billing_address_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1707,6 +2064,8 @@ impl PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 network_transaction_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -1884,6 +2243,9 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                standardised_code,
+                description,
+                user_guidance_message,
                 capture_before,
                 extended_authorization_applied,
                 extended_authorization_last_applied_at,
@@ -1897,39 +2259,79 @@ impl PaymentAttemptUpdate {
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
-            } => DieselPaymentAttemptUpdate::ResponseUpdate {
-                status,
-                connector,
-                connector_transaction_id,
-                authentication_type,
-                payment_method_id,
-                mandate_id,
-                connector_metadata,
-                payment_token,
-                error_code,
-                error_message,
-                error_reason,
-                connector_response_reference_id,
-                amount_capturable,
-                updated_by,
-                authentication_data,
-                encoded_data,
-                unified_code,
-                unified_message,
-                capture_before,
-                extended_authorization_applied,
-                extended_authorization_last_applied_at,
-                payment_method_data,
-                connector_mandate_detail,
-                tokenization,
-                charges,
-                setup_future_usage_applied,
-                network_transaction_id,
-                is_overcapture_enabled,
-                authorized_amount,
-                encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
-                error_details: Box::new(None),
-            },
+                issuer_error_code,
+                issuer_error_message,
+                network_details,
+                network_error_message,
+                recommended_action,
+                card_network,
+            } => {
+                let connector_details = ConnectorErrorDetails::new(
+                    error_code.clone(),
+                    error_message.clone(),
+                    error_reason.clone(),
+                );
+                let unified_details = UnifiedErrorDetails::new(
+                    unified_code.clone(),
+                    unified_message.clone(),
+                    standardised_code,
+                    description.clone(),
+                    user_guidance_message.clone(),
+                    recommended_action,
+                );
+                let network_error_details = NetworkErrorDetails::new(
+                    network_details,
+                    network_error_message.clone(),
+                    card_network,
+                );
+                let issuer_details = IssuerErrorDetails::new(
+                    issuer_error_code.clone(),
+                    issuer_error_message.clone(),
+                    network_error_details,
+                );
+                let error_details = Box::new(
+                    PaymentAttemptErrorDetails::new(
+                        unified_details,
+                        issuer_details,
+                        connector_details,
+                    )
+                    .map(|opt| opt.map(Into::into)),
+                );
+                DieselPaymentAttemptUpdate::ResponseUpdate {
+                    status,
+                    connector,
+                    connector_transaction_id,
+                    authentication_type,
+                    payment_method_id,
+                    mandate_id,
+                    connector_metadata,
+                    payment_token,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    connector_response_reference_id,
+                    amount_capturable,
+                    updated_by,
+                    authentication_data,
+                    encoded_data,
+                    unified_code,
+                    unified_message,
+                    capture_before,
+                    extended_authorization_applied,
+                    extended_authorization_last_applied_at,
+                    payment_method_data,
+                    connector_mandate_detail: *connector_mandate_detail,
+                    tokenization,
+                    charges,
+                    setup_future_usage_applied,
+                    network_transaction_id,
+                    is_overcapture_enabled,
+                    authorized_amount,
+                    encrypted_payment_method_data: encrypted_payment_method_data
+                        .map(Encryption::from),
+                    error_details,
+                }
+            }
             Self::UnresolvedResponseUpdate {
                 status,
                 connector,
@@ -1940,18 +2342,45 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
-            } => DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
-                status,
-                connector,
-                connector_transaction_id,
-                payment_method_id,
-                error_code,
-                error_message,
-                error_reason,
-                connector_response_reference_id,
-                updated_by,
-                error_details: Box::new(None),
-            },
+            } => {
+                let connector_details = ConnectorErrorDetails::new(
+                    error_code.clone(),
+                    error_message.clone(),
+                    error_reason.clone(),
+                );
+                // This flow is used by crypto payment connectors (Coinbase, OpenNode) for ambiguous payment states
+                // (e.g., underpayment, context issues) that require manual resolution in the connector's dashboard.
+                // Since these are not standard payment failures, unified error details (GSM codes, user guidance) are not applicable.
+                let unified_details = UnifiedErrorDetails::new(
+                    None, // unified_code
+                    None, // unified_message
+                    None, // standardised_code
+                    None, // description
+                    None, // user_guidance_message
+                    None, // recommended_action
+                );
+                let issuer_details = IssuerErrorDetails::new(None, None, None);
+                let error_details = Box::new(
+                    PaymentAttemptErrorDetails::new(
+                        unified_details,
+                        issuer_details,
+                        connector_details,
+                    )
+                    .map(|opt| opt.map(Into::into)),
+                );
+                DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
+                    status,
+                    connector,
+                    connector_transaction_id,
+                    payment_method_id,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    connector_response_reference_id,
+                    updated_by,
+                    error_details,
+                }
+            }
             Self::StatusUpdate { status, updated_by } => {
                 DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
             }
@@ -1965,6 +2394,9 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                standardised_code,
+                description,
+                user_guidance_message,
                 connector_transaction_id,
                 connector_response_reference_id,
                 payment_method_data,
@@ -1972,27 +2404,64 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
+                network_error_message,
                 encrypted_payment_method_data,
-            } => DieselPaymentAttemptUpdate::ErrorUpdate {
-                connector,
-                status,
-                error_code,
-                error_message,
-                error_reason,
-                amount_capturable,
-                updated_by,
-                unified_code,
-                unified_message,
-                connector_transaction_id,
-                connector_response_reference_id,
-                payment_method_data,
-                authentication_type,
-                issuer_error_code,
-                issuer_error_message,
-                network_details,
-                encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
-                error_details: Box::new(None),
-            },
+                recommended_action,
+                card_network,
+            } => {
+                let connector_details = ConnectorErrorDetails::new(
+                    error_code.clone(),
+                    error_message.clone(),
+                    error_reason.clone(),
+                );
+                let unified_details = UnifiedErrorDetails::new(
+                    unified_code.clone(),
+                    unified_message.clone(),
+                    standardised_code,
+                    description.clone(),
+                    user_guidance_message.clone(),
+                    recommended_action,
+                );
+                let network_error_details = NetworkErrorDetails::new(
+                    network_details.clone(),
+                    network_error_message.clone(),
+                    card_network,
+                );
+                let issuer_details = IssuerErrorDetails::new(
+                    issuer_error_code.clone(),
+                    issuer_error_message.clone(),
+                    network_error_details,
+                );
+                let error_details = Box::new(
+                    PaymentAttemptErrorDetails::new(
+                        unified_details,
+                        issuer_details,
+                        connector_details,
+                    )
+                    .map(|opt| opt.map(Into::into)),
+                );
+                DieselPaymentAttemptUpdate::ErrorUpdate {
+                    connector,
+                    status,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    amount_capturable,
+                    updated_by,
+                    unified_code,
+                    unified_message,
+                    connector_transaction_id,
+                    connector_response_reference_id,
+                    payment_method_data,
+                    authentication_type,
+                    issuer_error_code,
+                    issuer_error_message,
+                    network_details,
+                    encrypted_payment_method_data: encrypted_payment_method_data
+                        .map(Encryption::from),
+                    error_details,
+                }
+            }
             Self::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
@@ -2318,6 +2787,7 @@ impl behaviour::Conversion for PaymentAttempt {
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            error_details: self.error_details.map(Into::into),
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -2330,7 +2800,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
-            error_details: None,
+            retry_type: self.retry_type,
         })
     }
 
@@ -2457,6 +2927,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 is_stored_credential: storage_model.is_stored_credential,
                 authorized_amount: storage_model.authorized_amount,
                 encrypted_payment_method_data,
+                error_details: storage_model.error_details.map(Into::into),
+                retry_type: storage_model.retry_type,
             })
         }
         .await
@@ -2554,7 +3026,8 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
-            error_details: None,
+            error_details: self.error_details.map(Into::into),
+            retry_type: self.retry_type,
         })
     }
 }
@@ -2737,6 +3210,7 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_captured,
             encrypted_payment_method_data: None,
             error_details: None,
+            retry_type: None,
         })
     }
 
@@ -3028,6 +3502,7 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_captured: amount_details.amount_captured,
             encrypted_payment_method_data: None,
             error_details: None,
+            retry_type: None,
         })
     }
 }

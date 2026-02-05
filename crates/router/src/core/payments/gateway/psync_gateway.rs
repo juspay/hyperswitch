@@ -69,11 +69,10 @@ where
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
         let creds_identifier = context.creds_identifier;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let merchant_order_reference_id = header_payload.x_reference_id.clone();
         let is_ucs_psync_disabled = state
             .conf
             .grpc_client
@@ -111,25 +110,31 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .or(merchant_order_reference_id)
-            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-            .transpose()
-            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+        let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
+            header_payload
+                .x_reference_id
+                .as_deref()
+                .unwrap_or(router_data.payment_id.as_str()),
+        )
+        .map(ucs_types::UcsReferenceId::Payment);
+
+        let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
+            .inspect_err(
+                |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+            )
             .ok()
-            .flatten()
-            .map(ucs_types::UcsReferenceId::Payment);
+            .map(ucs_types::UcsResourceId::PaymentAttempt);
+
         let header_payload = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
+            .resource_id(resource_id)
             .lineage_ids(lineage_ids);
         let connector_name = router_data.connector.clone();
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
@@ -137,6 +142,7 @@ where
             state,
             payment_get_request,
             header_payload,
+            unified_connector_service_execution_mode,
             |mut router_data, payment_get_request, grpc_headers| async move {
                 let response = client
                     .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
@@ -148,6 +154,7 @@ where
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_get(
                         payment_get_response.clone(),
+                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
@@ -155,7 +162,7 @@ where
                 if let Some(access_token) =
                     unified_connector_service::get_access_token_from_ucs_response(
                         state,
-                        &platform,
+                        processor,
                         &connector_name,
                         merchant_connector_id.as_ref(),
                         creds_identifier.clone(),
@@ -165,7 +172,7 @@ where
                 {
                     if let Err(error) = unified_connector_service::set_access_token_for_ucs(
                         state,
-                        &platform,
+                        processor,
                         &connector_name,
                         access_token,
                         merchant_connector_id.as_ref(),
@@ -182,10 +189,19 @@ where
                     }
                 }
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response = match router_data_response {
+                    Ok((response, status)) => {
+                        router_data.status = status;
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 let connector_response = extract_connector_response_from_ucs(
                     payment_get_response.connector_response.as_ref(),
                 );
