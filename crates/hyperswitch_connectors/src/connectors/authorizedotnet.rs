@@ -1313,5 +1313,3 @@ impl ConnectorSpecifications for Authorizedotnet {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Authorizedotnet {}

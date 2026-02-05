@@ -749,5 +749,3 @@ impl ConnectorSpecifications for Placetopay {
         Some(&PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Placetopay {}

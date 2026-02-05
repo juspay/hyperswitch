@@ -724,5 +724,3 @@ impl ConnectorSpecifications for Powertranz {
         Some(&POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Powertranz {}

@@ -956,5 +956,3 @@ impl ConnectorSpecifications for Gocardless {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Gocardless {}

@@ -1534,5 +1534,3 @@ impl ConnectorSpecifications for Worldpay {
         Some(&WORLDPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Worldpay {}

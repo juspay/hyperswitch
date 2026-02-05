@@ -661,5 +661,3 @@ impl ConnectorSpecifications for Coingate {
         Some(&COINGATE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Coingate {}

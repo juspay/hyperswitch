@@ -830,5 +830,3 @@ impl ConnectorSpecifications for Hipay {
         Some(&HIPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Hipay {}

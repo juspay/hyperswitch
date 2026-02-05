@@ -487,5 +487,3 @@ impl ConnectorSpecifications for Netcetera {
         None
     }
 }
-
-impl ConnectorAccessTokenSuffix for Netcetera {}

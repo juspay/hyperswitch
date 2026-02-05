@@ -1217,5 +1217,3 @@ impl webhooks::IncomingWebhook for Finix {
         Ok(Box::new(webhook_body))
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Finix {}

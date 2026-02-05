@@ -1005,5 +1005,3 @@ impl ConnectorSpecifications for Stripebilling {
         Some(&STRIPEBILLING_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Stripebilling {}

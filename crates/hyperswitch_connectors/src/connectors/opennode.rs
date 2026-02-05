@@ -503,5 +503,3 @@ impl ConnectorSpecifications for Opennode {
         Some(&OPENNODE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Opennode {}

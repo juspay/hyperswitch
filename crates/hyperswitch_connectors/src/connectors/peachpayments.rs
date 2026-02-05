@@ -879,5 +879,3 @@ impl ConnectorSpecifications for Peachpayments {
         Some(&PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Peachpayments {}

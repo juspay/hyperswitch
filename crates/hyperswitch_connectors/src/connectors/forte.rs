@@ -803,5 +803,3 @@ impl ConnectorSpecifications for Forte {
         Some(&FORTE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Forte {}

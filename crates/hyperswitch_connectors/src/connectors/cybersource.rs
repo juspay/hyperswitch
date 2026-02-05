@@ -2402,5 +2402,3 @@ impl Cybersource {
             && request.authentication_data.is_none()
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Cybersource {}

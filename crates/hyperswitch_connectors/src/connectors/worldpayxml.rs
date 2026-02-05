@@ -1369,5 +1369,3 @@ impl ConnectorSpecifications for Worldpayxml {
         Some(WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Worldpayxml {}

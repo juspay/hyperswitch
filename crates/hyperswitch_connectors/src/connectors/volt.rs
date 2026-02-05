@@ -821,5 +821,3 @@ impl ConnectorSpecifications for Volt {
         Some(&VOLT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Volt {}

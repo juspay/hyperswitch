@@ -848,5 +848,3 @@ impl ConnectorSpecifications for Authipay {
         Some(&AUTHIPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Authipay {}

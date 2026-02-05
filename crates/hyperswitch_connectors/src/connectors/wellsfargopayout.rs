@@ -596,5 +596,3 @@ impl ConnectorSpecifications for Wellsfargopayout {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Wellsfargopayout {}

@@ -498,5 +498,3 @@ impl ConnectorSpecifications for HyperswitchVault {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for HyperswitchVault {}

@@ -1144,5 +1144,3 @@ impl ConnectorSpecifications for Redsys {
         }
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Redsys {}

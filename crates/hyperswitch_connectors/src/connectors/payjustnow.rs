@@ -858,5 +858,3 @@ impl ConnectorSpecifications for Payjustnow {
         Some(&PAYJUSTNOW_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Payjustnow {}

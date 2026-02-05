@@ -1081,5 +1081,3 @@ impl ConnectorSpecifications for Mollie {
             )
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Mollie {}

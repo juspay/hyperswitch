@@ -676,5 +676,3 @@ impl ConnectorSpecifications for Blackhawknetwork {
         Some(&BLACKHAWKNETWORK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Blackhawknetwork {}

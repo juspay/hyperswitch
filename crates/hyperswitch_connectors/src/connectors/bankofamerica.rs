@@ -1209,5 +1209,3 @@ impl ConnectorSpecifications for Bankofamerica {
         Some(&BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Bankofamerica {}

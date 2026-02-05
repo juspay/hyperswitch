@@ -649,5 +649,3 @@ impl ConnectorSpecifications for Paytm {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Paytm {}

@@ -838,5 +838,3 @@ impl ConnectorSpecifications for Worldpaymodular {
         Some(&WORLDPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl ConnectorAccessTokenSuffix for Worldpaymodular {}

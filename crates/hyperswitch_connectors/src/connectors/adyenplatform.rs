@@ -501,5 +501,3 @@ impl ConnectorSpecifications for Adyenplatform {
         })
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Adyenplatform {}

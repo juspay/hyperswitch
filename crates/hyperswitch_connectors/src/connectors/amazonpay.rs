@@ -786,5 +786,3 @@ impl ConnectorSpecifications for Amazonpay {
         Some(&AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Amazonpay {}

@@ -850,5 +850,3 @@ impl ConnectorSpecifications for Razorpay {
             .unwrap_or_else(|| uuid::Uuid::now_v7().to_string())
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Razorpay {}

@@ -883,5 +883,3 @@ impl ConnectorSpecifications for Datatrans {
         Some(&DATATRANS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Datatrans {}

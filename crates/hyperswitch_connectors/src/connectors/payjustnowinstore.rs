@@ -656,5 +656,3 @@ impl ConnectorSpecifications for Payjustnowinstore {
         Some(&PAYJUSTNOWINSTORE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Payjustnowinstore {}

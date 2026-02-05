@@ -755,5 +755,3 @@ impl ConnectorSpecifications for Multisafepay {
         Some(&MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Multisafepay {}

@@ -1098,5 +1098,3 @@ impl ConnectorSpecifications for Deutschebank {
         Some(&DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Deutschebank {}

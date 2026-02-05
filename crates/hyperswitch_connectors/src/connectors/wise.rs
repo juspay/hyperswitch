@@ -907,5 +907,3 @@ impl ConnectorSpecifications for Wise {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Wise {}

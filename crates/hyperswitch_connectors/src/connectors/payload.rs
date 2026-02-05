@@ -1052,5 +1052,3 @@ impl ConnectorSpecifications for Payload {
         return false;
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Payload {}

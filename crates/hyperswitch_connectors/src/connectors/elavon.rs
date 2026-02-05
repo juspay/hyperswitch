@@ -680,5 +680,3 @@ impl ConnectorSpecifications for Elavon {
         Some(&ELAVON_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Elavon {}

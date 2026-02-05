@@ -504,5 +504,3 @@ impl ConnectorSpecifications for Coinbase {
         Some(&*COINBASE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Coinbase {}

@@ -493,5 +493,3 @@ impl ConnectorSpecifications for Plaid {
         Some(&PLAID_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for Plaid {}

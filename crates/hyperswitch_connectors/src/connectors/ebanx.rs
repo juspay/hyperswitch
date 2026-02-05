@@ -472,5 +472,3 @@ impl ConnectorSpecifications for Ebanx {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Ebanx {}

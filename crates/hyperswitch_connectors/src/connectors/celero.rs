@@ -798,5 +798,3 @@ impl ConnectorSpecifications for Celero {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Celero {}

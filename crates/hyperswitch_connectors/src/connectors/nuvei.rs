@@ -1720,5 +1720,3 @@ impl ConnectorSpecifications for Nuvei {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Nuvei {}
