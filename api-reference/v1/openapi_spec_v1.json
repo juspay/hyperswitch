@@ -17890,8 +17890,8 @@
         "type": "string",
         "description": "Represents the type of identification document used for validation.",
         "enum": [
-          "cpf",
-          "cnpj"
+          "CPF",
+          "CNPJ"
         ]
       },
       "DokuBankTransferInstructions": {
