@@ -2612,6 +2612,7 @@ pub async fn create_connector(
                 key_manager_state,
                 processor.get_key_store(),
                 common_enums::RevenueRecoveryAlgorithmType::Monitoring,
+                None,
             )
             .await?;
     }
@@ -4339,10 +4340,18 @@ impl ProfileWrapper {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+        smart_features: Option<diesel_models::business_profile::RevenueRecoveryFeaturesEnablement>,
     ) -> RouterResult<()> {
+        let existing_smart_features = self
+            .profile
+            .revenue_recovery_retry_algorithm_data
+            .as_ref()
+            .and_then(|data| data.smart_features.clone());
+
         let recovery_algorithm_data =
             diesel_models::business_profile::RevenueRecoveryAlgorithmData {
                 monitoring_configured_timestamp: date_time::now(),
+                smart_features: smart_features.or(existing_smart_features),
             };
         let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
             revenue_recovery_retry_algorithm_type,
