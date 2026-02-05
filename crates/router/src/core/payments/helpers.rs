@@ -7687,15 +7687,13 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
                 additional_pm_data,
                 connector_response_pm_data,
             );
-            // Handle UPI upi_mode override for v2
+            // Apply UPI mode override if present
             #[cfg(feature = "v2")]
-            let additional_pm_data = if let Some(ref upi_mode) = upi_mode_override {
-                let mut data = additional_pm_data;
-                override_upi_source_in_additional_payment_data(&mut data, upi_mode);
-                data
-            } else {
-                additional_pm_data
-            };
+            let mut additional_pm_data = additional_pm_data;
+            #[cfg(feature = "v2")]
+            if let Some(ref mode) = upi_mode_override {
+                override_upi_source_in_additional_payment_data(&mut additional_pm_data, mode);
+            }
 
             Some(additional_pm_data)
         }
@@ -7722,26 +7720,7 @@ pub fn override_upi_source_in_additional_payment_data(
         details: Some(details),
     } = additional_payment_data
     {
-        let upi_source = match upi_mode {
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCc => {
-                Some(UpiSource::UpiCc)
-            }
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCl => {
-                Some(UpiSource::UpiCl)
-            }
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiAccount => {
-                Some(UpiSource::UpiAccount)
-            }
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => {
-                Some(UpiSource::UpiCcCl)
-            }
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiPpi => {
-                Some(UpiSource::UpiPpi)
-            }
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiVoucher => {
-                Some(UpiSource::UpiVoucher)
-            }
-        };
+        let upi_source = Some(api_models::payments::UpiSource::from(upi_mode.clone()));
         *details = match details {
             UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
                 api_models::payments::additional_info::UpiCollectAdditionalData {

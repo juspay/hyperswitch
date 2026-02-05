@@ -3175,6 +3175,43 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
     }
 }
 
+/// Overrides payment_method_data with connector response data (including UPI upi_mode).
+/// This must be done before generating payment_attempt_update.
+#[cfg(feature = "v2")]
+fn override_payment_method_data_from_connector_response<F>(
+    payment_data: PaymentStatusData<F>,
+    connector_response: &hyperswitch_domain_models::router_data::ConnectorResponseData,
+) -> PaymentStatusData<F>
+where
+    F: Clone,
+{
+    let connector_response_pm_data = connector_response.additional_payment_method_data.clone();
+
+    if let Some(existing_payment_method_data) =
+        payment_data.payment_attempt.payment_method_data.clone()
+    {
+        let additional_payment_data_value: Option<serde_json::Value> =
+            Some(existing_payment_method_data.expose());
+
+        if let Ok(Some(updated_value)) = crate::core::payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
+            additional_payment_data_value,
+            connector_response_pm_data,
+        ) {
+            let mut attempt = payment_data.payment_attempt.clone();
+            attempt.payment_method_data =
+                Some(common_utils::pii::SecretSerdeValue::new(updated_value));
+            PaymentStatusData {
+                payment_attempt: attempt,
+                ..payment_data
+            }
+        } else {
+            payment_data
+        }
+    } else {
+        payment_data
+    }
+}
+
 #[cfg(feature = "v2")]
 impl<F: Send + Clone> Operation<F, types::PaymentsSyncData> for PaymentResponse {
     type Data = PaymentStatusData<F>;
@@ -3218,28 +3255,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let mut payment_data = if let Some(connector_response) =
             &response_router_data.connector_response
         {
-            let connector_response_pm_data =
-                connector_response.additional_payment_method_data.clone();
-
-            if let Some(existing_payment_method_data) =
-                payment_data.payment_attempt.payment_method_data.clone()
-            {
-                let additional_payment_data_value: Option<serde_json::Value> =
-                    Some(existing_payment_method_data.expose());
-
-                if let Ok(Some(updated_value)) = crate::core::payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
-                    additional_payment_data_value,
-                    connector_response_pm_data,
-                ) {
-                    let mut attempt = payment_data.payment_attempt.clone();
-                    attempt.payment_method_data =
-                        Some(common_utils::pii::SecretSerdeValue::new(updated_value));
-                    payment_data.payment_attempt = attempt;
-                }
-                payment_data
-            } else {
-                payment_data
-            }
+            override_payment_method_data_from_connector_response(payment_data, connector_response)
         } else {
             payment_data
         };
