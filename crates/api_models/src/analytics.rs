@@ -568,6 +568,7 @@ pub struct LambdaReportDataRequest {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LambdaReportInput {
+    #[serde(default)]
     pub report_type: ReportType,
     pub request: LambdaReportDataRequest,
     pub auth: AuthInfo,
@@ -578,6 +579,7 @@ pub struct LambdaReportInput {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateGeneralizedReportApiRequest {
+    #[serde(default)]
     pub report_type: ReportType,
     pub time_range: TimeRange,
     pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
