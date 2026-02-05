@@ -671,12 +671,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        feature_set: &core_utils::FeatureSet,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_modular_merchant {
+        if !feature_set.is_payment_method_modular_allowed {
             update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
         } else {
             Ok(())
@@ -962,12 +962,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        feature_set: &core_utils::FeatureSet,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_modular_merchant {
+        if !feature_set.is_payment_method_modular_allowed {
             update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
         } else {
             Ok(())
@@ -1702,7 +1702,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        _feature_set: &core_utils::FeatureSet,
+        _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1825,12 +1825,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-        feature_set: &core_utils::FeatureSet,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_modular_merchant {
+        if !feature_set.is_payment_method_modular_allowed {
             update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
         } else {
             Ok(())
