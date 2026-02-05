@@ -583,6 +583,7 @@ pub struct GenerateGeneralizedReportApiRequest {
     pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
 }
 
+#[cfg(feature = "v2")]
 impl Default for ReportType {
     fn default() -> Self {
         ReportType::V2Payments

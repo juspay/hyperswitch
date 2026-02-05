@@ -54,11 +54,11 @@ pub mod routes {
                 .app_data(web::Data::new(state))
                 .service(
                     web::resource("generate-payments-report")
-                        .route(web::post().to(generate_generalized_report)),
+                        .route(web::post().to(generate_payments_report)),
                 )
                 .service(
-                    web::resource("org/generate-generalized-report")
-                        .route(web::post().to(generate_org_generalized_report)),
+                    web::resource("org/generate-payments-report")
+                        .route(web::post().to(generate_org_payments_report)),
                 )
         }
         #[cfg(feature = "v1")]
@@ -2567,7 +2567,7 @@ pub mod routes {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn generate_generalized_report(
+    pub async fn generate_payments_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<api_models::analytics::GenerateGeneralizedReportApiRequest>,
@@ -2627,8 +2627,9 @@ pub mod routes {
         .await
     }
 
+    // for org level reporting
     #[cfg(feature = "v2")]
-    pub async fn generate_org_generalized_report(
+    pub async fn generate_org_payments_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<api_models::analytics::GenerateGeneralizedReportApiRequest>,
