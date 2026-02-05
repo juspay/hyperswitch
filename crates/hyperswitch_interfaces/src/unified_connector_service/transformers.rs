@@ -363,21 +363,12 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     fn foreign_try_from(
         value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
     ) -> Result<Self, Self::Error> {
-        let card_data = match value.payment_method_data {
-            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(card)) => card,
-            Some(_) => {
-                return Err(UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Expected card payment method data in connector response".to_string(),
-                )
-                .into())
-            }
-            None => {
-                return Err(UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Missing payment method data in connector response".to_string(),
-                )
-                .into())
-            }
-        };
+        let card_data = value
+            .payment_method_data
+            .and_then(|data| match data {
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(card) => Some(card),
+                _ => None,
+            }).unwrap_or_default();
 
         Ok(Self::Card {
             authentication_data: card_data.authentication_data.and_then(|data: Vec<u8>| {

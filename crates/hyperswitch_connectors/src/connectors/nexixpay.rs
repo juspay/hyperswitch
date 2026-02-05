@@ -1372,9 +1372,10 @@ impl ConnectorSpecifications for Nexixpay {
             } => {
                 // Mandate payments should skip pre-authentication and go directly to authorize
                 if request_data.is_mandate_payment() {
-                    return false;
+                    false
+                } else {
+                    self.is_3ds_setup_required(request_data, *auth_type)
                 }
-                self.is_3ds_setup_required(request_data, *auth_type)
             }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
