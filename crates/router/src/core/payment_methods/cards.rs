@@ -2271,6 +2271,7 @@ where
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_payment_method_metadata_and_network_token_data_and_last_used(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
@@ -2373,6 +2374,7 @@ pub async fn update_payment_method_connector_mandate_details(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_payment_method_connector_mandate_details_and_network_token_data(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,

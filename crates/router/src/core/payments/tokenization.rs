@@ -55,6 +55,7 @@ use crate::{
     utils::{generate_id, OptionExt},
 };
 
+#[cfg(feature = "v1")]
 pub async fn save_network_token_details_in_nt_mapper(
     state: &SessionState,
     platform: &domain::Platform,
@@ -488,7 +489,7 @@ where
                                         //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                         save_network_token_details_in_nt_mapper(
                                             state,
-                                            &platform,
+                                            platform,
                                             &customer_id,
                                             resp.payment_method_id.clone(),
                                             nt_ref_id,
@@ -627,7 +628,7 @@ where
                                             //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                             save_network_token_details_in_nt_mapper(
                                             state,
-                                            &platform,
+                                            platform,
                                             &customer_id,
                                             resp.payment_method_id.clone(),
                                             nt_ref_id,
@@ -896,7 +897,7 @@ where
                                     //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                     save_network_token_details_in_nt_mapper(
                                         state,
-                                        &platform,
+                                        platform,
                                         &customer_id,
                                         resp.payment_method_id.clone(),
                                         network_token_requestor_ref_id,
