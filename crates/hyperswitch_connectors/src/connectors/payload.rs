@@ -13,8 +13,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
-        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
-        StringMinorUnitForConnector,
+        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnitForConnector,
     },
 };
 use error_stack::ResultExt;
@@ -302,10 +301,18 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        _req: &SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transactions", self.base_url(connectors)))
+        // Use /payment_methods for ACH, /transactions for cards
+        match &req.request.payment_method_data {
+            PaymentMethodData::BankDebit(
+                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                    ..
+                },
+            ) => Ok(format!("{}/payment_methods", self.base_url(connectors))),
+            _ => Ok(format!("{}/transactions", self.base_url(connectors))),
+        }
     }
 
     fn get_request_body(
@@ -313,8 +320,21 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        // Use different request struct for ACH vs cards
+        match &req.request.payment_method_data {
+            PaymentMethodData::BankDebit(
+                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                    ..
+                },
+            ) => {
+                let connector_req = requests::PayloadPaymentMethodRequest::try_from(req)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+            _ => {
+                let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+        }
     }
 
     fn build_request(
@@ -338,19 +358,42 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
-        let response: responses::PayloadPaymentsResponse = res
-            .response
-            .parse_struct("PayloadPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        match &data.request.payment_method_data {
+            PaymentMethodData::BankDebit(
+                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                    ..
+                },
+            ) => {
+                let response: responses::PayloadPaymentMethodResponse = res
+                    .response
+                    .parse_struct("PayloadPaymentMethodResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            _ => {
+                let response: responses::PayloadPaymentsResponse = res
+                    .response
+                    .parse_struct("PayloadPaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(

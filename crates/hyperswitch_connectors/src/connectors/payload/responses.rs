@@ -168,3 +168,29 @@ pub struct PayloadEventDetails {
     pub object: String,
     pub value: Option<serde_json::Value>, // Changed to handle any value type including null
 }
+
+// Response struct for ACH SetupMandate using /payment_methods API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadPaymentMethodResponse {
+    pub id: String, // Payment method ID (pm_xxx)
+    pub account_holder: Option<Secret<String>>,
+    pub customer_id: String, // Same as account_id sent
+    pub verification_status: PayloadVerificationStatus,
+    pub status: String, // "active"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PayloadVerificationStatus {
+    Verified,
+    OwnerVerified,
+    NotVerified,
+    #[serde(other)]
+    Other,
+}
+
+impl PayloadVerificationStatus {
+    pub fn is_verified(&self) -> bool {
+        matches!(self, Self::Verified | Self::OwnerVerified)
+    }
+}
