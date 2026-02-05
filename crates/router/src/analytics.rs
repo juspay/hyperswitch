@@ -50,15 +50,23 @@ pub mod routes {
     impl Analytics {
         #[cfg(feature = "v2")]
         pub fn server(state: AppState) -> Scope {
-            web::scope("/analytics")
+            web::scope("/v2/analytics")
                 .app_data(web::Data::new(state))
                 .service(
-                    web::resource("generate-payments-report")
-                        .route(web::post().to(generate_payments_report)),
+                    web::resource("report/payments")
+                        .route(web::post().to(generate_profile_payment_report)),
                 )
                 .service(
-                    web::resource("org/generate-payments-report")
-                        .route(web::post().to(generate_org_payments_report)),
+                    web::scope("/merchant").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_merchant_payment_report)),
+                    ),
+                )
+                .service(
+                    web::scope("/org").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_org_payment_report)),
+                    ),
                 )
         }
         #[cfg(feature = "v1")]
@@ -2567,14 +2575,11 @@ pub mod routes {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn generate_payments_report(
+    pub async fn generate_profile_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        json_payload: web::Json<api_models::analytics::GenerateGeneralizedReportApiRequest>,
+        json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        use analytics::AnalyticsFlow;
-        use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput, ReportType};
-
         let flow = AnalyticsFlow::GeneratePaymentReport;
         Box::pin(api::server_wrap(
             flow,
@@ -2582,7 +2587,6 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, user_from_token: auth::UserFromToken, payload, _| async move {
-                // Get user email from user_id
                 let user =
                     UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
                         .await
@@ -2592,27 +2596,102 @@ pub mod routes {
                     .change_context(AnalyticsError::UnknownError)?
                     .get_secret();
 
-                // Build AuthInfo directly from UserFromToken
-                let auth_info = AuthInfo::ProfileLevel {
-                    org_id: user_from_token.org_id.clone(),
-                    merchant_id: user_from_token.merchant_id.clone(),
-                    profile_ids: vec![user_from_token.profile_id.clone()],
-                };
-
-                let lambda_req = LambdaReportInput {
-                    report_type: payload.report_type.clone(),
-                    request: LambdaReportDataRequest {
-                        time_range: payload.time_range.clone(),
-                        emails: payload.emails.clone(),
+                let lambda_req = GenerateReportRequest {
+                    request: payload.clone(),
+                    merchant_id: Some(user_from_token.merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
+                        org_id: user_from_token.org_id.clone(),
+                        merchant_id: user_from_token.merchant_id.clone(),
+                        profile_ids: vec![user_from_token.profile_id.clone()],
                     },
-                    auth: auth_info,
                     email: user_email,
+                    report_type: payload.report_type.clone(),
                 };
 
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                // Convert to LambdaReportInput if report_type is present, otherwise use GenerateReportRequest
+                let json_bytes = if lambda_req.report_type.is_some() {
+                    use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput};
+                    let lambda_input = LambdaReportInput {
+                        report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
+                        request: LambdaReportDataRequest {
+                            time_range: lambda_req.request.time_range.clone(),
+                            emails: lambda_req.request.emails.clone(),
+                        },
+                        auth: lambda_req.auth.clone(),
+                        email: lambda_req.email.clone(),
+                    };
+                    serde_json::to_vec(&lambda_input).map_err(|_| AnalyticsError::UnknownError)?
+                } else {
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?
+                };
+
                 invoke_lambda(
-                    &state.conf.report_download_config.payment_function, // Use existing V1 Lambda
+                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_merchant_payment_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GeneratePaymentReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, user_from_token: auth::UserFromToken, payload, _| async move {
+                let user =
+                    UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload.clone(),
+                    merchant_id: Some(user_from_token.merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
+                        org_id: user_from_token.org_id.clone(),
+                        merchant_ids: vec![user_from_token.merchant_id.clone()],
+                    },
+                    email: user_email,
+                    report_type: payload.report_type.clone(),
+                };
+
+                let json_bytes = if lambda_req.report_type.is_some() {
+                    use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput};
+                    let lambda_input = LambdaReportInput {
+                        report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
+                        request: LambdaReportDataRequest {
+                            time_range: lambda_req.request.time_range.clone(),
+                            emails: lambda_req.request.emails.clone(),
+                        },
+                        auth: lambda_req.auth.clone(),
+                        email: lambda_req.email.clone(),
+                    };
+                    serde_json::to_vec(&lambda_input).map_err(|_| AnalyticsError::UnknownError)?
+                } else {
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?
+                };
+
+                invoke_lambda(
+                    &state.conf.report_download_config.payment_function,
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )
@@ -2627,16 +2706,12 @@ pub mod routes {
         .await
     }
 
-    // for org level reporting
     #[cfg(feature = "v2")]
-    pub async fn generate_org_payments_report(
+    pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        json_payload: web::Json<api_models::analytics::GenerateGeneralizedReportApiRequest>,
+        json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        use analytics::AnalyticsFlow;
-        use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput, ReportType};
-
         let flow = AnalyticsFlow::GeneratePaymentReport;
         Box::pin(api::server_wrap(
             flow,
@@ -2644,7 +2719,6 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, user_from_token: auth::UserFromToken, payload, _| async move {
-                // Get user email from user_id
                 let user =
                     UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
                         .await
@@ -2654,25 +2728,34 @@ pub mod routes {
                     .change_context(AnalyticsError::UnknownError)?
                     .get_secret();
 
-                // Build AuthInfo for org-level (only org_id, no merchant_id)
-                let auth_info = AuthInfo::OrgLevel {
-                    org_id: user_from_token.org_id.clone(),
-                };
-
-                let lambda_req = LambdaReportInput {
-                    report_type: payload.report_type.clone(),
-                    request: LambdaReportDataRequest {
-                        time_range: payload.time_range.clone(),
-                        emails: payload.emails.clone(),
+                let lambda_req = GenerateReportRequest {
+                    request: payload.clone(),
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
+                        org_id: user_from_token.org_id.clone(),
                     },
-                    auth: auth_info,
                     email: user_email,
+                    report_type: payload.report_type.clone(),
                 };
 
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                let json_bytes = if lambda_req.report_type.is_some() {
+                    use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput};
+                    let lambda_input = LambdaReportInput {
+                        report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
+                        request: LambdaReportDataRequest {
+                            time_range: lambda_req.request.time_range.clone(),
+                            emails: lambda_req.request.emails.clone(),
+                        },
+                        auth: lambda_req.auth.clone(),
+                        email: lambda_req.email.clone(),
+                    };
+                    serde_json::to_vec(&lambda_input).map_err(|_| AnalyticsError::UnknownError)?
+                } else {
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?
+                };
+
                 invoke_lambda(
-                    &state.conf.report_download_config.payment_function, // Use existing V1 Lambda
+                    &state.conf.report_download_config.payment_function,
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )

@@ -151,6 +151,9 @@ pub struct RefundDistributionBody {
 pub struct ReportRequest {
     pub time_range: TimeRange,
     pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+    #[cfg(feature = "v2")]
+    #[serde(default)]
+    pub report_type: Option<ReportType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -160,6 +163,9 @@ pub struct GenerateReportRequest {
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub auth: AuthInfo,
     pub email: Secret<String, EmailStrategy>,
+    #[cfg(feature = "v2")]
+    #[serde(default)]
+    pub report_type: Option<ReportType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -573,16 +579,6 @@ pub struct LambdaReportInput {
     pub request: LambdaReportDataRequest,
     pub auth: AuthInfo,
     pub email: Secret<String, EmailStrategy>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GenerateGeneralizedReportApiRequest {
-    #[serde(default)]
-    pub report_type: ReportType,
-    pub time_range: TimeRange,
-    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
 }
 
 #[cfg(feature = "v2")]
