@@ -11,7 +11,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
-    routes::{app::ReqState, SessionState},
+    routes::{app::ReqState, SessionState, metrics},
     services,
     types::{
         self as core_types,
@@ -233,9 +233,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         })?;
 
         let is_post_capture_void_applied_or_pending =
-            payment_data.payment_intent.is_post_capture_void_applied() || payment_data
-                .payment_intent
-                .is_post_capture_void_pending();
+            payment_data.payment_intent.is_post_capture_void_applied()
+                || payment_data.payment_intent.is_post_capture_void_pending();
 
         crate::utils::when(is_post_capture_void_applied_or_pending, || {
             Err(error_stack::report!(
@@ -306,6 +305,45 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
+        match schedule_time {
+            Some(stime) => {
+                if !requeue {
+                    // Here, increment the count of added tasks every time a post capture void is requested
+                    metrics::TASKS_ADDED_COUNT.add(
+                        1,
+                        router_env::metric_attributes!(("flow", format!("{:#?}", self))),
+                    );
+                    payments::add_process_post_capture_void_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        state.conf.application_source,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
+                } else {
+                    // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
+                    metrics::TASKS_RESET_COUNT.add(
+                        1,
+                        router_env::metric_attributes!(("flow", format!("{:#?}", self))),
+                    );
+                    payments::reset_process_sync_task(&*state.store, payment_attempt, stime,  "PAYMENTS_POST_CAPTURE_VOID_SYNC",   storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while updating task in process tracker")
+                }
+            }
+            None => Ok(()),
+        }}
 }
 
 #[async_trait]

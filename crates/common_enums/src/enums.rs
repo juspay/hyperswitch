@@ -10157,6 +10157,7 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,

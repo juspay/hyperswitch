@@ -8764,6 +8764,44 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
+
+#[cfg(feature = "v1")]
+pub async fn add_process_post_capture_void_sync_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
+) -> CustomResult<(), errors::StorageError> {
+    let tracking_data = api::PaymentsCancelPostCaptureSyncBody {
+        payment_id: payment_attempt.payment_id.clone(),
+    };
+    let runner = storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow;
+    let task = "PAYMENTS_POST_CAPTURE_VOID_SYNC";
+    let tag = ["POST_CAPTURE_VOID_SYNC", "PAYMENT"];
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        task,
+        payment_attempt.get_id(),
+        &payment_attempt.merchant_id,
+    );
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
+
 #[cfg(feature = "v2")]
 pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
@@ -8778,9 +8816,9 @@ pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
+    task: &str,
+    runner: storage::ProcessTrackerRunner,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
-    let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,

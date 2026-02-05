@@ -1207,7 +1207,7 @@ where
             initiator,
         )?;
 
-        let event_type = webhooks_core::get_event_type(status,state_metadata);
+        let event_type = webhooks_core::get_event_type(status, state_metadata);
 
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response

@@ -60,12 +60,20 @@ fn resolve_override(
     status: &common_enums::IntentStatus,
     state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 ) -> common_enums::EventOverride {
-    match (state_metadata.and_then(|metadata| metadata.post_capture_void.as_ref().map(|post_capture_void| post_capture_void.status)), status) {
+    match (
+        state_metadata.and_then(|metadata| {
+            metadata
+                .post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status)
+        }),
+        status,
+    ) {
         (
             Some(common_enums::PostCaptureVoidStatus::Succeeded),
             common_enums::IntentStatus::Succeeded
-                | common_enums::IntentStatus::PartiallyCaptured
-                | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable,
         ) => common_enums::EventOverride::Override(
             common_enums::EventType::PaymentCancelledPostCapture,
         ),

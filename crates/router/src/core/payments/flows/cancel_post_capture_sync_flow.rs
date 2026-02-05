@@ -39,14 +39,13 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsCancelPostCaptureSyncRouterData> {
-        Box::pin(transformers::construct_payment_router_data::<
+          Box::pin(transformers::construct_payment_router_data::<
             api::PostCaptureVoidSync,
             types::PaymentsCancelPostCaptureSyncData,
         >(
@@ -54,7 +53,6 @@ impl
             self.clone(),
             connector_id,
             processor,
-            customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
