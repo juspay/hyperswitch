@@ -2608,12 +2608,12 @@ pub mod routes {
                     report_type: payload.report_type.clone(),
                 };
 
-                // Convert to LambdaReportInput if report_type is present, otherwise use GenerateReportRequest
+                // Convert to GenerateReportRequest  if report_type is present, otherwise use GenerateReportRequest
                 let json_bytes = if lambda_req.report_type.is_some() {
-                    use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput};
-                    let lambda_input = LambdaReportInput {
+                    use api_models::analytics::{GenerateReportRequest, ReportRequest};
+                    let lambda_input = GenerateReportRequest {
                         report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
-                        request: LambdaReportDataRequest {
+                        request: ReportRequest {
                             time_range: lambda_req.request.time_range.clone(),
                             emails: lambda_req.request.emails.clone(),
                         },
@@ -2675,10 +2675,10 @@ pub mod routes {
                 };
 
                 let json_bytes = if lambda_req.report_type.is_some() {
-                    use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput};
-                    let lambda_input = LambdaReportInput {
+                    use api_models::analytics::{GenerateReportRequest, ReportRequest};
+                    let lambda_input = GenerateReportRequest {
                         report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
-                        request: LambdaReportDataRequest {
+                        request: ReportRequest {
                             time_range: lambda_req.request.time_range.clone(),
                             emails: lambda_req.request.emails.clone(),
                         },
@@ -2739,10 +2739,10 @@ pub mod routes {
                 };
 
                 let json_bytes = if lambda_req.report_type.is_some() {
-                    use api_models::analytics::{LambdaReportDataRequest, LambdaReportInput};
-                    let lambda_input = LambdaReportInput {
+                    use api_models::analytics::{GenerateReportRequest, ReportRequest};
+                    let lambda_input = GenerateReportRequest {
                         report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
-                        request: LambdaReportDataRequest {
+                        request: ReportRequest {
                             time_range: lambda_req.request.time_range.clone(),
                             emails: lambda_req.request.emails.clone(),
                         },

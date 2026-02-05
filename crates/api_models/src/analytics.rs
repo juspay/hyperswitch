@@ -563,25 +563,6 @@ pub enum ReportType {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LambdaReportDataRequest {
-    pub time_range: TimeRange,
-    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LambdaReportInput {
-    #[serde(default)]
-    pub report_type: ReportType,
-    pub request: LambdaReportDataRequest,
-    pub auth: AuthInfo,
-    pub email: Secret<String, EmailStrategy>,
-}
-
-#[cfg(feature = "v2")]
 impl Default for ReportType {
     fn default() -> Self {
         ReportType::V2Payments
