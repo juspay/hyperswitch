@@ -64,6 +64,7 @@ pub struct ModularPMRetrieveResponse {
     pub network_token: Option<NetworkTokenResponse>,
     pub storage_type: Option<common_enums::StorageType>,
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
@@ -92,4 +93,12 @@ pub struct CardCVCTokenStorageDetails {
 
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<PrimitiveDateTime>,
+}
+
+/// V2 RawPaymentMethodData (for deserialization and downstream conversion)
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum RawPaymentMethodData {
+    Card(api_models::payment_methods::CardDetail),
 }

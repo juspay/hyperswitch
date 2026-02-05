@@ -60,6 +60,27 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Default)]
+pub struct FeatureConfig {
+    pub is_payment_method_modular_allowed: bool,
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_feature_config(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> FeatureConfig {
+    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+        state.store.as_ref(),
+        &platform.get_processor().get_account().organization_id,
+    )
+    .await;
+    FeatureConfig {
+        is_payment_method_modular_allowed,
+    }
+}
+
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";

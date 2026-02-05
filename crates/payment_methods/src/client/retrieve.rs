@@ -1,13 +1,13 @@
 //! Retrieve payment method flow types and models.
 
-use api_models::payment_methods::{
-    PaymentMethodId, PaymentMethodResponse as RetrievePaymentMethodResponse,
-};
-use common_utils::request::Method;
+use api_models::payment_methods::PaymentMethodId;
+use common_utils::{id_type, request::Method};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
+use time::PrimitiveDateTime;
 
 use crate::types::{
-    ModularPMRetrieveResponse, ModularPMRetrieveResquest, PaymentMethodResponseData,
+    ConnectorTokenDetails, ModularPMRetrieveResponse, ModularPMRetrieveResquest,
+    NetworkTokenResponse, PaymentMethodResponseData, RawPaymentMethodData,
 };
 /// V1-facing retrieve flow type.
 #[derive(Debug)]
@@ -17,6 +17,24 @@ pub struct RetrievePaymentMethod;
 #[derive(Debug)]
 pub struct RetrievePaymentMethodV1Request {
     pub payment_method_id: PaymentMethodId,
+    pub modular_service_prefix: String,
+    pub fetch_raw_detail: bool,
+}
+/// V1-facing retrieve response payload.
+#[derive(Clone, Debug)]
+pub struct RetrievePaymentMethodResponse {
+    pub payment_method_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub recurring_enabled: Option<bool>,
+    pub created: Option<PrimitiveDateTime>,
+    pub last_used_at: Option<PrimitiveDateTime>,
+    pub payment_method_data: Option<PaymentMethodResponseData>,
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+    pub network_token: Option<NetworkTokenResponse>,
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveResquest {
@@ -31,32 +49,50 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
     fn try_from(v2_resp: ModularPMRetrieveResponse) -> Result<Self, Self::Error> {
-        // Extract payment_method_id from GlobalPaymentMethodId
-        let payment_method_id = v2_resp.id.clone();
+        let ModularPMRetrieveResponse {
+            id,
+            merchant_id,
+            customer_id,
+            payment_method_type,
+            payment_method_subtype,
+            recurring_enabled,
+            created,
+            last_used_at,
+            payment_method_data,
+            connector_tokens,
+            network_token,
+            storage_type: _,
+            card_cvc_token_storage: _,
+            raw_payment_method_data,
+        } = v2_resp;
 
-        // Convert GlobalCustomerId to CustomerId
-        let customer_id = v2_resp.customer_id;
+        let payment_method = payment_method_type.ok_or(MicroserviceClientError {
+            operation: std::any::type_name::<Self>().to_string(),
+            kind: MicroserviceClientErrorKind::ResponseTransform(
+                "missing payment_method_type in retrieve response".to_string(),
+            ),
+        })?;
 
-        // Convert card details from V2 to V1 format
-        let card = v2_resp.payment_method_data.map(|data| match data {
-            PaymentMethodResponseData::Card(card_detail) => card_detail,
-        });
+        let payment_method_type = payment_method_subtype.ok_or(MicroserviceClientError {
+            operation: std::any::type_name::<Self>().to_string(),
+            kind: MicroserviceClientErrorKind::ResponseTransform(
+                "missing payment_method_subtype in retrieve response".to_string(),
+            ),
+        })?;
 
         Ok(Self {
-            payment_method_id,
-            merchant_id: v2_resp.merchant_id,
+            payment_method_id: id,
+            merchant_id,
             customer_id,
-            payment_method: v2_resp.payment_method_type,
-            payment_method_type: v2_resp.payment_method_subtype,
-            card,
-            recurring_enabled: v2_resp.recurring_enabled,
-            created: v2_resp.created,
-            last_used_at: v2_resp.last_used_at,
-            installment_payment_enabled: None,
-            payment_experience: None,
-            metadata: None,
-            bank_transfer: None,
-            client_secret: None,
+            payment_method,
+            payment_method_type,
+            recurring_enabled,
+            created,
+            last_used_at,
+            payment_method_data,
+            connector_tokens,
+            network_token,
+            raw_payment_method_data,
         })
     }
 }
