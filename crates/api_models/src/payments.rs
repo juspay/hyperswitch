@@ -6828,6 +6828,7 @@ pub enum QrCodeInformation {
         image_data_url: Url,
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
+        expiry_type: Option<ExpiryType>,
     },
     QrDataUrl {
         image_data_url: Url,
@@ -6836,7 +6837,6 @@ pub enum QrCodeInformation {
     QrCodeImageUrl {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
-        expiry_type: Option<ExpiryType>,
     },
     QrColorDataUrl {
         color_image_data_url: Url,

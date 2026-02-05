@@ -42,12 +42,13 @@ use crate::{
         },
         responses::{
             FunctionType, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
-            SanatanderTokenResponse, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
-            SantanderBoletoStatus, SantanderDocumentKind, SantanderPaymentStatus,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderPixKeyType,
-            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
-            SantanderVoidResponse, SantanderVoidStatus, SantanderWebhookBody,
+            SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
+            SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
+            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
+            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
+            SantanderWebhookBody,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -424,7 +425,7 @@ impl
                 field_name: "feature_metadata.boleto_additional_details.pix_key.type",
             })?;
 
-        let _key = Some(Key {
+        let key = Some(Key {
             key_type: Some(SantanderPixKeyType::from(key_type)),
             dict_key: value
                 .0
@@ -478,6 +479,24 @@ impl
             .merchant_order_reference_id
             .clone();
 
+        let payer = Some(Payer {
+            name: value.0.router_data.get_billing_full_name()?,
+            document_type,
+            document_number,
+            address: Secret::new(
+                [
+                    value.0.router_data.get_billing_line1()?,
+                    value.0.router_data.get_billing_line2()?,
+                ]
+                .map(|s| s.expose())
+                .join(" "),
+            ),
+            neighborhood: value.0.router_data.get_billing_line1()?,
+            city: Secret::new(value.0.router_data.get_billing_city()?),
+            state: value.0.router_data.get_billing_state()?,
+            zip_code: value.0.router_data.get_billing_zip()?,
+        });
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
             nsu_code,
@@ -499,23 +518,7 @@ impl
             ),
             nominal_value: Some(value.0.amount.to_owned()),
             participant_code: order_id,
-            payer: Some(Payer {
-                name: value.0.router_data.get_billing_full_name()?,
-                document_type,
-                document_number,
-                address: Secret::new(
-                    [
-                        value.0.router_data.get_billing_line1()?,
-                        value.0.router_data.get_billing_line2()?,
-                    ]
-                    .map(|s| s.expose())
-                    .join(" "),
-                ),
-                neighborhood: value.0.router_data.get_billing_line1()?,
-                city: Secret::new(value.0.router_data.get_billing_city()?),
-                state: value.0.router_data.get_billing_state()?,
-                zip_code: value.0.router_data.get_billing_zip()?,
-            }),
+            payer,
             beneficiary: None,
             document_kind: document_kind.map(SantanderBoletoDocumentKind::from),
             discount: None,
@@ -533,10 +536,8 @@ impl
             max_value_or_percentage: None,
             iof_percentage: None,
             sharing: None,
-            key: None,
             tx_id: None,
-            // key,
-            // tx_id: Some(value.0.router_data.connector_request_reference_id.clone()),
+            key,
             messages,
         })))
     }
@@ -643,6 +644,22 @@ impl
             }
         };
 
+        let info_adicionais = value
+            .0
+            .router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|m| m.as_object())
+            .map(|m| {
+                m.iter()
+                    .map(|(k, v)| SantanderAdditionalInfo {
+                        nome: k.clone().into(),
+                        valor: v.as_str().unwrap_or_default().to_string(),
+                    })
+                    .collect::<Vec<_>>()
+            });
+
         let chave = value
             .0
             .router_data
@@ -666,7 +683,7 @@ impl
                 .billing_descriptor
                 .clone()
                 .and_then(|data| data.statement_descriptor),
-            info_adicionais: None,
+            info_adicionais,
         })))
     }
 }
@@ -1127,7 +1144,8 @@ fn convert_pix_data_to_value(
     let image_data_url = Url::parse(image_data.data.clone().as_str())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let qr_code_info = QrCodeInformation::QrCodeImageUrl {
+    let qr_code_info = QrCodeInformation::QrCodeUrl {
+        image_data_url: image_data_url.clone(),
         qr_code_url: image_data_url,
         display_to_timestamp: None,
         expiry_type: variant,
@@ -1387,7 +1405,7 @@ pub fn get_qr_code_type(
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     let santander_variant = match qr_data_santander {
-        Some(QrCodeInformation::QrCodeImageUrl { expiry_type, .. }) => expiry_type,
+        Some(QrCodeInformation::QrCodeUrl { expiry_type, .. }) => expiry_type,
         _ => {
             return Err(errors::ConnectorError::ResponseDeserializationFailed.into());
         }

@@ -46,7 +46,7 @@ impl std::ops::DerefMut for ConnectorCustomerMap {
 #[derive(
     Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Deserialize, serde::Serialize, ToSchema,
 )]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum DocumentKind {
     /// Cadastro de Pessoas Físicas - The Brazilian individual taxpayer identifier.
     Cpf,

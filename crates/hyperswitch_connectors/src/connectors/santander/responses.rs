@@ -610,6 +610,7 @@ pub struct Sharing {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Key {
     #[serde(rename = "type")]
     pub key_type: Option<SantanderPixKeyType>,

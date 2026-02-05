@@ -180,7 +180,6 @@ enum RequiredField {
     MifinityLanguagePreference(Vec<&'static str>),
     CryptoNetwork,
     CyptoPayCurrency(Vec<&'static str>),
-    DocumentType(Vec<&'static str>),
     PixDocumentType(Vec<&'static str>),
     PixDocumentNumber,
     BoletoSocialSecurityNumber,
@@ -692,17 +691,6 @@ impl RequiredField {
                     required_field: "customer.document_details.document_number".to_string(),
                     display_name: "document_number".to_string(),
                     field_type: FieldType::UserSocialSecurityNumber,
-                    value: None,
-                },
-            ),
-            Self::DocumentType(document_type) => (
-                "payment_method_data.voucher.boleto.document_type".to_string(),
-                RequiredFieldInfo {
-                    required_field: "payment_method_data.voucher.boleto.document_type".to_string(),
-                    display_name: "document_type".to_string(),
-                    field_type: FieldType::UserDocumentType {
-                        options: document_type.iter().map(|d| d.to_string()).collect(),
-                    },
                     value: None,
                 },
             ),
@@ -3265,8 +3253,8 @@ fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorF
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::from([
-                            RequiredField::BoletoSocialSecurityNumber.to_tuple(),
-                            RequiredField::DocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
+                            RequiredField::PixDocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
+                            RequiredField::PixDocumentNumber.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
                             RequiredField::BillingAddressCity.to_tuple(),
