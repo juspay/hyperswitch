@@ -2609,21 +2609,8 @@ pub mod routes {
                 };
 
                 // Convert to GenerateReportRequest  if report_type is present, otherwise use GenerateReportRequest
-                let json_bytes = if lambda_req.report_type.is_some() {
-                    use api_models::analytics::{GenerateReportRequest, ReportRequest};
-                    let lambda_input = GenerateReportRequest {
-                        report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
-                        request: ReportRequest {
-                            time_range: lambda_req.request.time_range.clone(),
-                            emails: lambda_req.request.emails.clone(),
-                        },
-                        auth: lambda_req.auth.clone(),
-                        email: lambda_req.email.clone(),
-                    };
-                    serde_json::to_vec(&lambda_input).map_err(|_| AnalyticsError::UnknownError)?
-                } else {
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?
-                };
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
 
                 invoke_lambda(
                     &state.conf.report_download_config.payment_function,
@@ -2674,21 +2661,8 @@ pub mod routes {
                     report_type: payload.report_type.clone(),
                 };
 
-                let json_bytes = if lambda_req.report_type.is_some() {
-                    use api_models::analytics::{GenerateReportRequest, ReportRequest};
-                    let lambda_input = GenerateReportRequest {
-                        report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
-                        request: ReportRequest {
-                            time_range: lambda_req.request.time_range.clone(),
-                            emails: lambda_req.request.emails.clone(),
-                        },
-                        auth: lambda_req.auth.clone(),
-                        email: lambda_req.email.clone(),
-                    };
-                    serde_json::to_vec(&lambda_input).map_err(|_| AnalyticsError::UnknownError)?
-                } else {
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?
-                };
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
 
                 invoke_lambda(
                     &state.conf.report_download_config.payment_function,
@@ -2738,21 +2712,8 @@ pub mod routes {
                     report_type: payload.report_type.clone(),
                 };
 
-                let json_bytes = if lambda_req.report_type.is_some() {
-                    use api_models::analytics::{GenerateReportRequest, ReportRequest};
-                    let lambda_input = GenerateReportRequest {
-                        report_type: lambda_req.report_type.unwrap_or(ReportType::V2Payments),
-                        request: ReportRequest {
-                            time_range: lambda_req.request.time_range.clone(),
-                            emails: lambda_req.request.emails.clone(),
-                        },
-                        auth: lambda_req.auth.clone(),
-                        email: lambda_req.email.clone(),
-                    };
-                    serde_json::to_vec(&lambda_input).map_err(|_| AnalyticsError::UnknownError)?
-                } else {
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?
-                };
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
 
                 invoke_lambda(
                     &state.conf.report_download_config.payment_function,
