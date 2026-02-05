@@ -1567,7 +1567,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2035",
+            card_exp_year: "2030",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },
@@ -1594,7 +1594,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2035",
+            card_exp_year: "2030",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },
