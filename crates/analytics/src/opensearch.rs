@@ -199,12 +199,9 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "Opensearch is not enabled",
                 None,
             )),
-            Self::NotImplemented => ApiErrorResponse::NotImplemented(ApiError::new(
-                "IR",
-                9,
-                "Not implemented",
-                None,
-            )),
+            Self::NotImplemented => {
+                ApiErrorResponse::NotImplemented(ApiError::new("IR", 9, "Not implemented", None))
+            }
         }
     }
 }
@@ -829,7 +826,10 @@ impl OpenSearchQueryBuilder {
                     *index,
                 );
                 println!("Index: {:?}", index);
-                println!("Payload: {}", serde_json::to_string_pretty(&payload).unwrap());
+                println!(
+                    "Payload: {}",
+                    serde_json::to_string_pretty(&payload).unwrap()
+                );
                 payload
             })
             .collect::<Vec<Value>>())
