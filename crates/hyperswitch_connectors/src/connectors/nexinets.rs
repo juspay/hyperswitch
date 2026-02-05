@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::Mask;
 #[cfg(feature = "v2")]

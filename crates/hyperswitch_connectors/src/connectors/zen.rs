@@ -43,7 +43,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, PaymentsSyncType, RefundExecuteType, RefundSyncType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 use masking::{Mask, PeekInterface, Secret};
 use transformers::{self as zen, ZenPaymentStatus, ZenWebhookTxnType};

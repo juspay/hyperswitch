@@ -41,7 +41,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
         RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask as _, Maskable};
 use transformers as dummyconnector;

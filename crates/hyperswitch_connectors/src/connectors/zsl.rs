@@ -42,7 +42,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 use lazy_static::lazy_static;
 use masking::{ExposeInterface, Secret};

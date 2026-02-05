@@ -48,7 +48,7 @@ use hyperswitch_interfaces::{
         PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::Maskable;
 use regex::Regex;

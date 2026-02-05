@@ -44,7 +44,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsSyncType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use transformers as gocardless;

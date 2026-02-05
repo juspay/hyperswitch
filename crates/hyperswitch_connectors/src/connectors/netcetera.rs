@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::Maskable;
 use transformers as netcetera;

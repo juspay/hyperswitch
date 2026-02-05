@@ -50,7 +50,9 @@ use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications},
     configs::Connectors,
     errors::ConnectorError,
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 use masking::{Mask as _, Maskable, Secret};
 #[cfg(feature = "payouts")]

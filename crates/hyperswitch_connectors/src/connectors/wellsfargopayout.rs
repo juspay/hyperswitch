@@ -39,7 +39,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
         RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{ExposeInterface, Mask as _, Maskable};
 

@@ -51,7 +51,7 @@ use hyperswitch_interfaces::{
         PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
         Response, TokenizationType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails,WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest};

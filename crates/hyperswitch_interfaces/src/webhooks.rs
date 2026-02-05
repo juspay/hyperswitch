@@ -56,8 +56,7 @@ pub enum WebhookResourceData {
     /// Context for payment-related webhooks
     Payment {
         /// The previous payment attempt details before processing this webhook
-        payment_attempt:
-            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     },
 }
 
@@ -67,9 +66,7 @@ impl WebhookResourceData {
         &self,
     ) -> &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt {
         match self {
-            Self::Payment {
-                payment_attempt,
-            } => payment_attempt,
+            Self::Payment { payment_attempt } => payment_attempt,
         }
     }
 }
@@ -111,15 +108,15 @@ impl WebhookContext {
 impl From<&WebhookResourceData> for WebhookContext {
     fn from(data: &WebhookResourceData) -> Self {
         match data {
-            WebhookResourceData::Payment {
-                payment_attempt,
-            } => Self::Payment(PaymentWebhookContext {
-                previous_status: payment_attempt.status,
-                payment_method: payment_attempt.payment_method,
-                payment_method_type: payment_attempt.payment_method_type,
-                amount: payment_attempt.net_amount.get_order_amount(),
-                currency: payment_attempt.currency,
-            }),
+            WebhookResourceData::Payment { payment_attempt } => {
+                Self::Payment(PaymentWebhookContext {
+                    previous_status: payment_attempt.status,
+                    payment_method: payment_attempt.payment_method,
+                    payment_method_type: payment_attempt.payment_method_type,
+                    amount: payment_attempt.net_amount.get_order_amount(),
+                    currency: payment_attempt.currency,
+                })
+            }
         }
     }
 }
@@ -128,15 +125,15 @@ impl From<&WebhookResourceData> for WebhookContext {
 impl From<&WebhookResourceData> for WebhookContext {
     fn from(data: &WebhookResourceData) -> Self {
         match data {
-            WebhookResourceData::Payment {
-                payment_attempt,
-            } => Self::Payment(PaymentWebhookContext {
-                previous_status: payment_attempt.status,
-                payment_method: payment_attempt.get_payment_method(),
-                payment_method_type: payment_attempt.get_payment_method_type(),
-                amount: payment_attempt.amount_details.get_net_amount(),
-                currency: None, // Currency is not stored on PaymentAttempt in v2
-            }),
+            WebhookResourceData::Payment { payment_attempt } => {
+                Self::Payment(PaymentWebhookContext {
+                    previous_status: payment_attempt.status,
+                    payment_method: payment_attempt.get_payment_method(),
+                    payment_method_type: payment_attempt.get_payment_method_type(),
+                    amount: payment_attempt.amount_details.get_net_amount(),
+                    currency: None, // Currency is not stored on PaymentAttempt in v2
+                })
+            }
         }
     }
 }

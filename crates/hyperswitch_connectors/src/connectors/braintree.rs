@@ -58,7 +58,9 @@ use hyperswitch_interfaces::{
         PaymentsCompleteAuthorizeType, PaymentsSessionType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response, TokenizationType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use ring::hmac;
