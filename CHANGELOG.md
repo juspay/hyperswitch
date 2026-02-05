@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix1
+
+### Features
+
+- **connector:** [Cybersource Decision Manager] Implement Cybersource Decision Manager (FRM) ([#11159](https://github.com/juspay/hyperswitch/pull/11159)) ([`b8a22bb`](https://github.com/juspay/hyperswitch/commit/b8a22bb45688243506a63d976957100cecf088ff))
+
+**Full Changelog:** [`2026.02.04.1...2026.02.04.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1...2026.02.04.1-hotfix1)
+
+- - -
+
 ## 2026.02.04.1
 
 ### Features
