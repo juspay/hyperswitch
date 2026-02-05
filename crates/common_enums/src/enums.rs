@@ -2954,6 +2954,7 @@ pub enum RelayType {
     Refund,
     Capture,
     IncrementalAuthorization,
+    Void,
 }
 
 #[derive(
