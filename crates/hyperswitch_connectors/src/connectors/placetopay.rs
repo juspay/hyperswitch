@@ -45,7 +45,9 @@ use hyperswitch_interfaces::{
 };
 use transformers as placetopay;
 
-use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
+use crate::{
+    constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
+};
 
 #[derive(Clone)]
 pub struct Placetopay {
@@ -234,13 +236,25 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Placetopay PlacetopayPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount.total,
+            response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -312,13 +326,31 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pla
             .parse_struct("placetopay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let p_sync_response = response.sync_responses.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "P_Sync_Responses[0]",
+            },
+        )?;
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            p_sync_response.amount.total,
+            p_sync_response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -392,13 +424,25 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("Placetopay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(response.amount.total),
+            response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -549,13 +593,25 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Placeto
             .parse_struct("placetopay PlacetopayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.total,
+            response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -627,13 +683,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Placetopa
             .parse_struct("placetopay PlacetopayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let r_sync_response = response.sync_responses.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "R_Sync_Responses[0]",
+            },
+        )?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            r_sync_response.amount.total,
+            r_sync_response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
