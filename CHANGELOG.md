@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix2
+
+### Features
+
+- **relay:** Add relay for Incremental Authorization ([#11162](https://github.com/juspay/hyperswitch/pull/11162)) ([`4905f7a`](https://github.com/juspay/hyperswitch/commit/4905f7a2a95cd43c1859c3e298c6113316093930))
+- **router:** Add pm mod support in payments operation core v1 ([#11166](https://github.com/juspay/hyperswitch/pull/11166)) ([`b45c128`](https://github.com/juspay/hyperswitch/commit/b45c128db329f53b693924792b798a892228f663))
+
+**Full Changelog:** [`2026.02.04.1-hotfix1...2026.02.04.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix1...2026.02.04.1-hotfix2)
+
+- - -
+
 ## 2026.02.04.1-hotfix1
 
 ### Features
