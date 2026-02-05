@@ -132,6 +132,7 @@ pub async fn fetch_db_with_dimensions<C, M, O, P>(
           + Sync),
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
+    targeting_context: &superposition::TargetingContext,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -144,7 +145,7 @@ where
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
     let context = dimensions.to_superposition_context();
 
-    fetch_db_config::<C>(storage, superposition_client, &db_key, context).await
+    fetch_db_config::<C>(storage, superposition_client, &db_key, context, targeting_context).await
 }
 
 /// This trait extends external_services::superposition::Config with database-specific metadata
@@ -168,6 +169,7 @@ pub async fn fetch_db_config<C>(
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,
+    targeting_context: &superposition::TargetingContext,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -178,7 +180,7 @@ where
     let config_type = C::KEY;
 
     let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context).await,
+        Some(client) => C::fetch(client, context, targeting_context).await,
         None => Err(error_stack::report!(
             superposition::SuperpositionError::ClientError(
                 "No superposition client available".to_string()

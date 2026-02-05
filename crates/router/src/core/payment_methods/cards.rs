@@ -3,7 +3,7 @@ use std::{
     fmt::Debug,
     str::FromStr,
 };
-
+use external_services::superposition;
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
@@ -4250,6 +4250,7 @@ pub async fn list_customer_payment_method(
     limit: Option<i64>,
     dimensions: DimensionsWithMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
         .as_ref()
@@ -4271,9 +4272,11 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
+
+    let targeting_context= superposition::TargetingContext::new().with_customer_id(customer_id.clone());
     // Get requires_cvv using type-safe dimensions config
     let requires_cvv = dimensions
-        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref())
+        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref(), &targeting_context)
         .await;
 
     let resp = db
