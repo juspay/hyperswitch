@@ -3036,6 +3036,11 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
             common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
             common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
             common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
+            common_enums::CardNetwork::Interac => Ok(Self::InteracCard),
+            common_enums::CardNetwork::Star => Ok(Self::Star),
+            common_enums::CardNetwork::Pulse => Ok(Self::Pulse),
+            common_enums::CardNetwork::Accel => Ok(Self::Accel),
+            common_enums::CardNetwork::Nyce => Ok(Self::Nyce),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Card Network not supported".to_string(),
