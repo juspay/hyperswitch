@@ -552,7 +552,6 @@ pub struct AuthEventsAnalyticsMetadata {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReportType {
-    V1Payments,
     V2Payments,
     RevenueRecovery,
 }
@@ -582,4 +581,10 @@ pub struct GenerateGeneralizedReportApiRequest {
     pub report_type: ReportType,
     pub time_range: TimeRange,
     pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+}
+
+impl Default for ReportType {
+    fn default() -> Self {
+        ReportType::V2Payments
+    }
 }

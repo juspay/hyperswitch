@@ -2612,10 +2612,7 @@ pub mod routes {
                 let json_bytes =
                     serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
                 invoke_lambda(
-                    &state
-                        .conf
-                        .report_download_config
-                        .generalized_report_function,
+                    &state.conf.report_download_config.payment_function, // Use existing V1 Lambda
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )
@@ -2674,10 +2671,7 @@ pub mod routes {
                 let json_bytes =
                     serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
                 invoke_lambda(
-                    &state
-                        .conf
-                        .report_download_config
-                        .generalized_report_function,
+                    &state.conf.report_download_config.payment_function, // Use existing V1 Lambda
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )

@@ -1119,7 +1119,6 @@ pub struct ReportConfig {
     pub authentication_function: String,
     pub payout_function: String,
     pub region: String,
-    pub generalized_report_function: String,
 }
 
 /// Analytics Flow routes Enums
