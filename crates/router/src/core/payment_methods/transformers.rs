@@ -1249,7 +1249,6 @@ impl TryFrom<&RetrievePaymentMethodResponse> for DomainPaymentMethodWrapper {
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
             created_by: None,
             last_modified_by: None,
-            customer_details: None,
         }))
     }
 }
@@ -1353,7 +1352,6 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
             created_by: None,
             last_modified_by: None,
-            customer_details: None,
         }))
     }
 }
