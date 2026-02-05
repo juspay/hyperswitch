@@ -376,6 +376,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .tax_registration_id
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
+            document_details: None,
         };
 
         Ok((locker_id, customer_details))

@@ -432,6 +432,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .connector_mandate_detail
             .as_ref()
             .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
+        let customer_details = payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?;
+
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),
@@ -447,6 +453,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             vault_operation.clone(),
             payment_method_info.clone(),
             payment_data.payment_method_token.clone(),
+            customer_details.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -597,6 +604,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         vault_operation.clone(),
                         payment_method_info.clone(),
                         payment_method_token.clone(),
+                        customer_details.clone(),
                     ))
                     .await;
 
@@ -663,12 +671,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        feature_set: &core_utils::FeatureSet,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_modular_merchant {
+        if !feature_set.is_payment_method_modular_allowed {
             update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
         } else {
             Ok(())
@@ -840,8 +848,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             )?;
         state
             .store
-            .update_authorization_by_merchant_id_authorization_id(
-                router_data.merchant_id.clone(),
+            .update_authorization_by_processor_merchant_id_authorization_id(
+                payment_data.payment_intent.processor_merchant_id.clone(),
                 authorization_id,
                 authorization_update,
             )
@@ -851,8 +859,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         //Fetch all the authorizations of the payment and send in incremental authorization response
         let authorizations = state
             .store
-            .find_all_authorizations_by_merchant_id_payment_id(
-                &router_data.merchant_id,
+            .find_all_authorizations_by_processor_merchant_id_payment_id(
+                &payment_data.payment_intent.processor_merchant_id,
                 payment_data.payment_intent.get_id(),
             )
             .await
@@ -954,12 +962,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         provider: &domain::Provider,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        feature_set: &core_utils::FeatureSet,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_modular_merchant {
+        if !feature_set.is_payment_method_modular_allowed {
             update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
         } else {
             Ok(())
@@ -1604,6 +1612,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         let vault_operation = payment_data.vault_operation.clone();
         let payment_method_info = payment_data.payment_method_info.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+        let customer_details = payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?;
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,
             connector_mandate_reference_id,
@@ -1623,6 +1636,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             vault_operation,
             payment_method_info,
             payment_data.payment_method_token.clone(),
+            customer_details,
         ))
         .await?;
 
@@ -1688,7 +1702,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        _feature_set: &core_utils::FeatureSet,
+        _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1811,12 +1825,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-        feature_set: &core_utils::FeatureSet,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_modular_merchant {
+        if !feature_set.is_payment_method_modular_allowed {
             update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
         } else {
             Ok(())

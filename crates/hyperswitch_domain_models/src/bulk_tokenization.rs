@@ -82,6 +82,8 @@ pub struct CardNetworkTokenizeRecord {
     pub customer_phone_country_code: Option<String>,
     #[serde(rename = "tax_registration_id")]
     pub customer_tax_registration_id: Option<masking::Secret<String>>,
+    #[serde(rename = "document_details")]
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
     // Billing details
     pub billing_address_city: Option<String>,
     pub billing_address_country: Option<enums::CountryAlpha2>,
@@ -110,6 +112,7 @@ impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::CustomerDetails {
             phone: record.customer_phone.clone(),
             phone_country_code: record.customer_phone_country_code.clone(),
             tax_registration_id: record.customer_tax_registration_id.clone(),
+            document_details: record.customer_document_details.clone(),
         }
     }
 }
@@ -225,6 +228,7 @@ impl ForeignTryFrom<CustomerDetails> for payments_api::CustomerDetails {
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            document_details: customer.document_details,
         })
     }
 }
@@ -278,6 +282,7 @@ impl ForeignFrom<payments_api::CustomerDetails> for CustomerDetails {
             phone: req.phone,
             phone_country_code: req.phone_country_code,
             tax_registration_id: req.tax_registration_id,
+            document_details: req.document_details,
         }
     }
 }
