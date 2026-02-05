@@ -678,3 +678,5 @@ impl ConnectorSpecifications for Cybersourcedecisionmanager {
         Some(&CYBERSOURCEDECISIONMANAGER_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+impl api::ConnectorAccessTokenSuffix for Cybersourcedecisionmanager {}
