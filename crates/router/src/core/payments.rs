@@ -10368,6 +10368,15 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        business_profile.get_id().get_string_repr(),
+        &transaction_type_from_payments_dsl(&transaction_data),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("euclid: failed to fetch fallback config")?;
+
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
@@ -10380,15 +10389,6 @@ where
 
         algorithm_ref.algorithm_id
     };
-
-    let fallback_config = routing_helpers::get_merchant_default_config(
-        &*state.clone().store,
-        business_profile.get_id().get_string_repr(),
-        &transaction_type_from_payments_dsl(&transaction_data),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("euclid: failed to fetch fallback config")?;
 
     let cached_algorithm = if let Some(routing_algorithm_id) = routing_algorithm_id {
         match routing::ensure_algorithm_cached_v1(
@@ -10413,7 +10413,7 @@ where
         None
     };
 
-    let (static_connectors, routing_approach) = if let Some(cached_algorithm) = cached_algorithm {
+    let (static_connectors, static_approach) = if let Some(cached_algorithm) = cached_algorithm {
         let static_stage = routing::StaticRoutingStage {
             ctx: routing::RoutingContext {
                 routing_algorithm: cached_algorithm,
@@ -10461,76 +10461,60 @@ where
     };
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let (dynamic_connectors, routing_approach) =
-        if business_profile.dynamic_routing_algorithm.is_some() {
-            let dynamic_input = routing::DynamicRoutingInput {
-                state,
-                business_profile,
-                transaction_data: &transaction_data,
-                static_connectors: &static_connectors,
-            };
-
-            let dynamic_stage = routing::DynamicRoutingStage;
-
-            match dynamic_stage.route(dynamic_input).await {
-                Ok(Some(dynamic_outcome)) if !dynamic_outcome.connectors.is_empty() => {
-                    core_routing::log_connectors("dynamic-routing", &dynamic_outcome.connectors);
-                    (dynamic_outcome.connectors, dynamic_outcome.routing_approach)
-                }
-                Ok(_) => {
-                    core_routing::log_connectors("dynamic-routing-skipped", &static_connectors);
-                    (static_connectors, routing_approach)
-                }
-                Err(err) => {
-                    logger::error!(
-                        error=?err,
-                        "euclid: dynamic routing failed, falling back to static"
-                    );
-                    core_routing::log_connectors("dynamic-routing-error", &static_connectors);
-                    (static_connectors, routing_approach)
-                }
-            }
-        } else {
-            core_routing::log_connectors("dynamic-routing-disabled", &static_connectors);
-            (static_connectors, routing_approach)
+    let (connectors, routing_approach) = if business_profile.dynamic_routing_algorithm.is_some() {
+        let dynamic_input = routing::DynamicRoutingInput {
+            state,
+            business_profile,
+            transaction_data: &transaction_data,
+            static_connectors: &static_connectors,
         };
 
-    let final_connectors = match routing::perform_eligibility_analysis_with_fallback(
+        let dynamic_stage = routing::DynamicRoutingStage;
+
+        match dynamic_stage.route(dynamic_input).await {
+            Ok(Some(dynamic_outcome)) if !dynamic_outcome.connectors.is_empty() => {
+                core_routing::log_connectors("dynamic-routing", &dynamic_outcome.connectors);
+                (dynamic_outcome.connectors, dynamic_outcome.routing_approach)
+            }
+            Ok(_) => {
+                core_routing::log_connectors("dynamic-routing-skipped", &static_connectors);
+                (static_connectors, static_approach)
+            }
+            Err(err) => {
+                logger::error!(
+                    error=?err,
+                    "euclid: dynamic routing failed, falling back to static"
+                );
+                core_routing::log_connectors("dynamic-routing-error", &static_connectors);
+                (static_connectors, static_approach)
+            }
+        }
+    } else {
+        core_routing::log_connectors("dynamic-routing-disabled", &static_connectors);
+        (static_connectors, static_approach)
+    };
+
+    #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
+    let (connectors, routing_approach) = (static_connectors, static_approach);
+
+    let routable_connectors = routing::perform_eligibility_analysis_with_fallback(
         state,
         platform.get_processor().get_key_store(),
-        dynamic_connectors.clone(),
+        connectors,
         &TransactionData::Payment(transaction_data.clone()),
         eligible_connectors,
         business_profile,
     )
     .await
-    {
-        Ok(connectors) => {
-            core_routing::log_connectors("eligibility", &connectors);
-            connectors
-        }
-        Err(err) => {
-            logger::error!(
-                error=?err,
-                "euclid: eligibility analysis failed, falling back"
-            );
-            core_routing::log_connectors("eligibility-error", &fallback_config);
-            fallback_config.clone()
-        }
-    };
+    .unwrap_or_else(|err| {
+        logger::error!(
+            error=?err,
+            "euclid: eligibility analysis failed, using fallback connectors"
+        );
+        fallback_config.clone()
+    });
 
-    core_routing::log_connectors("eligibility", &final_connectors);
-
-    let (routable_connectors, routing_approach) = if final_connectors.is_empty() {
-        logger::warn!("euclid: empty routing result, falling back");
-        core_routing::log_connectors("fallback-after-eligibility", &fallback_config);
-        (
-            fallback_config.clone(),
-            common_enums::RoutingApproach::DefaultFallback,
-        )
-    } else {
-        (final_connectors, routing_approach)
-    };
+    core_routing::log_connectors("eligibility", &routable_connectors);
 
     payment_data.set_routing_approach_in_attempt(Some(routing_approach));
     let connector_data = routable_connectors
