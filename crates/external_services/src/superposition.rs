@@ -5,10 +5,7 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use common_utils::{
-    errors::CustomResult,
-    id_type
-};
+use common_utils::{errors::CustomResult, id_type};
 use error_stack::report;
 use masking::ExposeInterface;
 
@@ -168,22 +165,30 @@ impl TargetingContext {
 
     /// Returns a reference to the merchant ID, if present.
     pub fn merchant_id(&self) -> Option<String> {
-        self.merchant_id.as_ref().map(|m_id|m_id.get_string_repr().to_owned())
+        self.merchant_id
+            .as_ref()
+            .map(|m_id| m_id.get_string_repr().to_owned())
     }
 
     /// Returns a reference to the customer ID, if present.
     pub fn customer_id(&self) -> Option<String> {
-        self.customer_id.as_ref().map(|c_id|c_id.get_string_repr().to_owned())
+        self.customer_id
+            .as_ref()
+            .map(|c_id| c_id.get_string_repr().to_owned())
     }
 
     /// Returns a reference to the payment ID, if present.
     pub fn payment_id(&self) -> Option<String> {
-        self.payment_id.as_ref().map(|pa_id|pa_id.get_string_repr().to_owned())
+        self.payment_id
+            .as_ref()
+            .map(|pa_id| pa_id.get_string_repr().to_owned())
     }
 
     /// Returns a reference to the profile ID, if present.
     pub fn profile_id(&self) -> Option<String> {
-        self.profile_id.as_ref().map(|p_id|p_id.get_string_repr().to_owned())
+        self.profile_id
+            .as_ref()
+            .map(|p_id| p_id.get_string_repr().to_owned())
     }
 }
 
@@ -232,7 +237,7 @@ impl SuperpositionClient {
     fn build_evaluation_context(
         &self,
         context: Option<&ConfigContext>,
-        targeting_key: Option<&String>
+        targeting_key: Option<&String>,
     ) -> open_feature::EvaluationContext {
         open_feature::EvaluationContext {
             custom_fields: context.map_or(HashMap::new(), |ctx| {
@@ -265,7 +270,7 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&ConfigContext>,
-        targeting_key : Option<&String>, 
+        targeting_key: Option<&String>,
     ) -> CustomResult<T, SuperpositionError>
     where
         open_feature::Client: GetValue<T>,
@@ -311,7 +316,11 @@ pub trait Config {
         async move {
             let targeting_key = Self::build_targeting_key(targeting_context);
             match superposition_client
-                .get_config_value::<Self::Output>(Self::SUPERPOSITION_KEY, context.as_ref(), targeting_key.as_ref())
+                .get_config_value::<Self::Output>(
+                    Self::SUPERPOSITION_KEY,
+                    context.as_ref(),
+                    targeting_key.as_ref(),
+                )
                 .await
             {
                 Ok(value) => {

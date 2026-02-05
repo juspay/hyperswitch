@@ -30,10 +30,11 @@ macro_rules! config {
 
             const DEFAULT_VALUE: $output = $default;
 
-            fn build_targeting_key(targeting_ctx: &superposition::TargetingContext) -> Option<String> {
+            fn build_targeting_key(
+                targeting_ctx: &superposition::TargetingContext,
+            ) -> Option<String> {
                 targeting_ctx.$targeting_method()
             }
-            
         }
 
         /// Get $config - ONLY available when Dimensions has required state
@@ -48,13 +49,13 @@ macro_rules! config {
                       + Send
                       + Sync),
                 superposition_client: Option<&superposition::SuperpositionClient>,
-                targeting_context : &superposition::TargetingContext
+                targeting_context: &superposition::TargetingContext,
             ) -> $output {
                 fetch_db_with_dimensions::<$config, $requirement, O, P>(
                     storage,
                     superposition_client,
                     self,
-                    targeting_context
+                    targeting_context,
                 )
                 .await
             }
@@ -85,7 +86,6 @@ impl DatabaseBackedConfig for RequiresCvv {
         format!("{}_{}", merchant_id, Self::KEY)
     }
 }
-
 
 // Define RequiresCvv struct and superposition::Config using the macro
 config! {

@@ -145,7 +145,14 @@ where
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
     let context = dimensions.to_superposition_context();
 
-    fetch_db_config::<C>(storage, superposition_client, &db_key, context, targeting_context).await
+    fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        &db_key,
+        context,
+        targeting_context,
+    )
+    .await
 }
 
 /// This trait extends external_services::superposition::Config with database-specific metadata
