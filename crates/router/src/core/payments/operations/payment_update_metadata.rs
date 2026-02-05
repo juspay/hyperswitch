@@ -88,10 +88,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let currency = payment_intent.currency.get_required_value("currency")?;
-        let amount = request
-            .amount
-            .unwrap_or(payment_attempt.get_total_amount().into());
-        payment_intent.amount = amount.into();
+        let amount = payment_attempt.get_total_amount().into();
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -280,7 +277,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
     {
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
-        let amount = payment_data.payment_intent.amount;
         let metadata = payment_data.payment_intent.metadata.clone();
         let feature_metadata = payment_data
             .payment_intent
@@ -293,7 +289,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
             .update_payment_intent(
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::MetadataUpdate {
-                    amount,
                     metadata,
                     feature_metadata,
                     updated_by: storage_scheme.to_string(),

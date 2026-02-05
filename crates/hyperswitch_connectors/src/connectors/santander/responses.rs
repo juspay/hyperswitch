@@ -8,13 +8,20 @@ use crate::connectors::santander::requests;
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    pub document_type: common_types::customers::DocumentKind,
+    pub document_type: SantanderDocumentKind,
     pub document_number: Option<Secret<String>>,
     pub address: Secret<String>,
     pub neighborhood: Secret<String>,
     pub city: Secret<String>,
     pub state: Secret<String>,
     pub zip_code: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum SantanderDocumentKind {
+    Cnpj,
+    Cpf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -312,7 +319,7 @@ pub struct SantanderCalendarResponse {
 #[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
-    Boleto(Box<SantanderBoletoPaymentsResponse>),
+    Boleto(Box<SantanderBoletoPSyncResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -685,4 +692,88 @@ pub struct NsuComposite {
     pub environment: String,
     pub covenant_code: String,
     pub bank_number: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoPSyncResponse {
+    #[serde(rename = "_content")]
+    pub content: Vec<SantanderBoletoContent>,
+    #[serde(rename = "_pageable")]
+    pub pageable: SantanderPaginationMetadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPaginationMetadata {
+    #[serde(rename = "_limit")]
+    pub limit: i32,
+
+    #[serde(rename = "_offset")]
+    pub offset: i32,
+
+    #[serde(rename = "_pageNumber")]
+    pub page_number: i32,
+
+    #[serde(rename = "_pageElements")]
+    pub page_elements: i32,
+
+    #[serde(rename = "_totalPages")]
+    pub total_pages: i32,
+
+    #[serde(rename = "_totalElements")]
+    pub total_elements: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoContent {
+    pub nsu_code: String,
+    pub nsu_date: String,
+    pub covenant_code: Secret<String>,
+    pub bank_number: String,
+    pub client_number: String,
+    pub status: SantanderBoletoStatus,
+    pub status_complement: Option<String>,
+    pub due_date: String,
+    pub issue_date: String,
+    pub nominal_value: StringMajorUnit,
+    pub payer: Payer,
+    pub beneficiary: Beneficiary,
+    pub fine_percentage: Option<String>,
+    pub fine_quantity_days: Option<String>,
+    pub interest_percentage: Option<String>,
+    pub discount: Option<requests::Discount>,
+    pub deduction_value: Option<String>,
+    pub protest_type: Option<String>,
+    pub protest_quantity_days: Option<String>,
+    pub payment_type: String,
+    pub parcels_quantity: Option<String>,
+    pub min_value_or_percentage: Option<String>,
+    pub max_value_or_percentage: Option<String>,
+    pub iof_percentage: Option<String>,
+    pub payment: SantanderPaymentDetails,
+    pub entry_date: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPaymentDetails {
+    pub barcode: Secret<String>,
+    pub digitable_line: Secret<String>,
+    pub entry_date: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SantanderBoletoStatus {
+    /// The boleto is registered and waiting for payment.
+    /// It is currently valid and within its expiration period.
+    Ativo,
+    /// The boleto has been cancelled or removed from the bank's
+    Baixado,
+    /// The boleto has been paid in full. The funds have been cleared and settled.
+    Liquidado,
+    /// A partial payment was made
+    LiquidadoParcialmente,
 }

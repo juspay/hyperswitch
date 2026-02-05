@@ -280,7 +280,6 @@ pub enum PaymentIntentUpdate {
         feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
-        amount: MinorUnit,
         metadata: Option<serde_json::Value>,
         updated_by: String,
         feature_metadata: Option<Secret<serde_json::Value>>,
@@ -1019,13 +1018,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 updated_by,
                 feature_metadata,
-                amount,
             } => Self {
                 metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 feature_metadata,
-                amount: Some(amount),
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1318,12 +1315,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 metadata,
                 updated_by,
                 feature_metadata,
-                amount,
             } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
                 feature_metadata,
-                amount,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,

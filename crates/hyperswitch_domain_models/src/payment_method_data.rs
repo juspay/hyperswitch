@@ -1168,6 +1168,35 @@ pub enum BankTransferData {
     },
 }
 
+impl BankTransferData {
+    pub fn from_pix(
+        pix_key: Option<Secret<String>>,
+        document_details: Option<api_models::payments::DocumentDetails>,
+        source_bank_account_id: Option<MaskedBankAccount>,
+        destination_bank_account_id: Option<MaskedBankAccount>,
+        expiry_date: Option<time::PrimitiveDateTime>,
+    ) -> Self {
+        let (cpf, cnpj) = match document_details {
+            Some(details) => match details.document_type {
+                common_types::customers::DocumentKind::Cpf => (Some(details.document_number), None),
+                common_types::customers::DocumentKind::Cnpj => {
+                    (None, Some(details.document_number))
+                }
+            },
+            None => (None, None),
+        };
+
+        Self::Pix {
+            pix_key,
+            cpf,
+            cnpj,
+            source_bank_account_id,
+            destination_bank_account_id,
+            expiry_date,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
@@ -2234,28 +2263,13 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 source_bank_account_id,
                 destination_bank_account_id,
                 expiry_date,
-            } => {
-                let (cpf, cnpj) = match document_details {
-                    Some(details) => match details.document_type {
-                        common_types::customers::DocumentKind::Cpf => {
-                            (Some(details.document_number), None)
-                        }
-                        common_types::customers::DocumentKind::Cnpj => {
-                            (None, Some(details.document_number))
-                        }
-                    },
-                    None => (None, None),
-                };
-
-                Self::Pix {
-                    pix_key,
-                    cpf,
-                    cnpj,
-                    source_bank_account_id,
-                    destination_bank_account_id,
-                    expiry_date,
-                }
-            }
+            } => Self::from_pix(
+                pix_key,
+                document_details,
+                source_bank_account_id,
+                destination_bank_account_id,
+                expiry_date,
+            ),
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }

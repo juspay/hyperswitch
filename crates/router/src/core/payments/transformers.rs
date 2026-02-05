@@ -5104,7 +5104,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .payment_intent
             .feature_metadata
             .clone()
-            .map(|b| b.parse_value("FeatureMetadata"))
+            .map(|value| value.parse_value("FeatureMetadata"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "feature_metadata",
@@ -5429,7 +5429,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .payment_intent
             .feature_metadata
             .clone()
-            .map(|b| b.parse_value("FeatureMetadata"))
+            .map(|value| value.parse_value("FeatureMetadata"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "feature_metadata",
@@ -5664,14 +5664,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
-            minor_amount: payment_data.payment_attempt.get_total_amount(),
             payment_method_data: None,
-            currency: payment_data.currency,
             feature_metadata,
-            amount: payment_data
-                .payment_attempt
-                .get_total_amount()
-                .get_amount_as_i64(),
         })
     }
 }

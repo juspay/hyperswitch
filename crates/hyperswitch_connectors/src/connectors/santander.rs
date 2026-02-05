@@ -9,7 +9,7 @@ use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt},
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -65,7 +65,7 @@ use crate::{
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{self as connector_utils, convert_amount, RefundsRequestData},
+    utils::{self as connector_utils, convert_amount},
 };
 
 #[derive(Clone)]
@@ -189,13 +189,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         req: &PaymentsUpdateMetadataRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-        let connector_router_data = SantanderRouterData::from((amount, req));
-        let connector_req = SantanderPaymentRequest::try_from(&connector_router_data)?;
+        let connector_req = SantanderPaymentRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -855,17 +849,50 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                         .secondary_base_url
                         .clone()
                         .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                    let connector_transaction_id = connector_transaction_id.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_transaction_id",
+                        },
+                    )?;
+                    let workspace_id = boleto_mca_metadata.workspace_id.peek();
+                    let version = santander_constants::SANTANDER_VERSION;
+                    let voucher_data = req
+                        .request
+                        .connector_meta
+                        .clone()
+                        .map(|data| {
+                            data.parse_value::<api_models::payments::VoucherNextStepData>(
+                                "VoucherNextStepData",
+                            )
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                        })
+                        .transpose()?;
+
+                    let (issue_date, due_date) = voucher_data
+                        .and_then(|data| {
+                            let due = match data.expires_at {
+                                Some(enums::VoucherExpiry::Date(d)) => d.date,
+                                _ => None,
+                            };
+                            data.entry_date.zip(due)
+                        })
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "issue_date/due_date",
+                        })?;
+
                     Ok(format!(
-                        "{}collection_bill_management/{}/workspaces/{}/bank_slips/{}",
-                        boleto_base_url,
-                        santander_constants::SANTANDER_VERSION,
-                        boleto_mca_metadata.workspace_id.peek(),
-                        connector_transaction_id.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "connector_transaction_id"
-                            }
-                        )?,
-                    ))
+    "{boleto_base_url}collection_bill_management/{version}/workspaces/{workspace_id}/bank_slips?\
+    paymentDateFinal={due_date}&\
+    paymentDateInitial={issue_date}&\
+    status=LIQUIDADO&\
+    bankNumber={connector_transaction_id}",
+    boleto_base_url = boleto_base_url,
+    version = version,
+    workspace_id = workspace_id,
+    due_date = due_date,
+    issue_date = issue_date,
+    connector_transaction_id = connector_transaction_id
+))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
@@ -1224,13 +1251,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
                         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                             field_name: "end_to_end_id",
                         })?;
-
                     let refund_id = req.request.refund_id.clone();
+                    let base_url = self.base_url(connectors);
                     Ok(format!(
-                        "{}pix/{}/devolucao/{}",
-                        end_to_end_id,
-                        self.base_url(connectors),
-                        refund_id
+                        "{base_url}api/v1/pix/{end_to_end_id}/devolucao/{refund_id}"
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -1268,9 +1292,21 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
+        let method: Result<Method, error_stack::Report<errors::ConnectorError>> =
+            match req.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => Ok(Method::Put),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            };
         let request = RequestBuilder::new()
-            .method(Method::Put)
+            .method(method?)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .add_certificate(Some(auth_details.client_id))
+            .add_certificate_key(Some(auth_details.client_secret))
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
@@ -1364,13 +1400,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
             field_name: "end_to_end_id",
         })?;
+        let base_url = self.base_url(connectors);
+        let refund_id = &req.request.refund_id;
+
         Ok(format!(
-            "{}{}{}{}{}",
-            self.base_url(connectors),
-            "pix/",
-            end_to_end_id,
-            "/return/",
-            req.request.get_connector_refund_id()?
+            "{base_url}api/v1/pix/{end_to_end_id}/devolucao/{refund_id}"
         ))
     }
 
@@ -1379,10 +1413,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .set_body(types::RefundSyncType::get_request_body(

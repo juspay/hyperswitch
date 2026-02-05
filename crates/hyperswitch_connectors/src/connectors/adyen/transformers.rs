@@ -5109,13 +5109,16 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Oxxo
         | PaymentType::JapaneseConvenienceStores => {
             let voucher_data = VoucherNextStepData {
-                expires_at,
+                expires_at: Some(enums::VoucherExpiry::Time(enums::TimeInMilliseonds {
+                    time: expires_at,
+                })),
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
                 entry_date: None,
                 digitable_line: None,
                 qr_code_url: None,
+                barcode: None,
             };
 
             Some(voucher_data.encode_to_value())

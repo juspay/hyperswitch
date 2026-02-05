@@ -9,7 +9,7 @@ pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{GooglePayCardFundingSource, ProductType};
+use common_enums::{GooglePayCardFundingSource, ProductType, VoucherExpiry};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -6884,8 +6884,8 @@ pub struct VoucherNextStepData {
     #[smithy(value_type = "Option<String>")]
     pub entry_date: Option<String>,
     /// Voucher expiry date and time
-    #[smithy(value_type = "Option<i64>")]
-    pub expires_at: Option<i64>,
+    #[smithy(value_type = "Option<VoucherExpiry>")]
+    pub expires_at: Option<VoucherExpiry>,
     /// Reference number required for the transaction
     #[smithy(value_type = "String")]
     pub reference: String,
@@ -6898,6 +6898,9 @@ pub struct VoucherNextStepData {
     /// Human-readable numeric version of the barcode.
     #[smithy(value_type = "Option<String>")]
     pub digitable_line: Option<Secret<String>>,
+    /// Machine-readable numeric code used to generate the barcode representation.
+    #[smithy(value_type = "Option<String>")]
+    pub barcode: Option<Secret<String>>,
     /// The url for Pix Qr code given by the connector associated with the voucher
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
@@ -11437,15 +11440,10 @@ impl FeatureMetadata {
                     .pix_additional_details
                     .or(other.pix_additional_details),
 
-                boleto_additional_details: match (
+                boleto_additional_details: BoletoAdditionalDetails::merge_optional(
                     self.boleto_additional_details,
                     other.boleto_additional_details,
-                ) {
-                    (Some(s), Some(o)) => Some(s.merge(o)),
-                    (Some(s), None) => Some(s),
-                    (None, Some(o)) => Some(o),
-                    (None, None) => None,
-                },
+                ),
             }
         } else {
             self
@@ -11476,6 +11474,13 @@ impl BoletoAdditionalDetails {
             payment_type: self.payment_type.or(other.payment_type),
             covenant_code: self.covenant_code.or(other.covenant_code),
             pix_key: self.pix_key.or(other.pix_key),
+        }
+    }
+
+    pub fn merge_optional(left: Option<Self>, right: Option<Self>) -> Option<Self> {
+        match (left, right) {
+            (Some(l), Some(r)) => Some(l.merge(r)),
+            (l, r) => l.or(r),
         }
     }
 }

@@ -129,8 +129,10 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
             gateway_system: None,
-            pix_additional_details: pix_additional_details.map(|v| v.to_diesel()),
-            boleto_additional_details: boleto_additional_details.map(|v| v.to_diesel()),
+            pix_additional_details: pix_additional_details
+                .map(diesel_models::types::PixAdditionalDetails::convert_from),
+            boleto_additional_details: boleto_additional_details
+                .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
         }
     }
 
@@ -148,105 +150,93 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response: redirect_response.map(|v| v.convert_back()),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details.map(|v| v.convert_back()),
-            pix_additional_details: pix_additional_details.map(|v| v.to_api()),
-            boleto_additional_details: boleto_additional_details.map(|v| v.to_api()),
+            pix_additional_details: pix_additional_details.map(|v| v.convert_back()),
+            boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
         }
     }
 }
 
-pub trait ToDieselBoletoAdditionalDetails {
-    fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails;
-}
-
-pub trait ToApiBoletiAdditionalDetails {
-    fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails;
-}
-
-impl ToDieselBoletoAdditionalDetails for api_models::payments::BoletoAdditionalDetails {
-    fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails {
-        diesel_models::types::BoletoAdditionalDetails {
-            due_date: self.due_date.clone(),
-            document_kind: self.document_kind,
-            payment_type: self.payment_type,
-            covenant_code: self.covenant_code.clone(),
-            pix_key: self.pix_key.as_ref().map(convert_to_diesel_pix_key),
+impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetails>
+    for diesel_models::types::BoletoAdditionalDetails
+{
+    fn convert_from(from: api_models::payments::BoletoAdditionalDetails) -> Self {
+        Self {
+            due_date: from.due_date,
+            document_kind: from.document_kind,
+            payment_type: from.payment_type,
+            covenant_code: from.covenant_code,
+            pix_key: from
+                .pix_key
+                .map(diesel_models::types::PixKeyDetails::convert_from),
         }
     }
-}
 
-impl ToApiBoletiAdditionalDetails for diesel_models::types::BoletoAdditionalDetails {
-    fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails {
+    fn convert_back(self) -> api_models::payments::BoletoAdditionalDetails {
         api_models::payments::BoletoAdditionalDetails {
-            due_date: self.due_date.clone(),
+            due_date: self.due_date,
             document_kind: self.document_kind,
             payment_type: self.payment_type,
-            covenant_code: self.covenant_code.clone(),
-            pix_key: self.pix_key.as_ref().map(convert_to_api_pix_key),
+            covenant_code: self.covenant_code,
+            pix_key: self.pix_key.map(|v| v.convert_back()),
         }
     }
 }
 
-pub trait ToDieselPixQR {
-    fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails;
-}
-
-pub trait ToApiPixQR {
-    fn to_api(&self) -> api_models::payments::PixAdditionalDetails;
-}
-
-// Add a helper function for the struct conversion
-fn convert_to_diesel_pix_key(
-    item: &api_models::payments::PixKeyDetails,
-) -> diesel_models::types::PixKeyDetails {
-    diesel_models::types::PixKeyDetails {
-        key_type: item.key_type,
-        key: item.key.clone(),
+impl ApiModelToDieselModelConvertor<api_models::payments::PixKeyDetails>
+    for diesel_models::types::PixKeyDetails
+{
+    fn convert_from(from: api_models::payments::PixKeyDetails) -> Self {
+        Self {
+            key_type: from.key_type,
+            key: from.key,
+        }
+    }
+    fn convert_back(self) -> api_models::payments::PixKeyDetails {
+        api_models::payments::PixKeyDetails {
+            key_type: self.key_type,
+            key: self.key,
+        }
     }
 }
 
-fn convert_to_api_pix_key(
-    item: &diesel_models::types::PixKeyDetails,
-) -> api_models::payments::PixKeyDetails {
-    api_models::payments::PixKeyDetails {
-        key_type: item.key_type,
-        key: item.key.clone(),
-    }
-}
-
-impl ToDieselPixQR for api_models::payments::PixAdditionalDetails {
-    fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails {
-        match self {
-            Self::Immediate(v) => diesel_models::types::PixAdditionalDetails::Immediate(
-                diesel_models::types::ImmediateExpirationTime {
+impl ApiModelToDieselModelConvertor<api_models::payments::PixAdditionalDetails>
+    for diesel_models::types::PixAdditionalDetails
+{
+    fn convert_from(from: api_models::payments::PixAdditionalDetails) -> Self {
+        match from {
+            api_models::payments::PixAdditionalDetails::Immediate(v) => {
+                Self::Immediate(diesel_models::types::ImmediateExpirationTime {
                     time: v.time,
-                    pix_key: v.pix_key.as_ref().map(convert_to_diesel_pix_key),
-                },
-            ),
-            Self::Scheduled(v) => diesel_models::types::PixAdditionalDetails::Scheduled(
-                diesel_models::types::ScheduledExpirationTime {
-                    date: v.date.clone(),
+                    pix_key: v
+                        .pix_key
+                        .map(diesel_models::types::PixKeyDetails::convert_from),
+                })
+            }
+            api_models::payments::PixAdditionalDetails::Scheduled(v) => {
+                Self::Scheduled(diesel_models::types::ScheduledExpirationTime {
+                    date: v.date,
                     validity_after_expiration: v.validity_after_expiration,
-                    pix_key: v.pix_key.as_ref().map(convert_to_diesel_pix_key),
-                },
-            ),
+                    pix_key: v
+                        .pix_key
+                        .map(diesel_models::types::PixKeyDetails::convert_from),
+                })
+            }
         }
     }
-}
 
-impl ToApiPixQR for diesel_models::types::PixAdditionalDetails {
-    fn to_api(&self) -> api_models::payments::PixAdditionalDetails {
+    fn convert_back(self) -> api_models::payments::PixAdditionalDetails {
         match self {
             Self::Immediate(v) => api_models::payments::PixAdditionalDetails::Immediate(
                 api_models::payments::ImmediateExpirationTime {
                     time: v.time,
-                    pix_key: v.pix_key.as_ref().map(convert_to_api_pix_key),
+                    pix_key: v.pix_key.map(|pk| pk.convert_back()),
                 },
             ),
             Self::Scheduled(v) => api_models::payments::PixAdditionalDetails::Scheduled(
                 api_models::payments::ScheduledExpirationTime {
-                    date: v.date.clone(),
+                    date: v.date,
                     validity_after_expiration: v.validity_after_expiration,
-                    pix_key: v.pix_key.as_ref().map(convert_to_api_pix_key),
+                    pix_key: v.pix_key.map(|pk| pk.convert_back()),
                 },
             ),
         }
@@ -272,8 +262,10 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(ApplePayRecurringDetails::convert_from),
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(PaymentRevenueRecoveryMetadata::convert_from),
-            pix_additional_details: pix_additional_details.map(|v| v.to_diesel()),
-            boleto_additional_details: boleto_additional_details.map(|v| v.to_diesel()),
+            pix_additional_details: pix_additional_details
+                .map(diesel_models::types::PixAdditionalDetails::convert_from),
+            boleto_additional_details: boleto_additional_details
+                .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
         }
     }
 
@@ -294,8 +286,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
             revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
-            pix_additional_details: pix_additional_details.map(|v| v.to_api()),
-            boleto_additional_details: boleto_additional_details.map(|v| v.to_api()),
+            pix_additional_details: pix_additional_details.map(|v| v.convert_back()),
+            boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
         }
     }
 }
