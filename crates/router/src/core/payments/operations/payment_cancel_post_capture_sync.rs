@@ -281,7 +281,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureSyncBody, P
         helpers::get_connector_default(state, None).await
     }
 
-       #[instrument(skip_all)]
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,

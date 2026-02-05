@@ -1484,10 +1484,16 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime,  "PAYMENTS_SYNC",   storage::ProcessTrackerRunner::PaymentsSyncWorkflow)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    super::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),
@@ -3995,7 +4001,6 @@ pub fn hmac_sha512_sorted_query_params(
 pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
     format!("{operations:?}") == "PaymentConfirm"
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub fn generate_mandate(

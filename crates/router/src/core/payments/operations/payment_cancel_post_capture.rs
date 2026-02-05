@@ -11,7 +11,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
-    routes::{app::ReqState, SessionState, metrics},
+    routes::{app::ReqState, metrics, SessionState},
     services,
     types::{
         self as core_types,
@@ -336,14 +336,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", self))),
                     );
-                    payments::reset_process_sync_task(&*state.store, payment_attempt, stime,  "PAYMENTS_POST_CAPTURE_VOID_SYNC",   storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    payments::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_POST_CAPTURE_VOID_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),
-        }}
+        }
+    }
 }
 
 #[async_trait]

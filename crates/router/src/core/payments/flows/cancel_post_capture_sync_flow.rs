@@ -45,7 +45,7 @@ impl
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsCancelPostCaptureSyncRouterData> {
-          Box::pin(transformers::construct_payment_router_data::<
+        Box::pin(transformers::construct_payment_router_data::<
             api::PostCaptureVoidSync,
             types::PaymentsCancelPostCaptureSyncData,
         >(

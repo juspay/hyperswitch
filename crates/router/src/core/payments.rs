@@ -8764,7 +8764,6 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
-
 #[cfg(feature = "v1")]
 pub async fn add_process_post_capture_void_sync_task(
     db: &dyn StorageInterface,
@@ -8800,7 +8799,6 @@ pub async fn add_process_post_capture_void_sync_task(
     db.insert_process(process_tracker_entry).await?;
     Ok(())
 }
-
 
 #[cfg(feature = "v2")]
 pub async fn reset_process_sync_task(
