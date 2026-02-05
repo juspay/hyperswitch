@@ -1104,7 +1104,6 @@ impl<'de> serde::Deserialize<'de> for SearchConfig {
 
         let helper = SearchConfigHelper::deserialize(deserializer)?;
 
-        // If source field exists (old format), use it for backwards compatibility
         if let Some(source) = helper.source {
             return match source.as_str() {
                 "opensearch" => {
@@ -1123,33 +1122,27 @@ impl<'de> serde::Deserialize<'de> for SearchConfig {
             };
         }
 
-        // New format: automatically detect from presence of fields
         match (helper.opensearch, helper.sqlx) {
             (Some(opensearch), Some(sqlx)) => {
-                // Both present - use CombinedOpensearch if opensearch is enabled
-                if opensearch.enabled {
+                if opensearch.is_enabled() {
                     Ok(Self::CombinedOpensearch { sqlx, opensearch })
                 } else {
                     Ok(Self::Sqlx { sqlx })
                 }
             }
             (Some(opensearch), None) => {
-                // Only opensearch present
-                if opensearch.enabled {
+                if opensearch.is_enabled() {
                     Ok(Self::Opensearch { opensearch })
                 } else {
-                    // OpenSearch disabled, fall back to default
                     logger::warn!("OpenSearch is disabled, falling back to default");
                     Ok(Self::default())
                 }
             }
             (None, Some(sqlx)) => {
-                // Only sqlx present
                 logger::debug!("Only sqlx present");
                 Ok(Self::Sqlx { sqlx })
             }
             (None, None) => {
-                // Neither present, use default
                 logger::warn!("Neither opensearch nor sqlx present in config, using default");
                 Ok(Self::default())
             }
@@ -1206,12 +1199,10 @@ impl SearchProvider {
             )),
             Self::CombinedOpensearch(_sqlx_client, opensearch_client) => {
                 let os_res = search::search_results(opensearch_client, req, auth).await;
-                // Currently returning OS result, SQLx logic can be added later for comparison
                 os_res
             }
             Self::CombinedSqlx(_sqlx_client, opensearch_client) => {
                 let os_res = search::search_results(opensearch_client, req, auth).await;
-                // Currently returning OS result, SQLx logic can be added later for comparison
                 os_res
             }
         }
@@ -1265,7 +1256,7 @@ impl SecretsHandler for SearchConfig {
                 (Some(decrypted), None)
             }
             Self::Opensearch { opensearch } => {
-                let decrypted = match &opensearch.auth {
+                let decrypted = match opensearch.get_auth() {
                     opensearch::OpenSearchAuth::Basic { password, .. } => Some(
                         secret_management_client
                             .get_secret(masking::Secret::new(password.clone()))
@@ -1280,7 +1271,7 @@ impl SecretsHandler for SearchConfig {
                 let sqlx_decrypted = secret_management_client
                     .get_secret(sqlx.password.clone())
                     .await?;
-                let opensearch_decrypted = match &opensearch.auth {
+                let opensearch_decrypted = match opensearch.get_auth() {
                     opensearch::OpenSearchAuth::Basic { password, .. } => Some(
                         secret_management_client
                             .get_secret(masking::Secret::new(password.clone()))
@@ -1301,9 +1292,9 @@ impl SecretsHandler for SearchConfig {
             },
             Self::Opensearch { mut opensearch } => {
                 if let (Some(decrypted), opensearch::OpenSearchAuth::Basic { username, .. }) =
-                    (opensearch_decrypted_password, &opensearch.auth)
+                    (opensearch_decrypted_password, opensearch.get_auth())
                 {
-                    opensearch.auth = opensearch::OpenSearchAuth::Basic {
+                    *opensearch.get_auth_mut() = opensearch::OpenSearchAuth::Basic {
                         username: username.clone(),
                         password: decrypted.peek().clone(),
                     };
@@ -1315,9 +1306,9 @@ impl SecretsHandler for SearchConfig {
                 mut opensearch,
             } => {
                 if let (Some(decrypted), opensearch::OpenSearchAuth::Basic { username, .. }) =
-                    (opensearch_decrypted_password, &opensearch.auth)
+                    (opensearch_decrypted_password, opensearch.get_auth())
                 {
-                    opensearch.auth = opensearch::OpenSearchAuth::Basic {
+                    *opensearch.get_auth_mut() = opensearch::OpenSearchAuth::Basic {
                         username: username.clone(),
                         password: decrypted.peek().clone(),
                     };
@@ -1335,9 +1326,9 @@ impl SecretsHandler for SearchConfig {
                 mut opensearch,
             } => {
                 if let (Some(decrypted), opensearch::OpenSearchAuth::Basic { username, .. }) =
-                    (opensearch_decrypted_password, &opensearch.auth)
+                    (opensearch_decrypted_password, opensearch.get_auth())
                 {
-                    opensearch.auth = opensearch::OpenSearchAuth::Basic {
+                    *opensearch.get_auth_mut() = opensearch::OpenSearchAuth::Basic {
                         username: username.clone(),
                         password: decrypted.peek().clone(),
                     };

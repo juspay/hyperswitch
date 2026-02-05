@@ -450,16 +450,12 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let search_provider = if conf.opensearch.enabled {
-                let client = conf.opensearch
-                    .get_opensearch_client()
-                    .await
-                    .expect("Failed to initialize OpenSearch client.")
-                    .expect("OpenSearch client is not enabled");
-                SearchProvider::Opensearch(client)
-            } else {
-                SearchProvider::default()
-            };
+            let search_provider = conf.opensearch
+                .get_opensearch_client()
+                .await
+                .expect("Failed to initialize OpenSearch client.")
+                .map(SearchProvider::Opensearch)
+                .unwrap_or_default();
 
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)

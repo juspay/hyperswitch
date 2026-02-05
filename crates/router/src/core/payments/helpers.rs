@@ -8734,14 +8734,6 @@ pub fn get_search_filters(
             constraints.payment_id.as_ref(),
             |v: &id_type::PaymentId| v.get_string_repr().to_string(),
         ),
-        profile_id: convert_to_single_element_string_vec(
-            constraints.profile_id.as_ref(),
-            |v: &id_type::ProfileId| v.get_string_repr().to_string(),
-        ),
-        merchant_connector_id: convert_to_string_vec_map(
-            constraints.merchant_connector_id.as_ref(),
-            |i: &id_type::MerchantConnectorAccountId| i.get_string_repr().to_string(),
-        ),
         card_discovery: convert_to_string_vec(constraints.card_discovery.as_ref()),
         merchant_order_reference_id: convert_to_single_element_vec(
             constraints.merchant_order_reference_id.as_ref(),

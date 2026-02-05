@@ -8384,7 +8384,6 @@ pub async fn list_payments(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
-#[allow(clippy::large_futures)]
 pub async fn list_payments(
     state: SessionState,
     platform: domain::Platform,
@@ -8603,7 +8602,6 @@ pub async fn revenue_recovery_list_payments(
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]
-#[allow(clippy::large_futures)]
 pub async fn apply_filters_on_payments(
     state: SessionState,
     platform: domain::Platform,

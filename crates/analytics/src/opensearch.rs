@@ -77,11 +77,11 @@ pub struct OpensearchAmountRange {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct OpenSearchConfig {
-    pub host: String,
-    pub auth: OpenSearchAuth,
-    pub indexes: OpenSearchIndexes,
+    host: String,
+    auth: OpenSearchAuth,
+    indexes: OpenSearchIndexes,
     #[serde(default)]
-    pub enabled: bool,
+    enabled: bool,
 }
 
 impl Default for OpenSearchConfig {
@@ -199,9 +199,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "Opensearch is not enabled",
                 None,
             )),
-            Self::NotImplemented => {
-                ApiErrorResponse::NotImplemented(ApiError::new("IR", 9, "Not implemented", None))
-            }
+            Self::NotImplemented => ApiErrorResponse::NotImplemented(ApiError::new(
+                "IR",
+                9,
+                "Not implemented",
+                None,
+            )),
         }
     }
 }
@@ -441,6 +444,18 @@ impl OpenSearchAuth {
 }
 
 impl OpenSearchConfig {
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn get_auth(&self) -> &OpenSearchAuth {
+        &self.auth
+    }
+
+    pub fn get_auth_mut(&mut self) -> &mut OpenSearchAuth {
+        &mut self.auth
+    }
+
     pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {
         if !self.enabled {
             return Ok(None);
@@ -517,16 +532,12 @@ impl OpenSearchQueryBuilder {
             time_range: Default::default(),
             amount_range: Default::default(),
             case_sensitive_fields: HashSet::from([
-                "organization_id",
-                "merchant_id",
                 "customer_email.keyword",
                 "search_tags.keyword",
                 "card_last_4.keyword",
                 "payment_id.keyword",
                 "amount",
                 "customer_id.keyword",
-                "profile_id.keyword",
-                "authentication_type.keyword",
                 "merchant_order_reference_id.keyword",
             ]),
         }
@@ -610,9 +621,10 @@ impl OpenSearchQueryBuilder {
 
         if let Some(ref amount_range) = self.amount_range {
             let range = json!(amount_range);
+            let amount_field = self.get_amount_field(index);
             filter_array.push(json!({
                 "range": {
-                    "amount": range
+                    amount_field: range
                 }
             }));
         }
@@ -816,6 +828,8 @@ impl OpenSearchQueryBuilder {
                     should_array.clone(),
                     *index,
                 );
+                println!("Index: {:?}", index);
+                println!("Payload: {}", serde_json::to_string_pretty(&payload).unwrap());
                 payload
             })
             .collect::<Vec<Value>>())

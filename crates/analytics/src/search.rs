@@ -311,22 +311,22 @@ pub async fn search_results(
                     .switch()?;
             }
         };
-        if let Some(profile_id) = filters.profile_id {
-            if !profile_id.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "profile_id.keyword".to_string(),
-                        convert_to_value(profile_id),
-                    )
-                    .switch()?;
-            }
-        };
         if let Some(authentication_type) = filters.authentication_type {
             if !authentication_type.is_empty() {
                 query_builder
                     .add_filter_clause(
                         "authentication_type.keyword".to_string(),
                         convert_to_value(authentication_type),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_discovery) = filters.card_discovery {
+            if !card_discovery.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "card_discovery.keyword".to_string(),
+                        convert_to_value(card_discovery),
                     )
                     .switch()?;
             }

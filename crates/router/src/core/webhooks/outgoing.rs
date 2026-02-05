@@ -232,7 +232,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-#[allow(clippy::large_futures)]
 pub(crate) async fn trigger_webhook_and_raise_event(
     state: SessionState,
     business_profile: domain::Profile,
@@ -273,7 +272,6 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     .await;
 }
 
-#[allow(clippy::large_futures)]
 async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
