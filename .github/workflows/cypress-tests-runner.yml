@@ -262,7 +262,7 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
-      
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -797,7 +797,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      
+
       - name: Install Cypress and dependencies
         run: |
           npm ci --prefix ./cypress-tests
