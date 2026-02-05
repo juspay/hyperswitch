@@ -412,6 +412,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }
+                enums::Connector::Cybersourcedecisionmanager => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Cybersourcedecisionmanager::new(),
+                ))),
                 enums::Connector::Gpayments => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gpayments::new())))
                 }

@@ -142,6 +142,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                     message: "signifyd is not a routable connector".to_string(),
                 })?
             }
+            api_enums::Connector::Cybersourcedecisionmanager => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "cybersourcedecisionmanager is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
