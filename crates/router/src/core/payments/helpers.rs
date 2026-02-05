@@ -32,6 +32,7 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+use external_services::superposition;
 use futures::future::Either;
 pub use hyperswitch_domain_models::customer;
 #[cfg(feature = "v1")]
@@ -1850,6 +1851,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     provider: &domain::Provider,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+
     let storage_scheme = provider.get_account().storage_scheme;
     let key_store = provider.get_key_store();
     let request_customer_details = req
@@ -1901,21 +1905,16 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
-                    let implicit_customer_update = configs::get_config_bool(
-                        state,
-                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE,
-                        &provider
-                            .get_account()
-                            .get_id()
-                            .get_implicit_customer_update_key(), // database
-                        Some(external_services::superposition::ConfigContext::new().with(
-                            "merchant_id",
-                            provider.get_account().get_id().get_string_repr(),
-                        )), // context
-                        false, // Implicit Customer update is disabled by default
-                    )
-                    .await
-                    .attach_printable("Failed to fetch implicit_customer_update config")?;
+                    let customer_id_str = customer_id.get_string_repr().to_owned();
+                    let targeting_context = superposition::TargetingContext::new()
+                        .with_customer_id(customer_id.clone());
+                    let implicit_customer_update = dimensions
+                        .get_implicit_customer_update(
+                            state.store.as_ref(),
+                            state.superposition_service.as_deref(),
+                            &targeting_context,
+                        )
+                        .await;
 
                     // Update the customer data if new data is passed in the request
                     if implicit_customer_update

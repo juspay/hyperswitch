@@ -45,6 +45,7 @@ use euclid::{
     dssa::graph::{AnalysisContext, CgraphExt},
     frontend::dir,
 };
+use external_services::superposition;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
@@ -4271,9 +4272,15 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
+    let targeting_context =
+        superposition::TargetingContext::new().with_customer_id(customer_id.clone());
     // Get requires_cvv using type-safe dimensions config
     let requires_cvv = dimensions
-        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref())
+        .get_requires_cvv(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            &targeting_context,
+        )
         .await;
 
     let resp = db
