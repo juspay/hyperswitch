@@ -673,5 +673,3 @@ impl ConnectorSpecifications for Hyperpg {
         Some(&HYPERPG_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Hyperpg {}

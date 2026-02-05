@@ -790,5 +790,3 @@ impl ConnectorSpecifications for Tokenio {
         Some(&TOKENIO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Tokenio {}

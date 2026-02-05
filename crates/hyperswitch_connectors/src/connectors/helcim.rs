@@ -963,5 +963,3 @@ impl ConnectorTransactionId for Helcim {
         }
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Helcim {}

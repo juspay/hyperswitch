@@ -761,5 +761,3 @@ impl ConnectorSpecifications for Inespay {
         Some(&INESPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Inespay {}

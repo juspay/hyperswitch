@@ -623,5 +623,3 @@ impl ConnectorSpecifications for Mpgs {
         Some(&MPGS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Mpgs {}

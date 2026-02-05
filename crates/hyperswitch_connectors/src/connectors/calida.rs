@@ -763,5 +763,3 @@ impl ConnectorSpecifications for Calida {
         Some(&CALIDA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Calida {}

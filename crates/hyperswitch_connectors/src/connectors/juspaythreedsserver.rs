@@ -664,5 +664,3 @@ impl ConnectorSpecifications for Juspaythreedsserver {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Juspaythreedsserver {}

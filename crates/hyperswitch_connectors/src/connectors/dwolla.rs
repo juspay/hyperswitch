@@ -1011,5 +1011,3 @@ impl ConnectorSpecifications for Dwolla {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Dwolla {}

@@ -322,5 +322,3 @@ impl ConnectorSpecifications for Taxjar {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Taxjar {}

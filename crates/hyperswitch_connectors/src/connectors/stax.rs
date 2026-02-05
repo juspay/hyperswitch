@@ -1030,5 +1030,3 @@ impl ConnectorSpecifications for Stax {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Stax {}

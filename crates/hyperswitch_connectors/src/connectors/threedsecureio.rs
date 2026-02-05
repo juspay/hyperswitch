@@ -534,5 +534,3 @@ impl ConnectorSpecifications for Threedsecureio {
         None
     }
 }
-
-impl hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for Threedsecureio {}

@@ -1461,5 +1461,3 @@ impl ConnectorSpecifications for Braintree {
         ]
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Braintree {}

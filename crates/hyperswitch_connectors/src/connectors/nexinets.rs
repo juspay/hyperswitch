@@ -933,5 +933,3 @@ impl ConnectorTransactionId for Nexinets {
         metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Nexinets {}

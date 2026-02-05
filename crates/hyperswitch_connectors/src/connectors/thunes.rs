@@ -592,5 +592,3 @@ impl ConnectorSpecifications for Thunes {
         None
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Thunes {}

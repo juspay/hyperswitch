@@ -588,5 +588,3 @@ impl webhooks::IncomingWebhook for Opayo {
 }
 
 impl ConnectorSpecifications for Opayo {}
-
-impl api::ConnectorAccessTokenSuffix for Opayo {}

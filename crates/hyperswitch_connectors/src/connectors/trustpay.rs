@@ -1483,5 +1483,3 @@ impl ConnectorSpecifications for Trustpay {
         uuid::Uuid::now_v7().simple().to_string()
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Trustpay {}

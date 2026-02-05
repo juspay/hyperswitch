@@ -1190,5 +1190,3 @@ impl ConnectorSpecifications for Aci {
         Some(&ACI_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Aci {}

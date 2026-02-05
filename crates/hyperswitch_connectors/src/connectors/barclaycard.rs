@@ -1708,5 +1708,3 @@ impl ConnectorSpecifications for Barclaycard {
         Some(&BARCLAYCARD_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Barclaycard {}

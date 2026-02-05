@@ -626,5 +626,3 @@ impl ConnectorSpecifications for Katapult {
         Some(&KATAPULT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Katapult {}

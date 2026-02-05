@@ -1259,5 +1259,3 @@ impl ConnectorSpecifications for Nexixpay {
         Some(&*NEXIXPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Nexixpay {}

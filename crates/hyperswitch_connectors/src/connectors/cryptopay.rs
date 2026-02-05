@@ -552,5 +552,3 @@ impl ConnectorSpecifications for Cryptopay {
         Some(&CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Cryptopay {}

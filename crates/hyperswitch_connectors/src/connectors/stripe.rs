@@ -3341,5 +3341,3 @@ impl ConnectorSpecifications for Stripe {
         true
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Stripe {}

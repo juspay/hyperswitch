@@ -3370,5 +3370,3 @@ impl ConnectorSpecifications for Adyen {
         })
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Adyen {}

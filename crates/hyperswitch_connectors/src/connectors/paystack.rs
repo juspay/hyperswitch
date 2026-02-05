@@ -705,5 +705,3 @@ impl ConnectorSpecifications for Paystack {
         Some(&PAYSTACK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Paystack {}

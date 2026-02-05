@@ -860,5 +860,3 @@ impl ConnectorSpecifications for Trustpayments {
         Some(&TRUSTPAYMENTS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Trustpayments {}

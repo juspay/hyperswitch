@@ -1132,5 +1132,3 @@ impl ConnectorSpecifications for Fiuu {
         Some(&FIUU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Fiuu {}

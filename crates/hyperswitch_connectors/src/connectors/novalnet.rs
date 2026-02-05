@@ -1152,5 +1152,3 @@ impl ConnectorSpecifications for Novalnet {
         Some(&NOVALNET_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Novalnet {}

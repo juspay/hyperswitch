@@ -822,5 +822,3 @@ impl ConnectorSpecifications for Zift {
         Some(&ZIFT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Zift {}

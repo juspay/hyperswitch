@@ -559,5 +559,3 @@ impl ConnectorSpecifications for Mifinity {
         Some(&*MIFINITY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Mifinity {}

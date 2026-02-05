@@ -623,5 +623,3 @@ impl ConnectorSpecifications for Sift {
         Some(&SIFT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-impl api::ConnectorAccessTokenSuffix for Sift {}
