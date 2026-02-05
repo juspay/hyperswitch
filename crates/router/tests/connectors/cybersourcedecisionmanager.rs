@@ -419,3 +419,5 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 // Connector dependent test cases goes here
 
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
+
+impl api::ConnectorAccessTokenSuffix for Cybersourcedecisionmanager {}
