@@ -552,7 +552,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
-) -> RouterResult<ExecutionPath> {
+) -> RouterResult<(ExecutionPath, SessionState)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
@@ -585,7 +585,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
-    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
         router_env::logger::debug!("UCS is disabled for webhooks, using Direct gateway");
         (GatewaySystem::Direct, ExecutionPath::Direct)
     } else {
@@ -597,6 +597,33 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         )?
     };
 
+    // Handle proxy configuration for Shadow UCS flows (same as payment version)
+    let session_state = match execution_path {
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
+            match &rollout_result.proxy_override {
+                Some(proxy_override) => {
+                    router_env::logger::debug!(
+                        proxy_override = ?proxy_override,
+                        "Creating updated session state with proxy configuration for Shadow UCS webhooks"
+                    );
+                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
+                }
+                None => {
+                    router_env::logger::debug!(
+                        "No proxy override available for Shadow UCS webhooks, Using the Original State and Sending Request Directly"
+                    );
+                    execution_path = ExecutionPath::Direct;
+                    state.clone()
+                }
+            }
+        }
+        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => {
+            // For Direct and UCS flows, use original state
+            state.clone()
+        }
+    };
+
     router_env::logger::info!(
         "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
         gateway_system,
@@ -606,7 +633,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         flow_name
     );
 
-    Ok(execution_path)
+    Ok((execution_path, session_state))
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -1814,6 +1841,7 @@ pub async fn call_unified_connector_service_for_webhook(
     merchant_connector_account: Option<
         &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     >,
+    execution_mode: ExecutionMode,
 ) -> RouterResult<(
     api_models::webhooks::IncomingWebhookEvent,
     bool,
@@ -1888,7 +1916,7 @@ pub async fn call_unified_connector_service_for_webhook(
         .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
     // Build gRPC headers
     let grpc_headers = state
-        .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(LineageIds::new(
             processor.get_account().get_id().clone(),
             profile_id,
