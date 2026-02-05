@@ -458,6 +458,7 @@ pub async fn get_token_pm_type_mandate_details(
     platform: &domain::Platform,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
+    pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -546,17 +547,20 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                         RecurringDetails::PaymentMethodId(payment_method_id) => {
-                            let payment_method_info = state
-                                .store
-                                .find_payment_method(
-                                    platform.get_provider().get_key_store(),
-                                    payment_method_id,
-                                    platform.get_provider().get_account().storage_scheme,
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::PaymentMethodNotFound,
-                                )?;
+                            let payment_method_info = match pm_info {
+                                Some(pm) => pm.clone(),
+                                None => state
+                                    .store
+                                    .find_payment_method(
+                                        platform.get_provider().get_key_store(),
+                                        payment_method_id,
+                                        platform.get_provider().get_account().storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )?,
+                            };
                             let customer_id = request
                                 .get_customer_id()
                                 .get_required_value("customer_id")?;
@@ -680,22 +684,26 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
-                        let payment_method_info = payment_method_id
-                            .async_map(|payment_method_id| async move {
-                                state
-                                    .store
-                                    .find_payment_method(
-                                        platform.get_provider().get_key_store(),
-                                        &payment_method_id,
-                                        platform.get_provider().get_account().storage_scheme,
-                                    )
-                                    .await
-                                    .to_not_found_response(
-                                        errors::ApiErrorResponse::PaymentMethodNotFound,
-                                    )
-                            })
-                            .await
-                            .transpose()?;
+                        let payment_method_info = match pm_info {
+                            Some(pm) => Some(pm.clone()),
+                            None => payment_method_id
+                                .async_map(|payment_method_id| async move {
+                                    state
+                                        .store
+                                        .find_payment_method(
+                                            platform.get_provider().get_key_store(),
+                                            &payment_method_id,
+                                            platform.get_provider().get_account().storage_scheme,
+                                        )
+                                        .await
+                                        .to_not_found_response(
+                                            errors::ApiErrorResponse::PaymentMethodNotFound,
+                                        )
+                                })
+                                .await
+                                .transpose()?,
+                        };
+
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -710,20 +718,23 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = payment_method_id
-                .async_map(|payment_method_id| async move {
-                    state
-                        .store
-                        .find_payment_method(
-                            platform.get_provider().get_key_store(),
-                            &payment_method_id,
-                            platform.get_provider().get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                })
-                .await
-                .transpose()?;
+            let payment_method_info = match pm_info {
+                Some(pm) => Some(pm.clone()),
+                None => payment_method_id
+                    .async_map(|payment_method_id| async move {
+                        state
+                            .store
+                            .find_payment_method(
+                                platform.get_provider().get_key_store(),
+                                &payment_method_id,
+                                platform.get_provider().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    })
+                    .await
+                    .transpose()?,
+            };
             (
                 request.payment_token.to_owned(),
                 request.payment_method,

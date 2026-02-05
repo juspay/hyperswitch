@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.05.1
+
+### Features
+
+- **router:** Add pm mod support in payments operation core v1 ([#11107](https://github.com/juspay/hyperswitch/pull/11107)) ([`22a2a3a`](https://github.com/juspay/hyperswitch/commit/22a2a3a6d5b3602bdeb32dff68ae56c2bb07cf26))
+
+**Full Changelog:** [`2026.02.05.0...2026.02.05.1`](https://github.com/juspay/hyperswitch/compare/2026.02.05.0...2026.02.05.1)
+
+- - -
+
 ## 2026.02.05.0
 
 ### Features
