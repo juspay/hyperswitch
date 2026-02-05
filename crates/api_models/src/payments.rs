@@ -9,12 +9,14 @@ pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{GooglePayCardFundingSource, ProductType, VoucherExpiry};
+use common_enums::{GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
-use common_types::{payments as common_payments_types, primitive_wrappers};
+use common_types::{
+    customers::DocumentKind, payments as common_payments_types, primitive_wrappers,
+};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -4842,8 +4844,8 @@ pub enum BankTransferData {
         #[smithy(value_type = "Option<String>")]
         pix_key: Option<Secret<String>>,
         /// Document details for pix transfer
-        #[schema(value_type = Option<DocumentType>, )]
-        #[smithy(value_type = "Option<DocumentType>")]
+        #[schema(value_type = Option<DocumentDetails>, )]
+        #[smithy(value_type = "Option<DocumentDetails>")]
         document_details: Option<DocumentDetails>,
         /// Source bank account number
         #[schema(value_type = Option<String>, example = "8b******-****-****-****-*******08bc5")]
@@ -4887,9 +4889,20 @@ pub enum BankTransferData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DocumentDetails {
     /// Specifies the type of document - Cpf or Cnpj
-    pub document_type: common_types::customers::DocumentKind,
+    #[schema(value_type = Option<DocumentKind>, example = "cnpj")]
+    pub document_type: DocumentKind,
     /// Cpf or Cnpj number
+    #[schema(value_type = String, example = "20201210000155")]
     pub document_number: Secret<String>,
+}
+
+impl DocumentDetails {
+    pub fn get_cpf_cnpj_split(&self) -> (Option<Secret<String>>, Option<Secret<String>>) {
+        match self.document_type {
+            DocumentKind::Cpf => (Some(self.document_number.clone()), None),
+            DocumentKind::Cnpj => (None, Some(self.document_number.clone())),
+        }
+    }
 }
 
 #[derive(
@@ -5765,9 +5778,9 @@ pub struct BoletoVoucherData {
     pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
-    #[schema(value_type = Option<DocumentKind>, example = "cpf", default = "cnpj")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
     #[smithy(value_type = "Option<DocumentKind>")]
-    pub document_type: Option<common_types::customers::DocumentKind>,
+    pub document_type: Option<DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
     #[schema(value_type = Option<String>)]
@@ -7459,7 +7472,7 @@ pub struct PaymentsResponse {
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
     #[smithy(value_type = "Option<FeatureMetadata>")]
-    pub feature_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
+    pub feature_metadata: Option<FeatureMetadata>,
 
     /// reference(Identifier) to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
@@ -9488,12 +9501,8 @@ pub struct PaymentsUpdateMetadataRequest {
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<FeatureMetadata>,
-    /// The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.
-    #[schema(value_type = Option<u64>, example = 6540)]
-    #[serde(default, deserialize_with = "amount::deserialize_option")]
-    // Makes the field mandatory in PaymentsCreateRequest
-    pub amount: Option<Amount>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -9509,10 +9518,8 @@ pub struct PaymentsUpdateMetadataResponse {
     pub status: api_enums::IntentStatus,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
-    pub feature_metadata: Option<serde_json::Value>,
-    /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(value_type = i64, example = 6540)]
-    pub amount: MinorUnit,
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -11330,27 +11337,13 @@ impl FeatureMetadata {
     pub fn get_optional_pix_key_value(&self) -> Option<Secret<String>> {
         self.pix_additional_details
             .as_ref()
-            .and_then(|pix| match pix {
-                PixAdditionalDetails::Immediate(details) => {
-                    details.pix_key.as_ref().map(|k| k.key.clone())
-                }
-                PixAdditionalDetails::Scheduled(details) => {
-                    details.pix_key.as_ref().map(|k| k.key.clone())
-                }
-            })
+            .and_then(|pix| pix.get_key_value())
     }
-    /// Helper to extract the optional pix_key from nested PIX details
+    /// Helper to extract the optional pix_key type from nested PIX details
     pub fn get_optional_pix_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
         self.pix_additional_details
             .as_ref()
-            .and_then(|pix| match pix {
-                PixAdditionalDetails::Immediate(details) => {
-                    details.pix_key.as_ref().map(|k| k.key_type)
-                }
-                PixAdditionalDetails::Scheduled(details) => {
-                    details.pix_key.as_ref().map(|k| k.key_type)
-                }
-            })
+            .and_then(|pix| pix.get_key_type())
     }
     /// Helper to extract the optional covenant_code from boleto details
     pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
@@ -11375,7 +11368,7 @@ impl FeatureMetadata {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -11390,8 +11383,10 @@ pub struct FeatureMetadata {
     #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// Extra information for Pix Payment Method Type like fine expiry, pix key etc
+    #[smithy(value_type = "Option<PixAdditionalDetails>")]
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    #[smithy(value_type = "Option<BoletoAdditionalDetails>")]
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
 #[cfg(feature = "v1")]
@@ -11400,27 +11395,13 @@ impl FeatureMetadata {
     pub fn get_optional_pix_key_value(&self) -> Option<Secret<String>> {
         self.pix_additional_details
             .as_ref()
-            .and_then(|pix| match pix {
-                PixAdditionalDetails::Immediate(details) => {
-                    details.pix_key.as_ref().map(|k| k.key.clone())
-                }
-                PixAdditionalDetails::Scheduled(details) => {
-                    details.pix_key.as_ref().map(|k| k.key.clone())
-                }
-            })
+            .and_then(|pix| pix.get_key_value())
     }
-    /// Helper to extract the optional pix_key from nested PIX details
+    /// Helper to extract the optional pix_key type from nested PIX details
     pub fn get_optional_pix_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
         self.pix_additional_details
             .as_ref()
-            .and_then(|pix| match pix {
-                PixAdditionalDetails::Immediate(details) => {
-                    details.pix_key.as_ref().map(|k| k.key_type.clone())
-                }
-                PixAdditionalDetails::Scheduled(details) => {
-                    details.pix_key.as_ref().map(|k| k.key_type.clone())
-                }
-            })
+            .and_then(|pix| pix.get_key_type())
     }
     /// Helper to extract the optional covenant_code from boleto details
     pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
@@ -11449,17 +11430,37 @@ impl FeatureMetadata {
             self
         }
     }
+    pub fn to(
+        feature_metadata: Option<serde_json::Value>,
+    ) -> common_utils::errors::CustomResult<Option<Self>, common_utils::errors::ParsingError> {
+        feature_metadata
+            .map(|value| {
+                value
+                    .parse_value("FeatureMetadata")
+                    .change_context(common_utils::errors::ParsingError::StructParseFailure(
+                        "FeatureMetadata",
+                    ))
+                    .attach_printable(
+                        "Failed while deserializing FeatureMetadata from payment_intent",
+                    )
+            })
+            .transpose()
+    }
 }
 
-#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
+    #[schema(value_type = Option<String>, example="2026-12-31")]
     pub due_date: Option<String>,
     // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
     pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
     // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount")]
     pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
+    #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
     #[schema(value_type = Option<PixKeyDetails>)]
@@ -11493,9 +11494,30 @@ pub enum PixAdditionalDetails {
     Scheduled(ScheduledExpirationTime),
 }
 
+impl PixAdditionalDetails {
+    /// Helper to extract the optional pix_key value (Secret String)
+    pub fn get_key_value(&self) -> Option<Secret<String>> {
+        self.get_pix_key_details().map(|k| k.key.clone())
+    }
+
+    /// Helper to extract the optional pix_key type
+    pub fn get_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
+        self.get_pix_key_details().map(|k| k.key_type)
+    }
+
+    /// Internal helper to reduce boilerplate in the match arms
+    fn get_pix_key_details(&self) -> Option<&PixKeyDetails> {
+        match self {
+            Self::Immediate(details) => details.pix_key.as_ref(),
+            Self::Scheduled(details) => details.pix_key.as_ref(),
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
+    #[schema(value_type = i32)]
     pub time: i32,
     /// Pix identification details
     #[schema(value_type = Option<PixKeyDetails>)]
@@ -11509,22 +11531,24 @@ pub struct PixKeyDetails {
     #[serde(rename = "type")]
     pub key_type: common_enums::enums::PixKeyType,
     /// The actual value of the Pix Key. Max length is typically 77 characters per BACEN regulations.
-    #[schema(value_type = String, example="teste_api_projeto_cobranca@santander.com.br")]
+    #[schema(value_type = String, example="test@gmail.com")]
     pub key: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
+    #[schema(value_type = String, example="2026-07-08")]
     pub date: String,
     /// Days after expiration date for which the QR code remains valid
+    #[schema(value_type = Option<i32>, example=10)]
     pub validity_after_expiration: Option<i32>,
     /// Pix identification details
     #[schema(value_type = Option<PixKeyDetails>)]
     pub pix_key: Option<PixKeyDetails>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRecurringDetails {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
@@ -11542,7 +11566,7 @@ pub struct ApplePayRecurringDetails {
     pub management_url: common_utils::types::Url,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
@@ -12867,4 +12891,41 @@ pub struct CartesBancairesParams {
     /// Cartes Bancaires risk score assigned during 3DS authentication.
     #[schema(value_type = i32)]
     pub cb_score: i32,
+}
+
+impl PaymentsUpdateMetadataRequest {
+    /// Helper function to validate that at least one of `metadata` or `feature_metadata` is present in the request
+    pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.metadata.is_none() && self.feature_metadata.is_none() {
+            return Err(ValidationError::MissingRequiredField {
+                field_name: "metadata/feature_metadata".to_string(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, strum::Display, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VoucherExpiry {
+    Date(DateType),
+    Time(TimeInMilliseonds),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[serde(transparent)]
+pub struct DateType {
+    pub date: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[serde(transparent)]
+pub struct TimeInMilliseonds {
+    pub time: Option<i64>,
 }

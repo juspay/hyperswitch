@@ -4,7 +4,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::payments::ExpiryType;
+use api_models::payments::{ExpiryType, VoucherExpiry};
 use common_enums::enums;
 use common_utils::{
     crypto,
@@ -871,7 +871,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     let (issue_date, due_date) = voucher_data
                         .and_then(|data| {
                             let due = match data.expires_at {
-                                Some(enums::VoucherExpiry::Date(d)) => d.date,
+                                Some(VoucherExpiry::Date(d)) => d.date,
                                 _ => None,
                             };
                             data.entry_date.zip(due)

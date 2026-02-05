@@ -121,8 +121,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             let existing_feature_metadata = payment_intent
                 .feature_metadata
                 .as_ref()
-                .map(|v| {
-                    v.clone()
+                .map(|value| {
+                    value
+                        .clone()
                         .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to parse feature metadata from payment intent")
@@ -298,7 +299,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
                 storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Failed to Update Payment Intent In Update Metadata Flow")?;
         Ok((Box::new(self), payment_data))
     }
 }
@@ -315,6 +317,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
         PaymentUpdateMetadataOperation<'b, F>,
         operations::ValidateResult,
     )> {
+        request.validate().change_context(
+            payment_methods::errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata/feature_metadata",
+            },
+        )?;
         //payment id is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
 

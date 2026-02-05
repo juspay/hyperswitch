@@ -184,6 +184,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
+        api_models::payments::DocumentDetails,
+        api_models::payments::PixKeyDetails,
+        api_models::enums::PixKeyType,
+        api_models::enums::BoletoDocumentKind,
+        api_models::enums::BoletoPaymentType,
         common_utils::types::MinorUnit,
         common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,

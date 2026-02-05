@@ -1,4 +1,6 @@
-use api_models::payments::{ExpiryType, QrCodeInformation, VoucherNextStepData};
+use api_models::payments::{
+    DateType, ExpiryType, QrCodeInformation, VoucherExpiry, VoucherNextStepData,
+};
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, PixKeyType};
 use common_utils::{
     errors::CustomResult,
@@ -469,6 +471,13 @@ impl
             ),
         };
 
+        let order_id = value
+            .0
+            .router_data
+            .request
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
             nsu_code,
@@ -480,7 +489,7 @@ impl
             ),
             covenant_code,
             bank_number,
-            client_number: None,
+            client_number: order_id.clone(),
             due_date,
             issue_date: Some(
                 time::OffsetDateTime::now_utc()
@@ -489,7 +498,7 @@ impl
                     .change_context(errors::ConnectorError::DateFormattingFailed)?,
             ),
             nominal_value: Some(value.0.amount.to_owned()),
-            participant_code: None,
+            participant_code: order_id,
             payer: Some(Payer {
                 name: value.0.router_data.get_billing_full_name()?,
                 document_type,
@@ -863,7 +872,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
         item: ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
-
         match response {
             SantanderPaymentsResponse::PixQRCode(pix_data) => {
                 let attempt_status = AttemptStatus::from(pix_data.status.clone());
@@ -912,7 +920,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 let voucher_data = VoucherNextStepData {
                     digitable_line: boleto_data.digitable_line.clone(),
                     barcode: boleto_data.barcode.clone(),
-                    expires_at: Some(enums::VoucherExpiry::Date(enums::DateType {
+                    expires_at: Some(VoucherExpiry::Date(DateType {
                         date: Some(boleto_data.due_date),
                     })),
                     reference: boleto_data.nsu_code.clone(),
@@ -1108,6 +1116,11 @@ fn convert_pix_data_to_value(
     data: String,
     variant: Option<ExpiryType>,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
+    if router_env::which() != router_env::env::Env::Production {
+        // The data string is the EMV string which is used to generate the QR code. We are generating the QR code and then converting it to a data URL to be sent to the client. This is because the client can directly use the data URL to display the QR code without needing to generate it on their end.
+        // We are logging it because in dev env, we won't be able to scan this QR and complete the payment. We would need to send this EMV to the Santander Support Team to finish the payment on their end so that we can test other flows like PSync/Refund/RSync etc
+        router_env::logger::debug!("Data to be converted into QR code: {}", data);
+    }
     let image_data = QrImage::new_from_data(data.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 

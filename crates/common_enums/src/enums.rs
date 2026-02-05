@@ -10673,27 +10673,3 @@ pub enum PixKeyType {
     Phone,
     EvpToken,
 }
-
-#[derive(
-    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, strum::Display, ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum VoucherExpiry {
-    Date(DateType),
-    Time(TimeInMilliseonds),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(transparent)]
-pub struct DateType {
-    pub date: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(transparent)]
-pub struct TimeInMilliseonds {
-    pub time: Option<i64>,
-}

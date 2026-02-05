@@ -12655,16 +12655,12 @@
                     "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
                     "nullable": true
                   },
-                  "cpf": {
-                    "type": "string",
-                    "description": "CPF is a Brazilian tax identification number",
-                    "example": "10599054689",
-                    "nullable": true
-                  },
-                  "cnpj": {
-                    "type": "string",
-                    "description": "CNPJ is a Brazilian company tax identification number",
-                    "example": "74469027417312",
+                  "document_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DocumentDetails"
+                      }
+                    ],
                     "nullable": true
                   },
                   "source_bank_account_id": {
@@ -13063,9 +13059,64 @@
           "due_date": {
             "type": "string",
             "description": "Due Date for the Boleto",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "document_kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoDocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentType"
+              }
+            ],
+            "nullable": true
+          },
+          "covenant_code": {
+            "type": "string",
+            "example": "3568253",
+            "nullable": true
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKeyDetails"
+              }
+            ],
             "nullable": true
           }
         }
+      },
+      "BoletoDocumentKind": {
+        "type": "string",
+        "enum": [
+          "commercial_invoice",
+          "service_invoice",
+          "promissory_note",
+          "rural_promissory_note",
+          "receipt",
+          "insurance_policy",
+          "credit_card_invoice",
+          "proposal",
+          "deposit_or_funding",
+          "cheque",
+          "direct_promissory_note",
+          "other"
+        ]
+      },
+      "BoletoPaymentType": {
+        "type": "string",
+        "enum": [
+          "fixed_amount",
+          "flexible_amount",
+          "installment"
+        ]
       },
       "BoletoVoucherData": {
         "type": "object",
@@ -13086,7 +13137,6 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -17815,6 +17865,27 @@
           "dispute_lost"
         ]
       },
+      "DocumentDetails": {
+        "type": "object",
+        "required": [
+          "document_number"
+        ],
+        "properties": {
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "document_number": {
+            "type": "string",
+            "description": "Cpf or Cnpj number",
+            "example": "20201210000155"
+          }
+        }
+      },
       "DocumentKind": {
         "type": "string",
         "description": "Represents the type of identification document used for validation.",
@@ -18900,6 +18971,28 @@
             ],
             "properties": {
               "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_document_type"
+            ],
+            "properties": {
+              "user_document_type": {
                 "type": "object",
                 "required": [
                   "options"
@@ -20490,6 +20583,14 @@
             "type": "integer",
             "format": "int32",
             "description": "Expiration time in seconds"
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKeyDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -33258,6 +33359,37 @@
           }
         }
       },
+      "PixKeyDetails": {
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKeyType"
+              }
+            ],
+            "nullable": true
+          },
+          "key": {
+            "type": "string",
+            "description": "The actual value of the Pix Key. Max length is typically 77 characters per BACEN regulations.",
+            "example": "test@gmail.com"
+          }
+        }
+      },
+      "PixKeyType": {
+        "type": "string",
+        "enum": [
+          "cpf",
+          "cnpj",
+          "email",
+          "phone",
+          "evp_token"
+        ]
+      },
       "PlatformAccountCreateRequest": {
         "type": "object",
         "required": [
@@ -36364,12 +36496,22 @@
         "properties": {
           "date": {
             "type": "string",
-            "description": "Expiration time in terms of date, format: YYYY-MM-DD"
+            "description": "Expiration time in terms of date, format: YYYY-MM-DD",
+            "example": "2026-07-08"
           },
           "validity_after_expiration": {
             "type": "integer",
             "format": "int32",
             "description": "Days after expiration date for which the QR code remains valid",
+            "example": 10,
+            "nullable": true
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKeyDetails"
+              }
+            ],
             "nullable": true
           }
         }

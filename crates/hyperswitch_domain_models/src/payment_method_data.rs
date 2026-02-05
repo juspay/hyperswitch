@@ -1176,15 +1176,9 @@ impl BankTransferData {
         destination_bank_account_id: Option<MaskedBankAccount>,
         expiry_date: Option<time::PrimitiveDateTime>,
     ) -> Self {
-        let (cpf, cnpj) = match document_details {
-            Some(details) => match details.document_type {
-                common_types::customers::DocumentKind::Cpf => (Some(details.document_number), None),
-                common_types::customers::DocumentKind::Cnpj => {
-                    (None, Some(details.document_number))
-                }
-            },
-            None => (None, None),
-        };
+        let (cpf, cnpj) = document_details
+            .map(|details| details.get_cpf_cnpj_split())
+            .unwrap_or((None, None));
 
         Self::Pix {
             pix_key,
