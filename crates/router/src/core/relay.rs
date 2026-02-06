@@ -517,7 +517,7 @@ impl RelayRequestInner<RelayVoid> {
             | Some(relay_api_models::RelayData::IncrementalAuthorization(_))
             | Some(relay_api_models::RelayData::Capture(_))
             | None => Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Relay data is required for relay type capture".to_string(),
+                message: "Relay data is required for relay type void".to_string(),
             })?,
         }
     }
