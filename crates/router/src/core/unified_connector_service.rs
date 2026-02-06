@@ -780,6 +780,17 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::Eps(eps)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Sofort { country, preferred_language } => {
+                let sofort = payments_grpc::Sofort {
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into()),
+                    preferred_language: preferred_language
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Sofort(sofort)),
+                })
+            }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Przelewy24 { bank_name } => {
                 let p24 = payments_grpc::Przelewy24 {
                     bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
