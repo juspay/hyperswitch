@@ -15,7 +15,7 @@
             "card": {
             "card_number": "4242424242424242",
             "card_exp_month": "11",
-            "card_exp_year": "25",
+            "card_exp_year": "30",
             "card_holder_name": "John Doe"
             },
             "customer_id": "{{customer_id}}"
@@ -963,7 +963,7 @@ pub async fn tokenize_card_using_pm_api() {}
                       "card": {
                         "card_number": "4242424242424242",
                         "card_exp_month": "10",
-                        "card_exp_year": "25",
+                        "card_exp_year": "30",
                         "card_cvc": "123"
                       }
                     },
@@ -1008,7 +1008,7 @@ pub fn payment_method_session_confirm() {}
                       "card": {
                         "card_number": "4242424242424242",
                         "card_exp_month": "10",
-                        "card_exp_year": "25",
+                        "card_exp_year": "30",
                         "card_cvc": "123"
                       }
                     },
