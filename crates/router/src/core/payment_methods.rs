@@ -2848,18 +2848,8 @@ pub async fn vault_payment_method_external(
     state: &SessionState,
     pmd: &domain::PaymentMethodCustomVaultingData,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    let merchant_connector_account = match &merchant_connector_account {
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
-            Ok(mca.as_ref())
-        }
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
-            Err(report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
-        }
-    }?;
-
     let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account.get_id(),
@@ -3136,18 +3126,15 @@ pub async fn vault_payment_method(
                 .attach_printable("mca_id not present for external vault")?;
 
             let merchant_connector_account =
-                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
-                        state,
-                        platform.get_processor(),
-                        Some(&external_vault_source),
-                    )
-                    .await
-                    .attach_printable(
-                        "failed to fetch merchant connector account for external vault insert",
-                    )?,
-                ));
-
+                payments_core::helpers::get_merchant_connector_account_v2(
+                    state,
+                    platform.get_processor(),
+                    Some(&external_vault_source),
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault insert",
+                )?;
             let payment_method_custom_data =
                 get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
 
@@ -3155,7 +3142,7 @@ pub async fn vault_payment_method(
                 state,
                 &payment_method_custom_data,
                 platform.get_provider().get_account(),
-                merchant_connector_account,
+                &merchant_connector_account,
             )
             .await
             .map(|value| (value, Some(external_vault_source)))

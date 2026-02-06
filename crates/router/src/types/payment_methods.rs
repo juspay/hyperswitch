@@ -26,14 +26,12 @@ pub trait VaultingInterface {
     fn get_vaulting_flow_name() -> &'static str;
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequest {
     pub data: String,
     pub key: String,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,

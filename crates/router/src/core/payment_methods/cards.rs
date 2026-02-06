@@ -103,14 +103,10 @@ use crate::{
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils,
-    utils::OptionExt,
+    utils::{self, ConnectorResponseExt, OptionExt},
 };
 #[cfg(feature = "v2")]
-use crate::{
-    core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
-    utils::ConnectorResponseExt,
-};
+use crate::{core::payment_methods as pm_core, headers, types::payment_methods as pm_types};
 
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
@@ -650,6 +646,65 @@ impl PaymentMethodsController for PmCards<'_> {
         let key_store = self.provider.get_key_store();
         let key = key_store.key.get_inner().peek();
 
+        // 1. Get fingerprint FIRST to check for duplicates
+        let data_str = serde_json::to_string(payment_method_data)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode payment method data to string")?;
+
+        let payload = crate::types::payment_methods::VaultFingerprintRequest {
+            key: customer_id.get_string_repr().to_owned(),
+            data: data_str,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+
+        let resp = vault::call_to_vault(self.state, payload)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        let fingerprint_resp: crate::types::payment_methods::VaultFingerprintResponse = resp
+            .parse_struct("VaultFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse VaultFingerprintResponse")?;
+
+        let fingerprint_id = fingerprint_resp.fingerprint_id;
+        logger::debug!(
+            "Retrieved fingerprint ID for generic PM: {}",
+            fingerprint_id
+        );
+
+        // 2. Check if payment method with this fingerprint already exists in DB
+        let existing_pm = self
+            .state
+            .store
+            .find_payment_method_by_fingerprint_id(key_store, &fingerprint_id)
+            .await;
+
+        // 3. If duplicate found, return it with duplication check
+        if let Ok(existing_payment_method) = existing_pm {
+            logger::debug!(
+                "Found existing payment method with fingerprint: {}",
+                fingerprint_id
+            );
+
+            let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
+                existing_payment_method
+                    .locker_id
+                    .clone()
+                    .unwrap_or(existing_payment_method.payment_method_id),
+                req,
+                self.provider.get_account().get_id(),
+            );
+
+            return Ok((
+                payment_method_resp,
+                Some(payment_methods::DataDuplicationCheck::Duplicated),
+            ));
+        }
+
+        // 4. If no duplicate, encrypt and store in vault
         let key_manager_state: KeyManagerState = self.state.into();
         let enc_data = async {
             serde_json::to_value(payment_method_data.to_owned())
@@ -693,12 +748,20 @@ impl PaymentMethodsController for PmCards<'_> {
                 enc_data,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
+
+        // 5. Store in vault
         let store_resp = add_card_to_vault(self.state, &payload, customer_id).await?;
+
+        // 6. Build response - using the same function for all generic (non-card) PMs
         let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
-            store_resp.card_reference,
+            store_resp.card_reference.clone(),
             req,
             self.provider.get_account().get_id(),
         );
+
+        // Note: fingerprint_id will be saved to DB in the insert_payment_method call
+        // by the caller function, which should receive the fingerprint_id from this response
+
         Ok((payment_method_resp, store_resp.duplication_check))
     }
 
@@ -2134,88 +2197,6 @@ pub async fn delete_card_by_locker_id(
 }
 
 #[instrument(skip_all)]
-pub async fn decode_and_decrypt_locker_data(
-    state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
-    enc_card_data: String,
-) -> errors::CustomResult<Secret<String>, errors::VaultError> {
-    let key = key_store.key.get_inner().peek();
-    let decoded_bytes = hex::decode(&enc_card_data)
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to decode hex string into bytes")?;
-    // Decrypt
-    domain::types::crypto_operation(
-        &state.into(),
-        type_name!(payment_method::PaymentMethod),
-        domain::types::CryptoOperation::DecryptOptional(Some(Encryption::new(
-            decoded_bytes.into(),
-        ))),
-        Identifier::Merchant(key_store.merchant_id.clone()),
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::VaultError::FetchPaymentMethodFailed)?
-    .map_or(
-        Err(report!(errors::VaultError::FetchPaymentMethodFailed)),
-        |d| Ok(d.into_inner()),
-    )
-}
-
-#[instrument(skip_all)]
-pub async fn get_encrypted_data_from_vault<'a>(
-    state: &'a routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
-    customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
-    payment_method_reference: &'a str,
-) -> errors::CustomResult<Secret<String>, errors::VaultError> {
-    let locker = &state.conf.locker;
-    let jwekey = state.conf.jwekey.get_inner();
-
-    let payment_method_data = if !locker.mock_locker {
-        let payload = payment_methods::CardReqBody {
-            merchant_id: merchant_id.to_owned(),
-            merchant_customer_id: customer_id.to_owned(),
-            card_reference: payment_method_reference.to_string(),
-        };
-
-        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::call_vault_api(
-            state,
-            jwekey,
-            locker,
-            &payload,
-            router_consts::LOCKER_RETRIEVE_CARD_PATH,
-            state.tenant.tenant_id.clone(),
-            state.request_id.clone(),
-        )
-        .await
-        .change_context(errors::VaultError::FetchPaymentMethodFailed)
-        .attach_printable("Making get payment method request failed")?;
-
-        let retrieve_card_resp = get_card_resp
-            .payload
-            .get_required_value("RetrieveCardRespPayload")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)
-            .attach_printable("Failed to retrieve field - payload from RetrieveCardResp")?;
-        let enc_card_data = retrieve_card_resp
-            .enc_card_data
-            .get_required_value("enc_card_data")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)
-            .attach_printable(
-                "Failed to retrieve field - enc_card_data from RetrieveCardRespPayload",
-            )?;
-        decode_and_decrypt_locker_data(state, key_store, enc_card_data.peek().to_string()).await?
-    } else {
-        mock_get_payment_method(state, key_store, payment_method_reference)
-            .await?
-            .payment_method
-            .payment_method_data
-    };
-    Ok(payment_method_data)
-}
-
-#[instrument(skip_all)]
 pub async fn add_card_to_vault(
     state: &routes::SessionState,
     payload: &payment_methods::StoreLockerReq,
@@ -2225,7 +2206,7 @@ pub async fn add_card_to_vault(
     let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        payment_methods::call_vault_api(
+        vault::call_vault_api(
             state,
             jwekey,
             locker,
@@ -2246,59 +2227,6 @@ pub async fn add_card_to_vault(
         .get_required_value("StoreCardRespPayload")
         .change_context(errors::VaultError::SaveCardFailed)?;
     Ok(stored_card)
-}
-
-#[instrument(skip_all)]
-pub async fn call_vault_service<T>(
-    state: &routes::SessionState,
-    request: Request,
-    flow_name: &str,
-) -> errors::CustomResult<T, errors::VaultError>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let locker = &state.conf.locker;
-    let jwekey = state.conf.jwekey.get_inner();
-    let response_type_name = type_name!(T);
-
-    let response = services::call_connector_api(state, request, flow_name)
-        .await
-        .change_context(errors::VaultError::ApiError)?;
-
-    let is_locker_call_succeeded = response.is_ok();
-
-    let jwe_body = response
-        .unwrap_or_else(|err| err)
-        .response
-        .parse_struct::<services::JweBody>("JweBody")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed while parsing locker response into JweBody")?;
-
-    let decrypted_payload = payment_methods::get_decrypted_response_payload(
-        jwekey,
-        jwe_body,
-        locker.decryption_scheme.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::ResponseDeserializationFailed)
-    .attach_printable("Failed while decrypting locker payload response")?;
-
-    // Irrespective of locker's response status, payload is JWE + JWS decrypted. But based on locker's status,
-    // if Ok, deserialize the decrypted payload into given type T
-    // if Err, raise an error including locker error message too
-    if is_locker_call_succeeded {
-        let stored_card_resp: Result<T, error_stack::Report<errors::VaultError>> =
-            decrypted_payload
-                .parse_struct(response_type_name)
-                .change_context(errors::VaultError::ResponseDeserializationFailed)
-                .attach_printable_lazy(|| {
-                    format!("Failed while parsing locker response into {response_type_name}")
-                });
-        stored_card_resp
-    } else {
-        Err::<T, error_stack::Report<errors::VaultError>>((errors::VaultError::ApiError).into())
-            .attach_printable_lazy(|| format!("Locker error response: {decrypted_payload:?}"))
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -2404,7 +2332,7 @@ pub async fn get_card_from_vault<'a>(
             card_reference: card_reference.to_string(),
         };
 
-        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::call_vault_api(
+        let get_card_resp: payment_methods::RetrieveCardResp = vault::call_vault_api(
             state,
             jwekey,
             locker,
@@ -2457,7 +2385,7 @@ pub async fn delete_card_from_vault<'a>(
             card_reference: card_reference.to_string(),
         };
 
-        payment_methods::call_vault_api(
+        vault::call_vault_api(
             state,
             jwekey,
             locker,
@@ -2584,7 +2512,7 @@ pub async fn mock_get_payment_method<'a>(
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
     let dec_data = if let Some(e) = locker_mock_up.enc_card_data {
-        decode_and_decrypt_locker_data(state, key_store, e).await
+        vault::decode_and_decrypt_locker_data(state, key_store, e).await
     } else {
         Err(report!(errors::VaultError::FetchPaymentMethodFailed))
     }?;
@@ -4983,7 +4911,7 @@ pub async fn get_bank_from_vault(
     token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
     let payment_method =
-        get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
+        vault::get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting payment method from locker")?;

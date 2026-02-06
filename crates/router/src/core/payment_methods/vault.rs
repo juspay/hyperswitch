@@ -4,6 +4,7 @@ use common_utils::{
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
+    type_name,
 };
 #[cfg(feature = "v2")]
 use common_utils::{encryption::Encryption, request};
@@ -18,6 +19,7 @@ use hyperswitch_domain_models::{
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
+use std::convert::TryFrom;
 
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;
@@ -47,6 +49,8 @@ use crate::{
     types::payment_methods as pm_types,
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
+
+mod transformers;
 
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -1486,7 +1490,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     .await
     .change_context(errors::VaultError::RequestEncryptionFailed)?;
 
-    let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
+    let jwe_payload = transformers::create_jwe_body_for_vault(jwekey, &jws).await?;
 
     let mut url = locker.host.to_owned();
     url.push_str(R::get_vaulting_request_url());
@@ -1524,7 +1528,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to get JweBody from vault response")?;
 
-    let decrypted_payload = pm_transforms::get_decrypted_vault_response_payload(
+    let decrypted_payload = transformers::get_decrypted_vault_response_payload(
         jwekey,
         jwe_body,
         locker.decryption_scheme.clone(),
@@ -1596,6 +1600,188 @@ pub async fn add_payment_method_to_vault(
         .attach_printable("Failed to parse data into AddVaultResponse")?;
 
     Ok(stored_pm_resp)
+}
+
+pub async fn call_vault_api<'a, Req, Res>(
+    state: &routes::SessionState,
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    payload: &'a Req,
+    endpoint_path: &str,
+    tenant_id: id_type::TenantId,
+    request_id: Option<router_env::RequestId>,
+) -> CustomResult<Res, errors::VaultError>
+where
+    Req: Encode<'a> + serde::Serialize,
+    Res: serde::de::DeserializeOwned,
+{
+    let encoded_payload = payload
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+    let jws = services::encryption::jws_sign_payload(
+        &encoded_payload,
+        &locker.locker_signing_key_id,
+        private_key,
+    )
+    .await
+    .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload = transformers::mk_vault_req(jwekey, &jws).await?;
+
+    let url = locker.get_host(endpoint_path);
+
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.get_string_repr().into());
+
+    if let Some(req_id) = request_id {
+        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
+    }
+
+    request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
+
+    let response = call_vault_service::<Res>(state, request, endpoint_path)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)?;
+
+    Ok(response)
+}
+
+#[instrument(skip_all)]
+pub async fn call_vault_service<T>(
+    state: &routes::SessionState,
+    request: request::Request,
+    flow_name: &str,
+) -> CustomResult<T, errors::VaultError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let locker = &state.conf.locker;
+    let jwekey = state.conf.jwekey.get_inner();
+    let response_type_name = common_utils::type_name!(T);
+
+    let response = services::call_connector_api(state, request, flow_name)
+        .await
+        .change_context(errors::VaultError::ApiError)?;
+
+    let is_locker_call_succeeded = response.is_ok();
+
+    let jwe_body = response
+        .unwrap_or_else(|err| err)
+        .response
+        .parse_struct::<services::JweBody>("JweBody")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed while parsing locker response into JweBody")?;
+
+    let decrypted_payload = transformers::get_decrypted_response_payload(
+        jwekey,
+        jwe_body,
+        locker.decryption_scheme.clone(),
+    )
+    .await
+    .change_context(errors::VaultError::ResponseDeserializationFailed)
+    .attach_printable("Failed while decrypting locker payload response")?;
+
+    // Irrespective of locker's response status, payload is JWE + JWS decrypted. But based on locker's status,
+    // if Ok, deserialize the decrypted payload into given type T
+    // if Err, raise an error including locker error message too
+    if is_locker_call_succeeded {
+        let stored_card_resp: Result<T, error_stack::Report<errors::VaultError>> =
+            decrypted_payload
+                .parse_struct(response_type_name)
+                .change_context(errors::VaultError::ResponseDeserializationFailed)
+                .attach_printable_lazy(|| {
+                    format!("Failed while parsing locker response into {response_type_name}")
+                });
+        stored_card_resp
+    } else {
+        Err::<T, error_stack::Report<errors::VaultError>>((errors::VaultError::ApiError).into())
+            .attach_printable_lazy(|| format!("Locker error response: {decrypted_payload:?}"))
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn get_encrypted_data_from_vault<'a>(
+    state: &'a routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    payment_method_reference: &'a str,
+) -> CustomResult<masking::Secret<String>, errors::VaultError> {
+    let locker = &state.conf.locker;
+    let jwekey = state.conf.jwekey.get_inner();
+
+    let payment_method_data = if !locker.mock_locker {
+        let payload = pm_transforms::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: payment_method_reference.to_string(),
+        };
+
+        let get_card_resp: pm_transforms::RetrieveCardResp = call_vault_api(
+            state,
+            jwekey,
+            locker,
+            &payload,
+            consts::LOCKER_RETRIEVE_CARD_PATH,
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)
+        .attach_printable("Making get payment method request failed")?;
+
+        let retrieve_card_resp = get_card_resp
+            .payload
+            .get_required_value("RetrieveCardRespPayload")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed to retrieve field - payload from RetrieveCardResp")?;
+        let enc_card_data = retrieve_card_resp
+            .enc_card_data
+            .get_required_value("enc_card_data")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable(
+                "Failed to retrieve field - enc_card_data from RetrieveCardRespPayload",
+            )?;
+        decode_and_decrypt_locker_data(state, key_store, enc_card_data.peek().to_string()).await?
+    } else {
+        pm_cards::mock_get_payment_method(state, key_store, payment_method_reference)
+            .await?
+            .payment_method
+            .payment_method_data
+    };
+    Ok(payment_method_data)
+}
+
+#[instrument(skip_all)]
+pub async fn decode_and_decrypt_locker_data(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    enc_card_data: String,
+) -> CustomResult<masking::Secret<String>, errors::VaultError> {
+    let key = key_store.key.get_inner().peek();
+    let decoded_bytes = hex::decode(&enc_card_data)
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to decode hex string into bytes")?;
+    // Decrypt
+    domain::types::crypto_operation(
+        &state.into(),
+        type_name!(diesel_models::PaymentMethod),
+        domain::types::CryptoOperation::DecryptOptional(Some(Encryption::new(
+            decoded_bytes.into(),
+        ))),
+        common_utils::types::keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_optionaloperation())
+    .change_context(errors::VaultError::FetchPaymentMethodFailed)?
+    .map_or(
+        Err(report!(errors::VaultError::FetchPaymentMethodFailed)),
+        |d| Ok(d.into_inner()),
+    )
 }
 
 #[cfg(feature = "v2")]
