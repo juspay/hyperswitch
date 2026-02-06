@@ -451,9 +451,9 @@ pub async fn construct_relay_void_router_data(
     let relay_void_data = relay_record
         .request_data
         .clone()
-        .get_required_value("capture relay data")
+        .get_required_value("void relay data")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to obtain relay data to construct relay capture data")?
+        .attach_printable("Failed to obtain relay data to construct relay void data")?
         .get_void_data()?;
 
     let relay_id_string = relay_record.id.get_string_repr().to_string();
