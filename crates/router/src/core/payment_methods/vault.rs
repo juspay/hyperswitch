@@ -52,6 +52,9 @@ use crate::{
 
 mod transformers;
 
+pub mod external_vault;
+pub mod internal_vault;
+
 const VAULT_SERVICE_NAME: &str = "CARD";
 
 pub struct SupplementaryVaultData {
