@@ -39,7 +39,7 @@ export default defineConfig({
         }
         return launchOptions;
       });
-      
+
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
         if (
