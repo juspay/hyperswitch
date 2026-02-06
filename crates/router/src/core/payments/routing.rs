@@ -542,14 +542,44 @@ pub trait RoutingStage: Send + Sync {
     fn routing_approach(&self) -> common_enums::RoutingApproach;
 }
 
+#[derive(Clone)]
 pub struct RoutingContext {
     pub routing_algorithm: Arc<CachedAlgorithm>,
 }
 
-pub struct ConnectorOutcome {
+pub struct RoutingConnectorOutcome {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
 }
 
+impl RoutingConnectorOutcome {
+    pub fn resolve_or_fallback_with_approach(
+        self,
+        stage: &'static str,
+        fallback: &[routing_types::RoutableConnectorChoice],
+        success_approach: common_enums::RoutingApproach,
+        fallback_approach: common_enums::RoutingApproach,
+    ) -> (
+        Vec<routing_types::RoutableConnectorChoice>,
+        common_enums::RoutingApproach,
+    ) {
+        if self.connectors.is_empty() {
+            logger::warn!("euclid: {} returned empty connectors, falling back", stage);
+            routing::log_connectors(stage, fallback);
+            (fallback.to_vec(), fallback_approach)
+        } else {
+            routing::log_connectors(stage, &self.connectors);
+            (self.connectors, success_approach)
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct StaticRoutingInput<'a> {
     pub platform: &'a domain::Platform,
     pub business_profile: &'a domain::Profile,
@@ -557,13 +587,14 @@ pub struct StaticRoutingInput<'a> {
     pub transaction_data: &'a routing::PaymentsDslInput<'a>,
 }
 
+#[derive(Clone)]
 pub struct StaticRoutingStage {
     pub ctx: RoutingContext,
 }
 
 impl RoutingStage for StaticRoutingStage {
     type Input<'a> = StaticRoutingInput<'a>;
-    type Output = ConnectorOutcome;
+    type Output = RoutingConnectorOutcome;
     type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
@@ -576,7 +607,7 @@ impl RoutingStage for StaticRoutingStage {
             .change_context(errors::RoutingError::DslExecutionError)
             .attach_printable("euclid: unable to perform static routing")?;
 
-            Ok(ConnectorOutcome { connectors })
+            Ok(RoutingConnectorOutcome { connectors })
         })
     }
 
@@ -594,7 +625,7 @@ impl DynamicRoutingStage {
         &self,
         input: &DynamicRoutingInput<'_>,
         routing_type: &api_models::routing::RoutingType,
-    ) -> RoutingResult<Option<DynamicRoutingResult>> {
+    ) -> RoutingResult<Option<RoutingConnectorOutcomeWithApproach>> {
         if !routing_type.is_dynamic_routing()
             || !input.state.conf.open_router.dynamic_routing_enabled
         {
@@ -630,7 +661,7 @@ pub struct DynamicRoutingInput<'a> {
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl RoutingStage for DynamicRoutingStage {
     type Input<'a> = DynamicRoutingInput<'a>;
-    type Output = Option<DynamicRoutingResult>;
+    type Output = Option<RoutingConnectorOutcomeWithApproach>;
     type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
@@ -880,6 +911,30 @@ pub async fn ensure_algorithm_cached_v1(
     };
 
     Ok(algorithm)
+}
+
+pub async fn try_ensure_algorithm_cached_v1(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    algorithm_id: &common_utils::id_type::RoutingId,
+    profile_id: &common_utils::id_type::ProfileId,
+    transaction_type: &api_enums::TransactionType,
+) -> Option<Arc<CachedAlgorithm>> {
+    ensure_algorithm_cached_v1(
+        state,
+        merchant_id,
+        algorithm_id,
+        profile_id,
+        transaction_type,
+    )
+    .await
+    .inspect_err(|err| {
+        logger::error!(
+            error=?err,
+            "euclid_routing: ensure_algorithm_cached failed, falling back"
+        );
+    })
+    .ok()
 }
 
 pub fn perform_straight_through_routing(
@@ -1937,18 +1992,45 @@ pub fn make_dsl_input_for_surcharge(
     Ok(backend_input)
 }
 
-pub struct DynamicRoutingResult {
+pub struct RoutingConnectorOutcomeWithApproach {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
     pub routing_approach: common_enums::RoutingApproach,
 }
 
+impl RoutingConnectorOutcomeWithApproach {
+    pub fn resolve_or_fallback(
+        self,
+        stage: &'static str,
+        fallback_connectors: &[routing_types::RoutableConnectorChoice],
+        fallback_approach: common_enums::RoutingApproach,
+    ) -> (
+        Vec<routing_types::RoutableConnectorChoice>,
+        common_enums::RoutingApproach,
+    ) {
+        if self.connectors.is_empty() {
+            logger::warn!("euclid: {} returned empty connectors, falling back", stage);
+            routing::log_connectors(stage, fallback_connectors);
+            (fallback_connectors.to_vec(), fallback_approach)
+        } else {
+            routing::log_connectors(stage, &self.connectors);
+            (self.connectors, self.routing_approach)
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+            routing_approach: common_enums::RoutingApproach::DefaultFallback,
+        }
+    }
+}
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn perform_dynamic_routing_with_open_router(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
     payment_data: oss_storage::PaymentAttempt,
-) -> RoutingResult<Option<DynamicRoutingResult>> {
+) -> RoutingResult<Option<RoutingConnectorOutcomeWithApproach>> {
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
         .clone()
@@ -2214,7 +2296,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
     profile_id: &common_utils::id_type::ProfileId,
     payment_attempt: &oss_storage::PaymentAttempt,
     is_elimination_enabled: bool,
-) -> RoutingResult<DynamicRoutingResult> {
+) -> RoutingResult<RoutingConnectorOutcomeWithApproach> {
     logger::debug!(
         "performing decide_gateway call with open_router for profile {}",
         profile_id.get_string_repr()
@@ -2295,7 +2377,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
             routing_event.set_routable_connectors(routable_connectors.clone());
             state.event_handler().log_event(&routing_event);
 
-            Ok(DynamicRoutingResult {
+            Ok(RoutingConnectorOutcomeWithApproach {
                 connectors: routable_connectors,
                 routing_approach,
             })
@@ -2309,7 +2391,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
         }
     }?;
 
-    Ok(DynamicRoutingResult {
+    Ok(RoutingConnectorOutcomeWithApproach {
         connectors: sr_sorted_connectors.connectors,
         routing_approach: sr_sorted_connectors.routing_approach,
     })

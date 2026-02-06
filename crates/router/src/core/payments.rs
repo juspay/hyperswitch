@@ -10505,10 +10505,12 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let txn_type = transaction_type_from_payments_dsl(&transaction_data);
+
     let fallback_config = routing_helpers::get_merchant_default_config(
         &*state.clone().store,
         business_profile.get_id().get_string_repr(),
-        &transaction_type_from_payments_dsl(&transaction_data),
+        &txn_type,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -10527,109 +10529,96 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let cached_algorithm = if let Some(routing_algorithm_id) = routing_algorithm_id {
-        match routing::ensure_algorithm_cached_v1(
-            state,
-            &business_profile.merchant_id,
-            &routing_algorithm_id,
-            business_profile.get_id(),
-            &transaction_type_from_payments_dsl(&transaction_data),
-        )
+    let cached_algorithm = routing_algorithm_id
+        .async_and_then(|routing_algorithm_id| async move {
+            routing::try_ensure_algorithm_cached_v1(
+                state,
+                &business_profile.merchant_id,
+                &routing_algorithm_id,
+                business_profile.get_id(),
+                &txn_type,
+            )
+            .await
+        })
+        .await;
+
+    let static_input = routing::StaticRoutingInput {
+        platform,
+        business_profile,
+        eligible_connectors: eligible_connectors.as_ref(),
+        transaction_data: &transaction_data,
+    };
+
+    let static_stage = cached_algorithm.map(|cached_algorithm| routing::StaticRoutingStage {
+        ctx: routing::RoutingContext {
+            routing_algorithm: cached_algorithm,
+        },
+    });
+
+    let (static_connectors, static_approach) = static_stage
+        .clone()
+        .async_and_then(|static_stage| async move {
+            static_stage
+                .route(static_input)
+                .await
+                .inspect_err(|err| {
+                    logger::error!(
+                        error=?err,
+                        "euclid: static routing failed"
+                    );
+                })
+                .ok()
+                .map(|outcome| routing::RoutingConnectorOutcome {
+                    connectors: outcome.connectors,
+                })
+        })
         .await
-        {
-            Ok(algo) => Some(algo),
-            Err(err) => {
-                logger::error!(
-                    error=?err,
-                    "euclid_routing: ensure_algorithm_cached failed, falling back"
-                );
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    let (static_connectors, static_approach) = if let Some(cached_algorithm) = cached_algorithm {
-        let static_stage = routing::StaticRoutingStage {
-            ctx: routing::RoutingContext {
-                routing_algorithm: cached_algorithm,
-            },
-        };
-
-        let static_input = routing::StaticRoutingInput {
-            platform,
-            business_profile,
-            eligible_connectors: eligible_connectors.as_ref(),
-            transaction_data: &transaction_data,
-        };
-
-        match static_stage.route(static_input).await {
-            Ok(outcome) if !outcome.connectors.is_empty() => {
-                core_routing::log_connectors("static-routing", &outcome.connectors);
-                (outcome.connectors, static_stage.routing_approach())
-            }
-            Ok(_) => {
-                logger::warn!("euclid: static routing returned empty connectors, falling back");
-                core_routing::log_connectors("static-routing-empty", &fallback_config);
-                (
-                    fallback_config.clone(),
-                    common_enums::RoutingApproach::DefaultFallback,
-                )
-            }
-            Err(err) => {
-                logger::error!(
-                    error=?err,
-                    "euclid: static routing failed, falling back"
-                );
-                core_routing::log_connectors("static-routing-error", &fallback_config);
-                (
-                    fallback_config.clone(),
-                    common_enums::RoutingApproach::DefaultFallback,
-                )
-            }
-        }
-    } else {
-        core_routing::log_connectors("fallback-default", &fallback_config);
-        (
-            fallback_config.clone(),
+        .unwrap_or_else(routing::RoutingConnectorOutcome::empty)
+        .resolve_or_fallback_with_approach(
+            "static-routing",
+            &fallback_config,
+            static_stage
+                .as_ref()
+                .map(|s| s.routing_approach())
+                .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
             common_enums::RoutingApproach::DefaultFallback,
-        )
-    };
+        );
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let (connectors, routing_approach) = if business_profile.dynamic_routing_algorithm.is_some() {
-        let dynamic_input = routing::DynamicRoutingInput {
-            state,
-            business_profile,
-            transaction_data: &transaction_data,
-            static_connectors: &static_connectors,
-        };
-
-        let dynamic_stage = routing::DynamicRoutingStage;
-
-        match dynamic_stage.route(dynamic_input).await {
-            Ok(Some(dynamic_outcome)) if !dynamic_outcome.connectors.is_empty() => {
-                core_routing::log_connectors("dynamic-routing", &dynamic_outcome.connectors);
-                (dynamic_outcome.connectors, dynamic_outcome.routing_approach)
-            }
-            Ok(_) => {
-                core_routing::log_connectors("dynamic-routing-skipped", &static_connectors);
-                (static_connectors, static_approach)
-            }
-            Err(err) => {
-                logger::error!(
-                    error=?err,
-                    "euclid: dynamic routing failed, falling back to static"
-                );
-                core_routing::log_connectors("dynamic-routing-error", &static_connectors);
-                (static_connectors, static_approach)
-            }
-        }
-    } else {
-        core_routing::log_connectors("dynamic-routing-disabled", &static_connectors);
-        (static_connectors, static_approach)
-    };
+    {
+        let static_connectors_ref = &static_connectors;
+        let transaction_data_ref = &transaction_data;
+        let (connectors, routing_approach) = business_profile
+            .dynamic_routing_algorithm
+            .as_ref()
+            .map(|_| routing::DynamicRoutingStage)
+            .async_and_then(|dynamic_routing_stage| async move {
+                let dynamic_routing_input = routing::DynamicRoutingInput {
+                    state,
+                    business_profile,
+                    transaction_data: transaction_data_ref,
+                    static_connectors: static_connectors_ref,
+                };
+                dynamic_routing_stage
+                    .route(dynamic_routing_input)
+                    .await
+                    .inspect_err(|err| {
+                        logger::error!(
+                            error=?err,
+                            "euclid: dynamic routing failed"
+                        );
+                    })
+                    .ok()
+                    .flatten()
+                    .map(|outcome| routing::RoutingConnectorOutcomeWithApproach {
+                        connectors: outcome.connectors,
+                        routing_approach: outcome.routing_approach,
+                    })
+            })
+            .await
+            .unwrap_or_else(routing::RoutingConnectorOutcomeWithApproach::empty)
+            .resolve_or_fallback("dynamic-routing", static_connectors_ref, static_approach);
+    }
 
     #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
     let (connectors, routing_approach) = (static_connectors, static_approach);
