@@ -8654,7 +8654,8 @@ pub async fn apply_filters_on_payments(
                     let filters = helpers::get_search_filters(&constraints);
 
                     let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
-                        index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
+                        index:
+                            api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
                         search_req: api_models::analytics::search::GetSearchRequest {
                             offset: i64::from(constraints.offset.unwrap_or(0)),
                             count: i64::from(constraints.limit),

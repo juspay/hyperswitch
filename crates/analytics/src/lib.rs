@@ -126,7 +126,6 @@ impl std::fmt::Display for AnalyticsProvider {
     }
 }
 
-
 impl AnalyticsProvider {
     #[instrument(skip_all)]
     pub async fn get_payment_metrics(
@@ -1114,15 +1113,15 @@ impl SearchProvider {
         req: api_models::analytics::search::GetGlobalSearchRequest,
         auth: Vec<AuthInfo>,
         indexes: Vec<api_models::analytics::search::SearchIndex>,
-    ) -> CustomResult<Vec<api_models::analytics::search::GetSearchResponse>, opensearch::OpenSearchError>
-    {
+    ) -> CustomResult<
+        Vec<api_models::analytics::search::GetSearchResponse>,
+        opensearch::OpenSearchError,
+    > {
         match self {
             Self::Opensearch(client) => search::msearch_results(client, req, auth, indexes).await,
-            Self::Sqlx(_) | Self::CombinedOpensearch(_, _) | Self::CombinedSqlx(_, _) => {
-                Err(error_stack::report!(
-                    opensearch::OpenSearchError::NotEnabled
-                ))
-            }
+            Self::Sqlx(_) | Self::CombinedOpensearch(_, _) | Self::CombinedSqlx(_, _) => Err(
+                error_stack::report!(opensearch::OpenSearchError::NotEnabled),
+            ),
         }
     }
 
