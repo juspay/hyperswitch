@@ -42,8 +42,8 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
-        RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, AdditionalCardInfo, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 
@@ -258,6 +258,18 @@ pub enum PaymentSource {
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+    DecryptedWalletToken(DecryptedWalletToken),
+}
+
+#[derive(Debug, Serialize)]
+pub struct DecryptedWalletToken {
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -780,41 +792,16 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 };
 
                 let exp_month = network_token_data.token_exp_month.clone();
-                let expiry_year_4_digit = network_token_data.token_exp_year.clone();
+                let expiry_year_4_digit = network_token_data.get_card_expiry_year_4_digit()?;
 
-                let payment_source = match network_token_data.token_source {
-                    Some(common_types::payments::TokenSource::ApplePay) => {
-                        PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
-                            token: cards::CardNumber::from(
-                                network_token_data.network_token.clone(),
-                            ),
-                            decrypt_type: "network_token".to_string(),
-                            token_type,
-                            expiry_month: exp_month,
-                            expiry_year: expiry_year_4_digit,
-                            eci: None,
-                            cryptogram: Secret::new("".to_string()),
-                            billing_address: billing_details,
-                        }))
-                    }
-                    Some(common_types::payments::TokenSource::GooglePay) => {
-                        PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
-                            _type: "network_token".to_string(),
-                            token: cards::CardNumber::from(
-                                network_token_data.network_token.clone(),
-                            ),
-                            token_type,
-                            expiry_month: exp_month,
-                            expiry_year: expiry_year_4_digit,
-                            eci: network_token_data.eci.clone().unwrap_or("".to_string()),
-                            cryptogram: None,
-                            billing_address: billing_details,
-                        }))
-                    }
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "token_source",
-                    })?,
-                };
+                let payment_source = PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
+                    token: cards::CardNumber::from(network_token_data.network_token.clone()),
+                    decrypt_type: "network_token".to_string(),
+                    token_type,
+                    expiry_month: exp_month,
+                    expiry_year: expiry_year_4_digit,
+                    billing_address: billing_details,
+                });
 
                 Ok((
                     payment_source,
