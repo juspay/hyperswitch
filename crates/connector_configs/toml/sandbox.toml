@@ -7028,42 +7028,44 @@ type = "Select"
 options = []
 
 [santander]
-[[santander.voucher]]
-  payment_method_type = "boleto"
 [[santander.bank_transfer]]
-  payment_method_type = "pix"
+payment_method_type = "pix"
+[[santander.voucher]]
+payment_method_type = "boleto"
 [santander.connector_auth.BodyKey]
 api_key="Certificates"      
-key1="Certificate Key"     
-
+key1="Certificate Key"   
+  
 [[santander.metadata.pix]]
 name="client_id"
 label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-
 [[santander.metadata.pix]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-
 [[santander.metadata.pix]]
-name="pix_key"
+name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-
+[[santander.metadata.pix]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Text"
 [[santander.metadata.pix]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-
 [[santander.metadata.pix]]
 name="merchant_name"
 label="Merchant Name"
@@ -7077,25 +7079,34 @@ label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-
 [[santander.metadata.boleto]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-
 [[santander.metadata.boleto]]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
 required=true
 type="Text"
-
 [[santander.metadata.boleto]]
 name="covenant_code"
 label="Covenant Code"
 placeholder="Enter the covenant code"
+required=true
+type="Text"
+[[santander.metadata.boleto]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.boleto]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Text"
 
