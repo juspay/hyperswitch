@@ -134,6 +134,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub covenant_code: Secret<String>,
     pub bank_number: String,
     pub client_number: Option<String>,
+    #[serde(with = "common_utils::custom_serde::date_only")]
     pub due_date: PrimitiveDateTime,
     pub issue_date: String,
     pub participant_code: Option<String>,
