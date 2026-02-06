@@ -929,6 +929,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
             }
             SantanderPaymentsResponse::Boleto(boleto_data) => {
                 let qr_code_url = if let Some(data) = boleto_data.qr_code_pix.clone() {
+                    router_env::logger::debug!("Data to be converted into QR code: {}", data);
                     let qr_image = QrImage::new_from_data(data)
                         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     let url_str = &qr_image.data;
