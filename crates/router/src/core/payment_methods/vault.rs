@@ -111,29 +111,25 @@ pub async fn select_vault_strategy(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<Box<dyn VaultStrategy + Send>> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    if profile.is_external_vault_enabled() {
+        let external_vault_source = profile
+            .external_vault_connector_details
+            .clone()
+            .map(|details| details.vault_connector_id)
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("mca_id not present for external vault")?;
 
-    match is_external_vault_enabled {
-        true => {
-            let external_vault_source = profile
-                .external_vault_connector_details
-                .clone()
-                .map(|details| details.vault_connector_id)
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("mca_id not present for external vault")?;
+        let merchant_connector_account = payments_core::helpers::get_merchant_connector_account_v2(
+            state,
+            platform.get_processor(),
+            Some(&external_vault_source),
+        )
+        .await
+        .attach_printable("failed to fetch merchant connector account for vault")?;
 
-            let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account_v2(
-                    state,
-                    platform.get_processor(),
-                    Some(&external_vault_source),
-                )
-                .await
-                .attach_printable("failed to fetch merchant connector account for vault")?;
-
-            Ok(Box::new(ExternalVault::new(merchant_connector_account)))
-        }
-        false => Ok(Box::new(InternalVault)),
+        Ok(Box::new(ExternalVault::new(merchant_connector_account)))
+    } else {
+        Ok(Box::new(InternalVault))
     }
 }
 
@@ -1694,7 +1690,7 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn add_payment_method_to_vault(
+pub async fn add_payment_method_to_internal_vault(
     state: &routes::SessionState,
     platform: &domain::Platform,
     pmd: &domain::PaymentMethodVaultingData,
@@ -1888,36 +1884,20 @@ pub async fn decode_and_decrypt_locker_data(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn retrieve_payment_method_from_vault_internal(
-    state: &routes::SessionState,
-    vault_id: &domain::VaultId,
-    customer_id: &id_type::GlobalCustomerId,
-) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-    internal_vault::retrieve_payment_method_from_vault_internal(state, vault_id, customer_id).await
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[instrument(skip_all)]
-pub async fn retrieve_value_from_vault(
+pub async fn retrieve_payment_method_from_internal_vault(
     state: &routes::SessionState,
     request: pm_types::VaultRetrieveRequest,
-) -> CustomResult<serde_json::value::Value, errors::VaultError> {
-    let payload = request
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultRetrieveRequest")?;
+) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+    internal_vault::retrieve_payment_method_from_vault(state, request).await
+}
 
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_resp: serde_json::Value = resp
-        .parse_struct("VaultRetrieveResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
-
-    Ok(stored_resp)
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_value_from_internal_vault(
+    state: &routes::SessionState,
+    request: pm_types::VaultRetrieveRequest,
+) -> CustomResult<serde_json::Value, errors::VaultError> {
+    internal_vault::retrieve_value_from_vault(state, request).await
 }
 
 #[cfg(feature = "v2")]

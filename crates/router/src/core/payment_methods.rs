@@ -1542,8 +1542,6 @@ pub async fn create_payment_method_proxy_card_core(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    use crate::core::payment_methods::vault::Vault;
-
     let key_manager_state = &(state).into();
 
     let external_vault_source = profile
@@ -1682,7 +1680,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             .await?;
 
         let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
-        let vaulting_resp = vault::add_payment_method_to_vault(
+        let vaulting_resp = vault::add_payment_method_to_internal_vault(
             state,
             platform,
             &network_token_vaulting_data,

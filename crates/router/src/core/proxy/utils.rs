@@ -196,14 +196,16 @@ impl ProxyRecord {
                     .get_required_value("customer_id")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Locker id not present in Payment Method Entry")?;
-                let vault_resp = vault::retrieve_payment_method_from_vault_internal(
-                    state,
-                    &self.get_vault_id()?,
-                    &customer_id,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching data from vault")?;
+
+                let vault_request = pm_types::VaultRetrieveRequest {
+                    entity_id: customer_id,
+                    vault_id: self.get_vault_id()?.to_owned(),
+                };
+                let vault_resp =
+                    vault::retrieve_payment_method_from_internal_vault(state, vault_request)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while fetching data from vault")?;
 
                 Ok(vault_resp
                     .data
@@ -222,7 +224,7 @@ impl ProxyRecord {
                     vault_id: self.get_vault_id()?,
                 };
 
-                let vault_data = vault::retrieve_value_from_vault(state, vault_request)
+                let vault_data = vault::retrieve_value_from_internal_vault(state, vault_request)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve vault data")?;

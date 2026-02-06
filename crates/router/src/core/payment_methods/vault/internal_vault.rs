@@ -23,7 +23,7 @@ use crate::{
     utils::ext_traits::OptionExt,
 };
 use common_utils::errors::CustomResult;
-use common_utils::ext_traits::{BytesExt, StringExt};
+use common_utils::ext_traits::{BytesExt, StringExt, ValueExt};
 #[cfg(feature = "v2")]
 use common_utils::fp_utils::when;
 
@@ -117,7 +117,13 @@ impl super::VaultStrategy for InternalVault {
     ) -> RouterResult<pm_types::VaultRetrieveResponse> {
         let vault_id = Self::extract_vault_id(pm)?;
         let customer_id = Self::extract_customer_id(pm)?;
-        retrieve_payment_method_from_vault_internal(state, &vault_id, &customer_id)
+
+        let request = pm_types::VaultRetrieveRequest {
+            entity_id: customer_id,
+            vault_id,
+        };
+
+        retrieve_payment_method_from_vault(state, request)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method from internal vault")
@@ -137,87 +143,6 @@ impl super::VaultStrategy for InternalVault {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to delete payment method from internal vault")
     }
-}
-
-/// Vault a payment method using the internal vault
-///
-/// This function performs the following steps:
-/// 1. Gets the fingerprint_id from the vault for duplicate detection
-/// 2. Checks if a payment method with the same fingerprint already exists in the database
-/// 3. Adds the payment method to the internal vault via API call
-/// 4. Returns the vault response enriched with the fingerprint_id
-///
-/// # Arguments
-///
-/// * `state` - The application session state
-/// * `pmd` - The payment method data to vault
-/// * `platform` - The platform context (provider/processor)
-/// * `existing_vault_id` - Optional existing vault ID for updates
-/// * `customer_id` - The customer ID associated with the payment method
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub(super) async fn vault_payment_method(
-    state: &SessionState,
-    pmd: &domain::PaymentMethodVaultingData,
-    platform: &domain::Platform,
-    existing_vault_id: Option<domain::VaultId>,
-    customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<pm_types::AddVaultResponse> {
-    let db = &*state.store;
-
-    // Step 1: Get fingerprint_id from vault for duplicate detection
-    let fingerprint_id_from_vault =
-        get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get fingerprint_id from vault")?;
-
-    // Step 2: Check for duplicate payment methods
-    // This prevents the same card from being vaulted multiple times for the same merchant
-    when(
-        db.find_payment_method_by_fingerprint_id(
-            platform.get_provider().get_key_store(),
-            &fingerprint_id_from_vault,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to find payment method by fingerprint_id")
-        .inspect_err(|e| router_env::logger::error!("Vault Fingerprint_id error: {:?}", e))
-        .is_ok(),
-        || {
-            Err(report!(errors::ApiErrorResponse::DuplicatePaymentMethod)
-                .attach_printable("Cannot vault duplicate payment method"))
-        },
-    )?;
-
-    // Step 3: Add payment method to vault
-    let mut resp_from_vault =
-        add_payment_method_to_vault(state, pmd, existing_vault_id, customer_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in vault")?;
-
-    // Step 4: Enrich response with fingerprint_id
-    resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);
-
-    Ok(resp_from_vault)
-}
-
-/// Retrieve a payment method from the internal vault
-///
-/// Uses the internal vault API to fetch payment method data by vault ID.
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub(super) async fn retrieve_payment_method(
-    state: &SessionState,
-    _platform: &domain::Platform,
-    vault_id: &domain::VaultId,
-    customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    retrieve_payment_method_from_vault_internal(state, vault_id, customer_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from internal vault")
 }
 
 /// Delete a payment method from the internal vault
@@ -331,28 +256,40 @@ pub(super) async fn add_payment_method_to_vault(
 /// Internal function to retrieve payment method from vault
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub(super) async fn retrieve_payment_method_from_vault_internal(
+pub(super) async fn retrieve_payment_method_from_vault(
     state: &SessionState,
-    vault_id: &domain::VaultId,
-    customer_id: &id_type::GlobalCustomerId,
+    request: pm_types::VaultRetrieveRequest,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+    let resp = retrieve_value_from_vault(state, request).await?;
+
+    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+        .parse_value("VaultRetrieveResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+    Ok(stored_pm_resp)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub(super) async fn retrieve_value_from_vault(
+    state: &SessionState,
+    request: pm_types::VaultRetrieveRequest,
+) -> CustomResult<serde_json::Value, errors::VaultError> {
     use crate::core::payment_methods::vault::call_to_vault;
     use common_utils::ext_traits::Encode;
 
-    let payload = pm_types::VaultRetrieveRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id: vault_id.to_owned(),
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultRetrieveRequest")?;
+    let payload = request
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")?;
 
     let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
 
-    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+    let stored_pm_resp: serde_json::Value = resp
         .parse_struct("VaultRetrieveResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
