@@ -1881,6 +1881,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let additional_payment_method_data_intermediate = match payment_data.payment_method_data.clone() {
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)) => {
             payment_data.payment_attempt.payment_method_data.clone()
         }
