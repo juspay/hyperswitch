@@ -128,6 +128,13 @@ impl IncomingWebhookEvent {
             35 => Self::PayoutExpired,
             #[cfg(feature = "payouts")]
             36 => Self::PayoutReversed,
+
+            // Recovery events
+            37 => Self::RecoveryPaymentFailure,
+            38 => Self::RecoveryPaymentSuccess,
+            39 => Self::RecoveryPaymentPending,
+            40 => Self::RecoveryInvoiceCancel,
+
             _ => Self::EventNotSupported,
         }
     }
