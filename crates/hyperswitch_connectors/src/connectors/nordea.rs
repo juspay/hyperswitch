@@ -13,6 +13,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data,
     router_data::{AccessToken, AccessTokenAuthenticationResponse, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -914,12 +915,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
+        let minor_amount = req.request.minor_amount;
         let currency =
             req.request
                 .currency
@@ -1265,6 +1261,19 @@ lazy_static! {
 }
 
 impl ConnectorSpecifications for Nordea {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => matches!(
+                &request_data.payment_method_data,
+                payment_method_data::PaymentMethodData::BankDebit(_)
+            ),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*NORDEA_CONNECTOR_INFO)
     }

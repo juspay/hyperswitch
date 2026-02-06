@@ -111,7 +111,7 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
     ) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
         let connector_auth: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let amount = item.request.get_minor_amount()?.to_nuvei_amount(currency)?;
+        let amount = item.request.get_minor_amount().to_nuvei_amount(currency)?;
         let payment_method_data = item.request.get_payment_method_data()?.clone();
         let card = match payment_method_data {
             PaymentMethodData::Card(card) => card,
@@ -173,7 +173,7 @@ impl TryFrom<(&types::PaymentsPreProcessingRouterData, String)> for NuveiThreeDS
     ) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
         let connector_auth: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let amount = item.request.get_minor_amount()?.to_nuvei_amount(currency)?;
+        let amount = item.request.get_minor_amount().to_nuvei_amount(currency)?;
         let payment_method_data = item.request.get_payment_method_data()?.clone();
         let card = match payment_method_data {
             PaymentMethodData::Card(card) => card,
@@ -328,7 +328,7 @@ where
         let currency = item.request.get_currency();
         let amount = item
             .request
-            .get_minor_amount_required()?
+            .get_minor_amount_required()
             .to_nuvei_amount(currency)?;
 
         fp_utils::when(session_token.is_empty(), || {
@@ -600,9 +600,30 @@ impl TransactionType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NuveiRedirectionResponse {
+#[serde(untagged)]
+pub enum NuveiRedirectionResponse {
+    Redirection(NuveiCresRedirectResponse),
+    Error(NuveiErrorRedirectResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiCresRedirectResponse {
     pub cres: Secret<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NuveiErrorRedirectResponse {
+    pub error: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiErrorResponse {
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub error_detail: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiACSResponse {
@@ -2083,7 +2104,7 @@ impl
         let amount = item.data.request.amount;
         let response = &item.response;
         let (status, redirection_data, connector_response_data) = process_nuvei_payment_response(
-            NuveiPaymentResponseData::new(amount, false, item.data.payment_method, response),
+            NuveiPaymentResponseData::new(Some(amount), false, item.data.payment_method, response),
         )?;
 
         let (amount_captured, minor_amount_capturable) = get_amount_captured(
@@ -2287,6 +2308,7 @@ fn create_transaction_response(
             .map(|ntid| ntid.clone().expose()),
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     })
 }
@@ -2557,7 +2579,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
             .unwrap_or_default();
         Ok(Self {
             status: get_payment_status(
-                item.data.request.amount,
+                Some(item.data.request.amount),
                 false,
                 response.transaction_type,
                 response.transaction_status,
@@ -3236,6 +3258,7 @@ fn convert_to_additional_payment_method_connector_response(
             payment_checks: Some(payment_checks),
             card_network,
             domestic_network: None,
+            auth_code: None,
         }),
         Err(_) => None,
     }
@@ -3665,9 +3688,7 @@ trait NuveiAuthorizePreprocessingCommon {
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
     fn get_capture_method(&self) -> Option<CaptureMethod>;
-    fn get_minor_amount_required(
-        &self,
-    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>>;
+    fn get_minor_amount_required(&self) -> MinorUnit;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
     fn get_currency(&self) -> enums::Currency;
     fn get_payment_method_data_required(
@@ -3717,10 +3738,8 @@ impl NuveiAuthorizePreprocessingCommon for CompleteAuthorizeData {
         self.get_router_return_url()
     }
 
-    fn get_minor_amount_required(
-        &self,
-    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.minor_amount)
+    fn get_minor_amount_required(&self) -> MinorUnit {
+        self.minor_amount
     }
 
     fn get_payment_method_data_required(
@@ -3807,11 +3826,8 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         Ok(self.payment_method_data.clone())
     }
 
-    fn get_minor_amount_required(
-        &self,
-    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    fn get_minor_amount_required(&self) -> MinorUnit {
         self.minor_amount
-            .ok_or_else(missing_field_err("minor_amount"))
     }
 
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
@@ -3873,10 +3889,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.complete_authorize_url.clone()
     }
 
-    fn get_minor_amount_required(
-        &self,
-    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.minor_amount)
+    fn get_minor_amount_required(&self) -> MinorUnit {
+        self.minor_amount
     }
 
     fn get_currency(&self) -> enums::Currency {

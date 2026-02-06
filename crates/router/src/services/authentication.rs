@@ -15,7 +15,10 @@ use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use hyperswitch_domain_models::sdk_auth::SdkAuthorization;
+use jsonwebtoken::{
+    decode, errors::ErrorKind::ExpiredSignature, Algorithm, DecodingKey, Validation,
+};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
@@ -55,6 +58,7 @@ use crate::{
 pub mod blacklist;
 pub mod cookies;
 pub mod decision;
+pub mod embedded;
 
 #[cfg(feature = "partial-auth")]
 mod detached;
@@ -71,6 +75,29 @@ pub struct AuthenticationData {
 pub struct AuthenticationData {
     pub platform: domain::Platform,
     pub profile: domain::Profile,
+}
+
+#[cfg(feature = "v1")]
+impl AuthenticationData {
+    pub fn construct_authentication_data_for_internal_merchant_id_profile_id_auth(
+        platform: domain::Platform,
+        profile: domain::Profile,
+    ) -> Self {
+        Self {
+            platform,
+            profile: Some(profile),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl AuthenticationData {
+    pub fn construct_authentication_data_for_internal_merchant_id_profile_id_auth(
+        platform: domain::Platform,
+        profile: domain::Profile,
+    ) -> Self {
+        Self { platform, profile }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -160,12 +187,19 @@ pub enum AuthenticationType {
     PublishableKey {
         merchant_id: id_type::MerchantId,
     },
+    SdkAuthorization {
+        merchant_id: id_type::MerchantId,
+    },
     WebhookAuth {
         merchant_id: id_type::MerchantId,
     },
     InternalMerchantIdProfileId {
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
+    },
+    EmbeddedJwt {
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
     },
     NoAuth,
 }
@@ -197,7 +231,9 @@ impl AuthenticationType {
             }
             | Self::MerchantJwtWithProfileId { merchant_id, .. }
             | Self::WebhookAuth { merchant_id }
-            | Self::InternalMerchantIdProfileId { merchant_id, .. } => Some(merchant_id),
+            | Self::InternalMerchantIdProfileId { merchant_id, .. }
+            | Self::EmbeddedJwt { merchant_id, .. }
+            | Self::SdkAuthorization { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
             | Self::BasicAuth { .. }
@@ -323,6 +359,36 @@ pub struct SinglePurposeOrLoginToken {
     pub tenant_id: Option<id_type::TenantId>,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+pub enum AuthOrEmbeddedClaims {
+    AuthToken(AuthToken),
+    EmbeddedToken(embedded::EmbeddedToken),
+}
+
+impl AuthOrEmbeddedClaims {
+    fn get_tenant_id(&self) -> Option<&id_type::TenantId> {
+        match self {
+            Self::AuthToken(payload) => payload.tenant_id.as_ref(),
+            Self::EmbeddedToken(payload) => Some(&payload.tenant_id),
+        }
+    }
+
+    fn get_merchant_id(&self) -> &id_type::MerchantId {
+        match self {
+            Self::AuthToken(payload) => &payload.merchant_id,
+            Self::EmbeddedToken(payload) => &payload.merchant_id,
+        }
+    }
+
+    fn get_profile_id(&self) -> &id_type::ProfileId {
+        match self {
+            Self::AuthToken(payload) => &payload.profile_id,
+            Self::EmbeddedToken(payload) => &payload.profile_id,
+        }
+    }
+}
+
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where
@@ -337,8 +403,8 @@ where
 
 #[derive(Debug, Default)]
 pub struct ApiKeyAuth {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
 }
 
 pub struct NoAuth;
@@ -400,19 +466,36 @@ impl GetAuthType for ApiKeyAuth {
     }
 }
 
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
+impl GetAuthType for V2ApiKeyAuth {
+    fn get_auth_type(&self) -> detached::PayloadType {
+        detached::PayloadType::ApiKey
+    }
+}
+
 #[cfg(feature = "partial-auth")]
 pub trait GetMerchantAccessFlags {
-    fn get_is_connected_allowed(&self) -> bool;
-    fn get_is_platform_allowed(&self) -> bool;
+    fn is_connected_scope_operation_allowed(&self) -> bool;
+    fn is_platform_self_operation_allowed(&self) -> bool;
 }
 
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for ApiKeyAuth {
-    fn get_is_connected_allowed(&self) -> bool {
-        self.is_connected_allowed
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
     }
-    fn get_is_platform_allowed(&self) -> bool {
-        self.is_platform_allowed
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
+    }
+}
+
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
+impl GetMerchantAccessFlags for V2ApiKeyAuth {
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
+    }
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
     }
 }
 
@@ -559,18 +642,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -654,18 +746,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store.clone(),
+            initiator,
         )
         .await?;
 
@@ -716,24 +817,21 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        // This is currently used for profile and connector CRUD operations
         let api_auth = ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         };
         let (auth_data, auth_type) = api_auth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
         let merchant_id_from_route = self.0.clone();
-        let merchant_id_from_api_key = auth_type
-            .get_merchant_id()
-            .ok_or(report!(errors::ApiErrorResponse::Unauthorized))
-            .attach_printable("Merchant ID not found in API key authentication type")?;
+        let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
 
-        if merchant_id_from_route != *merchant_id_from_api_key {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
-                "Merchant ID from route and Merchant ID from api-key in header do not match",
-            );
+        if merchant_id_from_route != *processor_merchant_id {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Merchant ID from route and Processor Merchant Id do not match");
         }
 
         Ok((auth_data, auth_type))
@@ -926,6 +1024,7 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: initiator_merchant_account.get_id().clone(),
             merchant_account_type: initiator_merchant_account.merchant_account_type,
+            publishable_key: initiator_merchant_account.publishable_key.clone(),
         });
 
         let platform = domain::Platform::new(
@@ -1064,6 +1163,7 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: platform_merchant.get_id().clone(),
             merchant_account_type: platform_merchant.merchant_account_type,
+            publishable_key: platform_merchant.publishable_key.clone(),
         });
 
         let platform = domain::Platform::new(
@@ -1166,8 +1266,8 @@ where
                         &merchant_id,
                         request_headers,
                         profile_id,
-                        self.0.get_is_connected_allowed(),
-                        self.0.get_is_platform_allowed(),
+                        self.0.is_connected_scope_operation_allowed(),
+                        self.0.is_platform_self_operation_allowed(),
                     )
                     .await?;
                     Ok((
@@ -1188,8 +1288,8 @@ where
                         &merchant_id,
                         request_headers,
                         profile_id,
-                        self.0.get_is_connected_allowed(),
-                        self.0.get_is_platform_allowed(),
+                        self.0.is_connected_scope_operation_allowed(),
+                        self.0.is_platform_self_operation_allowed(),
                     )
                     .await?;
                     Ok((
@@ -1265,8 +1365,8 @@ async fn construct_authentication_data<A>(
     merchant_id: &id_type::MerchantId,
     request_headers: &HeaderMap,
     profile_id: Option<id_type::ProfileId>,
-    is_connected_allowed: bool,
-    is_platform_allowed: bool,
+    allow_connected_scope_operation: bool,
+    allow_platform_self_operation: bool,
 ) -> RouterResult<AuthenticationData>
 where
     A: SessionStateInfo + Sync,
@@ -1287,15 +1387,29 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-    // Validate merchant account type access
+    // Validate access based on merchant type and header presence
     check_merchant_access(
         state,
+        request_headers,
         initiator_merchant.merchant_account_type,
-        is_connected_allowed,
-        is_platform_allowed,
+        allow_connected_scope_operation,
+        allow_platform_self_operation,
     )?;
 
-    let platform = resolve_platform(state, request_headers, initiator_merchant, key_store).await?;
+    let initiator = Some(domain::Initiator::Api {
+        merchant_id: initiator_merchant.get_id().clone(),
+        merchant_account_type: initiator_merchant.merchant_account_type,
+        publishable_key: initiator_merchant.publishable_key.clone(),
+    });
+
+    let platform = resolve_platform(
+        state,
+        request_headers,
+        initiator_merchant,
+        key_store,
+        initiator,
+    )
+    .await?;
 
     let profile = match profile_id {
         Some(profile_id) => {
@@ -1941,6 +2055,7 @@ where
                 let initiator = Some(domain::Initiator::Api {
                     merchant_id: api_key_merchant.get_id().clone(),
                     merchant_account_type: api_key_merchant.merchant_account_type,
+                    publishable_key: api_key_merchant.publishable_key.clone(),
                 });
 
                 let platform = domain::Platform::new(
@@ -2309,15 +2424,11 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant.get_id().clone(),
             merchant_account_type: merchant.merchant_account_type,
+            publishable_key: merchant.publishable_key.clone(),
         });
 
-        let platform = domain::Platform::new(
-            merchant.clone(),
-            key_store.clone(),
-            merchant,
-            key_store,
-            initiator,
-        );
+        let platform =
+            resolve_platform(state, request_headers, merchant, key_store, initiator).await?;
 
         let auth = AuthenticationData {
             platform,
@@ -2379,6 +2490,7 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant.get_id().clone(),
             merchant_account_type: merchant.merchant_account_type,
+            publishable_key: merchant.publishable_key.clone(),
         });
 
         let platform = domain::Platform::new(
@@ -2402,10 +2514,28 @@ where
 /// InternalMerchantIdProfileIdAuth authentication which first tries to authenticate using `X-Internal-API-Key`,
 /// `X-Merchant-Id` and `X-Profile-Id` headers. If any of these headers are missing,
 /// it falls back to the provided authentication mechanism.
-#[cfg(feature = "v1")]
 pub struct InternalMerchantIdProfileIdAuth<F>(pub F);
 
-#[cfg(feature = "v1")]
+pub fn is_internal_merchant_id_profile_id_auth(
+    request_headers: &HeaderMap,
+) -> common_enums::ApiKeyType {
+    let merchant_id = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
+        .ok();
+    let internal_api_key = HeaderMapStruct::new(request_headers)
+        .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+        .map(|internal_api_key| internal_api_key.to_string());
+    let profile_id = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
+        .ok();
+
+    if merchant_id.is_some() && profile_id.is_some() && internal_api_key.is_some() {
+        common_enums::ApiKeyType::Internal
+    } else {
+        common_enums::ApiKeyType::External
+    }
+}
+
 #[async_trait]
 impl<A, F> AuthenticateAndFetch<AuthenticationData, A> for InternalMerchantIdProfileIdAuth<F>
 where
@@ -2470,6 +2600,7 @@ where
             let initiator = Some(domain::Initiator::Api {
                 merchant_id: merchant.get_id().clone(),
                 merchant_account_type: merchant.merchant_account_type,
+                publishable_key: merchant.publishable_key.clone(),
             });
 
             let platform = domain::Platform::new(
@@ -2480,10 +2611,8 @@ where
                 initiator,
             );
 
-            let auth = AuthenticationData {
-                platform,
-                profile: Some(profile),
-            };
+            let auth = AuthenticationData::construct_authentication_data_for_internal_merchant_id_profile_id_auth(platform, profile);
+
             Ok((
                 auth.clone(),
                 AuthenticationType::InternalMerchantIdProfileId {
@@ -2549,6 +2678,7 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant.get_id().clone(),
             merchant_account_type: merchant.merchant_account_type,
+            publishable_key: merchant.publishable_key.clone(),
         });
 
         let platform = domain::Platform::new(
@@ -2610,6 +2740,7 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant_account.get_id().clone(),
             merchant_account_type: merchant_account.merchant_account_type,
+            publishable_key: merchant_account.publishable_key.clone(),
         });
 
         let platform = domain::Platform::new(
@@ -2633,8 +2764,8 @@ where
 #[cfg(feature = "v2")]
 #[derive(Debug)]
 pub struct V2ApiKeyAuth {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2713,18 +2844,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -2836,6 +2976,7 @@ where
         let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant_account.get_id().clone(),
             merchant_account_type: merchant_account.merchant_account_type,
+            publishable_key: merchant_account.publishable_key.clone(),
         });
 
         let platform = domain::Platform::new(
@@ -2898,8 +3039,8 @@ where
 }
 #[derive(Debug, Default)]
 pub struct PublishableKeyAuth {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
 }
 
 #[cfg(feature = "partial-auth")]
@@ -2911,11 +3052,11 @@ impl GetAuthType for PublishableKeyAuth {
 
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for PublishableKeyAuth {
-    fn get_is_connected_allowed(&self) -> bool {
-        self.is_connected_allowed
+    fn is_connected_scope_operation_allowed(&self) -> bool {
+        self.allow_connected_scope_operation
     }
-    fn get_is_platform_allowed(&self) -> bool {
-        self.is_platform_allowed
+    fn is_platform_self_operation_allowed(&self) -> bool {
+        self.allow_platform_self_operation
     }
 }
 
@@ -2940,19 +3081,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Check access permissions using existing function
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -2993,19 +3142,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Check access permissions using existing function
+        // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
+            request_headers,
             initiator_merchant.merchant_account_type,
-            self.is_connected_allowed,
-            self.is_platform_allowed,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
         )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
 
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
+            initiator,
         )
         .await?;
 
@@ -3030,6 +3187,225 @@ where
     }
 }
 
+/// SDK Authorization authentication using Authorization header
+#[derive(Debug, Default)]
+pub struct SdkAuthorizationAuth {
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for SdkAuthorizationAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        // Get Authorization header
+        let sdk_auth_header =
+            get_header_value_by_key(headers::AUTHORIZATION.into(), request_headers)?
+                .ok_or(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Missing Authorization header")?;
+
+        // Decode SDK authorization
+        let sdk_auth = SdkAuthorization::decode(sdk_auth_header)
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        let (initiator_merchant, initiator_merchant_key_store) = match sdk_auth
+            .platform_publishable_key
+        {
+            Some(ref platform_pub_key) => {
+                let (platform_merchant, platform_key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(platform_pub_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid platform publishable key in SDK authorization")?;
+
+                (platform_merchant, platform_key_store)
+            }
+            None => {
+                let (processor_merchant, processor_key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid processor publishable key in SDK authorization")?;
+
+                (processor_merchant, processor_key_store)
+            }
+        };
+        let platform = check_sdk_auth_and_resolve_platform(
+            state,
+            &sdk_auth,
+            initiator_merchant.clone(),
+            initiator_merchant_key_store,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
+        )
+        .await?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().get_id(),
+                &sdk_auth.profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationData {
+            platform,
+            profile: Some(profile),
+        };
+        Ok((
+            auth,
+            AuthenticationType::SdkAuthorization {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
+        ))
+    }
+}
+
+pub async fn check_sdk_auth_and_resolve_platform<A>(
+    state: &A,
+    sdk_auth: &SdkAuthorization,
+    initiator_merchant: domain::MerchantAccount,
+    initiator_merchant_key_store: domain::MerchantKeyStore,
+    allow_connected_scope_operation: bool,
+    _allow_platform_self_operation: bool,
+) -> RouterResult<domain::Platform>
+where
+    A: SessionStateInfo + Sync,
+{
+    let (processor_merchant_account, processor_key_store, platform_account_with_key_store) =
+        match initiator_merchant.merchant_account_type {
+            MerchantAccountType::Platform => {
+                // Check if platform feature is enabled
+                state.conf().platform.enabled.then_some(()).ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
+                        .attach_printable("Platform feature is not enabled")
+                })?;
+
+                allow_connected_scope_operation
+                    .then_some(())
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                            .attach_printable(
+                                "Connected Merchant is not authorized to access the resource",
+                            )
+                    })?;
+
+                // Platform account flow
+                // Validate processor publishable key
+                let (processor_merchant, processor_key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid processor publishable key in SDK authorization")?;
+
+                // Security validations
+                // 1. Check same organization
+                fp_utils::when(
+                    processor_merchant.get_org_id() != initiator_merchant.get_org_id(),
+                    || {
+                        Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
+                            "Platform and processor merchants must be in same organization",
+                        )
+                    },
+                )?;
+
+                // 2. Check merchant types
+                fp_utils::when(
+                    processor_merchant.merchant_account_type != MerchantAccountType::Connected,
+                    || {
+                        Err(report!(errors::ApiErrorResponse::Unauthorized))
+                            .attach_printable("Invalid merchant account types for platform flow")
+                    },
+                )?;
+
+                (
+                    processor_merchant,
+                    processor_key_store,
+                    Some(PlatformAccountWithKeyStore {
+                        account: initiator_merchant.clone(),
+                        key_store: initiator_merchant_key_store,
+                    }),
+                )
+            }
+            MerchantAccountType::Connected => {
+                // Check if platform feature is enabled
+                state.conf().platform.enabled.then_some(()).ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                        .attach_printable("Platform feature is not enabled")
+                })?;
+
+                // Connected merchant can perform operation if allow_connected_scope_operation is true
+                allow_connected_scope_operation
+                    .then_some(())
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                            .attach_printable(
+                                "Connected Merchant is not authorized to access the resource",
+                            )
+                    })?;
+
+                // Connected merchant as initiator
+                // Fetch platform merchant and key store using helper function
+                let (platform_merchant, platform_key_store) =
+                    get_platform_account_and_key_store(state, &initiator_merchant).await?;
+
+                (
+                    initiator_merchant.clone(),
+                    initiator_merchant_key_store,
+                    Some(PlatformAccountWithKeyStore {
+                        account: platform_merchant,
+                        key_store: platform_key_store,
+                    }),
+                )
+            }
+            MerchantAccountType::Standard => {
+                // Standard merchant flow
+                // Provider and processor are the same merchant
+                (
+                    initiator_merchant.clone(),
+                    initiator_merchant_key_store,
+                    None,
+                )
+            }
+        };
+
+    let initiator = Some(domain::Initiator::Api {
+        merchant_id: initiator_merchant.get_id().clone(),
+        merchant_account_type: initiator_merchant.merchant_account_type,
+        publishable_key: initiator_merchant.publishable_key,
+    });
+
+    let platform = match platform_account_with_key_store {
+        Some(platform_account) => domain::Platform::new(
+            platform_account.account,
+            platform_account.key_store,
+            processor_merchant_account,
+            processor_key_store,
+            initiator,
+        ),
+        None => domain::Platform::new(
+            processor_merchant_account.clone(),
+            processor_key_store.clone(),
+            processor_merchant_account,
+            processor_key_store,
+            initiator,
+        ),
+    };
+
+    Ok(platform)
+}
 #[derive(Debug)]
 pub(crate) struct JWTAuth {
     pub permission: Permission,
@@ -3351,13 +3727,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3478,13 +3855,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
 
@@ -3651,13 +4029,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3728,13 +4107,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -3870,13 +4250,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -3958,13 +4339,14 @@ where
         });
 
         // If both of them are same then proceed with the profile id present in the request
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4032,13 +4414,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -4134,13 +4517,15 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
+
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
@@ -4200,6 +4585,7 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
@@ -4211,13 +4597,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
         Ok((
@@ -4285,13 +4672,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
@@ -4438,13 +4826,14 @@ where
             user_id: payload.user_id.clone(),
         });
 
-        let platform = domain::Platform::new(
+        let platform = resolve_platform(
+            state,
+            request_headers,
             merchant.clone(),
-            key_store.clone(),
-            merchant,
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData {
             platform,
@@ -4457,6 +4846,113 @@ where
                 user_id: Some(payload.user_id),
             },
         ))
+    }
+}
+
+pub struct JWTAndEmbeddedAuth {
+    pub merchant_id_from_route: Option<id_type::MerchantId>,
+    pub permission: Option<Permission>,
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAndEmbeddedAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthOrEmbeddedClaims>(request_headers, state).await?;
+
+        if let AuthOrEmbeddedClaims::AuthToken(ref auth_payload) = payload {
+            if auth_payload.check_in_blacklist(state).await? {
+                return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+            }
+            if let Some(required_permission) = self.permission {
+                let role_info = authorization::get_role_info(state, auth_payload).await?;
+                authorization::check_permission(required_permission, &role_info)?;
+            }
+        }
+
+        authorization::check_tenant(
+            payload.get_tenant_id().cloned(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                payload.get_merchant_id(),
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(payload.get_merchant_id(), &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                payload.get_merchant_id(),
+                payload.get_profile_id(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch business profile")?;
+
+        fp_utils::when(
+            self.merchant_id_from_route
+                .as_ref()
+                .is_some_and(|mid_from_route| payload.get_merchant_id() != mid_from_route),
+            || Err(report!(errors::ApiErrorResponse::InvalidJwtToken)),
+        )?;
+
+        let initiator = if let AuthOrEmbeddedClaims::AuthToken(ref auth_payload) = payload {
+            Some(domain::Initiator::Jwt {
+                user_id: auth_payload.user_id.clone(),
+            })
+        } else {
+            Some(domain::Initiator::EmbeddedToken {
+                merchant_id: payload.get_merchant_id().clone(),
+            })
+        };
+
+        let platform = resolve_platform(
+            state,
+            request_headers,
+            merchant.clone(),
+            key_store,
+            initiator,
+        )
+        .await?;
+
+        let auth = AuthenticationData {
+            platform,
+            profile: Some(profile),
+        };
+        let auth_type = match payload {
+            AuthOrEmbeddedClaims::AuthToken(auth_payload) => AuthenticationType::MerchantJwt {
+                merchant_id: auth_payload.merchant_id,
+                user_id: Some(auth_payload.user_id),
+            },
+            AuthOrEmbeddedClaims::EmbeddedToken(embedded_payload) => {
+                AuthenticationType::EmbeddedJwt {
+                    merchant_id: embedded_payload.merchant_id,
+                    profile_id: embedded_payload.profile_id,
+                }
+            }
+        };
+        Ok((auth, auth_type))
     }
 }
 
@@ -4619,8 +5115,8 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     if api_key.starts_with("pk_") {
         return Ok((
             Box::new(HeaderAuth(PublishableKeyAuth {
-                is_connected_allowed: api_auth.is_connected_allowed,
-                is_platform_allowed: api_auth.is_platform_allowed,
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
             })),
             api::AuthFlow::Client,
         ));
@@ -4651,8 +5147,8 @@ where
             })?;
         return Ok((
             Box::new(HeaderAuth(PublishableKeyAuth {
-                is_connected_allowed: api_auth.is_connected_allowed,
-                is_platform_allowed: api_auth.is_platform_allowed,
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
             })),
             api::AuthFlow::Client,
         ));
@@ -4665,6 +5161,39 @@ where
         .into());
     }
     Ok((Box::new(HeaderAuth(api_auth)), api::AuthFlow::Merchant))
+}
+
+/// Checks Authorization header first for SDK auth, if not exists calls check_client_secret_and_get_auth
+#[cfg(feature = "v1")]
+pub fn check_sdk_auth_and_get_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+    api_auth: ApiKeyAuth,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    SdkAuthorizationAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    // Check Authorization header first
+    match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
+        // SDK authorization flow
+        Some(_auth) => Ok((
+            Box::new(SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            api::AuthFlow::Client,
+        )),
+        None => {
+            // Use existing client_secret and publishable key check
+            check_client_secret_and_get_auth(headers, payload, api_auth)
+        }
+    }
 }
 
 pub async fn get_ephemeral_or_other_auth<T>(
@@ -4695,7 +5224,16 @@ where
         ))
     } else {
         let payload = payload.get_required_value("ClientSecretFetch")?;
-        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload, api_auth)?;
+        let (auth, auth_flow) = {
+            #[cfg(feature = "v1")]
+            {
+                check_sdk_auth_and_get_auth(headers, payload, api_auth)?
+            }
+            #[cfg(feature = "v2")]
+            {
+                check_client_secret_and_get_auth(headers, payload, api_auth)?
+            }
+        };
         Ok((auth, auth_flow, false))
     }
 }
@@ -4755,7 +5293,7 @@ where
             api::AuthFlow::Merchant,
         ))
     } else {
-        check_client_secret_and_get_auth(headers, payload, api_auth)
+        check_sdk_auth_and_get_auth(headers, payload, api_auth)
     }
 }
 
@@ -4784,6 +5322,63 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+pub fn check_internal_api_key_auth_no_client_secret<T>(
+    headers: &HeaderMap,
+    api_auth: V2ApiKeyAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    common_enums::ApiKeyType,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            common_enums::ApiKeyType::Internal,
+        ))
+    } else {
+        Ok((
+            Box::new(HeaderAuth(api_auth)),
+            common_enums::ApiKeyType::External,
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub(crate) fn check_internal_api_key_or_dashboard_auth_no_client_secret<T>(
+    headers: &HeaderMap,
+    api_auth: V2ApiKeyAuth,
+    jwt_auth: JWTAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    common_enums::ApiKeyType,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            common_enums::ApiKeyType::Internal,
+        ))
+    } else if is_jwt_auth(headers) {
+        Ok((Box::new(jwt_auth), common_enums::ApiKeyType::External))
+    } else {
+        Ok((
+            Box::new(HeaderAuth(api_auth)),
+            common_enums::ApiKeyType::External,
+        ))
+    }
+}
+
 pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -4794,7 +5389,13 @@ where
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)
-        .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+        .map_err(|e| {
+            if e.kind() == &ExpiredSignature {
+                report!(errors::ApiErrorResponse::ExpiredJwtToken)
+            } else {
+                report!(errors::ApiErrorResponse::InvalidJwtToken)
+            }
+        })
 }
 
 pub fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
@@ -4974,16 +5575,36 @@ where
 }
 
 /// Validates whether the merchant account type is authorized to access the resource
+///
+/// # Access Control Logic:
+/// - **Connected Merchant**: Allowed if `allow_connected_scope_operation` is true (no header required)
+/// - **Platform Merchant**:
+///   - With `X-Connected-Merchant-Id` header: Allowed if `allow_connected_scope_operation` is true
+///     (platform acting on behalf of connected merchant)
+///   - Without header: Allowed if `allow_platform_self_operation` is true
+///     (platform self operation)
+/// - **Standard Merchant**: Always allowed
 pub fn check_merchant_access<A>(
     state: &A,
-    merchant_account_type: MerchantAccountType,
-    is_connected_allowed: bool,
-    is_platform_allowed: bool,
+    request_headers: &HeaderMap,
+    initiator_merchant_account_type: MerchantAccountType,
+    allow_connected_scope_operation: bool,
+    allow_platform_self_operation: bool,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>>
 where
     A: SessionStateInfo + Sync,
 {
-    match merchant_account_type {
+    // Check if connected merchant header is present
+    let has_connected_merchant_header = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header_if_present::<id_type::MerchantId>(headers::X_CONNECTED_MERCHANT_ID)
+        .map_err(|e| {
+            e.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid X-Connected-Merchant-Id header".to_string(),
+            })
+        })?
+        .is_some();
+
+    match initiator_merchant_account_type {
         MerchantAccountType::Connected => {
             // Check if platform feature is enabled
             state.conf().platform.enabled.then_some(()).ok_or_else(|| {
@@ -4991,10 +5612,15 @@ where
                     .attach_printable("Platform feature is not enabled")
             })?;
 
-            is_connected_allowed.then_some(()).ok_or_else(|| {
-                report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
-                    .attach_printable("Connected Merchant is not authorized to access the resource")
-            })
+            // Connected merchant can perform operation if allow_connected_scope_operation is true
+            allow_connected_scope_operation
+                .then_some(())
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                        .attach_printable(
+                            "Connected Merchant is not authorized to access the resource",
+                        )
+                })
         }
         MerchantAccountType::Platform => {
             // Check if platform feature is enabled
@@ -5003,11 +5629,23 @@ where
                     .attach_printable("Platform feature is not enabled")
             })?;
 
-            // Check if platform is allowed for this resource
-            is_platform_allowed.then_some(()).ok_or_else(|| {
-                report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
-                    .attach_printable("Platform Merchant is not authorized to access the resource")
-            })
+            if has_connected_merchant_header {
+                // Platform is acting on behalf of a connected merchant
+                // Requires allow_connected_scope_operation to be true
+                allow_connected_scope_operation.then_some(()).ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                        .attach_printable("Platform is not authorized to perform this operation on behalf of connected merchant")
+                })
+            } else {
+                // Platform is performing a self operation (no connected merchant header)
+                // Requires allow_platform_self_operation to be true
+                allow_platform_self_operation.then_some(()).ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
+                        .attach_printable(
+                            "Platform Merchant is not authorized to access the resource",
+                        )
+                })
+            }
         }
         MerchantAccountType::Standard => Ok(()),
     }
@@ -5058,12 +5696,21 @@ where
     Ok((connected_merchant_account, key_store))
 }
 
-/// Resolves processor and provider merchant accounts
+/// Resolves processor and provider merchant accounts based on merchant type and headers
+///
+/// This function handles the resolution of merchant accounts for platform operations:
+/// - **Platform Merchant**: Uses `X-Connected-Merchant-Id` header to act on behalf of connected merchant,
+///   or operates as self if header is absent
+/// - **Connected Merchant**: Resolves the platform account for the connected merchant
+/// - **Standard Merchant**: Returns the merchant as-is
+///
+/// Note: Access control validation should be done via `check_merchant_access` before calling this function
 async fn resolve_platform<A>(
     state: &A,
     request_headers: &HeaderMap,
     initiator_merchant_account: domain::MerchantAccount,
-    merchant_key_store: domain::MerchantKeyStore,
+    initiator_merchant_key_store: domain::MerchantKeyStore,
+    initiator: Option<domain::Initiator>,
 ) -> RouterResult<domain::Platform>
 where
     A: SessionStateInfo + Sync,
@@ -5092,7 +5739,7 @@ where
                     }
                     None => (
                         initiator_merchant_account.clone(),
-                        merchant_key_store.clone(),
+                        initiator_merchant_key_store.clone(),
                     ),
                 };
 
@@ -5101,7 +5748,7 @@ where
                     processor_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: initiator_merchant_account.clone(),
-                        key_store: merchant_key_store,
+                        key_store: initiator_merchant_key_store,
                     }),
                 )
             }
@@ -5125,7 +5772,7 @@ where
 
                 (
                     initiator_merchant_account.clone(),
-                    merchant_key_store,
+                    initiator_merchant_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: platform_account,
                         key_store: platform_key_store,
@@ -5147,14 +5794,13 @@ where
                     },
                 )?;
 
-                (initiator_merchant_account.clone(), merchant_key_store, None)
+                (
+                    initiator_merchant_account.clone(),
+                    initiator_merchant_key_store,
+                    None,
+                )
             }
         };
-
-    let initiator = Some(domain::Initiator::Api {
-        merchant_id: initiator_merchant_account.get_id().clone(),
-        merchant_account_type: initiator_merchant_account.merchant_account_type,
-    });
 
     let platform = match platform_account_with_key_store {
         Some(platform_account) => domain::Platform::new(

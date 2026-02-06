@@ -80,27 +80,26 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             None,
         );
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, customer, _, _) =
-            Box::pin(payment_flows::payments_operation_core::<
-                api::PSync,
-                _,
-                _,
-                _,
-                payment_flows::PaymentData<api::PSync>,
-            >(
-                state,
-                state.get_req_state(),
-                &platform,
-                None,
-                operations::PaymentStatus,
-                tracking_data.clone(),
-                payment_flows::CallConnectorAction::Trigger,
-                None,
-                services::AuthFlow::Client,
-                None,
-                hyperswitch_domain_models::payments::HeaderPayload::default(),
-            ))
-            .await?;
+        let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
+            api::PSync,
+            _,
+            _,
+            _,
+            payment_flows::PaymentData<api::PSync>,
+        >(
+            state,
+            state.get_req_state(),
+            &platform,
+            None,
+            operations::PaymentStatus,
+            tracking_data.clone(),
+            payment_flows::CallConnectorAction::Trigger,
+            None,
+            services::AuthFlow::Client,
+            None,
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+        ))
+        .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -158,14 +157,20 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             updated_by: merchant_account.storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
+                            standardised_code: None,
+                            description: None,
+                            user_guidance_message: None,
                             connector_transaction_id: None,
                             connector_response_reference_id: None,
                             payment_method_data: None,
                             authentication_type: None,
                             issuer_error_code: None,
                             issuer_error_message: None,
-                            network_details:None,
+                            network_details: None,
+                            network_error_message: None,
                             encrypted_payment_method_data: None,
+                            recommended_action: None,
+                            card_network: payment_data.payment_attempt.extract_card_network(),
                         };
 
                     payment_data.payment_attempt = db
@@ -206,10 +211,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        platform,
+                        platform.get_processor(),
+                        platform.get_initiator(),
                         business_profile,
                         payment_data,
-                        customer,
                         state,
                         operation,
                     ))

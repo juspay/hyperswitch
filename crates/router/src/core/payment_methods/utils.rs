@@ -25,6 +25,7 @@ use crate::{
         errors,
         storage::{self, enums as storage_enums},
     },
+    routes::payment_methods as pm_routes,
     services::logger,
 };
 
@@ -832,6 +833,25 @@ pub async fn get_merchant_config_for_eligibility_check(
     }
 }
 
+pub async fn get_organization_eligibility_config_for_pm_modular_service(
+    db: &dyn StorageInterface,
+    organization_id: &common_utils::id_type::OrganizationId,
+) -> bool {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &organization_id.get_should_call_pm_modular_service_key(),
+            Some("false".to_string()),
+        )
+        .await;
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
 pub async fn get_sdk_next_action_for_payment_method_list(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -877,6 +897,32 @@ pub(super) async fn retrieve_payment_token_data(
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data")
+}
+
+#[cfg(feature = "v2")]
+pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
+    state: &SessionState,
+    token: String,
+) -> errors::RouterResult<common_utils::id_type::GlobalPaymentMethodId> {
+    let payment_method_token_data =
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&token)
+            .get_data_for_token(state)
+            .await
+            .attach_printable("Failed to retrieve payment method token data")?;
+
+    let payment_method_id = match payment_method_token_data {
+        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
+            Some(card.payment_method_id)
+        }
+        _ => None,
+    }
+    .get_required_value("payment_method_id from payment method token data")
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "payment_method_id".to_string(),
+    })
+    .attach_printable("Failed to get payment method id from payment method token data")?;
+
+    Ok(payment_method_id)
 }
 
 #[cfg(feature = "v2")]

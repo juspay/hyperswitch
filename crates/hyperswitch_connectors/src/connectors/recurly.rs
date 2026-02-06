@@ -24,6 +24,7 @@ use hyperswitch_domain_models::{
         },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+            ProcessIncomingWebhook,
         },
         CreateConnectorCustomer, InvoiceRecordBack,
     },
@@ -37,7 +38,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         ConnectorCustomerData,
     },
@@ -121,6 +122,7 @@ impl api::UasPreAuthenticationV2 for Recurly {}
 impl api::UasPostAuthenticationV2 for Recurly {}
 impl api::UasAuthenticationV2 for Recurly {}
 impl api::UasAuthenticationConfirmationV2 for Recurly {}
+impl api::UasProcessWebhookV2 for Recurly {}
 impl
     ConnectorIntegrationV2<
         PreAuthenticate,
@@ -157,6 +159,17 @@ impl
         Authenticate,
         UasFlowData,
         UasAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for Recurly
+{
+    //TODO: implement sessions flow
+}
+
+impl
+    ConnectorIntegrationV2<
+        ProcessIncomingWebhook,
+        UasFlowData,
+        UasWebhookRequestData,
         UasAuthenticationResponseData,
     > for Recurly
 {
