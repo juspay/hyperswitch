@@ -20,8 +20,8 @@ pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc,
-    time::Instant, vec::IntoIter,
+    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Instant,
+    vec::IntoIter,
 };
 
 use external_services::grpc_client;
