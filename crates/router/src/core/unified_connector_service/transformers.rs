@@ -2362,7 +2362,7 @@ impl
         {
             let wait_screen_metadata = build_upi_wait_screen_data()?;
 
-            let mut metadata_map: serde_json::Map<String, serde_json::Value> = connector_metadata
+            let mut metadata_map = connector_metadata
                 .as_ref()
                 .and_then(|meta| meta.as_object())
                 .cloned()

@@ -1,5 +1,7 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
+#[cfg(feature = "v2")]
+use api_models::payments::{additional_info::UpiAdditionalData, AdditionalPaymentData};
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use common_types::payments as common_payments_types;
@@ -34,7 +36,7 @@ use diesel_models::{
     PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
@@ -48,7 +50,9 @@ use url::Url;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
-use crate::{address::Address, consts, router_response_types};
+use crate::{
+    address::Address, consts, payment_method_data::PaymentMethodData, router_response_types,
+};
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
@@ -869,30 +873,27 @@ impl PaymentAttempt {
     /// Extract and encode additional_payment_method_data (only non-sensitive data like upi_source, masked vpa_id)
     /// We should NOT store raw payment_method_data as it may contain sensitive info
     #[cfg(feature = "v2")]
-    fn get_payment_method_data(
+    fn get_additional_payment_method_data(
         payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    ) -> Option<pii::SecretSerdeValue> {
-        use api_models::payments::AdditionalPaymentData;
-
-        use crate::payment_method_data::PaymentMethodData as DomainPMD;
-
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::api_error_response::ApiErrorResponse>
+    {
         let additional_data: Option<AdditionalPaymentData> =
             payment_method_data.and_then(|api_pmd| {
-                let domain_pmd: DomainPMD = api_pmd.into();
+                let domain_pmd = PaymentMethodData::from(api_pmd);
                 match domain_pmd {
-                    DomainPMD::Upi(upi) => {
-                        // Convert to AdditionalPaymentData using the same pattern as v1
-                        Some(AdditionalPaymentData::Upi {
-                            details: Some(upi.into()),
-                        })
-                    }
+                    PaymentMethodData::Upi(upi) => Some(AdditionalPaymentData::Upi {
+                        details: Some(UpiAdditionalData::from(upi)),
+                    }),
                     _ => None,
                 }
             });
 
-        additional_data
-            .and_then(|data| serde_json::to_value(data).ok())
-            .map(pii::SecretSerdeValue::new)
+        Ok(additional_data
+            .map(|data| data.encode_to_value())
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional payment method data")?
+            .map(pii::SecretSerdeValue::new))
     }
 
     /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
@@ -931,8 +932,9 @@ impl PaymentAttempt {
 
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
-        let payment_method_data =
-            Self::get_payment_method_data(request.payment_method_data.payment_method_data.clone());
+        let payment_method_data = Self::get_additional_payment_method_data(
+            request.payment_method_data.payment_method_data.clone(),
+        )?;
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -1586,6 +1588,25 @@ impl PaymentAttempt {
         self.connector_metadata
             .as_ref()
             .map(|metadata| metadata.peek())
+    }
+
+    /// Get the additional payment method data from the payment attempt
+    pub fn get_payment_method_data(
+        &self,
+    ) -> CustomResult<Option<AdditionalPaymentData>, errors::api_error_response::ApiErrorResponse>
+    {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|data| {
+                let value = data.clone().expose();
+                match value {
+                    Value::Null => None,
+                    _ => Some(value.parse_value("AdditionalPaymentData")),
+                }
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse AdditionalPaymentData from payment_method_data")
     }
 
     pub fn get_upi_next_action(

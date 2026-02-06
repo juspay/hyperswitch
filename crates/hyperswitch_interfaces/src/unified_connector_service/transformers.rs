@@ -10,7 +10,10 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 
-use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
+use crate::{
+    helpers::{ForeignFrom, ForeignTryFrom},
+    unified_connector_service::payments_grpc,
+};
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -394,19 +397,24 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
         })
             }
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
-                Ok(Self::Upi {
-                    upi_mode: upi_data.upi_mode
-                        .and_then(|mode| payments_grpc::UpiSource::try_from(mode).ok())
-                        .and_then(|grpc_upi_source| {
-                            hyperswitch_domain_models::payment_method_data::UpiSource::foreign_try_from(grpc_upi_source).ok()
-                        }),
-                })
+                let upi_mode = upi_data
+                    .upi_mode
+                    .map(|mode| {
+                        payments_grpc::UpiSource::try_from(mode).map_err(|_| {
+                            error_stack::Report::new(
+                                UnifiedConnectorServiceError::ParsingFailed,
+                            )
+                            .attach_printable("Failed to parse upi_mode from UCS connector response")
+                        })
+                    })
+                    .transpose()?
+                    .map(hyperswitch_domain_models::payment_method_data::UpiSource::foreign_from);
+                Ok(Self::Upi { upi_mode })
             }
             None => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "payment_method_data",
-                },
-            )),
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("Unexpected error: payment_method_data is None in UCS connector response")),
         }
     }
 }
@@ -705,19 +713,17 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
     }
 }
 
-impl ForeignTryFrom<payments_grpc::UpiSource>
+impl ForeignFrom<payments_grpc::UpiSource>
     for hyperswitch_domain_models::payment_method_data::UpiSource
 {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(upi_source: payments_grpc::UpiSource) -> Result<Self, Self::Error> {
+    fn foreign_from(upi_source: payments_grpc::UpiSource) -> Self {
         match upi_source {
-            payments_grpc::UpiSource::UpiCc => Ok(Self::UpiCc),
-            payments_grpc::UpiSource::UpiCl => Ok(Self::UpiCl),
-            payments_grpc::UpiSource::UpiAccount => Ok(Self::UpiAccount),
-            payments_grpc::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
-            payments_grpc::UpiSource::UpiPpi => Ok(Self::UpiPpi),
-            payments_grpc::UpiSource::UpiVoucher => Ok(Self::UpiVoucher),
+            payments_grpc::UpiSource::UpiCc => Self::UpiCc,
+            payments_grpc::UpiSource::UpiCl => Self::UpiCl,
+            payments_grpc::UpiSource::UpiAccount => Self::UpiAccount,
+            payments_grpc::UpiSource::UpiCcCl => Self::UpiCcCl,
+            payments_grpc::UpiSource::UpiPpi => Self::UpiPpi,
+            payments_grpc::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }

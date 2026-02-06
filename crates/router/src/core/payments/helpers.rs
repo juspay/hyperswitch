@@ -7650,6 +7650,42 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
     }
 }
 
+#[cfg(feature = "v1")]
+pub fn update_additional_payment_data_with_connector_response_pm_data(
+    additional_payment_data: Option<serde_json::Value>,
+    connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let parsed_additional_payment_method_data = additional_payment_data
+        .as_ref()
+        .map(|payment_method_data| {
+            payment_method_data
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>(
+                    "additional_payment_method_data",
+                )
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse value into additional_payment_method_data")?;
+
+    let additional_payment_method_data = parsed_additional_payment_method_data
+        .zip(connector_response_pm_data)
+        .map(|(additional_pm_data, connector_response_pm_data)| {
+            add_connector_response_to_additional_payment_data(
+                additional_pm_data,
+                connector_response_pm_data,
+            )
+        });
+
+    additional_payment_method_data
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode additional pm data")
+}
+
+#[cfg(feature = "v2")]
 pub fn update_additional_payment_data_with_connector_response_pm_data(
     additional_payment_data: Option<serde_json::Value>,
     connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
@@ -7672,8 +7708,6 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         connector_response_pm_data,
     ) {
         (Some(additional_pm_data), Some(connector_response_pm_data)) => {
-            // Handle UPI upi_mode override for v2 - extract upi_mode before moving
-            #[cfg(feature = "v2")]
             let upi_mode_override =
                 if let AdditionalPaymentMethodConnectorResponse::Upi { upi_mode } =
                     &connector_response_pm_data
@@ -7683,14 +7717,11 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
                     None
                 };
 
-            let additional_pm_data = add_connector_response_to_additional_payment_data(
+            let mut additional_pm_data = add_connector_response_to_additional_payment_data(
                 additional_pm_data,
                 connector_response_pm_data,
             );
             // Apply UPI mode override if present
-            #[cfg(feature = "v2")]
-            let mut additional_pm_data = additional_pm_data;
-            #[cfg(feature = "v2")]
             if let Some(ref mode) = upi_mode_override {
                 override_upi_source_in_additional_payment_data(&mut additional_pm_data, mode);
             }
