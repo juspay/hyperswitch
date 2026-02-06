@@ -418,6 +418,14 @@ export const payment_methods_enabled = [
         payment_experience: "invoke_sdk_client",
       },
       {
+        payment_method_type: "bluecode",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "skrill",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
@@ -778,6 +786,24 @@ export const connectorDetails = {
             country: "PL",
             first_name: "john",
             last_name: "doe",
+          },
+        },
+      },
+    }),
+    Bluecode: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "bluecode",
+        payment_method_data: {
+          wallet: {
+            bluecode_redirect: {},
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "AT",
           },
         },
       },
