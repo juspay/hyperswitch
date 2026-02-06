@@ -7741,7 +7741,7 @@ async fn decide_payment_method_tokenize_action(
                     payment_method,
                     connector_name
                 );
-                
+
                 let connector_token_option = redis_conn
                     .get_key::<Option<String>>(&key.into())
                     .await
