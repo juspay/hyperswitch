@@ -15,7 +15,7 @@
             "card": {
             "card_number": "4242424242424242",
             "card_exp_month": "11",
-            "card_exp_year": "25",
+            "card_exp_year": "30",
             "card_holder_name": "John Doe"
             },
             "customer_id": "{{customer_id}}"
@@ -365,6 +365,30 @@ pub async fn network_token_status_check_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_get_token_details_api() {}
 
+/// Payment Method - Get Payment Method Token Data
+///
+/// Retrieve the Payment method id associated with a payment method token.
+#[utoipa::path(
+    get,
+    path = "/v1/payment-methods/token/{payment_method_temporary_token}/details",
+    params (
+        ("payment_method_temporary_token" = String, Path, description = "The unique identifier for the Payment Method Token"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
+    responses(
+        (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),
+        (status = 404, description = "Payment Method Not Found | Payment method token either expired or does not exist"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Get Payment Method Token Data",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn payment_method_get_token_details_api_v1() {}
 /// Payment Method - List Customer Saved Payment Methods
 ///
 /// List the payment methods saved for a customer
@@ -581,7 +605,7 @@ pub async fn tokenize_card_using_pm_api() {}
                       "card": {
                         "card_number": "4242424242424242",
                         "card_exp_month": "10",
-                        "card_exp_year": "25",
+                        "card_exp_year": "30",
                         "card_cvc": "123"
                       }
                     },
@@ -600,3 +624,48 @@ pub async fn tokenize_card_using_pm_api() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payment_method_session_confirm() {}
+
+/// Payment Method Session - Confirm a payment method session
+///
+/// **Confirms a payment method session object with the payment method data**
+#[utoipa::path(
+  post,
+  path = "/v1/payment-method-sessions/{id}/confirm",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = "pro_abcdefghijklmnop"
+      )
+    ),
+  request_body(
+      content = PaymentMethodSessionConfirmRequest,
+      examples(
+          (
+              "Confirm the payment method session with card details" = (
+                  value = json!({
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "30",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment Method created", body = PaymentMethodSessionResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payment Method Session",
+  operation_id = "Confirm the payment method session",
+  security(("publishable_key__client_secret" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payment_method_session_confirm_v1() {}
