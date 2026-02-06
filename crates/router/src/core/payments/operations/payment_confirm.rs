@@ -779,7 +779,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .parse_value::<hyperswitch_domain_models::address::Address>("payment method billing address")
                             .ok()
                     })
-            }).map(From::from);
+            });
 
         // billing address from request body has the highest priority followed by billing address from raw pm data and then billing address from payment_attempt
         let pmd_address =payment_method_data_billing.or(pm_pmd_billing); 

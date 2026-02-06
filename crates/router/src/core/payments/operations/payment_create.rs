@@ -589,7 +589,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .parse_value::<hyperswitch_domain_models::address::Address>("payment method billing address")
                             .ok()
                     })
-            }).map(From::from);
+            });
 
         let add =payment_method_data_billing.or(pm_pmd_billing); 
 
