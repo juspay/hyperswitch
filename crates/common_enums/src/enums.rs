@@ -2953,6 +2953,7 @@ pub enum RelayStatus {
 pub enum RelayType {
     Refund,
     Capture,
+    IncrementalAuthorization,
 }
 
 #[derive(
@@ -9643,8 +9644,8 @@ impl From<RelayStatus> for RefundStatus {
 }
 
 impl From<AttemptStatus> for RelayStatus {
-    fn from(refund_status: AttemptStatus) -> Self {
-        match refund_status {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::AuthenticationFailed
             | AttemptStatus::RouterDeclined
@@ -9673,6 +9674,16 @@ impl From<AttemptStatus> for RelayStatus {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
+impl From<AuthorizationStatus> for RelayStatus {
+    fn from(authorization_status: AuthorizationStatus) -> Self {
+        match authorization_status {
+            AuthorizationStatus::Failure => Self::Failure,
+            AuthorizationStatus::Processing | AuthorizationStatus::Unresolved => Self::Pending,
+            AuthorizationStatus::Success => Self::Success,
         }
     }
 }
