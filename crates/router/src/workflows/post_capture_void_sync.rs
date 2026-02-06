@@ -48,10 +48,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
-        let tracking_data: api::PaymentsCancelPostCaptureSyncBody = process
-            .tracking_data
-            .clone()
-            .parse_value("PaymentsCancelPostCaptureSyncBody")?;
+        let tracking_data: api::PaymentsCancelPostCaptureSyncBody =
+            process
+                .tracking_data
+                .clone()
+                .parse_value("PaymentsCancelPostCaptureSyncBody")?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
                 tracking_data
@@ -109,32 +110,33 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             enums::AttemptStatus::Failure,
         ];
 
-        let is_post_capture_void_attempted_state = payment_data.payment_intent.is_post_capture_void_applied() || 
-
-        match &payment_data.payment_attempt.status {
-    status
-        if terminal_status.contains(status)
-            || !payment_data
-                .payment_intent
-                .is_post_capture_void_pending() =>
-    {
-        state
-            .store
-            .as_scheduler()
-            .finish_process_with_business_status(
-                process,
-                business_status::COMPLETED_BY_PT,
-            )
-            .await?;
-    }
-    _ => {retry_sync_task(
-                    db,
-                    connector,
-                    payment_data.payment_attempt.merchant_id.clone(),
-                    process,
-                )
-                .await?}
-};Ok(())
+        let is_post_capture_void_attempted_state =
+            payment_data.payment_intent.is_post_capture_void_applied()
+                || match &payment_data.payment_attempt.status {
+                    status
+                        if terminal_status.contains(status)
+                            || !payment_data.payment_intent.is_post_capture_void_pending() =>
+                    {
+                        state
+                            .store
+                            .as_scheduler()
+                            .finish_process_with_business_status(
+                                process,
+                                business_status::COMPLETED_BY_PT,
+                            )
+                            .await?;
+                    }
+                    _ => {
+                        retry_sync_task(
+                            db,
+                            connector,
+                            payment_data.payment_attempt.merchant_id.clone(),
+                            process,
+                        )
+                        .await?
+                    }
+                };
+        Ok(())
     }
 
     async fn error_handler<'a>(
