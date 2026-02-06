@@ -198,7 +198,6 @@ impl ProxyRecord {
                     .attach_printable("Locker id not present in Payment Method Entry")?;
                 let vault_resp = vault::retrieve_payment_method_from_vault_internal(
                     state,
-                    &platform,
                     &self.get_vault_id()?,
                     &customer_id,
                 )

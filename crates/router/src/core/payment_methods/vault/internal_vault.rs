@@ -29,14 +29,15 @@ use common_utils::fp_utils::when;
 
 /// Internal vault strategy implementation
 #[cfg(feature = "v2")]
-pub struct InternalVault;
+pub(super) struct InternalVault;
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl crate::core::payment_methods::vault::VaultStrategy for InternalVault {
+impl super::VaultStrategy for InternalVault {
     async fn vault_payment_method(
         &self,
         state: &SessionState,
+        _platform: &domain::Platform,
         pmd: &domain::PaymentMethodVaultingData,
         _existing_vault_id: Option<domain::VaultId>,
         customer_id: &id_type::GlobalCustomerId,
@@ -88,7 +89,7 @@ impl crate::core::payment_methods::vault::VaultStrategy for InternalVault {
             .customer_id
             .clone()
             .get_required_value("GlobalCustomerId")?;
-        delete_payment_method_data_from_vault_internal(state, vault_id, customer_id)
+        delete_payment_method(state, vault_id, customer_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to delete payment method from internal vault")
@@ -112,7 +113,7 @@ impl crate::core::payment_methods::vault::VaultStrategy for InternalVault {
 /// * `customer_id` - The customer ID associated with the payment method
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn vault_payment_method(
+pub(super) async fn vault_payment_method(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
     platform: &domain::Platform,
@@ -164,7 +165,7 @@ pub async fn vault_payment_method(
 /// Uses the internal vault API to fetch payment method data by vault ID.
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn retrieve_payment_method(
+pub(super) async fn retrieve_payment_method(
     state: &SessionState,
     _platform: &domain::Platform,
     vault_id: &domain::VaultId,
@@ -179,23 +180,43 @@ pub async fn retrieve_payment_method(
 /// Delete a payment method from the internal vault
 ///
 /// Uses the internal vault API to delete payment method data.
+/// Internal function to delete payment method from vault
 #[cfg(feature = "v2")]
-pub async fn delete_payment_method(
+pub(super) async fn delete_payment_method(
     state: &SessionState,
-    _platform: &domain::Platform,
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<pm_types::VaultDeleteResponse> {
-    delete_payment_method_data_from_vault_internal(state, vault_id, customer_id)
+) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
+    use crate::core::payment_methods::vault::call_to_vault;
+    use common_utils::ext_traits::Encode;
+
+    let payload = pm_types::VaultDeleteRequest {
+        entity_id: customer_id.to_owned(),
+        vault_id,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultDeleteRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from internal vault")
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let stored_pm_resp: pm_types::VaultDeleteResponse = resp
+        .parse_struct("VaultDeleteResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultDeleteResponse")?;
+
+    Ok(stored_pm_resp)
 }
 
 /// Internal function to get fingerprint_id from vault
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
+pub(super) async fn get_fingerprint_id_from_vault<
+    D: domain::VaultingDataInterface + serde::Serialize,
+>(
     state: &SessionState,
     data: &D,
     key: String,
@@ -231,7 +252,7 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 /// Internal function to add payment method to vault
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn add_payment_method_to_vault(
+pub(super) async fn add_payment_method_to_vault(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
@@ -267,7 +288,7 @@ pub async fn add_payment_method_to_vault(
 /// Internal function to retrieve payment method from vault
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn retrieve_payment_method_from_vault_internal(
+pub(super) async fn retrieve_payment_method_from_vault_internal(
     state: &SessionState,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
@@ -292,37 +313,6 @@ pub async fn retrieve_payment_method_from_vault_internal(
         .parse_struct("VaultRetrieveResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
-
-    Ok(stored_pm_resp)
-}
-
-/// Internal function to delete payment method from vault
-#[cfg(feature = "v2")]
-pub async fn delete_payment_method_data_from_vault_internal(
-    state: &SessionState,
-    vault_id: domain::VaultId,
-    customer_id: &id_type::GlobalCustomerId,
-) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-    use crate::core::payment_methods::vault::call_to_vault;
-    use common_utils::ext_traits::Encode;
-
-    let payload = pm_types::VaultDeleteRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultDeleteRequest")?;
-
-    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_pm_resp: pm_types::VaultDeleteResponse = resp
-        .parse_struct("VaultDeleteResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultDeleteResponse")?;
 
     Ok(stored_pm_resp)
 }

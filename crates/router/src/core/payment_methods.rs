@@ -1279,7 +1279,7 @@ pub async fn create_payment_method_card_core(
             .populate_bin_details_for_payment_method(state)
             .await;
 
-    let vaulting_result = vault_payment_method(
+    let vaulting_result = vault::vault_payment_method(
         state,
         &payment_method_data,
         platform,
@@ -3043,69 +3043,6 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn vault_payment_method(
-    state: &SessionState,
-    pmd: &domain::PaymentMethodVaultingData,
-    platform: &domain::Platform,
-    profile: &domain::Profile,
-    existing_vault_id: Option<domain::VaultId>,
-    customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<(
-    pm_types::AddVaultResponse,
-    Option<id_type::MerchantConnectorAccountId>,
-)> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
-
-    match is_external_vault_enabled {
-        true => {
-            let (external_vault_source, vault_token_selector) = profile
-                .external_vault_connector_details
-                .clone()
-                .map(|connector_details| {
-                    (
-                        connector_details.vault_connector_id.clone(),
-                        connector_details.vault_token_selector.clone(),
-                    )
-                })
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("mca_id not present for external vault")?;
-
-            let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account_v2(
-                    state,
-                    platform.get_processor(),
-                    Some(&external_vault_source),
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault insert",
-                )?;
-            let payment_method_custom_data =
-                get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
-
-            vault::external_vault::vault_payment_method(
-                state,
-                &payment_method_custom_data,
-                platform.get_provider().get_account(),
-                &merchant_connector_account,
-            )
-            .await
-            .map(|value| (value, Some(external_vault_source)))
-        }
-        false => vault::internal_vault::vault_payment_method(
-            state,
-            pmd,
-            platform,
-            existing_vault_id,
-            customer_id,
-        )
-        .await
-        .map(|value| (value, None)),
-    }
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
 pub async fn vault_payment_method_in_volatile_storage(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
@@ -3844,7 +3781,7 @@ pub async fn update_payment_method_core(
                 // cannot use async map because of problems related to lifetimes
                 // to overcome this, we will have to use a move closure and add some clones
                 Some(ref vault_request_data) => {
-                    let (vault_response, _) = vault_payment_method(
+                    let (vault_response, _) = vault::vault_payment_method(
                         state,
                         vault_request_data,
                         platform,

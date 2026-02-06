@@ -131,7 +131,6 @@ pub async fn delete_tokenized_data_core(
     //delete card from vault
     pm_vault::delete_payment_method_data_from_vault_internal(
         &state,
-        &platform,
         vault_id,
         &tokenization_record.customer_id,
     )

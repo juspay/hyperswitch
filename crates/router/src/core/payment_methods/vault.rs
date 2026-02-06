@@ -52,8 +52,85 @@ use crate::{
 
 mod transformers;
 
-pub mod external_vault;
-pub mod internal_vault;
+mod external_vault;
+mod internal_vault;
+
+/// Re-export the strategy implementations from submodules
+#[cfg(feature = "v2")]
+use external_vault::ExternalVault;
+#[cfg(feature = "v2")]
+use internal_vault::InternalVault;
+
+/// Facade function to vault a payment method.
+///
+/// This function hides the internal vs external vault implementation details
+/// from the caller. It selects the appropriate vault strategy based on profile
+/// configuration and executes the vaulting operation.
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn vault_payment_method(
+    state: &routes::SessionState,
+    pmd: &domain::PaymentMethodVaultingData,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
+) -> RouterResult<(
+    pm_types::AddVaultResponse,
+    Option<id_type::MerchantConnectorAccountId>,
+)> {
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
+
+    match is_external_vault_enabled {
+        true => {
+            let (external_vault_source, vault_token_selector) = profile
+                .external_vault_connector_details
+                .clone()
+                .map(|connector_details| {
+                    (
+                        connector_details.vault_connector_id.clone(),
+                        connector_details.vault_token_selector.clone(),
+                    )
+                })
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("mca_id not present for external vault")?;
+
+            let merchant_connector_account =
+                payments_core::helpers::get_merchant_connector_account_v2(
+                    state,
+                    platform.get_processor(),
+                    Some(&external_vault_source),
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault insert",
+                )?;
+            let payment_method_custom_data: hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData =
+                crate::core::payment_methods::get_payment_method_custom_data(
+                    pmd.clone(),
+                    vault_token_selector,
+                )?;
+
+            external_vault::vault_payment_method(
+                state,
+                &payment_method_custom_data,
+                platform.get_provider().get_account(),
+                &merchant_connector_account,
+            )
+            .await
+            .map(|value| (value, Some(external_vault_source)))
+        }
+        false => internal_vault::vault_payment_method(
+            state,
+            pmd,
+            platform,
+            existing_vault_id,
+            customer_id,
+        )
+        .await
+        .map(|value| (value, None)),
+    }
+}
 
 /// Vault strategy trait defining the interface for vault operations
 ///
@@ -66,6 +143,7 @@ pub trait VaultStrategy {
     async fn vault_payment_method(
         &self,
         state: &routes::SessionState,
+        platform: &domain::Platform,
         pmd: &domain::PaymentMethodVaultingData,
         existing_vault_id: Option<domain::VaultId>,
         customer_id: &id_type::GlobalCustomerId,
@@ -89,12 +167,6 @@ pub trait VaultStrategy {
         pm: &domain::PaymentMethod,
     ) -> RouterResult<pm_types::VaultDeleteResponse>;
 }
-
-/// Re-export the strategy implementations from submodules
-#[cfg(feature = "v2")]
-pub use external_vault::ExternalVault;
-#[cfg(feature = "v2")]
-pub use internal_vault::InternalVault;
 
 /// Select the appropriate vault strategy based on profile configuration
 #[cfg(feature = "v2")]
@@ -124,12 +196,7 @@ pub async fn select_vault_strategy(
                 .attach_printable("failed to fetch merchant connector account for vault")?;
 
             let merchant_account = platform.get_provider().get_account();
-            Ok(Box::new(ExternalVault::new(
-                merchant_account.clone(),
-                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    merchant_connector_account,
-                )),
-            )))
+            Ok(Box::new(ExternalVault::new(merchant_connector_account)))
         }
         false => Ok(Box::new(InternalVault)),
     }
@@ -1831,7 +1898,6 @@ pub async fn decode_and_decrypt_locker_data(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
-    platform: &domain::Platform,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
@@ -1860,18 +1926,6 @@ pub async fn retrieve_value_from_vault(
         .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
 
     Ok(stored_resp)
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn retrieve_payment_method_from_vault_external(
-    state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
-    pm: &domain::PaymentMethod,
-    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    external_vault::retrieve_payment_method(state, merchant_account, pm, merchant_connector_account)
-        .await
 }
 
 #[cfg(feature = "v2")]
@@ -2129,7 +2183,7 @@ pub async fn retrieve_payment_method_data_from_storage(
 }
 
 #[cfg(feature = "v2")]
-pub async fn retrieve_volatile_payment_method_from_redis(
+async fn retrieve_volatile_payment_method_from_redis(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     pm: &domain::PaymentMethod,
@@ -2191,23 +2245,21 @@ pub async fn retrieve_payment_method_from_vault(
             let external_vault_source = pm.external_vault_source.as_ref();
 
             let merchant_connector_account =
-                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
-                        state,
-                        platform.get_processor(),
-                        external_vault_source,
-                    )
-                    .await
-                    .attach_printable(
-                        "failed to fetch merchant connector account for external vault retrieve",
-                    )?,
-                ));
+                payments_core::helpers::get_merchant_connector_account_v2(
+                    state,
+                    platform.get_processor(),
+                    external_vault_source,
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault retrieve",
+                )?;
 
-            retrieve_payment_method_from_vault_external(
+            external_vault::retrieve_payment_method(
                 state,
                 platform.get_provider().get_account(),
                 pm,
-                merchant_connector_account,
+                &merchant_connector_account,
             )
             .await
         }
@@ -2224,7 +2276,7 @@ pub async fn retrieve_payment_method_from_vault(
                 .customer_id
                 .clone()
                 .get_required_value("GlobalCustomerId")?;
-            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
+            retrieve_payment_method_from_vault_internal(state, &vault_id, &customer_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to retrieve payment method from vault")
@@ -2235,38 +2287,10 @@ pub async fn retrieve_payment_method_from_vault(
 #[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
-    platform: &domain::Platform,
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-    internal_vault::delete_payment_method_data_from_vault_internal(state, vault_id, customer_id)
-        .await
-}
-
-#[cfg(feature = "v2")]
-pub async fn delete_payment_method_data_from_vault_external(
-    state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    vault_id: domain::VaultId,
-    customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<pm_types::VaultDeleteResponse> {
-    external_vault::delete_payment_method(
-        state,
-        merchant_account,
-        merchant_connector_account,
-        vault_id,
-        customer_id,
-    )
-    .await
-}
-
-#[cfg(feature = "v2")]
-pub fn get_vault_response_for_delete_payment_method_data<F>(
-    router_data: VaultRouterData<F>,
-    customer_id: id_type::GlobalCustomerId,
-) -> RouterResult<pm_types::VaultDeleteResponse> {
-    external_vault::get_vault_response_for_delete_payment_method_data(router_data, customer_id)
+    internal_vault::delete_payment_method(state, vault_id, customer_id).await
 }
 
 #[cfg(feature = "v2")]
@@ -2293,33 +2317,29 @@ pub async fn delete_payment_method_data_from_vault(
             let external_vault_source = pm.external_vault_source.as_ref();
 
             let merchant_connector_account =
-                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
-                        state,
-                        platform.get_processor(),
-                        external_vault_source,
-                    )
-                    .await
-                    .attach_printable(
-                        "failed to fetch merchant connector account for external vault delete",
-                    )?,
-                ));
+                payments_core::helpers::get_merchant_connector_account_v2(
+                    state,
+                    platform.get_processor(),
+                    external_vault_source,
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault delete",
+                )?;
 
-            delete_payment_method_data_from_vault_external(
+            external_vault::delete_payment_method(
                 state,
                 platform.get_provider().get_account(),
-                merchant_connector_account,
+                &merchant_connector_account,
                 vault_id.clone(),
                 customer_id,
             )
             .await
         }
-        false => {
-            delete_payment_method_data_from_vault_internal(state, platform, vault_id, customer_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to delete payment method from vault")
-        }
+        false => internal_vault::delete_payment_method(state, vault_id, customer_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to delete payment method from vault"),
     }
 }
 
