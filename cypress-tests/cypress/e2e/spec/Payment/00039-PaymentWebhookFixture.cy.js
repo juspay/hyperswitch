@@ -37,21 +37,21 @@ describe("Payment Webhook Tests", () => {
   });
 
   it("merchant-create-call-test", () => {
-      cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
+    cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
   });
 
   it("api-key-create-call-test", () => {
-      cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-    });
+    cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+  });
 
   it("Create merchant connector account", () => {
-      cy.createConnectorCallTest(
-        "payment_processor",
-        fixtures.createConnectorBody,
-        payment_methods_enabled,
-        globalState
-      );
-    });
+    cy.createConnectorCallTest(
+      "payment_processor",
+      fixtures.createConnectorBody,
+      payment_methods_enabled,
+      globalState
+    );
+  });
 
   context("NoThreeDS Manual payment flow test", () => {
     it("create-payment-call-test", () => {
