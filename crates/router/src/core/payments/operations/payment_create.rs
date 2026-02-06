@@ -580,22 +580,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        let pm_pmd_billing = payment_method_with_raw_data
-            .as_ref()
-            .and_then(|pm| {
-                pm.payment_method
-                    .0
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value::<hyperswitch_domain_models::address::Address>(
-                                "payment method billing address",
-                            )
-                            .ok()
-                    })
-            });
+        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            pm.payment_method
+                .0
+                .payment_method_billing_address
+                .clone()
+                .map(|decrypted_data| decrypted_data.into_inner().expose())
+                .and_then(|decrypted_value| {
+                    decrypted_value
+                        .parse_value::<hyperswitch_domain_models::address::Address>(
+                            "payment method billing address",
+                        )
+                        .ok()
+                })
+        });
 
         let add = payment_method_data_billing.or(pm_pmd_billing);
 
