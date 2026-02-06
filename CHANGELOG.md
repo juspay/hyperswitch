@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.06.0
+
+### Features
+
+- **openapi:** Update v1 API endpoints for payment methods, customers and payment method sessions ([#11154](https://github.com/juspay/hyperswitch/pull/11154)) ([`8f7e09b`](https://github.com/juspay/hyperswitch/commit/8f7e09b88eb018e5aa0f8d5c2b75458d71cad662))
+- **relay:** Add relay for Incremental Authorization ([#11120](https://github.com/juspay/hyperswitch/pull/11120)) ([`c2b4a44`](https://github.com/juspay/hyperswitch/commit/c2b4a44d8bdad38c9209302a3da144c1dc5961e9))
+
+**Full Changelog:** [`2026.02.05.1...2026.02.06.0`](https://github.com/juspay/hyperswitch/compare/2026.02.05.1...2026.02.06.0)
+
+- - -
+
 ## 2026.02.05.1
 
 ### Features
