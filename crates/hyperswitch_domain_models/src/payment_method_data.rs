@@ -961,7 +961,7 @@ pub struct BoletoVoucherData {
     /// The bank number associated with the boleto
     pub bank_number: Option<Secret<String>>,
     /// The type of document (e.g., CPF, CNPJ)
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<common_types::customers::DocumentKind>,
     /// The percentage of fine applied for late payment
     pub fine_percentage: Option<String>,
     /// The number of days after due date when fine is applied

@@ -517,13 +517,17 @@ where
                     .to_domain()?
                     .pre_payment_frm(state, payment_data, frm_data, platform)
                     .await?;
-                let _router_data = call_frm_service::<F, frm_api::Transaction, _, D>(
+                let _router_data_result = call_frm_service::<F, frm_api::Transaction, _, D>(
                     state,
                     payment_data,
                     frm_data,
                     platform,
                 )
-                .await?;
+                .await;
+                // Log warning if transaction flow failed (but don't propagate error)
+                if let Err(e) = _router_data_result {
+                    logger::info!("FRM transaction flow failed : {:?}", e);
+                }
                 let frm_data_updated = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
