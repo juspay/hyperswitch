@@ -38,6 +38,7 @@ use crate::{
     disputes::*,
     files::*,
     mandates::*,
+    merchant_connector_webhook_management::*,
     organization::{
         ConvertOrganizationToPlatformRequest, ConvertOrganizationToPlatformResponse,
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
@@ -77,6 +78,7 @@ impl_api_event_type!(
         CreateFileResponse,
         ConvertOrganizationToPlatformRequest,
         ConvertOrganizationToPlatformResponse,
+        ConnectorWebhookRegisterRequest,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,
@@ -86,6 +88,7 @@ impl_api_event_type!(
         MandateId,
         DisputeListGetConstraints,
         RetrieveApiKeyResponse,
+        RegisterConnectorWebhookResponse,
         ProfileResponse,
         ProfileUpdate,
         ProfileCreate,
