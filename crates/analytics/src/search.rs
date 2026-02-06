@@ -343,7 +343,7 @@ pub async fn search_results(
         };
         if let Some(amount_filter) = filters.amount_filter.as_ref() {
             if amount_filter.start_amount.is_some() || amount_filter.end_amount.is_some() {
-                let amount_range = crate::opensearch::OpensearchAmountRange {
+                let amount_range = crate::opensearch::OpensearchRange {
                     gte: amount_filter.start_amount,
                     lte: amount_filter.end_amount,
                 };

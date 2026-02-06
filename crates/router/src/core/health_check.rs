@@ -147,6 +147,7 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_opensearch(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
+        println!("\n\n\n\n\nCame to helthcheck opensearch {:?}\n\n\n\n", self.search_provider.is_opensearch_enabled());
         if self.search_provider.is_opensearch_enabled() {
             self.search_provider
                 .deep_health_check()

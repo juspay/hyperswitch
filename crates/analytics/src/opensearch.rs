@@ -29,7 +29,7 @@ use time::PrimitiveDateTime;
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use crate::{enums::AuthInfo, query::QueryBuildingError};
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
 #[serde(rename_all = "lowercase")]
 pub enum OpenSearchAuth {
@@ -37,7 +37,7 @@ pub enum OpenSearchAuth {
     Aws { region: String },
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 pub struct OpenSearchIndexes {
     pub payment_attempts: String,
     pub payment_intents: String,
@@ -68,14 +68,14 @@ impl From<TimeRange> for OpensearchTimeRange {
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct OpensearchAmountRange {
+pub struct OpensearchRange {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gte: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lte: Option<i64>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 pub struct OpenSearchConfig {
     host: String,
     auth: OpenSearchAuth,
@@ -130,8 +130,6 @@ pub enum OpenSearchError {
     UnknownError,
     #[error("Opensearch access forbidden error")]
     AccessForbiddenError,
-    #[error("Not implemented")]
-    NotImplemented,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -197,12 +195,6 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "IR",
                 8,
                 "Opensearch is not enabled",
-                None,
-            )),
-            Self::NotImplemented => ApiErrorResponse::NotImplemented(ApiError::new(
-                "IR",
-                9,
-                "Not implemented",
                 None,
             )),
         }
@@ -444,17 +436,6 @@ impl OpenSearchAuth {
 }
 
 impl OpenSearchConfig {
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn get_auth(&self) -> &OpenSearchAuth {
-        &self.auth
-    }
-
-    pub fn get_auth_mut(&mut self) -> &mut OpenSearchAuth {
-        &mut self.auth
-    }
 
     pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {
         if !self.enabled {
@@ -515,7 +496,7 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<Value>)>,
     pub time_range: Option<OpensearchTimeRange>,
-    pub amount_range: Option<OpensearchAmountRange>,
+    pub amount_range: Option<OpensearchRange>,
     search_params: Vec<AuthInfo>,
     case_sensitive_fields: HashSet<&'static str>,
 }
@@ -554,7 +535,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn set_amount_range(&mut self, amount_range: OpensearchAmountRange) -> QueryResult<()> {
+    pub fn set_amount_range(&mut self, amount_range: OpensearchRange) -> QueryResult<()> {
         self.amount_range = Some(amount_range);
         Ok(())
     }
@@ -828,8 +809,6 @@ impl OpenSearchQueryBuilder {
                     should_array.clone(),
                     *index,
                 );
-                println!("Index: {:?}", index);
-                println!("Payload: {}", serde_json::to_string_pretty(&payload).unwrap());
                 payload
             })
             .collect::<Vec<Value>>())
