@@ -784,7 +784,7 @@ pub fn build_unified_connector_service_payment_method(
                 let sofort = payments_grpc::Sofort {
                     country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
                     .map(|country| country.into()),
-                    preferred_language: preferred_language
+                    preferred_language,
                 };
 
                 Ok(payments_grpc::PaymentMethod {
