@@ -26,7 +26,9 @@ pub mod utils;
 
 pub trait Validate {
     type Error: error_stack::Context;
-    fn validate(&self) -> Result<(), Self::Error>;
+    fn validate(&self) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 impl Validate for relay_api_models::RelayRefundRequestData {
@@ -78,9 +80,6 @@ impl Validate for relay_api_models::RelayIncrementalAuthorizationRequestData {
 
 impl Validate for relay_api_models::RelayVoidRequestData {
     type Error = errors::ApiErrorResponse;
-    fn validate(&self) -> Result<(), Self::Error> {
-        Ok(())
-    }
 }
 
 #[async_trait]
