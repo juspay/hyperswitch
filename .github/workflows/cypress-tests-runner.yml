@@ -17,6 +17,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe cybersource"
+  PARALLEL_PAYMENTS_CONNECTORS : "cashtocode authorizedotnet"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
@@ -289,7 +290,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -489,7 +490,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -589,9 +590,10 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
+          PAYMENTS_CONNECTORS: "${{ env.PARALLEL_PAYMENTS_CONNECTORS }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 2
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
@@ -758,7 +760,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -862,7 +864,7 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
-    needs: build-hyperswitch
+    needs: build-hyperswitch-runners
     if: |
       github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
@@ -1123,7 +1125,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "f387f657-cac4-4e4f-bb63-e570abcc201f.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
