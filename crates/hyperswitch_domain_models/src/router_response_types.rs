@@ -751,7 +751,7 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
 impl PaymentMethodDetails {
     fn supports_refund(&self) -> bool {
-        self.refunds == common_enums::FeatureStatus::Supported
+        self.refunds.is_supported()
     }
 }
 
