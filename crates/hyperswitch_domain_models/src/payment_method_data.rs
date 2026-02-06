@@ -1168,29 +1168,6 @@ pub enum BankTransferData {
     },
 }
 
-impl BankTransferData {
-    pub fn from_pix(
-        pix_key: Option<Secret<String>>,
-        document_details: Option<api_models::payments::DocumentDetails>,
-        source_bank_account_id: Option<MaskedBankAccount>,
-        destination_bank_account_id: Option<MaskedBankAccount>,
-        expiry_date: Option<time::PrimitiveDateTime>,
-    ) -> Self {
-        let (cpf, cnpj) = document_details
-            .map(|details| details.get_cpf_cnpj_split())
-            .unwrap_or((None, None));
-
-        Self::Pix {
-            pix_key,
-            cpf,
-            cnpj,
-            source_bank_account_id,
-            destination_bank_account_id,
-            expiry_date,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
@@ -2253,17 +2230,19 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             }
             api_models::payments::BankTransferData::Pix {
                 pix_key,
-                document_details,
+                cpf,
+                cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
                 expiry_date,
-            } => Self::from_pix(
+            } => Self::Pix {
                 pix_key,
-                document_details,
+                cpf,
+                cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
                 expiry_date,
-            ),
+            },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }

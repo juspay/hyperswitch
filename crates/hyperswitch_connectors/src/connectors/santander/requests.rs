@@ -152,7 +152,7 @@ pub enum SantanderPixRequestCalendar {
 pub struct SantanderPixImmediateCalendarRequest {
     #[serde(rename = "expiracao")]
     // expiration time in seconds
-    pub expiracao: i32,
+    pub expiracao: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

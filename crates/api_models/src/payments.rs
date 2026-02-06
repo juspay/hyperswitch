@@ -4843,10 +4843,14 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         #[smithy(value_type = "Option<String>")]
         pix_key: Option<Secret<String>>,
-        /// Document details for pix transfer
-        #[schema(value_type = Option<DocumentDetails>, )]
-        #[smithy(value_type = "Option<DocumentDetails>")]
-        document_details: Option<DocumentDetails>,
+        /// CPF is a Brazilian tax identification number
+        #[schema(value_type = Option<String>, example = "10599054689")]
+        #[smithy(value_type = "Option<String>")]
+        cpf: Option<Secret<String>>,
+        /// CNPJ is a Brazilian company tax identification number
+        #[schema(value_type = Option<String>, example = "74469027417312")]
+        #[smithy(value_type = "Option<String>")]
+        cnpj: Option<Secret<String>>,
         /// Source bank account number
         #[schema(value_type = Option<String>, example = "8b******-****-****-****-*******08bc5")]
         #[smithy(value_type = "Option<String>")]
@@ -6890,8 +6894,11 @@ pub struct VoucherNextStepData {
     #[smithy(value_type = "Option<String>")]
     pub entry_date: Option<String>,
     /// Voucher expiry date and time
-    #[smithy(value_type = "Option<VoucherExpiry>")]
-    pub expires_at: Option<VoucherExpiry>,
+    #[smithy(value_type = "Option<i64>")]
+    pub expires_at: Option<i64>,
+    /// Voucher expiry date and time
+    #[smithy(value_type = "Option<String>")]
+    pub expiry_date: Option<PrimitiveDateTime>,
     /// Reference number required for the transaction
     #[smithy(value_type = "String")]
     pub reference: String,
@@ -11429,7 +11436,8 @@ impl FeatureMetadata {
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
     #[schema(value_type = Option<String>, example="2026-12-31")]
-    pub due_date: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub due_date: Option<PrimitiveDateTime>,
     // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
     #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
     pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
@@ -11494,8 +11502,8 @@ impl PixAdditionalDetails {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
-    #[schema(value_type = i32)]
-    pub time: i32,
+    #[schema(value_type = u32)]
+    pub time: u32,
     /// Pix identification details
     #[schema(value_type = Option<PixKeyDetails>)]
     pub pix_key: Option<PixKeyDetails>,
@@ -11516,7 +11524,8 @@ pub struct PixKeyDetails {
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
     #[schema(value_type = String, example="2026-07-08")]
-    pub date: String,
+    #[serde(with = "common_utils::custom_serde::date_only")]
+    pub date: PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
     #[schema(value_type = Option<i32>, example=10)]
     pub validity_after_expiration: Option<i32>,

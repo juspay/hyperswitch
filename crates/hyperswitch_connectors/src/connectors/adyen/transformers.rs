@@ -4,9 +4,7 @@ use std::{ops::Deref, str::FromStr};
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
-    payments::{
-        self, PollConfig, QrCodeInformation, TimeInMilliseonds, VoucherExpiry, VoucherNextStepData,
-    },
+    payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
@@ -5111,7 +5109,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Oxxo
         | PaymentType::JapaneseConvenienceStores => {
             let voucher_data = VoucherNextStepData {
-                expires_at: Some(VoucherExpiry::Time(TimeInMilliseonds { time: expires_at })),
+                expires_at,
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
@@ -5119,6 +5117,7 @@ pub fn get_present_to_shopper_metadata(
                 digitable_line: None,
                 qr_code_url: None,
                 barcode: None,
+                expiry_date: None,
             };
 
             Some(voucher_data.encode_to_value())

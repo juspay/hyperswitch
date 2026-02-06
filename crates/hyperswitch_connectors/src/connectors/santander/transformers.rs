@@ -1,4 +1,4 @@
-use api_models::payments::{DateType, QrCodeInformation, VoucherExpiry, VoucherNextStepData};
+use api_models::payments::{QrCodeInformation, VoucherNextStepData};
 use common_enums::{
     enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKeyType,
 };
@@ -90,15 +90,18 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest
 
         let boleto_components = extract_boleto_components(&item.request.connector_transaction_id)?;
 
-        Ok(Self {
-            covenant_code: boleto_mca_metadata.covenant_code,
-            bank_number: boleto_components.bank_number,
-            due_date: item
-                .request
+        let due_date = Some(format_as_date_only(
+            item.request
                 .feature_metadata
                 .clone()
                 .and_then(|data| data.boleto_additional_details)
                 .and_then(|boleto_details| boleto_details.due_date),
+        )?);
+
+        Ok(Self {
+            covenant_code: boleto_mca_metadata.covenant_code,
+            bank_number: boleto_components.bank_number,
+            due_date,
         })
     }
 }
@@ -189,9 +192,12 @@ impl TryFrom<&ConnectorAuthType> for SantanderAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                client_id: api_key.to_owned(),
-                client_secret: key1.to_owned(),
+            ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Ok(Self {
+                client_id: certificate.to_owned(),
+                client_secret: private_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -384,7 +390,7 @@ impl
                 })?;
 
             (
-                Some(details.due_date.as_ref().cloned().ok_or_else(|| {
+                Some(details.due_date.as_ref().copied().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "feature_metadata.boleto_additional_details.due_date",
                     }
@@ -509,7 +515,7 @@ impl
             covenant_code,
             bank_number,
             client_number: order_id.clone(),
-            due_date,
+            due_date: Some(format_as_date_only(due_date)?),
             issue_date: Some(
                 time::OffsetDateTime::now_utc()
                     .date()
@@ -608,7 +614,7 @@ impl
             Some(api_models::payments::PixAdditionalDetails::Scheduled(val)) => {
                 let cal =
                     SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
-                        data_de_vencimento: val.date.clone(),
+                        data_de_vencimento: format_as_date_only(Some(val.date))?,
                         validade_apos_vencimento: val.validity_after_expiration,
                     });
 
@@ -937,9 +943,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 let voucher_data = VoucherNextStepData {
                     digitable_line: boleto_data.digitable_line.clone(),
                     barcode: boleto_data.barcode.clone(),
-                    expires_at: Some(VoucherExpiry::Date(DateType {
-                        date: Some(boleto_data.due_date),
-                    })),
+                    expires_at: None,
+                    expiry_date: Some(boleto_data.due_date),
                     reference: boleto_data.nsu_code.clone(),
                     entry_date: boleto_data.entry_date.clone(),
                     download_url: None,
@@ -1243,7 +1248,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentReques
                 .feature_metadata
                 .as_ref()
                 .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .and_then(|details| details.due_date.clone())
+                .and_then(|details| details.due_date)
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "feature_metadata.boleto_additional_details.due_date",
                 })?,
@@ -1258,7 +1263,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentReques
             bank_number: Some(value.connector_request_reference_id.clone()),
             covenant_code,
             environment: None,
-            due_date,
+            due_date: Some(format_as_date_only(due_date)?),
             nsu_code: None,
             nsu_date: None,
             client_number: None,
@@ -1318,7 +1323,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest
                     Some(api_models::payments::PixAdditionalDetails::Scheduled(val)) => {
                         let cal = SantanderPixRequestCalendar::Scheduled(
                             SantanderPixDueDateCalendarRequest {
-                                data_de_vencimento: val.date.clone(),
+                                data_de_vencimento: format_as_date_only(Some(val.date))?,
                                 validade_apos_vencimento: val.validity_after_expiration,
                             },
                         );
@@ -1428,4 +1433,16 @@ fn extract_boleto_components(input: &str) -> Result<NsuComposite, errors::Connec
         covenant_code: covenant_code.to_string(),
         bank_number: bank_number.to_string(),
     })
+}
+
+pub fn format_as_date_only(
+    date_time: Option<time::PrimitiveDateTime>,
+) -> Result<String, errors::ConnectorError> {
+    let dt = date_time.ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "due_date",
+    })?;
+
+    let format = time::macros::format_description!("[year]-[month]-[day]");
+    dt.format(&format)
+        .map_err(|_| errors::ConnectorError::ParsingFailed)
 }

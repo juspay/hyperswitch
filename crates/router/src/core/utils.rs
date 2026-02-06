@@ -394,7 +394,6 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
-            payment_method_type: None,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -592,7 +591,6 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
-            payment_method_type: payment_attempt.payment_method_type,
         },
 
         response: Ok(types::RefundsResponseData {

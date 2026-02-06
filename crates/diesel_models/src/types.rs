@@ -81,7 +81,8 @@ pub struct FeatureMetadata {
 #[diesel(sql_type = Json)]
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
-    pub due_date: Option<String>,
+    #[serde(with = "common_utils::custom_serde::date_only_optional")]
+    pub due_date: Option<time::PrimitiveDateTime>,
     // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
     pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
     // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
@@ -160,7 +161,7 @@ pub struct PixKeyDetails {
 #[diesel(sql_type = Json)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
-    pub time: i32,
+    pub time: u32,
     /// Pix identification details
     pub pix_key: Option<PixKeyDetails>,
 }
@@ -169,7 +170,7 @@ pub struct ImmediateExpirationTime {
 #[diesel(sql_type = Json)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
-    pub date: String,
+    pub date: time::PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<i32>,
     /// Pix identification details

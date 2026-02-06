@@ -4,7 +4,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::payments::VoucherExpiry;
 use common_enums::enums;
 use common_utils::{
     crypto,
@@ -868,14 +867,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                         })
                         .transpose()?;
 
-                    let (issue_date, due_date) = voucher_data
-                        .and_then(|data| {
-                            let due = match data.expires_at {
-                                Some(VoucherExpiry::Date(d)) => d.date,
-                                _ => None,
-                            };
-                            data.entry_date.zip(due)
-                        })
+                    let (expiry_date, issue_date) = voucher_data
+                        .as_ref()
+                        .and_then(|data| data.expiry_date.zip(data.entry_date.clone()))
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "issue_date/due_date",
                         })?;
@@ -889,7 +883,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
     boleto_base_url = boleto_base_url,
     version = version,
     workspace_id = workspace_id,
-    due_date = due_date,
+    due_date = expiry_date,
     issue_date = issue_date,
     connector_transaction_id = connector_transaction_id
 ))
@@ -1240,7 +1234,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
+            enums::PaymentMethod::BankTransfer => match req.payment_method_type {
                 Some(enums::PaymentMethodType::Pix) => {
                     let end_to_end_id = req
                         .request

@@ -1,6 +1,7 @@
 use common_utils::types::StringMajorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::connectors::santander::requests;
 
@@ -133,7 +134,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub covenant_code: Secret<String>,
     pub bank_number: String,
     pub client_number: Option<String>,
-    pub due_date: String,
+    pub due_date: PrimitiveDateTime,
     pub issue_date: String,
     pub participant_code: Option<String>,
     pub nominal_value: StringMajorUnit,

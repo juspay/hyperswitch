@@ -1294,7 +1294,6 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -1390,6 +1389,15 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
+            }),
+            router_data::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+                ..
+            } => Ok(Self {
+                app_id: certificate,
+                id: Some(private_key),
                 authentication_token: None,
             }),
 
