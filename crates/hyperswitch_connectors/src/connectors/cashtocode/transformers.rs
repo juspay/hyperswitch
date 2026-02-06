@@ -65,9 +65,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePayme
         let customer_id = item.get_customer_id()?;
         let url = match env::which() {
             Env::Development => "https://example.com".to_string(),
-            _ => item
-            .request
-            .get_router_return_url()?
+            _ => item.request.get_router_return_url()?,
         };
         let mid = get_mid(
             &item.connector_auth_type,
