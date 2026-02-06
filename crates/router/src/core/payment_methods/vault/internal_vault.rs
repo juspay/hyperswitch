@@ -29,7 +29,29 @@ use common_utils::fp_utils::when;
 
 /// Internal vault strategy implementation
 #[cfg(feature = "v2")]
+#[derive(Clone)]
 pub(super) struct InternalVault;
+
+#[cfg(feature = "v2")]
+impl InternalVault {
+    /// Extract vault_id from payment method
+    fn extract_vault_id(pm: &domain::PaymentMethod) -> RouterResult<domain::VaultId> {
+        pm.locker_id
+            .clone()
+            .ok_or(errors::VaultError::MissingRequiredField {
+                field_name: "locker_id",
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing locker_id for vault operation")
+    }
+
+    /// Extract customer_id from payment method
+    fn extract_customer_id(pm: &domain::PaymentMethod) -> RouterResult<id_type::GlobalCustomerId> {
+        pm.customer_id
+            .clone()
+            .get_required_value("GlobalCustomerId")
+    }
+}
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
@@ -37,15 +59,53 @@ impl super::VaultStrategy for InternalVault {
     async fn vault_payment_method(
         &self,
         state: &SessionState,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
+        _profile: &domain::Profile,
         pmd: &domain::PaymentMethodVaultingData,
-        _existing_vault_id: Option<domain::VaultId>,
+        existing_vault_id: Option<domain::VaultId>,
         customer_id: &id_type::GlobalCustomerId,
-    ) -> RouterResult<pm_types::AddVaultResponse> {
-        add_payment_method_to_vault(state, pmd, _existing_vault_id, customer_id)
+    ) -> RouterResult<(
+        pm_types::AddVaultResponse,
+        Option<id_type::MerchantConnectorAccountId>,
+    )> {
+        let db = &*state.store;
+
+        // Step 1: Get fingerprint_id from vault for duplicate detection
+        let fingerprint_id_from_vault =
+            get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get fingerprint_id from vault")?;
+
+        // Step 2: Check for duplicate payment methods
+        // This prevents the same card from being vaulted multiple times for the same merchant
+        when(
+            db.find_payment_method_by_fingerprint_id(
+                platform.get_provider().get_key_store(),
+                &fingerprint_id_from_vault,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method to internal vault")
+            .attach_printable("Failed to find payment method by fingerprint_id")
+            .inspect_err(|e| router_env::logger::error!("Vault Fingerprint_id error: {:?}", e))
+            .is_ok(),
+            || {
+                Err(report!(errors::ApiErrorResponse::DuplicatePaymentMethod)
+                    .attach_printable("Cannot vault duplicate payment method"))
+            },
+        )?;
+
+        // Step 3: Add payment method to vault
+        let mut resp_from_vault =
+            add_payment_method_to_vault(state, pmd, existing_vault_id, customer_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add payment method in vault")?;
+
+        // Step 4: Enrich response with fingerprint_id
+        resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);
+
+        Ok((resp_from_vault, None))
     }
 
     async fn retrieve_payment_method(
@@ -55,18 +115,8 @@ impl super::VaultStrategy for InternalVault {
         _profile: &domain::Profile,
         pm: &domain::PaymentMethod,
     ) -> RouterResult<pm_types::VaultRetrieveResponse> {
-        let vault_id = pm
-            .locker_id
-            .clone()
-            .ok_or(errors::VaultError::MissingRequiredField {
-                field_name: "locker_id",
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-        let customer_id = pm
-            .customer_id
-            .clone()
-            .get_required_value("GlobalCustomerId")?;
+        let vault_id = Self::extract_vault_id(pm)?;
+        let customer_id = Self::extract_customer_id(pm)?;
         retrieve_payment_method_from_vault_internal(state, &vault_id, &customer_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -80,16 +130,9 @@ impl super::VaultStrategy for InternalVault {
         _profile: &domain::Profile,
         pm: &domain::PaymentMethod,
     ) -> RouterResult<pm_types::VaultDeleteResponse> {
-        let vault_id = pm
-            .locker_id
-            .clone()
-            .get_required_value("locker_id")
-            .attach_printable("Missing locker_id in PaymentMethod")?;
-        let customer_id = &pm
-            .customer_id
-            .clone()
-            .get_required_value("GlobalCustomerId")?;
-        delete_payment_method(state, vault_id, customer_id)
+        let vault_id = Self::extract_vault_id(pm)?;
+        let customer_id = Self::extract_customer_id(pm)?;
+        delete_payment_method(state, vault_id, &customer_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to delete payment method from internal vault")

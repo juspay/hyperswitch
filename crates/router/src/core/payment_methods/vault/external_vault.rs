@@ -54,26 +54,40 @@ impl ExternalVault {
 }
 
 #[cfg(feature = "v2")]
+impl ExternalVault {
+    /// Get the merchant connector account ID for this external vault
+    pub(super) fn get_connector_id(&self) -> id_type::MerchantConnectorAccountId {
+        self.merchant_connector_account.get_id()
+    }
+}
+
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::VaultStrategy for ExternalVault {
     async fn vault_payment_method(
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        _profile: &domain::Profile,
         pmd: &domain::PaymentMethodVaultingData,
         _existing_vault_id: Option<domain::VaultId>,
         _customer_id: &id_type::GlobalCustomerId,
-    ) -> RouterResult<pm_types::AddVaultResponse> {
+    ) -> RouterResult<(
+        pm_types::AddVaultResponse,
+        Option<id_type::MerchantConnectorAccountId>,
+    )> {
         // Convert PaymentMethodVaultingData to PaymentMethodCustomVaultingData
         let custom_data: domain::PaymentMethodCustomVaultingData = pmd.clone().into();
 
-        vault_payment_method(
+        let response = vault_payment_method(
             state,
             &custom_data,
             platform.get_provider().get_account(),
             &self.merchant_connector_account,
         )
-        .await
+        .await?;
+
+        Ok((response, Some(self.get_connector_id())))
     }
 
     async fn retrieve_payment_method(
@@ -113,7 +127,7 @@ impl super::VaultStrategy for ExternalVault {
             state,
             platform.get_provider().get_account(),
             &self.merchant_connector_account,
-            vault_id,
+            vault_id.clone(),
             customer_id,
         )
         .await
