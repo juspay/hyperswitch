@@ -1018,6 +1018,3 @@ impl api::ConnectorTransactionId for ConnectorEnum {
         }
     }
 }
-
-//re-add if stops working
-// impl ConnectorAccessTokenSuffix for BoxedConnectorV2 {}

@@ -7,8 +7,8 @@ use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
-    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse,
-    FeatureMetadata, FrmMessage, MandateIds, NetworkDetails, RequestSurchargeDetails,
+    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+    MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
@@ -3282,12 +3282,12 @@ where
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
     ) -> RouterResponse<Self> {
-        let feature_metadata =
-            FeatureMetadata::to(payment_data.get_payment_intent().feature_metadata.clone())
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "feature_metadata",
-                })
-                .attach_printable("Failed parsing FeatureMetadata")?;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse feature metadata")?;
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 payment_id: payment_data.get_payment_intent().payment_id.clone(),
@@ -3971,12 +3971,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode SDK authorization")?;
 
-        let feature_metadata =
-            FeatureMetadata::to(payment_data.get_payment_intent().feature_metadata.clone())
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "feature_metadata",
-                })
-                .attach_printable("Failed parsing FeatureMetadata")?;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse feature metadata")?;
 
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
@@ -4838,12 +4837,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?;
 
-        let feature_metadata =
-            FeatureMetadata::to(payment_data.payment_intent.clone().feature_metadata)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "feature_metadata",
-                })
-                .attach_printable("Failed parsing FeatureMetadata")?;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse feature metadata")?;
 
         let order_category = connector_metadata.as_ref().and_then(|cm| {
             cm.noon
@@ -5110,11 +5108,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .get_payment_method_type()
             .to_owned();
 
-        let feature_metadata = FeatureMetadata::to(payment_data.payment_intent.feature_metadata)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "feature_metadata",
-            })
-            .attach_printable("Failed parsing FeatureMetadata")?;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse feature metadata")?;
 
         Ok(Self {
             amount,
@@ -5431,11 +5429,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-        let feature_metadata = FeatureMetadata::to(payment_data.payment_intent.feature_metadata)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "feature_metadata",
-            })
-            .attach_printable("Failed parsing FeatureMetadata")?;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse feature metadata")?;
         let amount = payment_data.payment_attempt.get_total_amount();
 
         let router_base_url = &additional_data.router_base_url;
@@ -5647,11 +5645,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
-        let feature_metadata = FeatureMetadata::to(payment_data.payment_intent.feature_metadata)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "feature_metadata",
-            })
-            .attach_printable("Failed parsing FeatureMetadata")?;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse feature metadata")?;
 
         Ok(Self {
             metadata: payment_data.payment_intent.metadata.map(Secret::new),

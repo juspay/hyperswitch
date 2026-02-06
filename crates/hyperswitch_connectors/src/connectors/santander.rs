@@ -4,7 +4,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::payments::{ExpiryType, VoucherExpiry};
+use api_models::payments::VoucherExpiry;
 use common_enums::enums;
 use common_utils::{
     crypto,
@@ -138,12 +138,12 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                         transformers::get_qr_code_type(req.request.connector_meta.clone())?;
 
                     match santander_variant {
-                        ExpiryType::Immediate => Ok(format!(
+                        enums::ExpiryType::Immediate => Ok(format!(
                             "{}api/v1/cob/{}",
                             self.base_url(connectors),
                             req.request.connector_transaction_id
                         )),
-                        ExpiryType::Scheduled => Ok(format!(
+                        enums::ExpiryType::Scheduled => Ok(format!(
                             "{}api/v1/cobv/{}",
                             self.base_url(connectors),
                             req.request.connector_transaction_id
@@ -813,7 +813,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     let santander_variant =
                         transformers::get_qr_code_type(req.request.connector_meta.clone())?;
                     match santander_variant {
-                        ExpiryType::Immediate => Ok(format!(
+                        enums::ExpiryType::Immediate => Ok(format!(
                             "{}api/v1/cob/{}",
                             self.base_url(connectors),
                             connector_transaction_id.ok_or(
@@ -822,7 +822,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                 }
                             )?
                         )),
-                        ExpiryType::Scheduled => Ok(format!(
+                        enums::ExpiryType::Scheduled => Ok(format!(
                             "{}api/v1/cobv/{}",
                             self.base_url(connectors),
                             connector_transaction_id.ok_or(

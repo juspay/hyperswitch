@@ -318,7 +318,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
         operations::ValidateResult,
     )> {
         request.validate().change_context(
-            payment_methods::errors::ApiErrorResponse::InvalidDataValue {
+            payment_methods::errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "metadata/feature_metadata",
             },
         )?;

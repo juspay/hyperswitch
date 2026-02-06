@@ -10,11 +10,11 @@ pub struct Payer {
     pub name: Secret<String>,
     pub document_type: SantanderDocumentKind,
     pub document_number: Option<Secret<String>>,
-    pub address: Secret<String>,
-    pub neighborhood: Secret<String>,
-    pub city: Secret<String>,
-    pub state: Secret<String>,
-    pub zip_code: Secret<String>,
+    pub address: Option<Secret<String>>,
+    pub neighborhood: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip_code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub enum SantanderDocumentKind {
 #[serde(rename_all = "camelCase")]
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
-    pub document_type: Option<common_types::customers::DocumentKind>,
+    pub document_type: Option<String>,
     pub document_number: Option<Secret<String>>,
 }
 
@@ -676,7 +676,7 @@ pub struct SantanderTokenErrorResponse {
 pub struct QrDataUrlSantander {
     pub qr_code_url: url::Url,
     pub display_to_timestamp: Option<i64>,
-    pub variant: Option<api_models::payments::ExpiryType>,
+    pub variant: Option<common_enums::enums::ExpiryType>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -708,32 +708,32 @@ pub struct SantanderBoletoPSyncResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPaginationMetadata {
     #[serde(rename = "_limit")]
-    pub limit: i32,
+    pub limit: Option<i32>,
 
     #[serde(rename = "_offset")]
-    pub offset: i32,
+    pub offset: Option<i32>,
 
     #[serde(rename = "_pageNumber")]
-    pub page_number: i32,
+    pub page_number: Option<i32>,
 
     #[serde(rename = "_pageElements")]
-    pub page_elements: i32,
+    pub page_elements: Option<i32>,
 
     #[serde(rename = "_totalPages")]
-    pub total_pages: i32,
+    pub total_pages: Option<i32>,
 
     #[serde(rename = "_totalElements")]
-    pub total_elements: i32,
+    pub total_elements: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoContent {
-    pub nsu_code: String,
-    pub nsu_date: String,
+    pub nsu_code: Option<String>,
+    pub nsu_date: Option<String>,
     pub covenant_code: Secret<String>,
     pub bank_number: String,
-    pub client_number: String,
+    pub client_number: Option<String>,
     pub status: SantanderBoletoStatus,
     pub status_complement: Option<String>,
     pub due_date: String,
@@ -748,21 +748,34 @@ pub struct SantanderBoletoContent {
     pub deduction_value: Option<String>,
     pub protest_type: Option<String>,
     pub protest_quantity_days: Option<String>,
-    pub payment_type: String,
+    pub payment_type: Option<String>,
     pub parcels_quantity: Option<String>,
     pub min_value_or_percentage: Option<String>,
     pub max_value_or_percentage: Option<String>,
     pub iof_percentage: Option<String>,
     pub payment: SantanderPaymentDetails,
-    pub entry_date: String,
+    pub barcode: Option<Secret<String>>,
+    pub digitable_line: Option<Secret<String>>,
+    pub entry_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPaymentDetails {
-    pub barcode: Secret<String>,
-    pub digitable_line: Secret<String>,
-    pub entry_date: String,
+    pub paid_value: Option<StringMajorUnit>,
+    pub interest_value: Option<StringMajorUnit>,
+    pub fine_value: Option<StringMajorUnit>,
+    pub deduction_value: Option<StringMajorUnit>,
+    pub rebate_value: Option<StringMajorUnit>,
+    pub iof_value: Option<StringMajorUnit>,
+    pub date: Option<String>,
+    #[serde(rename = "type")]
+    pub bank_type: Option<String>,
+    pub bank_code: Option<String>,
+    pub channel: Option<String>,
+    pub kind: Option<String>,
+    pub credit_date: Option<String>,
+    pub tx_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

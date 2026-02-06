@@ -1,7 +1,7 @@
-use api_models::payments::{
-    DateType, ExpiryType, QrCodeInformation, VoucherExpiry, VoucherNextStepData,
+use api_models::payments::{DateType, QrCodeInformation, VoucherExpiry, VoucherNextStepData};
+use common_enums::{
+    enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKeyType,
 };
-use common_enums::{enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, PixKeyType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, ValueExt},
@@ -483,18 +483,18 @@ impl
             name: value.0.router_data.get_billing_full_name()?,
             document_type,
             document_number,
-            address: Secret::new(
+            address: Some(Secret::new(
                 [
                     value.0.router_data.get_billing_line1()?,
                     value.0.router_data.get_billing_line2()?,
                 ]
                 .map(|s| s.expose())
                 .join(" "),
-            ),
-            neighborhood: value.0.router_data.get_billing_line1()?,
-            city: Secret::new(value.0.router_data.get_billing_city()?),
-            state: value.0.router_data.get_billing_state()?,
-            zip_code: value.0.router_data.get_billing_zip()?,
+            )),
+            neighborhood: Some(value.0.router_data.get_billing_line1()?),
+            city: Some(Secret::new(value.0.router_data.get_billing_city()?)),
+            state: Some(value.0.router_data.get_billing_state()?),
+            zip_code: Some(value.0.router_data.get_billing_zip()?),
         });
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {

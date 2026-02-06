@@ -396,6 +396,22 @@ impl PaymentIntent {
             .map(|opt| opt.flatten())
             .map_err(|report| (*report.current_context()).clone())
     }
+    #[cfg(feature = "v1")]
+    pub fn get_optional_feature_metadata(
+        &self,
+    ) -> Result<Option<api_models::payments::FeatureMetadata>, common_utils::errors::ParsingError>
+    {
+        self.feature_metadata
+            .as_ref()
+            .map(|details| {
+                ValueExt::parse_value::<api_models::payments::FeatureMetadata>(
+                    details.clone(),
+                    "FeatureMetadata",
+                )
+            })
+            .transpose()
+            .map_err(|report| (*report.current_context()).clone())
+    }
 }
 
 #[cfg(feature = "v2")]
