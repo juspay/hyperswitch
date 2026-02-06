@@ -110,8 +110,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             enums::AttemptStatus::CaptureFailed,
             enums::AttemptStatus::Failure,
         ];
+
+        let is_post_capture_void_attempted_state =
+            payment_data.payment_intent.is_post_capture_void_applied()
+                || payment_data.payment_intent.is_post_capture_void_pending();
+
         match &payment_data.payment_attempt.status {
-            status if terminal_status.contains(status) => {
+            status if terminal_status.contains(status) || is_post_capture_void_attempted_state => {
                 state
                     .store
                     .as_scheduler()

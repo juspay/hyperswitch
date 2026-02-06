@@ -33,14 +33,14 @@ use crate::{
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
         PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
-        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
-        PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
-        PaymentsUpdateMetadataResponse,
+        PaymentsCancelPostCaptureSyncBody, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
     },
 };
 
@@ -148,6 +148,16 @@ impl ApiEventMetric for PaymentsCancelPostCaptureRequest {
         })
     }
 }
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PaymentsCancelPostCaptureSyncBody {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsExtendAuthorizationRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

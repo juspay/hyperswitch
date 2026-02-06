@@ -10935,6 +10935,14 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub cancellation_reason: Option<String>,
 }
 
+/// Request to cancel a payment when the payment is already captured
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelPostCaptureSyncBody {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 /// Request constructed internally for extending authorization
 pub struct PaymentsExtendAuthorizationRequest {

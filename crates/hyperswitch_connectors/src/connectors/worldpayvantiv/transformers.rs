@@ -16,8 +16,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, UploadFileRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsSyncData,
+        ResponseId, RetrieveFileRequestData, SetupMandateRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
@@ -520,6 +520,56 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
             }
             .into()),
         }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = match item.response.payment_status {
+            PaymentStatus::ProcessedSuccessfully => common_enums::PostCaptureVoidStatus::Succeeded,
+            PaymentStatus::TransactionDeclined => common_enums::PostCaptureVoidStatus::Failed,
+            PaymentStatus::PaymentStatusNotFound
+            | PaymentStatus::NotYetProcessed
+            | PaymentStatus::StatusUnavailable => common_enums::PostCaptureVoidStatus::Pending,
+        };
+        let connector_reference_id = item
+            .response
+            .payment_detail
+            .as_ref()
+            .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
+
+        let description = item
+            .response
+            .payment_detail
+            .as_ref()
+            .and_then(|detail| detail.response_reason_message.clone())
+            .filter(|_| connector_utils::is_post_capture_void_failure(status));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: status,
+                connector_reference_id,
+                description,
+            }),
+            ..item.data
+        })
     }
 }
 

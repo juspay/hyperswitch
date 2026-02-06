@@ -1149,6 +1149,52 @@
             "api_key": []
           }
         ]
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture Retrieve",
+        "description": "Retrieves a canceled Payment post capture",
+        "operationId": "Cancel a Payment Post Capture Retrieve",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/extend_authorization": {
@@ -27133,6 +27179,19 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
+          }
+        }
+      },
+      "PaymentsCancelPostCaptureSyncBody": {
+        "type": "object",
+        "description": "Request to cancel a payment when the payment is already captured",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
           }
         }
       },

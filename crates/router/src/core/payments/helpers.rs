@@ -1484,10 +1484,16 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    super::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),

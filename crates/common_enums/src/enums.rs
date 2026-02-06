@@ -10157,6 +10157,7 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
@@ -10596,4 +10597,11 @@ pub enum PostCaptureVoidStatus {
     #[default]
     Pending,
     Failed,
+}
+
+/// Event override options for webhook events
+pub enum EventOverride {
+    Override(EventType),
+    Ignore,
+    NoOverride,
 }
