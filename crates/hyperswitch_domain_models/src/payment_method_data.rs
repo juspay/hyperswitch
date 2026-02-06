@@ -894,6 +894,8 @@ pub enum UpiSource {
     UpiCl,      // UPI Credit Line
     UpiAccount, // UPI Bank Account (Savings)
     UpiCcCl,    // UPI Credit Card + Credit Line
+    UpiPpi,     // UPI Prepaid Payment Instrument
+    UpiVoucher, // UPI Voucher
 }
 
 impl From<api_models::payments::UpiSource> for UpiSource {
@@ -903,6 +905,8 @@ impl From<api_models::payments::UpiSource> for UpiSource {
             api_models::payments::UpiSource::UpiCl => Self::UpiCl,
             api_models::payments::UpiSource::UpiAccount => Self::UpiAccount,
             api_models::payments::UpiSource::UpiCcCl => Self::UpiCcCl,
+            api_models::payments::UpiSource::UpiPpi => Self::UpiPpi,
+            api_models::payments::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }
@@ -914,6 +918,8 @@ impl From<UpiSource> for api_models::payments::UpiSource {
             UpiSource::UpiCl => Self::UpiCl,
             UpiSource::UpiAccount => Self::UpiAccount,
             UpiSource::UpiCcCl => Self::UpiCcCl,
+            UpiSource::UpiPpi => Self::UpiPpi,
+            UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }
@@ -928,6 +934,7 @@ pub struct UpiCollectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UpiIntentData {
     pub upi_source: Option<UpiSource>,
+    pub app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1863,6 +1870,7 @@ impl From<api_models::payments::UpiData> for UpiData {
             }),
             api_models::payments::UpiData::UpiIntent(upi) => Self::UpiIntent(UpiIntentData {
                 upi_source: upi.upi_source.map(UpiSource::from),
+                app_name: upi.app_name,
             }),
             api_models::payments::UpiData::UpiQr(upi) => Self::UpiQr(UpiQrData {
                 upi_source: upi.upi_source.map(UpiSource::from),
@@ -1883,6 +1891,7 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiIntent(upi) => {
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {
                     upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+                    app_name: upi.app_name,
                 }))
             }
             UpiData::UpiQr(upi) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {

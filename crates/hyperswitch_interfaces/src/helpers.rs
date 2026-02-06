@@ -15,6 +15,9 @@ pub trait ForeignTryFrom<F>: Sized {
     /// Convert from a foreign type to the current type and return an error if the conversion fails
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
+pub trait ForeignFrom<F>: Sized {
+    fn foreign_from(from: F) -> Self;
+}
 
 /// Data structure to hold comparison data between Hyperswitch and UCS
 #[derive(serde::Serialize, Debug)]

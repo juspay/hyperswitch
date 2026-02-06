@@ -10,7 +10,10 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 
-use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
+use crate::{
+    helpers::{ForeignFrom, ForeignTryFrom},
+    unified_connector_service::payments_grpc,
+};
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -363,34 +366,56 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     fn foreign_try_from(
         value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
     ) -> Result<Self, Self::Error> {
-        let card_data = value.card.unwrap_or_default();
-
-        Ok(Self::Card {
-            authentication_data: card_data.authentication_data.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize authentication_data from UCS connector response"
-                        );
-                    })
-                    .ok()
-            }),
-            payment_checks: card_data.payment_checks.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize payment_checks from UCS connector response"
-                        );
-                    })
-                    .ok()
-            }),
-            card_network: card_data.card_network,
-            domestic_network: card_data.domestic_network,
-            // needs to be updated
+        // Handle the oneof payment_method_data field
+        match value.payment_method_data {
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(card_data)) => {
+                Ok(Self::Card {
+                    authentication_data: card_data.authentication_data.and_then(|data| {
+                        serde_json::from_slice(&data)
+                            .inspect_err(|e| {
+                                router_env::logger::warn!(
+                                    deserialization_error=?e,
+                                    "Failed to deserialize authentication_data from UCS connector response"
+                                );
+                            })
+                            .ok()
+                    }),
+                    payment_checks: card_data.payment_checks.and_then(|data| {
+                        serde_json::from_slice(&data)
+                            .inspect_err(|e| {
+                                router_env::logger::warn!(
+                                    deserialization_error=?e,
+                                    "Failed to deserialize payment_checks from UCS connector response"
+                                );
+                            })
+                            .ok()
+                    }),
+                    card_network: card_data.card_network,
+                    domestic_network: card_data.domestic_network,
+                    // needs to be updated
             auth_code: None,
         })
+            }
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
+                let upi_mode = upi_data
+                    .upi_mode
+                    .map(|mode| {
+                        payments_grpc::UpiSource::try_from(mode).map_err(|_| {
+                            error_stack::Report::new(
+                                UnifiedConnectorServiceError::ParsingFailed,
+                            )
+                            .attach_printable("Failed to parse upi_mode from UCS connector response")
+                        })
+                    })
+                    .transpose()?
+                    .map(hyperswitch_domain_models::payment_method_data::UpiSource::foreign_from);
+                Ok(Self::Upi { upi_mode })
+            }
+            None => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("Unexpected error: payment_method_data is None in UCS connector response")),
+        }
     }
 }
 
@@ -684,6 +709,21 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
                     .attach_printable("Invalid Http Method")
             }
+        }
+    }
+}
+
+impl ForeignFrom<payments_grpc::UpiSource>
+    for hyperswitch_domain_models::payment_method_data::UpiSource
+{
+    fn foreign_from(upi_source: payments_grpc::UpiSource) -> Self {
+        match upi_source {
+            payments_grpc::UpiSource::UpiCc => Self::UpiCc,
+            payments_grpc::UpiSource::UpiCl => Self::UpiCl,
+            payments_grpc::UpiSource::UpiAccount => Self::UpiAccount,
+            payments_grpc::UpiSource::UpiCcCl => Self::UpiCcCl,
+            payments_grpc::UpiSource::UpiPpi => Self::UpiPpi,
+            payments_grpc::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }

@@ -7650,6 +7650,7 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn update_additional_payment_data_with_connector_response_pm_data(
     additional_payment_data: Option<serde_json::Value>,
     connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
@@ -7682,6 +7683,93 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encode additional pm data")
+}
+
+#[cfg(feature = "v2")]
+pub fn update_additional_payment_data_with_connector_response_pm_data(
+    additional_payment_data: Option<serde_json::Value>,
+    connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let parsed_additional_payment_method_data = additional_payment_data
+        .as_ref()
+        .map(|payment_method_data| {
+            payment_method_data
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>(
+                    "additional_payment_method_data",
+                )
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse value into additional_payment_method_data")?;
+
+    let additional_payment_method_data = match (
+        parsed_additional_payment_method_data,
+        connector_response_pm_data,
+    ) {
+        (Some(additional_pm_data), Some(connector_response_pm_data)) => {
+            let upi_mode_override =
+                if let AdditionalPaymentMethodConnectorResponse::Upi { upi_mode } =
+                    &connector_response_pm_data
+                {
+                    upi_mode.clone()
+                } else {
+                    None
+                };
+
+            let mut additional_pm_data = add_connector_response_to_additional_payment_data(
+                additional_pm_data,
+                connector_response_pm_data,
+            );
+            // Apply UPI mode override if present
+            if let Some(ref mode) = upi_mode_override {
+                override_upi_source_in_additional_payment_data(&mut additional_pm_data, mode);
+            }
+
+            Some(additional_pm_data)
+        }
+        (Some(additional_pm_data), None) => Some(additional_pm_data),
+        (None, _) => None,
+    };
+
+    additional_payment_method_data
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode additional pm data")
+}
+
+#[cfg(feature = "v2")]
+pub fn override_upi_source_in_additional_payment_data(
+    additional_payment_data: &mut api_models::payments::AdditionalPaymentData,
+    upi_mode: &hyperswitch_domain_models::payment_method_data::UpiSource,
+) {
+    use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
+
+    if let api_models::payments::AdditionalPaymentData::Upi {
+        details: Some(details),
+    } = additional_payment_data
+    {
+        let upi_source = Some(api_models::payments::UpiSource::from(upi_mode.clone()));
+        *details = match details {
+            UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
+                api_models::payments::additional_info::UpiCollectAdditionalData {
+                    vpa_id: None,
+                    upi_source,
+                },
+            )),
+            UpiAdditionalData::UpiIntent(_) => {
+                UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                    upi_source,
+                    app_name: None,
+                }))
+            }
+            UpiAdditionalData::UpiQr(_) => {
+                UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData { upi_source }))
+            }
+        };
+    }
 }
 
 #[cfg(feature = "v2")]
