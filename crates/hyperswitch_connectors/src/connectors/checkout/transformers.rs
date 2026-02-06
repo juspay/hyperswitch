@@ -171,6 +171,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -290,6 +291,7 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    NetworkToken,
     #[serde(rename = "id")]
     SourceId,
 }
@@ -750,6 +752,77 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     _ => CheckoutPaymentType::Unscheduled,
                 };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
+            }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                network_token_data,
+            ) => {
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+
+                let token_type = match network_token_data.token_source {
+                    Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
+                    Some(common_types::payments::TokenSource::GooglePay) => "googlepay".to_string(),
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "token_source",
+                    })?,
+                };
+
+                let exp_month = network_token_data.token_exp_month.clone();
+                let expiry_year_4_digit = network_token_data.token_exp_year.clone();
+
+                let payment_source = match network_token_data.token_source {
+                    Some(common_types::payments::TokenSource::ApplePay) => {
+                        PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
+                            token: cards::CardNumber::from(
+                                network_token_data.network_token.clone(),
+                            ),
+                            decrypt_type: "network_token".to_string(),
+                            token_type,
+                            expiry_month: exp_month,
+                            expiry_year: expiry_year_4_digit,
+                            eci: None,
+                            cryptogram: Secret::new("".to_string()),
+                            billing_address: billing_details,
+                        }))
+                    }
+                    Some(common_types::payments::TokenSource::GooglePay) => {
+                        PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
+                            _type: "network_token".to_string(),
+                            token: cards::CardNumber::from(
+                                network_token_data.network_token.clone(),
+                            ),
+                            token_type,
+                            expiry_month: exp_month,
+                            expiry_year: expiry_year_4_digit,
+                            eci: network_token_data.eci.clone().unwrap_or("".to_string()),
+                            cryptogram: None,
+                            billing_address: billing_details,
+                        }))
+                    }
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "token_source",
+                    })?,
+                };
+
+                Ok((
+                    payment_source,
+                    previous_id,
+                    Some(true),
+                    p_type,
+                    store_for_future_use,
+                ))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),

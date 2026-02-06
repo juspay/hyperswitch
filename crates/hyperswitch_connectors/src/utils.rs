@@ -6638,6 +6638,7 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
     NetworkTransactionIdAndNetworkTokenDetails,
+    NetworkTransactionIdAndDecryptedWalletTokenDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
     InstantBankTransferFinland,
@@ -6657,6 +6658,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardWithLimitedDetails(_) => Self::CardWithLimitedDetails,
             PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndNetworkTokenDetails
+            }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Self::NetworkTransactionIdAndDecryptedWalletTokenDetails
             }
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,

@@ -890,6 +890,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::CustomTerms,
         common_types::payments::CustomMessage,
         common_types::payments::SdkDisplayMode,
+        common_types::payments::TokenSource,
     )),
     modifiers(&SecurityAddon)
 )]
