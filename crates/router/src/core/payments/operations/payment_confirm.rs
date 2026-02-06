@@ -767,8 +767,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pmd| pmd.payment_method_data.as_ref())
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
-            }).map(From::from);
-        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            })
+            .map(From::from);
+        let pm_pmd_billing = payment_method_with_raw_data
+            .as_ref()
+            .and_then(|pm| {
                 pm.payment_method
                     .0
                     .payment_method_billing_address
@@ -776,16 +779,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|decrypted_data| decrypted_data.into_inner().expose())
                     .and_then(|decrypted_value| {
                         decrypted_value
-                            .parse_value::<hyperswitch_domain_models::address::Address>("payment method billing address")
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment method billing address",
+                            )
                             .ok()
                     })
             });
 
         // billing address from request body has the highest priority followed by billing address from raw pm data and then billing address from payment_attempt
-        let pmd_address =payment_method_data_billing.or(pm_pmd_billing); 
+        let pmd_address = payment_method_data_billing.or(pm_pmd_billing);
 
-        let unified_address = address
-            .unify_with_payment_method_data_billing(pmd_address);
+        let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         // If processor_payment_token is passed in request then populating the same in PaymentData
         let mandate_id = request
