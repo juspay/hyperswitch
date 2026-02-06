@@ -78,6 +78,12 @@
                     ]
                   },
                   {
+                    "group": "Proxy",
+                    "pages": [
+                      "v2/proxy/proxy"
+                    ]
+                  },
+                  {
                     "group": "Payment Method Session",
                     "pages": [
                       "v2/payment-method-session/payment-method-session--create-v1",

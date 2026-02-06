@@ -178,6 +178,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for proxy
         routes::proxy::proxy_core,
+        routes::proxy::proxy_core_v1,
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
