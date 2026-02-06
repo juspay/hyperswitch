@@ -4,7 +4,7 @@
 /// Create a proxy request
 #[utoipa::path(
     post,
-    path = "/proxy",
+    path = "/v2/proxy",
     request_body(
         content = ProxyRequest,
         examples((

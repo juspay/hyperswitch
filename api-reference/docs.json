@@ -80,7 +80,7 @@
                   {
                     "group": "Proxy",
                     "pages": [
-                      "v2/proxy/proxy"
+                      "v2/proxy/proxy-v1"
                     ]
                   },
                   {

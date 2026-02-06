@@ -4718,7 +4718,7 @@
         ]
       }
     },
-    "/proxy": {
+    "/v2/proxy": {
       "post": {
         "tags": [
           "Proxy"
