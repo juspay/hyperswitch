@@ -3,6 +3,7 @@ pub mod models {
 
     use async_trait::async_trait;
     use common_utils::pii::SecretSerdeValue;
+    use futures_util::StreamExt;
     use masking::Secret;
     use router_env::logger;
     use serde::{Deserialize, Serialize};
@@ -119,6 +120,12 @@ pub mod models {
         async fn into_injector_response(
             self,
         ) -> Result<InjectorResponse, crate::injector::core::InjectorError>;
+
+        /// Convert to InjectorResponse with a maximum response size limit
+        async fn into_injector_response_with_limit(
+            self,
+            max_response_size: Option<usize>,
+        ) -> Result<InjectorResponse, crate::injector::core::InjectorError>;
     }
 
     #[async_trait]
@@ -126,7 +133,16 @@ pub mod models {
         async fn into_injector_response(
             self,
         ) -> Result<InjectorResponse, crate::injector::core::InjectorError> {
+            self.into_injector_response_with_limit(None).await
+        }
+
+        async fn into_injector_response_with_limit(
+            self,
+            max_response_size: Option<usize>,
+        ) -> Result<InjectorResponse, crate::injector::core::InjectorError> {
+            const DEFAULT_MAX_RESPONSE_SIZE_BYTES: usize = 10 * 1024 * 1024;
             let status_code = self.status().as_u16();
+            let content_length = self.content_length();
 
             logger::info!(
                 status_code = status_code,
@@ -153,9 +169,35 @@ pub mod models {
                 }
             };
 
-            let response_text = self
-                .text()
-                .await
+            let max_response_size = max_response_size.unwrap_or(DEFAULT_MAX_RESPONSE_SIZE_BYTES);
+
+            if let Some(length) = content_length {
+                if length as usize > max_response_size {
+                    return Err(crate::injector::core::InjectorError::ResponseTooLarge {
+                        limit: max_response_size,
+                        actual: length as usize,
+                    });
+                }
+            }
+
+            let mut response_bytes = Vec::new();
+            let mut response_stream = self.bytes_stream();
+
+            while let Some(chunk) = response_stream.next().await {
+                let chunk =
+                    chunk.map_err(|_| crate::injector::core::InjectorError::HttpRequestFailed)?;
+
+                if response_bytes.len() + chunk.len() > max_response_size {
+                    return Err(crate::injector::core::InjectorError::ResponseTooLarge {
+                        limit: max_response_size,
+                        actual: response_bytes.len() + chunk.len(),
+                    });
+                }
+
+                response_bytes.extend_from_slice(&chunk);
+            }
+
+            let response_text = String::from_utf8(response_bytes)
                 .map_err(|_| crate::injector::core::InjectorError::HttpRequestFailed)?;
 
             logger::debug!(
