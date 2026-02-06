@@ -1274,7 +1274,7 @@ pub struct Vault;
 
 impl Vault {
     #[instrument(skip_all)]
-    pub async fn get_payment_method_data_from_locker(
+    pub async fn get_payment_method_data_from_temp_locker(
         state: &routes::SessionState,
         lookup_key: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -1290,7 +1290,7 @@ impl Vault {
     }
 
     #[instrument(skip_all)]
-    pub async fn store_payment_method_data_in_locker(
+    pub async fn store_payment_method_data_in_temp_locker(
         state: &routes::SessionState,
         token_id: Option<String>,
         payment_method: &domain::PaymentMethodData,
@@ -1348,7 +1348,7 @@ impl Vault {
 
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
-    pub async fn store_payout_method_data_in_locker(
+    pub async fn store_payout_method_data_in_temp_locker(
         state: &routes::SessionState,
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
@@ -1384,7 +1384,7 @@ impl Vault {
     }
 
     #[instrument(skip_all)]
-    pub async fn delete_locker_payment_method_by_lookup_key(
+    pub async fn delete_temp_locker_payment_method_by_lookup_key(
         state: &routes::SessionState,
         lookup_key: &Option<String>,
     ) {
@@ -1612,6 +1612,8 @@ pub async fn delete_tokenized_data(
         }
     }
 }
+
+// ----------------------------------------------------------------------------
 
 #[cfg(feature = "v2")]
 async fn create_vault_request<R: pm_types::VaultingInterface>(
