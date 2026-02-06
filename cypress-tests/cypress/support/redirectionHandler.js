@@ -735,14 +735,20 @@ function bankRedirectRedirection(
                 }).should("be.visible");
 
                 // Bluecode shows a QR that the shopper scans inside their wallet app.
-                cy.get("canvas:visible, img:visible, svg:visible, picture:visible", {
-                  timeout: constants.TIMEOUT / 2,
-                })
+                cy.get(
+                  "canvas:visible, img:visible, svg:visible, picture:visible",
+                  {
+                    timeout: constants.TIMEOUT / 2,
+                  }
+                )
                   .first()
                   .scrollIntoView()
                   .should("be.visible")
                   .then(($el) => {
-                    cy.log("Verified Bluecode QR code is visible", $el.prop("tagName"));
+                    cy.log(
+                      "Verified Bluecode QR code is visible",
+                      $el.prop("tagName")
+                    );
                   });
 
                 cy.contains("button, a", /Cancel/i, {
