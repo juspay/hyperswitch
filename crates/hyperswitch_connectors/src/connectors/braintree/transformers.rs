@@ -300,6 +300,24 @@ pub struct VaultTransactionBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
+    payment_initiator: PaymentInitiatorType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    channel: String,
+    order_id: String,
+    payment_initiator: PaymentInitiatorType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInitiatorType {
+    Unscheduled,
+    RecurringFirst,
 }
 
 #[derive(Debug, Serialize)]
@@ -307,6 +325,7 @@ pub struct VaultTransactionBody {
 pub enum TransactionBody {
     Regular(RegularTransactionBody),
     Vault(VaultTransactionBody),
+    Mandate(MandateTransactionBody),
 }
 
 #[derive(Debug, Serialize)]
@@ -341,12 +360,12 @@ impl
                 true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
                 false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
             },
-            TransactionBody::Regular(RegularTransactionBody {
+            TransactionBody::Mandate(MandateTransactionBody {
                 amount: item.amount.to_owned(),
                 merchant_account_id: metadata.merchant_account_id,
                 channel: CHANNEL_CODE.to_string(),
-                customer_details: None,
                 order_id: item.router_data.connector_request_reference_id.clone(),
+                payment_initiator: PaymentInitiatorType::Unscheduled,
             }),
         );
         Ok(Self {
@@ -2518,6 +2537,7 @@ impl
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id: item.router_data.connector_request_reference_id.clone(),
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
                 }),
             )
         } else {
@@ -2630,6 +2650,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id: item.router_data.connector_request_reference_id.clone(),
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
                 }),
             )
         } else {
