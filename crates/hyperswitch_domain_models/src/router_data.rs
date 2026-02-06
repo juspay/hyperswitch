@@ -991,6 +991,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1318,6 +1321,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1633,6 +1639,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1919,6 +1928,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -2168,6 +2180,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
