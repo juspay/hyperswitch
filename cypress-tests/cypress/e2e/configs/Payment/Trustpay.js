@@ -1,7 +1,4 @@
-import {
-  connectorDetails as commonConnectorDetails,
-  customerAcceptance,
-} from "./Commons";
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
