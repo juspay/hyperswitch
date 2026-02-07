@@ -363,10 +363,15 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     fn foreign_try_from(
         value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
     ) -> Result<Self, Self::Error> {
-        let card_data = value.card.unwrap_or_default();
+        let card_data = value
+            .payment_method_data
+            .and_then(|data| match data {
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(card) => Some(card),
+                _ => None,
+            }).unwrap_or_default();
 
         Ok(Self::Card {
-            authentication_data: card_data.authentication_data.and_then(|data| {
+            authentication_data: card_data.authentication_data.and_then(|data: Vec<u8>| {
                 serde_json::from_slice(&data)
                     .inspect_err(|e| {
                         router_env::logger::warn!(
@@ -376,7 +381,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     })
                     .ok()
             }),
-            payment_checks: card_data.payment_checks.and_then(|data| {
+            payment_checks: card_data.payment_checks.and_then(|data: Vec<u8>| {
                 serde_json::from_slice(&data)
                     .inspect_err(|e| {
                         router_env::logger::warn!(
