@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use common_enums::PaymentMethodType;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
@@ -8,7 +10,6 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use std::convert::TryFrom;
 
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;

@@ -10,16 +10,23 @@
 //! service with cryptographic protection (JWE/JWS).
 
 #[cfg(feature = "v2")]
-use crate::types::payment_methods as pm_types;
-#[cfg(feature = "v2")]
-use crate::{
-    core::errors::{self, RouterResult, StorageErrorExt},
-    routes::SessionState,
-    types::domain,
-    utils::ext_traits::OptionExt,
+use common_utils::{
+    ext_traits::{Encode, StringExt, ValueExt},
+    fp_utils::when,
+    id_type,
 };
 #[cfg(feature = "v2")]
-use common_utils::fp_utils::when;
+use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use router_env::{instrument, tracing};
+
+#[cfg(feature = "v2")]
+use crate::{
+    core::errors::{self, CustomResult, RouterResult},
+    routes::SessionState,
+    types::{domain, payment_methods as pm_types},
+    utils::ext_traits::OptionExt,
+};
 
 /// Internal vault strategy implementation
 #[cfg(feature = "v2")]
@@ -149,9 +156,6 @@ pub(super) async fn delete_payment_method(
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-    use crate::core::payment_methods::vault::call_to_vault;
-    use common_utils::ext_traits::Encode;
-
     let payload = pm_types::VaultDeleteRequest {
         entity_id: customer_id.to_owned(),
         vault_id,
@@ -160,7 +164,7 @@ pub(super) async fn delete_payment_method(
     .change_context(errors::VaultError::RequestEncodingFailed)
     .attach_printable("Failed to encode VaultDeleteRequest")?;
 
-    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
+    let resp = super::call_to_vault::<pm_types::VaultDelete>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -183,12 +187,6 @@ pub(super) async fn get_fingerprint_id_from_vault<
     data: &D,
     key: String,
 ) -> CustomResult<String, errors::VaultError> {
-    use crate::{
-        core::payment_methods::vault::{call_to_vault, transformers},
-        headers, settings,
-    };
-    use common_utils::ext_traits::Encode;
-
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
@@ -198,7 +196,7 @@ pub(super) async fn get_fingerprint_id_from_vault<
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
+    let resp = super::call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -220,9 +218,6 @@ pub(super) async fn add_payment_method_to_vault(
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
-    use crate::core::payment_methods::vault::call_to_vault;
-    use common_utils::ext_traits::Encode;
-
     let payload = pm_types::AddVaultRequest {
         entity_id: customer_id.to_owned(),
         vault_id: existing_vault_id
@@ -234,7 +229,7 @@ pub(super) async fn add_payment_method_to_vault(
     .change_context(errors::VaultError::RequestEncodingFailed)
     .attach_printable("Failed to encode AddVaultRequest")?;
 
-    let resp = call_to_vault::<pm_types::AddVault>(state, payload)
+    let resp = super::call_to_vault::<pm_types::AddVault>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -270,15 +265,12 @@ pub(super) async fn retrieve_value_from_vault(
     state: &SessionState,
     request: pm_types::VaultRetrieveRequest,
 ) -> CustomResult<serde_json::Value, errors::VaultError> {
-    use crate::core::payment_methods::vault::call_to_vault;
-    use common_utils::ext_traits::Encode;
-
     let payload = request
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultRetrieveRequest")?;
 
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+    let resp = super::call_to_vault::<pm_types::VaultRetrieve>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;

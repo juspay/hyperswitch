@@ -14,6 +14,8 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
+#[cfg(feature = "v2")]
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -25,10 +27,7 @@ use crate::{
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
-use crate::{
-    consts,
-    types::{payment_methods as pm_types, transformers},
-};
+use crate::{consts, routes, types::transformers};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

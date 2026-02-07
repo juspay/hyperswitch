@@ -12,39 +12,31 @@
 
 use common_utils::id_type;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_flow_types::ExternalVaultDeleteFlow;
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
+    types::VaultRouterData,
+};
 use router_env::{instrument, tracing};
 
-use crate::db::errors::ConnectorErrorExt;
-use crate::types::payment_methods as pm_types;
+#[cfg(feature = "v2")]
+use crate::utils::ext_traits::OptionExt;
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self as payments_core},
         utils as core_utils,
     },
+    db::errors::ConnectorErrorExt,
     routes::SessionState,
     services::{self, connector_integration_interface::RouterDataConversion},
     types::{
         self, api,
         domain::{self},
+        payment_methods as pm_types,
     },
-};
-
-#[cfg(feature = "v2")]
-use crate::{
-    consts,
-    payments::helpers as payment_helpers,
-    types::storage::enums,
-    utils::{ext_traits::OptionExt, ConnectorResponseExt},
-};
-use hyperswitch_domain_models::router_data_v2::flow_common_types::VaultConnectorFlowData;
-use hyperswitch_domain_models::types::VaultRouterData;
-
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_flow_types::ExternalVaultDeleteFlow;
-
-use hyperswitch_domain_models::{
-    router_flow_types::ExternalVaultInsertFlow, router_flow_types::ExternalVaultRetrieveFlow,
 };
 
 /// External vault strategy implementation
@@ -259,7 +251,7 @@ pub(super) async fn retrieve_payment_method(
     )
     .await?;
 
-    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault retrieve api call",
@@ -400,7 +392,7 @@ pub(super) fn get_vault_response_for_insert_payment_method_data<F>(
 
 /// Parse vault response for retrieve payment method data
 #[cfg(feature = "v2")]
-pub(super) fn get_vault_response_for_retrieve_payment_method_data<F>(
+fn get_vault_response_for_retrieve_payment_method_data<F>(
     router_data: VaultRouterData<F>,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     match router_data.response {
@@ -415,7 +407,7 @@ pub(super) fn get_vault_response_for_retrieve_payment_method_data<F>(
                     .attach_printable("Invalid Vault Response"))
             }
         },
-        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+        Err(_err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method")),
     }
 }
@@ -441,7 +433,7 @@ pub(super) fn get_vault_response_for_delete_payment_method_data<F>(
                     .attach_printable("Invalid Vault Response"))
             }
         },
-        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+        Err(_err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method")),
     }
 }
@@ -580,8 +572,9 @@ pub(super) async fn retrieve_payment_method_v1(
     get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
 }
 
+#[cfg(feature = "v1")]
 /// Parse V1 vault response for retrieve payment method data
-pub(super) fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
+fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
     router_data: VaultRouterData<F>,
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
     match router_data.response {

@@ -1,30 +1,26 @@
-use common_utils::{encryption::Encryption, request};
 use common_utils::{
+    encryption::Encryption,
     ext_traits::{BytesExt, Encode},
-    id_type, type_name,
+    id_type, request, type_name,
 };
 use error_stack::{report, ResultExt};
-
 use hyperswitch_domain_models::types::VaultRouterData;
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     consts,
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResult},
+        payment_methods::{cards as pm_cards, transformers as pm_transforms},
+    },
+    headers,
     routes::{self},
     services::{self},
-    types::domain,
-    utils::StringExt,
+    settings,
+    types::{domain, payment_methods as pm_types},
+    utils::{ext_traits::OptionExt, StringExt},
 };
-
-use crate::{
-    core::payment_methods::{cards as pm_cards, transformers as pm_transforms},
-    headers, settings,
-    types::payment_methods as pm_types,
-    utils::ext_traits::OptionExt,
-};
-
 #[cfg(feature = "v2")]
 use crate::{
     core::{
@@ -32,11 +28,8 @@ use crate::{
         payment_methods::utils,
         payments::{self as payments_core},
     },
+    types::storage::{self, enums},
     utils::ConnectorResponseExt,
-};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_flow_types::{
-    ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow,
 };
 
 mod external_vault;
@@ -44,14 +37,14 @@ mod internal_vault;
 mod temp_locker;
 mod transformers;
 
-pub(crate) use temp_locker::process_tracker::*;
-pub(crate) use temp_locker::*;
-
 /// Re-export the strategy implementations from submodules
 #[cfg(feature = "v2")]
 use external_vault::ExternalVault;
 #[cfg(feature = "v2")]
 use internal_vault::InternalVault;
+#[cfg(feature = "v1")]
+pub(crate) use temp_locker::process_tracker::*;
+pub(crate) use temp_locker::*;
 
 /// Vault strategy trait defining the interface for vault operations
 ///
@@ -180,6 +173,7 @@ pub async fn delete_payment_method_data_from_vault(
         .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn vault_payment_method_v1(
     state: &routes::SessionState,
@@ -485,13 +479,6 @@ pub async fn retrieve_value_from_internal_vault(
     request: pm_types::VaultRetrieveRequest,
 ) -> CustomResult<serde_json::Value, errors::VaultError> {
     internal_vault::retrieve_value_from_vault(state, request).await
-}
-
-#[cfg(feature = "v2")]
-pub fn get_vault_response_for_retrieve_payment_method_data<F>(
-    router_data: VaultRouterData<F>,
-) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    external_vault::get_vault_response_for_retrieve_payment_method_data(router_data)
 }
 
 #[cfg(feature = "v2")]
@@ -808,10 +795,4 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
     external_vault::retrieve_payment_method_v1(state, merchant_id, pm, merchant_connector_account)
         .await
-}
-
-pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
-    router_data: VaultRouterData<F>,
-) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
-    external_vault::get_vault_response_for_retrieve_payment_method_data_v1(router_data)
 }
