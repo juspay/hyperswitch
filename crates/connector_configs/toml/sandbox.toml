@@ -7059,7 +7059,7 @@ name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
-type="MultiSelect"
+type="Select"
 options=["cpf", "cnpj", "email", "phone", "evp_token"]
 [[santander.metadata.pix]]
 name="merchant_city"
@@ -7109,7 +7109,7 @@ name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
-type="MultiSelect"
+type="Select"
 options=["cpf", "cnpj", "email", "phone", "evp_token"]
 
 [blackhawknetwork]
