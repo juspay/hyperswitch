@@ -1093,12 +1093,6 @@ struct TokenizedPassthroughInsensitiveValues {
     pub token_type: PaymentMethodType,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct MockTokenizeDBValue {
-    pub value1: String,
-    pub value2: String,
-}
-
 pub(crate) struct TempLocker;
 
 impl TempLocker {
