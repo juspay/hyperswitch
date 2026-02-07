@@ -423,6 +423,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 final_request_details,
                 is_relay_webhook,
                 webhook_processing_result.webhook_resource_data,
+                webhook_processing_result.object_reference_id,
             ))
             .await;
 
@@ -545,6 +546,7 @@ async fn process_ucs_webhook_transform<'a>(
         decoded_body: None, // UCS path uses raw body
         shadow_ucs_data: None,
         webhook_resource_data: None,
+        object_reference_id: None,
     })
 }
 
@@ -566,6 +568,7 @@ pub struct WebhookProcessingResult<'a> {
     pub decoded_body: Option<actix_web::web::Bytes>,
     pub shadow_ucs_data: Option<ShadowUcsData<'a>>,
     pub webhook_resource_data: Option<WebhookResourceData>,
+    pub object_reference_id: Option<api::ObjectReferenceId>,
 }
 
 #[derive(Clone, Debug)]
@@ -763,6 +766,7 @@ async fn process_non_ucs_webhook<'a>(
             decoded_body: Some(decoded_body),
             shadow_ucs_data: None,
             webhook_resource_data,
+            object_reference_id: object_ref_id,
         }),
         None => {
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
@@ -847,11 +851,15 @@ async fn process_webhook_business_logic(
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
     webhook_resource_data: Option<WebhookResourceData>,
+    object_reference_id: Option<api::ObjectReferenceId>,
 ) -> errors::RouterResult<WebhookResponseTracker> {
-    let object_ref_id = connector
-        .get_webhook_object_reference_id(request_details)
-        .switch()
-        .attach_printable("Could not find object reference id in incoming webhook body")?;
+    let object_ref_id = match object_reference_id {
+        Some(id) => id,
+        None => connector
+            .get_webhook_object_reference_id(request_details)
+            .switch()
+            .attach_printable("Could not find object reference id in incoming webhook body")?,
+    };
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -1432,17 +1440,22 @@ async fn payments_incoming_webhook_flow(
             Some(payments::CallConnectorAction::Trigger)
         }
     });
-    let payment_attempt = match webhook_resource_data {
-        Some(WebhookResourceData::Payment { payment_attempt }) => payment_attempt,
-        None => {
+    let payment_attempt = webhook_resource_data
+        .as_ref()
+        .and_then(|data| match data {
+            WebhookResourceData::Payment { payment_attempt } => Some(payment_attempt.clone()),
+        })
+        .async_map(|payment_attempt| async { Ok(payment_attempt) })
+        .await
+        .async_unwrap_or_else(|| async {
             get_payment_attempt_from_object_reference_id(
                 &state,
                 webhook_details.object_reference_id.clone(),
                 &platform,
             )
-            .await?
-        }
-    };
+            .await
+        })
+        .await?;
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
@@ -2761,20 +2774,20 @@ async fn disputes_incoming_webhook_flow(
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
-        let payment_attempt = match webhook_resource_data
+        let payment_attempt = webhook_resource_data
             .as_ref()
-            .map(|context| context.get_payment_attempt())
-        {
-            Some(payment_attempt) => payment_attempt.clone(),
-            None => {
+            .map(|context| context.get_payment_attempt().clone())
+            .async_map(|payment_attempt| async { Ok(payment_attempt) })
+            .await
+            .async_unwrap_or_else(|| async {
                 get_payment_attempt_from_object_reference_id(
                     &state,
                     webhook_details.object_reference_id,
                     &platform,
                 )
-                .await?
-            }
-        };
+                .await
+            })
+            .await?;
         let dispute_details = connector
             .get_dispute_details(
                 request_details,
@@ -3452,6 +3465,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         decoded_body: Some(decoded_body),
         shadow_ucs_data: None,
         webhook_resource_data: None,
+        object_reference_id: None,
     };
 
     Ok(webhook_result)

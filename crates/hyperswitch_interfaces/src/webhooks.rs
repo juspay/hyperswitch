@@ -47,10 +47,8 @@ impl From<&ApiErrorResponse> for IncomingWebhookFlowError {
         }
     }
 }
-
-/// Context information for webhook event type determination.
-/// This provides additional context about the resource state that can be used
-/// by connectors to determine the correct webhook event type.
+/// This provides the router core with the complete state of the resource
+/// to perform business logic and validating state transitions.
 #[derive(Debug, Clone)]
 pub enum WebhookResourceData {
     /// Context for payment-related webhooks
@@ -88,7 +86,8 @@ pub struct PaymentWebhookContext {
 }
 
 /// Minimal snapshot for connector-side webhook processing.
-/// Contains only the fields needed by connectors, not full domain objects.
+/// This contains only the essential fields needed by connectors to determine the
+/// correct event type or state, avoiding the exposure of full domain objects.
 #[derive(Debug, Clone)]
 pub enum WebhookContext {
     /// Snapshot of payment state before webhook processing
