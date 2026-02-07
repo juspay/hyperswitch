@@ -36509,7 +36509,8 @@
             "format": "int32",
             "description": "Days after expiration date for which the QR code remains valid",
             "example": 10,
-            "nullable": true
+            "nullable": true,
+            "minimum": 0
           },
           "pix_key": {
             "allOf": [
