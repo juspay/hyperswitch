@@ -48,10 +48,14 @@ use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     payment_method_data::BankDebitData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
-    router_data_v2::flow_common_types::VaultConnectorFlowData,
-    router_flow_types::ExternalVaultInsertFlow,
     types::VaultRouterData,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_flow_types::ExternalVaultInsertFlow,
+};
+#[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
@@ -83,17 +87,22 @@ use crate::{
     consts,
     core::{
         errors::{ProcessTrackerError, RouterResult},
-        payments::{self as payments_core, helpers as payment_helpers},
-        utils as core_utils,
+        payments::helpers as payment_helpers,
     },
-    db::errors::ConnectorErrorExt,
     errors, logger,
     routes::{app::StorageInterface, SessionState},
     services,
     types::{
-        self, api, domain, payment_methods as pm_types,
+        self, domain, payment_methods as pm_types,
         storage::{self, enums as storage_enums},
     },
+};
+
+#[cfg(feature = "v2")]
+use crate::{
+    core::{payments as payments_core, utils as core_utils},
+    db::errors::ConnectorErrorExt,
+    types::api,
 };
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
@@ -2874,7 +2883,7 @@ pub async fn vault_payment_method_external_v1(
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    vault::external_vault::vault_payment_method_v1(
+    vault::vault_payment_method_v1(
         state,
         pmd,
         merchant_account,

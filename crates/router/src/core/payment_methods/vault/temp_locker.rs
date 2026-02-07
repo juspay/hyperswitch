@@ -21,8 +21,9 @@ use crate::{
     utils::StringExt,
 };
 
-mod process_tracker;
+pub(crate) mod process_tracker;
 
+#[allow(unused)]
 pub(crate) struct SupplementaryVaultData {
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_id: Option<String>,

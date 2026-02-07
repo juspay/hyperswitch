@@ -1,53 +1,42 @@
-use common_enums::PaymentMethodType;
-use common_utils::{
-    crypto::{DecodeMessage, EncodeMessage, GcmAes256},
-    ext_traits::{BytesExt, Encode},
-    generate_id_with_default_len, id_type,
-    pii::Email,
-    type_name,
-};
-#[cfg(feature = "v2")]
 use common_utils::{encryption::Encryption, request};
+use common_utils::{
+    ext_traits::{BytesExt, Encode},
+    id_type, type_name,
+};
 use error_stack::{report, ResultExt};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_flow_types::{
-    ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow,
-};
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
-};
+
+use hyperswitch_domain_models::types::VaultRouterData;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use scheduler::{types::process_data, utils as process_tracker_utils};
-use std::convert::TryFrom;
 
-#[cfg(feature = "payouts")]
-use crate::types::api::payouts;
 use crate::{
     consts,
-    core::{
-        errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
-        payments, utils as core_utils,
-    },
-    db, logger,
-    routes::{self, metrics},
-    services::{self, connector_integration_interface::RouterDataConversion},
-    types::{
-        self, api, domain,
-        storage::{self, enums},
-    },
+    core::errors::{self, CustomResult, RouterResult},
+    routes::{self},
+    services::{self},
+    types::domain,
     utils::StringExt,
 };
+
+use crate::{
+    core::payment_methods::{cards as pm_cards, transformers as pm_transforms},
+    headers, settings,
+    types::payment_methods as pm_types,
+    utils::ext_traits::OptionExt,
+};
+
 #[cfg(feature = "v2")]
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, transformers as pm_transforms, utils},
+        payment_methods::utils,
         payments::{self as payments_core},
     },
-    headers, settings,
-    types::payment_methods as pm_types,
-    utils::{ext_traits::OptionExt, ConnectorResponseExt},
+    utils::ConnectorResponseExt,
+};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_flow_types::{
+    ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow,
 };
 
 mod external_vault;
@@ -55,6 +44,7 @@ mod internal_vault;
 mod temp_locker;
 mod transformers;
 
+pub(crate) use temp_locker::process_tracker::*;
 pub(crate) use temp_locker::*;
 
 /// Re-export the strategy implementations from submodules
@@ -188,6 +178,24 @@ pub async fn delete_payment_method_data_from_vault(
     strategy
         .delete_payment_method(state, platform, profile, pm)
         .await
+}
+
+#[instrument(skip_all)]
+pub async fn vault_payment_method_v1(
+    state: &routes::SessionState,
+    pmd: &hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    should_generate_multiple_tokens: Option<bool>,
+) -> RouterResult<pm_types::AddVaultResponse> {
+    external_vault::vault_payment_method_v1(
+        state,
+        pmd,
+        merchant_account,
+        merchant_connector_account,
+        should_generate_multiple_tokens,
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]

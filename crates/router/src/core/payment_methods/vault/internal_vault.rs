@@ -9,10 +9,6 @@
 //! hierarchy. The internal vault uses direct API calls to the Hyperswitch vault
 //! service with cryptographic protection (JWE/JWS).
 
-use common_utils::id_type;
-use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
-
 #[cfg(feature = "v2")]
 use crate::types::payment_methods as pm_types;
 #[cfg(feature = "v2")]
@@ -22,8 +18,6 @@ use crate::{
     types::domain,
     utils::ext_traits::OptionExt,
 };
-use common_utils::errors::CustomResult;
-use common_utils::ext_traits::{BytesExt, StringExt, ValueExt};
 #[cfg(feature = "v2")]
 use common_utils::fp_utils::when;
 

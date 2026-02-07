@@ -30,10 +30,8 @@ use common_utils::{
     consts,
     crypto::{self, Encryptable},
     encryption::Encryption,
-    ext_traits::{AsyncExt, BytesExt, Encode, StringExt, ValueExt},
-    generate_id, id_type,
-    request::Request,
-    type_name,
+    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
+    generate_id, id_type, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
         MinorUnit,
@@ -103,7 +101,7 @@ use crate::{
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::{self, ConnectorResponseExt, OptionExt},
+    utils::{self, OptionExt},
 };
 #[cfg(feature = "v2")]
 use crate::{core::payment_methods as pm_core, headers, types::payment_methods as pm_types};
@@ -647,62 +645,62 @@ impl PaymentMethodsController for PmCards<'_> {
         let key = key_store.key.get_inner().peek();
 
         // 1. Get fingerprint FIRST to check for duplicates
-        let data_str = serde_json::to_string(payment_method_data)
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode payment method data to string")?;
+        // let data_str = serde_json::to_string(payment_method_data)
+        //     .change_context(errors::VaultError::RequestEncodingFailed)
+        //     .attach_printable("Failed to encode payment method data to string")?;
 
-        let payload = crate::types::payment_methods::VaultFingerprintRequest {
-            key: customer_id.get_string_repr().to_owned(),
-            data: data_str,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+        // let payload = crate::types::payment_methods::VaultFingerprintRequest {
+        //     key: customer_id.get_string_repr().to_owned(),
+        //     data: data_str,
+        // }
+        // .encode_to_vec()
+        // .change_context(errors::VaultError::RequestEncodingFailed)
+        // .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault(self.state, payload)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+        // let resp = vault::call_to_vault(self.state, payload)
+        //     .await
+        //     .change_context(errors::VaultError::VaultAPIError)
+        //     .attach_printable("Call to vault failed")?;
 
-        let fingerprint_resp: crate::types::payment_methods::VaultFingerprintResponse = resp
-            .parse_struct("VaultFingerprintResponse")
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Failed to parse VaultFingerprintResponse")?;
+        // let fingerprint_resp: crate::types::payment_methods::VaultFingerprintResponse = resp
+        //     .parse_struct("VaultFingerprintResponse")
+        //     .change_context(errors::VaultError::ResponseDeserializationFailed)
+        //     .attach_printable("Failed to parse VaultFingerprintResponse")?;
 
-        let fingerprint_id = fingerprint_resp.fingerprint_id;
-        logger::debug!(
-            "Retrieved fingerprint ID for generic PM: {}",
-            fingerprint_id
-        );
+        // let fingerprint_id = fingerprint_resp.fingerprint_id;
+        // logger::debug!(
+        //     "Retrieved fingerprint ID for generic PM: {}",
+        //     fingerprint_id
+        // );
 
         // 2. Check if payment method with this fingerprint already exists in DB
-        let existing_pm = self
-            .state
-            .store
-            .find_payment_method_by_fingerprint_id(key_store, &fingerprint_id)
-            .await;
+        // let existing_pm = self
+        //     .state
+        //     .store
+        //     .find_payment_method_by_fingerprint_id(key_store, &fingerprint_id)
+        //     .await;
 
         // 3. If duplicate found, return it with duplication check
-        if let Ok(existing_payment_method) = existing_pm {
-            logger::debug!(
-                "Found existing payment method with fingerprint: {}",
-                fingerprint_id
-            );
+        // if let Ok(existing_payment_method) = existing_pm {
+        //     logger::debug!(
+        //         "Found existing payment method with fingerprint: {}",
+        //         fingerprint_id
+        //     );
 
-            let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
-                existing_payment_method
-                    .locker_id
-                    .clone()
-                    .unwrap_or(existing_payment_method.payment_method_id),
-                req,
-                self.provider.get_account().get_id(),
-            );
+        //     let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
+        //         existing_payment_method
+        //             .locker_id
+        //             .clone()
+        //             .unwrap_or(existing_payment_method.payment_method_id),
+        //         req,
+        //         self.provider.get_account().get_id(),
+        //     );
 
-            return Ok((
-                payment_method_resp,
-                Some(payment_methods::DataDuplicationCheck::Duplicated),
-            ));
-        }
+        //     return Ok((
+        //         payment_method_resp,
+        //         Some(payment_methods::DataDuplicationCheck::Duplicated),
+        //     ));
+        // }
 
         // 4. If no duplicate, encrypt and store in vault
         let key_manager_state: KeyManagerState = self.state.into();
@@ -4967,7 +4965,7 @@ pub async fn get_bank_debit_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
-    let payment_method = get_encrypted_data_from_vault(
+    let payment_method = vault::get_encrypted_data_from_vault(
         state,
         provider.get_key_store(),
         customer_id,

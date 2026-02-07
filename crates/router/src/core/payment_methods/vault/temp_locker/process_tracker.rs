@@ -89,7 +89,7 @@ pub async fn start_tokenize_data_workflow(
     Ok(())
 }
 
-pub async fn get_delete_tokenize_schedule_time(
+async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
     pm: enums::PaymentMethod,
     retry_count: i32,
@@ -112,7 +112,7 @@ pub async fn get_delete_tokenize_schedule_time(
     process_tracker_utils::get_time_from_delta(time_delta)
 }
 
-pub async fn retry_delete_tokenize(
+async fn retry_delete_tokenize(
     db: &dyn db::StorageInterface,
     pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,

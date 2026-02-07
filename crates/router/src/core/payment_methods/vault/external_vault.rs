@@ -15,14 +15,11 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::db::errors::ConnectorErrorExt;
-#[cfg(feature = "v2")]
 use crate::types::payment_methods as pm_types;
-#[cfg(feature = "v2")]
 use crate::{
-    consts,
     core::{
         errors::{self, RouterResult},
-        payments::{self as payments_core, helpers as payment_helpers},
+        payments::{self as payments_core},
         utils as core_utils,
     },
     routes::SessionState,
@@ -30,12 +27,25 @@ use crate::{
     types::{
         self, api,
         domain::{self},
-        storage::enums,
     },
+};
+
+#[cfg(feature = "v2")]
+use crate::{
+    consts,
+    payments::helpers as payment_helpers,
+    types::storage::enums,
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
-#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_data_v2::flow_common_types::VaultConnectorFlowData;
 use hyperswitch_domain_models::types::VaultRouterData;
+
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_flow_types::ExternalVaultDeleteFlow;
+
+use hyperswitch_domain_models::{
+    router_flow_types::ExternalVaultInsertFlow, router_flow_types::ExternalVaultRetrieveFlow,
+};
 
 /// External vault strategy implementation
 #[cfg(feature = "v2")]
@@ -156,11 +166,6 @@ pub(super) async fn vault_payment_method(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    use hyperswitch_domain_models::{
-        router_data_v2::flow_common_types::VaultConnectorFlowData,
-        router_flow_types::ExternalVaultInsertFlow,
-    };
-
     let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account.get_id(),
@@ -238,11 +243,6 @@ pub(super) async fn retrieve_payment_method(
     pm: &domain::PaymentMethod,
     merchant_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    use hyperswitch_domain_models::{
-        router_data_v2::flow_common_types::VaultConnectorFlowData,
-        router_flow_types::ExternalVaultRetrieveFlow,
-    };
-
     let connector_vault_id = pm
         .locker_id
         .clone()
@@ -309,11 +309,6 @@ pub(super) async fn delete_payment_method(
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
-    use hyperswitch_domain_models::{
-        router_data_v2::flow_common_types::VaultConnectorFlowData,
-        router_flow_types::ExternalVaultDeleteFlow,
-    };
-
     let connector_vault_id = vault_id.get_string_repr().to_owned();
 
     let router_data = core_utils::construct_vault_router_data(
@@ -461,11 +456,6 @@ pub(super) async fn vault_payment_method_v1(
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    use hyperswitch_domain_models::{
-        router_data_v2::flow_common_types::VaultConnectorFlowData,
-        router_flow_types::ExternalVaultInsertFlow,
-    };
-
     let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account.get_id(),
@@ -540,12 +530,6 @@ pub(super) async fn retrieve_payment_method_v1(
     pm: &domain::PaymentMethod,
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
-    use hyperswitch_domain_models::{
-        router_data_v2::flow_common_types::VaultConnectorFlowData,
-        router_flow_types::ExternalVaultRetrieveFlow,
-        types::{VaultRequestData, VaultResponseData},
-    };
-
     let connector_vault_id = pm.locker_id.clone().map(|id| id.to_string());
 
     let router_data = core_utils::construct_vault_router_data(
@@ -578,15 +562,15 @@ pub(super) async fn retrieve_payment_method_v1(
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
         ExternalVaultRetrieveFlow,
-        VaultRequestData,
-        VaultResponseData,
+        types::VaultRequestData,
+        types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
 
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
         &old_router_data,
-        payments::CallConnectorAction::Trigger,
+        payments_core::CallConnectorAction::Trigger,
         None,
         None,
     )

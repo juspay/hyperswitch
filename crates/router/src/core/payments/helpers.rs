@@ -2179,12 +2179,15 @@ pub async fn retrieve_payment_method_with_temporary_token(
     merchant_key_store: &domain::MerchantKeyStore,
     card_token_data: Option<&domain::CardToken>,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
-    let (pm, supplementary_data) =
-        vault::TempLocker::get_payment_method_data_from_locker(state, token, merchant_key_store)
-            .await
-            .attach_printable(
-                "Payment method for given token not found or there was a problem fetching it",
-            )?;
+    let (pm, supplementary_data) = vault::TempLocker::get_payment_method_data_from_temp_locker(
+        state,
+        token,
+        merchant_key_store,
+    )
+    .await
+    .attach_printable(
+        "Payment method for given token not found or there was a problem fetching it",
+    )?;
 
     utils::when(
         supplementary_data
@@ -2253,7 +2256,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             if is_card_updated {
                 let updated_pm = domain::PaymentMethodData::Card(updated_card);
-                vault::TempLocker::store_payment_method_data_in_locker(
+                vault::TempLocker::store_payment_method_data_in_temp_locker(
                     state,
                     Some(token.to_owned()),
                     &updated_pm,
@@ -3333,7 +3336,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<String> {
-    let router_token = vault::TempLocker::store_payment_method_data_in_locker(
+    let router_token = vault::TempLocker::store_payment_method_data_in_temp_locker(
         state,
         None,
         payment_method_data,

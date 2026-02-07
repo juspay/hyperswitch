@@ -124,6 +124,7 @@ pub(super) fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
     format!("{header}.{encryption_key}.{iv}.{encryption_payload}.{tag}")
 }
 
+#[cfg(feature = "v2")]
 pub(super) async fn get_decrypted_vault_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,

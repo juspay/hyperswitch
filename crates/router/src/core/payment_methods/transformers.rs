@@ -6,7 +6,7 @@ use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
 use common_utils::request::Headers;
 use common_utils::{
-    ext_traits::{Encode, StringExt},
+    ext_traits::Encode,
     id_type,
     pii::{Email, SecretSerdeValue},
     request::RequestContent,
@@ -14,29 +14,13 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
-use josekit::jwe;
-#[cfg(feature = "v1")]
-use masking::Mask;
-use masking::{ExposeInterface, PeekInterface};
-#[cfg(feature = "v1")]
-use payment_methods::client::{
-    self as pm_client,
-    create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
-    retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
-    UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
-};
-use router_env::RequestId;
-#[cfg(feature = "v1")]
-use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers,
-    pii::Secret,
-    routes,
-    services::{api as services, encryption, EncryptionAlgorithm},
+    pii::{prelude::*, Secret},
+    services::api as services,
     types::{api, domain},
     utils::OptionExt,
 };
