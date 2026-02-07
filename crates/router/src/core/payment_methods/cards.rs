@@ -4923,7 +4923,7 @@ pub async fn get_bank_from_vault(
     match &pm_parsed {
         api::PayoutMethodData::Bank(bank) => {
             if let Some(token) = temp_token {
-                vault::Vault::store_payout_method_data_in_temp_locker(
+                vault::TempLocker::store_payout_method_data_in_temp_locker(
                     state,
                     Some(token.clone()),
                     &pm_parsed,

@@ -120,7 +120,7 @@ pub async fn make_payout_method_data(
             if payout_token.starts_with("temporary_token_")
                 || payout_type == Some(api_enums::PayoutType::Bank)
             {
-                let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
+                let (pm, supplementary_data) = vault::TempLocker::get_payout_method_data_from_temporary_locker(
                     state,
                     &payout_token,
                     merchant_key_store,
@@ -166,7 +166,7 @@ pub async fn make_payout_method_data(
             let intent_fulfillment_time = payout_data.business_profile.intent_fulfillment_time;
             #[cfg(not(feature = "v1"))]
             let intent_fulfillment_time = None;
-            let lookup_key = vault::Vault::store_payout_method_data_in_temp_locker(
+            let lookup_key = vault::TempLocker::store_payout_method_data_in_temp_locker(
                 state,
                 payout_token.to_owned(),
                 payout_method,
