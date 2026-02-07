@@ -1442,8 +1442,8 @@ async fn payments_incoming_webhook_flow(
     });
     let payment_attempt = webhook_resource_data
         .as_ref()
-        .and_then(|data| match data {
-            WebhookResourceData::Payment { payment_attempt } => Some(payment_attempt.clone()),
+        .map(|data| match data {
+            WebhookResourceData::Payment { payment_attempt } => payment_attempt.clone(),
         })
         .async_map(|payment_attempt| async { Ok(payment_attempt) })
         .await
