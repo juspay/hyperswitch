@@ -76,7 +76,9 @@ use hyperswitch_interfaces::{
         PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
         SubmitEvidenceType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 use masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
@@ -2102,6 +2104,7 @@ impl IncomingWebhook for Adyen {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
@@ -2136,6 +2139,7 @@ impl IncomingWebhook for Adyen {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
