@@ -5926,7 +5926,7 @@ label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="MultiSelect"
-options=["cpf", "cnpj", "email", "phone", "evp_token]
+options=["cpf", "cnpj", "email", "phone", "evp_token"]
 [[santander.metadata.pix]]
 name="merchant_city"
 label="Merchant City"
@@ -5976,7 +5976,7 @@ label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="MultiSelect"
-options=["cpf", "cnpj", "email", "phone", "evp_token]
+options=["cpf", "cnpj", "email", "phone", "evp_token"]
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
