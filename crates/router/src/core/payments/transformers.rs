@@ -4628,7 +4628,6 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
             api_models::payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
                 display_to_timestamp,
-                ..
             } => Self::QrCodeInformation {
                 qr_code_url: Some(qr_code_url),
                 image_data_url: None,

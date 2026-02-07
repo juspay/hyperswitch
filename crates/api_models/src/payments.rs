@@ -11527,8 +11527,8 @@ pub struct ScheduledExpirationTime {
     #[serde(with = "common_utils::custom_serde::date_only")]
     pub date: PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
-    #[schema(value_type = Option<i32>, example=10)]
-    pub validity_after_expiration: Option<i32>,
+    #[schema(value_type = Option<u32>, example=10)]
+    pub validity_after_expiration: Option<u32>,
     /// Pix identification details
     #[schema(value_type = Option<PixKeyDetails>)]
     pub pix_key: Option<PixKeyDetails>,
@@ -12882,36 +12882,18 @@ pub struct CartesBancairesParams {
 impl PaymentsUpdateMetadataRequest {
     /// Helper function to validate that at least one of `metadata` or `feature_metadata` is present in the request
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        if self.metadata.is_none() && self.feature_metadata.is_none() {
+        let Self {
+            metadata,
+            feature_metadata,
+            payment_id: _,
+        } = self;
+
+        if metadata.is_none() && feature_metadata.is_none() {
             return Err(ValidationError::MissingRequiredField {
-                field_name: "metadata/feature_metadata".to_string(),
+                field_name: "metadata or feature_metadata".to_string(),
             }
             .into());
         }
         Ok(())
     }
-}
-
-#[derive(
-    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, strum::Display, ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum VoucherExpiry {
-    Date(DateType),
-    Time(TimeInMilliseonds),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(transparent)]
-pub struct DateType {
-    pub date: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(transparent)]
-pub struct TimeInMilliseonds {
-    pub time: Option<i64>,
 }

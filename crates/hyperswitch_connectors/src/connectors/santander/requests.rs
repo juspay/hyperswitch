@@ -162,7 +162,7 @@ pub struct SantanderPixDueDateCalendarRequest {
     pub data_de_vencimento: String,
     // Validity After Expiration
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub validade_apos_vencimento: Option<i32>,
+    pub validade_apos_vencimento: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

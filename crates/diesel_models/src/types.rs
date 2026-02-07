@@ -172,7 +172,7 @@ pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
     pub date: time::PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
-    pub validity_after_expiration: Option<i32>,
+    pub validity_after_expiration: Option<u32>,
     /// Pix identification details
     pub pix_key: Option<PixKeyDetails>,
 }
