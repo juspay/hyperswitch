@@ -45,6 +45,44 @@ const multiUseMandateData = {
   },
 };
 
+// External 3DS data with exemption indicators for testing
+const externalThreeDsDataBase = {
+  authentication_cryptogram: {
+    cavv: {
+      authentication_cryptogram: "jJ81HADVRtXfCBATEp01CJUAAAA",
+    },
+  },
+  ds_trans_id: "97267598-FAE6-48F2-8083-B2D2AF7B1234",
+  version: "2.1.0",
+  eci: "05",
+  transaction_status: "Y",
+};
+
+const externalThreeDsDataWithLowValueExemption = {
+  ...externalThreeDsDataBase,
+  exemption_indicator: "low_value",
+};
+
+const externalThreeDsDataWithTRAExemption = {
+  ...externalThreeDsDataBase,
+  exemption_indicator: "transaction_risk_assessment",
+};
+
+const externalThreeDsDataWithTrustedListingExemption = {
+  ...externalThreeDsDataBase,
+  exemption_indicator: "trusted_listing",
+};
+
+const externalThreeDsDataWithScaDelegationExemption = {
+  ...externalThreeDsDataBase,
+  exemption_indicator: "sca_delegation",
+};
+
+const externalThreeDsDataWithSecureCorporateExemption = {
+  ...externalThreeDsDataBase,
+  exemption_indicator: "secure_corporate_payment",
+};
+
 const billingAddress = {
   address: {
     line1: "1467",
@@ -163,6 +201,115 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    // 3DS with External Authentication and Exemption Indicators
+    // Note: ACI does not support external 3DS pass-through (sending pre-authenticated CAVV/ECI).
+    // ACI performs its own 3DS authentication. These tests are skipped for ACI.
+    // The exemption indicator mapping logic is tested via unit tests in transformers.rs.
+    "3DSAutoCaptureWithLowValueExemption": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        three_ds_data: externalThreeDsDataWithLowValueExemption,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    "3DSAutoCaptureWithTRAExemption": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        three_ds_data: externalThreeDsDataWithTRAExemption,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    "3DSAutoCaptureWithTrustedListingExemption": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        three_ds_data: externalThreeDsDataWithTrustedListingExemption,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    "3DSAutoCaptureWithScaDelegationExemption": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        three_ds_data: externalThreeDsDataWithScaDelegationExemption,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    "3DSAutoCaptureWithSecureCorporateExemption": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        three_ds_data: externalThreeDsDataWithSecureCorporateExemption,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

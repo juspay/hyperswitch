@@ -12,6 +12,7 @@ use router::{
     routes,
     services::{
         self,
+        api::client::ProxyClient,
         connector_integration_interface::{BoxedConnectorIntegrationInterface, ConnectorEnum},
     },
     types::{self, storage::enums, AccessToken, MinorUnit, PaymentAddress, RouterData},
@@ -888,11 +889,14 @@ async fn call_connector<
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
+    let api_client =
+        ProxyClient::new(&conf.proxy).expect("Failed to create ProxyClient for connector tests");
+
     let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
-        Box::new(services::MockApiClient),
+        Box::new(api_client),
     ))
     .await;
     let state = Arc::new(app_state)
