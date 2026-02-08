@@ -1687,7 +1687,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligbility submit is successful",
+            "description": "Eligibility submit is successful",
             "content": {
               "application/json": {
                 "schema": {
