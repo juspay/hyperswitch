@@ -1095,6 +1095,7 @@ impl
                 .transpose()?,
             connector_metadata: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            description: router_data.description.clone(),
         })
     }
 }
@@ -1180,6 +1181,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .map(|s| s.into()),
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3036,6 +3038,11 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
             common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
             common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
             common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
+            common_enums::CardNetwork::Interac => Ok(Self::InteracCard),
+            common_enums::CardNetwork::Star => Ok(Self::Star),
+            common_enums::CardNetwork::Pulse => Ok(Self::Pulse),
+            common_enums::CardNetwork::Accel => Ok(Self::Accel),
+            common_enums::CardNetwork::Nyce => Ok(Self::Nyce),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Card Network not supported".to_string(),
@@ -5521,6 +5528,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(|s| s.into()),
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
