@@ -705,6 +705,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
                 error_stack::report!(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
@@ -1021,6 +1022,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1077,6 +1079,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

@@ -26,8 +26,6 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
-pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
-pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
@@ -363,6 +361,8 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 pub mod superposition {
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "requires_cvv";
+    /// implicit customer update configuration key
+    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
 }
 
 #[cfg(test)]

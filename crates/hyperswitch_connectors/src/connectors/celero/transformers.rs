@@ -191,6 +191,7 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -323,7 +324,8 @@ fn determine_cit_mit_fields(
         }
         // For other mandate types that might not be supported
         Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-        | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+        | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+        | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
             // These might need different handling or return an error
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Celero"),
@@ -570,6 +572,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     network_txn_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
                                     incremental_authorization_allowed: None,
+                                    authentication_data: None,
                                     charges: None,
                                 }),
                                 connector_response: connector_response_data,
@@ -691,6 +694,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -767,6 +771,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1031,6 +1036,7 @@ fn convert_to_additional_payment_method_connector_response(
                 payment_checks: Some(payment_checks),
                 card_network: None,
                 domestic_network: None,
+                auth_code: None,
             })
         }
     }

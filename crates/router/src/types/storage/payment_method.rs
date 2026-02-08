@@ -35,6 +35,7 @@ pub struct CardTokenData {
     pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
     pub locker_id: Option<String>,
     pub token: String,
+    pub storage_type: enums::StorageType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
@@ -99,11 +100,13 @@ impl PaymentTokenData {
         payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
         locker_id: Option<String>,
         token: String,
+        storage_type: enums::StorageType,
     ) -> Self {
         Self::PermanentCard(CardTokenData {
             payment_method_id,
             locker_id,
             token,
+            storage_type,
         })
     }
 

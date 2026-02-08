@@ -18,10 +18,7 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
-    payments::{
-        payment_attempt::PaymentAttempt, payment_intent::CustomerData,
-        FromRequestEncryptablePaymentIntent,
-    },
+    payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -36,7 +33,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payment_methods::cards::create_encrypted_data,
+        payment_methods::transformers as pm_transformers,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -52,7 +49,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -76,6 +73,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -150,6 +148,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
+        let m_pm_wrapper = payment_method_with_raw_data.clone();
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -165,6 +164,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             None,
+            m_pm_wrapper.map(|pm| pm.payment_method.0),
         )
         .await?;
 
@@ -202,13 +202,27 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
+                pm.payment_method
+                    .0
+                    .payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value("payment method billing address")
+                            .ok()
+                    })
+            }));
+
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
                 state,
-                request
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|pmd| pmd.billing.as_ref()),
+                payment_method_data_billing.as_ref(),
                 None,
                 platform.get_processor().get_account().get_id(),
                 customer_details.customer_id.as_ref(),
@@ -447,6 +461,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         } else {
             mandate_id
         };
+
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
@@ -493,6 +508,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+
+        let payment_method_data = payment_method_with_raw_data
+            .as_ref()
+            .and_then(|pm| pm.raw_payment_method_data.clone())
+            .or(payment_method_data_after_card_bin_call.map(Into::into));
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
@@ -560,9 +580,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
+        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            pm.payment_method
+                .0
+                .payment_method_billing_address
+                .clone()
+                .map(|decrypted_data| decrypted_data.into_inner().expose())
+                .and_then(|decrypted_value| {
+                    decrypted_value
+                        .parse_value::<hyperswitch_domain_models::address::Address>(
+                            "payment method billing address",
+                        )
+                        .ok()
+                })
+        });
 
-        let unified_address =
-            address.unify_with_payment_method_data_billing(payment_method_data_billing);
+        let add = payment_method_data_billing.or(pm_pmd_billing);
+
+        let unified_address = address.unify_with_payment_method_data_billing(add);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -579,7 +614,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             address: unified_address,
             token_data: None,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             refunds: vec![],
@@ -629,17 +664,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentCreate {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -784,13 +808,60 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     }
 
     #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentsRequest,
+        platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<Option<pm_transformers::PaymentMethodWithRawData>> {
+        match feature_config.is_payment_method_modular_allowed {
+            true => {
+                logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
+
+                let profile_id = req
+                    .profile_id
+                    .clone()
+                    .or(platform
+                        .get_provider()
+                        .get_account()
+                        .get_default_profile()
+                        .clone())
+                    .get_required_value("profile_id")?;
+
+                let pm_info = if let Some(payment_token) = &req.payment_token {
+                    // Fetch payment method using PM Modular Service
+                    let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform.get_provider().get_account().get_id(),
+                        &profile_id,
+                        payment_token,
+                        None, // CVC token data is not passed in create api
+                    )
+                    .await?;
+                    logger::info!("Payment method fetched from PM Modular Service.");
+
+                    Some(pm_info)
+                } else {
+                    None
+                };
+
+                Ok(pm_info)
+            }
+            false => {
+                logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                Ok(None)
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -802,8 +873,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Box::new(self),
             state,
             payment_data,
-            merchant_key_store,
-            customer,
+            platform,
             storage_scheme,
             business_profile,
             should_retry_with_pan,
@@ -836,7 +906,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -852,7 +922,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
@@ -929,21 +998,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let raw_customer_details = customer
-            .map(|customer| CustomerData::foreign_try_from(customer.clone()))
-            .transpose()?;
-        let key_manager_state = state.into();
-        // Updation of Customer Details for the cases where both customer_id and specific customer
-        // details are provided in Payment Create Request
-        let customer_details = raw_customer_details
-            .clone()
-            .async_map(|customer_details| {
-                create_encrypted_data(&key_manager_state, key_store, customer_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt customer details")?;
+        let customer_details = payment_data.payment_intent.customer_details.clone();
 
         payment_data.payment_intent = state
             .store
@@ -1076,8 +1131,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
+                    .and_then(|customer| customer.id.as_ref())),
             )?;
         }
 
@@ -1442,6 +1496,7 @@ impl PaymentCreate {
                 is_overcapture_enabled: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                retry_type: None,
             },
             additional_pm_data,
 
@@ -1510,22 +1565,8 @@ impl PaymentCreate {
         let split_payments = request.split_payments.clone();
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.customer_id.is_none()
-            && (request.name.is_some()
-                || request.email.is_some()
-                || request.phone.is_some()
-                || request.phone_country_code.is_some())
-        {
-            Some(CustomerData {
-                name: request.name.clone(),
-                phone: request.phone.clone(),
-                email: request.email.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-                tax_registration_id: None,
-            })
-        } else {
-            None
-        };
+        let raw_customer_details =
+            helpers::get_customer_details_from_request(request).get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

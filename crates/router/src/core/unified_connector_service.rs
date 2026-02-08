@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Instant};
+use std::{borrow::Cow, str::FromStr, time::Instant};
 
 use api_models::admin;
 #[cfg(feature = "v2")]
@@ -15,6 +15,7 @@ use common_utils::{
     ext_traits::ValueExt,
     id_type,
     request::{Method, RequestBuilder, RequestContent},
+    ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -31,7 +32,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
     ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
 };
 use hyperswitch_domain_models::{
-    platform::Platform,
+    platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
@@ -73,7 +74,7 @@ pub mod transformers;
 
 pub async fn get_access_token_from_ucs_response(
     session_state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
@@ -83,7 +84,7 @@ pub async fn get_access_token_from_ucs_response(
         .and_then(|state| state.access_token.as_ref())
         .map(AccessToken::foreign_from)?;
 
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
@@ -106,13 +107,13 @@ pub async fn get_access_token_from_ucs_response(
 
 pub async fn set_access_token_for_ucs(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     access_token: AccessToken,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
 ) -> Result<(), errors::StorageError> {
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
@@ -230,7 +231,7 @@ async fn determine_connector_integration_type(
 
 pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: &RouterData<F, T, R>,
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
@@ -240,11 +241,7 @@ where
     R: Send + Sync + Clone,
 {
     // Extract context information
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
@@ -553,15 +550,11 @@ where
 
 pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
 ) -> RouterResult<ExecutionPath> {
     // Extract context information
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
@@ -659,6 +652,30 @@ pub fn build_unified_connector_service_payment_method(
 
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::Card(card_details)),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
+            card_redirect_data,
+        ) => {
+            let card_redirect_type = match card_redirect_data {
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Knet
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::Benefit {} => {
+                    payments_grpc::card_redirect::CardRedirectType::Benefit
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::MomoAtm {} => {
+                    payments_grpc::card_redirect::CardRedirectType::MomoAtm
+                }
+                hyperswitch_domain_models::payment_method_data::CardRedirectData::CardRedirect {} => {
+                    payments_grpc::card_redirect::CardRedirectType::CardRedirect
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardRedirect(payments_grpc::CardRedirect {
+                    r#type: card_redirect_type.into(),
+                })),
             })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
@@ -879,6 +896,75 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::MultibancoBankTransfer {  }
                 )),
             }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+                expiry_date,
+            } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Pix(payments_grpc::PixPayment {
+                    pix_key: pix_key.map(|v| v.expose().into()),
+                    cpf: cpf.map(|v| v.expose().into()),
+                    cnpj: cnpj.map(|v| v.expose().into()),
+                    source_bank_account_id: source_bank_account_id.map(|v| v.expose_inner()),
+                    destination_bank_account_id: destination_bank_account_id.map(|v| v.expose_inner()),
+                    expiry_date: expiry_date.map(|dt| {
+                        dt.format(&time::format_description::well_known::Iso8601::DEFAULT)
+                            .unwrap_or_default()
+                    }),
+                })),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::PermataBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PermataBankTransfer(
+                        payments_grpc::PermataBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BcaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BcaBankTransfer(
+                        payments_grpc::BcaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BniVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BniVaBankTransfer(
+                        payments_grpc::BniVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BriVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BriVaBankTransfer(
+                        payments_grpc::BriVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::CimbVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::CimbVaBankTransfer(
+                        payments_grpc::CimbVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::DanamonVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::DanamonVaBankTransfer(
+                        payments_grpc::DanamonVaBankTransfer {},
+                    )),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::MandiriVaBankTransfer {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::MandiriVaBankTransfer(
+                        payments_grpc::MandiriVaBankTransfer {},
+                    )),
+                })
+            }
             hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {} =>
                 Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::InstantBankTransfer(payments_grpc::InstantBankTransfer {})),
@@ -1244,7 +1330,7 @@ fn get_ucs_client(
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: String,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
@@ -1260,11 +1346,7 @@ pub fn build_unified_connector_service_auth_metadata(
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
 
-    let merchant_id = platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .get_string_repr();
+    let merchant_id = processor.get_account().get_id().get_string_repr();
 
     match &auth_type {
         ConnectorAuthType::SignatureKey {
@@ -1331,6 +1413,17 @@ pub fn build_unified_connector_service_auth_metadata(
     }
 }
 
+pub fn parse_merchant_reference_id(id: &str) -> Option<id_type::PaymentReferenceId> {
+    id_type::PaymentReferenceId::from_str(id)
+        .inspect_err(|err| {
+            logger::warn!(
+                error = ?err,
+                "Invalid Merchant ReferenceId found"
+            )
+        })
+        .ok()
+}
+
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1340,15 +1433,13 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         .ok_or(UnifiedConnectorServiceError::ParsingFailed)
         .attach_printable("Failed to obtain ConnectorMetadata")?;
 
-    let connector_name = external_vault_merchant_connector_account
-        .get_connector_name()
-        .map(|connector| connector.to_string())
-        .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-        .attach_printable("Missing connector name")?; // always get the connector name from this call
+    let connector = external_vault_merchant_connector_account.get_connector_name();
 
-    let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
-        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
-        .attach_printable("Failed to parse Vault connector")?;
+    let external_vault_connector =
+        api_enums::VaultConnectors::try_from(connector).map_err(|err| {
+            error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
+                .attach_printable(format!("Failed to parse Vault connector: {err}"))
+        })?;
 
     let unified_service_vault_metdata = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {
@@ -1385,13 +1476,15 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<UcsAuthorizeResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
             response.clone(),
-        )?;
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1432,11 +1525,15 @@ pub fn handle_unified_connector_service_response_for_create_order(
 
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     response: payments_grpc::PaymentServicePostAuthenticateResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1479,46 +1576,60 @@ pub fn handle_unified_connector_service_response_for_incremental_authorization(
 
 pub fn handle_unified_connector_service_response_for_payment_authenticate(
     response: payments_grpc::PaymentServiceAuthenticateResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
     response: payments_grpc::PaymentServicePreAuthenticateResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_capture(
     response: payments_grpc::PaymentServiceCaptureResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
             response.clone(),
-        )?;
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1530,6 +1641,10 @@ pub fn handle_unified_connector_service_response_for_payment_register(
         status_code,
         connector_customer_id,
         connector_response,
+        amount_captured: response.captured_amount,
+        minor_amount_captured: response
+            .minor_captured_amount
+            .map(common_utils::types::MinorUnit::new),
     })
 }
 
@@ -1547,13 +1662,15 @@ pub fn handle_unified_connector_service_response_for_session_token_create(
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
             response.clone(),
-        )?;
+            prev_status,
+        ))?;
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
@@ -1621,11 +1738,15 @@ pub fn handle_unified_connector_service_response_for_refund_sync(
 
 pub fn handle_unified_connector_service_response_for_payment_cancel(
     response: payments_grpc::PaymentServiceVoidResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
@@ -1686,7 +1807,7 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
 /// This provides a clean interface similar to payment flow UCS calls
 pub async fn call_unified_connector_service_for_webhook(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     connector_name: &str,
     body: &actix_web::web::Bytes,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1733,11 +1854,7 @@ pub async fn call_unified_connector_service_for_webhook(
         body,
         request_details,
         webhook_secrets,
-        platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_string_repr(),
+        processor.get_account().get_id().get_string_repr(),
         connector_name,
     )?;
 
@@ -1753,7 +1870,7 @@ pub async fn call_unified_connector_service_for_webhook(
 
             build_unified_connector_service_auth_metadata(
                 mca_type,
-                platform,
+                processor,
                 connector_name.to_string(),
             )
         })
@@ -1773,11 +1890,12 @@ pub async fn call_unified_connector_service_for_webhook(
     let grpc_headers = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
         .lineage_ids(LineageIds::new(
-            platform.get_processor().get_account().get_id().clone(),
+            processor.get_account().get_id().clone(),
             profile_id,
         ))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
+        .resource_id(None)
         .build();
 
     // Make UCS call - client availability already verified
@@ -1821,6 +1939,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOu
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
+    execution_mode: ExecutionMode,
     handler: F,
 ) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
@@ -1907,37 +2026,40 @@ where
         }
     };
 
-    let mut connector_event = ConnectorEvent::new(
-        state.tenant.tenant_id.clone(),
-        connector_name,
-        std::any::type_name::<T>(),
-        grpc_request_body,
-        "grpc://unified-connector-service".to_string(),
-        Method::Post,
-        payment_id,
-        merchant_id,
-        state.request_id.as_ref(),
-        external_latency,
-        refund_id,
-        dispute_id,
-        payout_id,
-        status_code,
-    );
+    // Only emit connector event during primary mode
+    if let ExecutionMode::Primary = execution_mode {
+        let mut connector_event = ConnectorEvent::new(
+            state.tenant.tenant_id.clone(),
+            connector_name,
+            std::any::type_name::<T>(),
+            grpc_request_body,
+            "grpc://unified-connector-service".to_string(),
+            Method::Post,
+            payment_id,
+            merchant_id,
+            state.request_id.as_ref(),
+            external_latency,
+            refund_id,
+            dispute_id,
+            payout_id,
+            status_code,
+        );
 
-    // Set response body based on status code
-    if let Some(body) = response_body {
-        match status_code {
-            400..=599 => {
-                connector_event.set_error_response_body(&body);
-            }
-            _ => {
-                connector_event.set_response_body(&body);
+        // Set response body based on status code
+        if let Some(body) = response_body {
+            match status_code {
+                400..=599 => {
+                    connector_event.set_error_response_body(&body);
+                }
+                _ => {
+                    connector_event.set_response_body(&body);
+                }
             }
         }
-    }
 
-    // Emit event
-    state.event_handler.log_event(&connector_event);
+        // Emit event
+        state.event_handler.log_event(&connector_event);
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -1956,6 +2078,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
+    execution_mode: ExecutionMode,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -2046,37 +2169,40 @@ where
         }
     };
 
-    let mut connector_event = ConnectorEvent::new(
-        state.tenant.tenant_id.clone(),
-        connector_name,
-        std::any::type_name::<T>(),
-        grpc_request_body,
-        "grpc://unified-connector-service".to_string(),
-        Method::Post,
-        payment_id,
-        merchant_id,
-        state.request_id.as_ref(),
-        external_latency,
-        refund_id,
-        dispute_id,
-        payout_id,
-        status_code,
-    );
+    // Only emit connector event during primary mode
+    if let ExecutionMode::Primary = execution_mode {
+        let mut connector_event = ConnectorEvent::new(
+            state.tenant.tenant_id.clone(),
+            connector_name,
+            std::any::type_name::<T>(),
+            grpc_request_body,
+            "grpc://unified-connector-service".to_string(),
+            Method::Post,
+            payment_id,
+            merchant_id,
+            state.request_id.as_ref(),
+            external_latency,
+            refund_id,
+            dispute_id,
+            payout_id,
+            status_code,
+        );
 
-    // Set response body based on status code
-    if let Some(body) = response_body {
-        match status_code {
-            400..=599 => {
-                connector_event.set_error_response_body(&body);
-            }
-            _ => {
-                connector_event.set_response_body(&body);
+        // Set response body based on status code
+        if let Some(body) = response_body {
+            match status_code {
+                400..=599 => {
+                    connector_event.set_error_response_body(&body);
+                }
+                _ => {
+                    connector_event.set_response_body(&body);
+                }
             }
         }
-    }
 
-    // Emit event
-    state.event_handler.log_event(&connector_event);
+        // Emit event
+        state.event_handler.log_event(&connector_event);
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -2190,7 +2316,7 @@ pub async fn send_comparison_data(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_execute(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
@@ -2202,7 +2328,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     // Build auth metadata using standard UCS function
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2216,16 +2342,33 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
     let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = router_data
+        .refund_id
+        .as_ref()
+        .and_then(|refund_id| {
+            id_type::RefundReferenceId::try_from(Cow::Owned(refund_id.to_string()))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid RefundId for UCS resource id"),
+                )
+                .ok()
+        })
+        .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(None);
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id);
 
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -2233,6 +2376,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         state,
         ucs_refund_request,
         grpc_header_builder,
+        execution_mode,
         |router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             let response = ucs_client
@@ -2264,7 +2408,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_sync(
     state: &SessionState,
-    platform: &Platform,
+    processor: &Processor,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
@@ -2276,7 +2420,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     // Build auth metadata using standard UCS function
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2290,17 +2434,34 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
     let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = router_data
+        .refund_id
+        .as_ref()
+        .and_then(|refund_id| {
+            id_type::RefundReferenceId::try_from(Cow::Owned(refund_id.to_string()))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid RefundId for UCS resource id"),
+                )
+                .ok()
+        })
+        .map(ucs_types::UcsResourceId::Refund);
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(None);
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id);
 
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -2308,6 +2469,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         state,
         ucs_refund_sync_request,
         grpc_header_builder,
+        execution_mode,
         |router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             let response = ucs_client

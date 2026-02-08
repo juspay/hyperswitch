@@ -78,7 +78,7 @@ pub async fn payments_check_gift_card_balance_core(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
             helpers::get_merchant_connector_account_v2(
                 state,
-                platform.get_processor().get_key_store(),
+                platform.get_processor(),
                 Some(&gift_card_connector_id),
             )
             .await
@@ -87,10 +87,7 @@ pub async fn payments_check_gift_card_balance_core(
             )?,
         ));
 
-    let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for gift card balance check")?; // always get the connector name from this call
+    let connector_name = merchant_connector_account.get_connector_name(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,

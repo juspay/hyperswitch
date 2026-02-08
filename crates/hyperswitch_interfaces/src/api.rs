@@ -112,6 +112,7 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
+    + ConnectorAccessTokenSuffix
 {
 }
 
@@ -135,7 +136,8 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + Subscriptions,
+            + Subscriptions
+            + ConnectorAccessTokenSuffix,
     > Connector for T
 {
 }
@@ -385,7 +387,18 @@ pub trait ConnectorCommon {
     }
 }
 
-impl ConnectorAccessTokenSuffix for BoxedConnector {}
+impl ConnectorAccessTokenSuffix for BoxedConnector {
+    fn get_access_token_key(
+        &self,
+        router_data: &dyn AccessTokenData,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // 'self' is the BoxedConnector (the Box)
+        // We dereference it to get the 'dyn Connector' and call the method
+        self.as_ref()
+            .get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+    }
+}
 
 /// Current flow information passed to the connector specifications trait
 ///
@@ -401,6 +414,8 @@ pub enum CurrentFlowInfo<'a> {
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {
+        /// The authentication type being used
+        auth_type: &'a enums::AuthenticationType,
         /// The payment authorize request data
         request_data: &'a router_request_types::CompleteAuthorizeData,
         /// The payment method that is used
@@ -961,16 +976,34 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+/// Trait to provide data required for access token key generation
+/// Add methods as required
+pub trait AccessTokenData {
+    /// Get the payment method type from RouterData
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
+    /// Get the merchant id from RouterData
+    fn get_merchant_id(&self) -> common_utils::id_type::MerchantId;
+}
+
+impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
+        self.payment_method_type
+    }
+    fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
+        self.merchant_id.clone()
+    }
+}
+
 /// Trait ConnectorAccessTokenSuffix
 pub trait ConnectorAccessTokenSuffix {
     /// Function to get dynamic access token key suffix from Connector
-    fn get_access_token_key<F, Req, Res>(
+    fn get_access_token_key(
         &self,
-        router_data: &RouterData<F, Req, Res>,
+        router_data: &dyn AccessTokenData,
         merchant_connector_id_or_connector_name: String,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(common_utils::access_token::get_default_access_token_key(
-            &router_data.merchant_id,
+            &router_data.get_merchant_id(),
             merchant_connector_id_or_connector_name,
         ))
     }

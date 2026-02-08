@@ -207,6 +207,8 @@ impl ConnectorValidation for Checkout {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
             PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::ApplePay,
         ]);
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }

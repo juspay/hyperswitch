@@ -203,6 +203,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through Facilitapay".to_string(),
@@ -463,6 +464,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 })
             },
@@ -570,6 +572,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.void_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 })
             },

@@ -315,7 +315,6 @@ pub trait PaymentV2:
     + MandateSetupV2
     + PaymentSessionV2
     + PaymentTokenV2
-    + PaymentsPreProcessingV2
     + PaymentsPostProcessingV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2

@@ -375,4 +375,7 @@ pub struct WalletAdditionalDataForCard {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
+    /// Unique authorisation code generated for the payment
+    #[schema(value_type = Option<String>, example = "009825")]
+    pub auth_code: Option<String>,
 }

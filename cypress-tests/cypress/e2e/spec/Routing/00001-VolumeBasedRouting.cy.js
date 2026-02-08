@@ -119,7 +119,7 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState, null);
+      cy.retrievePaymentCallTest({ globalState });
     });
 
     it("create-payment-call-test-for-eps", () => {
@@ -234,7 +234,7 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState, null);
+      cy.retrievePaymentCallTest({ globalState });
     });
 
     it("create-payment-call-test-for-eps", () => {

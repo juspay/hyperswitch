@@ -40,6 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -117,6 +118,7 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
@@ -170,9 +172,9 @@ pub struct Settings<S: SecretState> {
     pub open_router: OpenRouter,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub merchant_advice_codes: MerchantAdviceCodeLookupConfig,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
-    pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
@@ -182,6 +184,8 @@ pub struct Settings<S: SecretState> {
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
+    #[serde(default)]
+    pub micro_services: MicroServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
@@ -192,18 +196,6 @@ pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
     pub unsupported_payment_methods:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct PreProcessingFlowConfig {
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub authentication_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub order_create_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub balance_check_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub settlement_split_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -589,6 +581,12 @@ pub struct NetworkTransactionIdSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct CardOnlyMitSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 /// Connectors that support only dispute list API for syncing disputes with Hyperswitch
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListDiputeSupportedConnectors {
@@ -825,6 +823,9 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub shutdown_timeout: u64,
+    pub keep_alive: u64,
+    pub client_request_timeout: u64,
+    pub client_disconnect_timeout: u64,
     #[cfg(feature = "tls")]
     pub tls: Option<ServerTls>,
 }
@@ -1044,6 +1045,63 @@ pub struct UserAuthMethodSettings {
 pub struct NetworkTokenizationSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+}
+
+/// Configuration structure for individual merchant advice code
+#[derive(Debug, Deserialize, Clone)]
+pub struct MerchantAdviceCodeConfig {
+    pub recommended_action: common_enums::RecommendedAction,
+    pub description: Option<String>,
+}
+
+/// Domain type for merchant advice code mappings
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(transparent)]
+pub struct MerchantAdviceCodeMap(HashMap<String, MerchantAdviceCodeConfig>);
+
+impl MerchantAdviceCodeMap {
+    /// Get merchant advice code configuration for a specific advice code
+    /// Pads single digit codes to double digit (e.g., "1" -> "01")
+    pub fn get_config(&self, advice_code: &str) -> Option<&MerchantAdviceCodeConfig> {
+        let padded_code = format!("{:0>2}", advice_code);
+        self.0.get(&padded_code)
+    }
+}
+
+/// Each network has its own field for direct lookup
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct MerchantAdviceCodeLookupConfig {
+    pub visa: Option<MerchantAdviceCodeMap>,
+    pub mastercard: Option<MerchantAdviceCodeMap>,
+}
+
+impl MerchantAdviceCodeLookupConfig {
+    /// Get merchant advice code configuration for a specific network and advice code
+    pub fn get_config(
+        &self,
+        network: &common_enums::CardNetwork,
+        advice_code: &str,
+    ) -> Option<&MerchantAdviceCodeConfig> {
+        match network {
+            common_enums::CardNetwork::Visa => self.visa.as_ref()?.get_config(advice_code),
+            common_enums::CardNetwork::Mastercard => {
+                self.mastercard.as_ref()?.get_config(advice_code)
+            }
+            common_enums::CardNetwork::AmericanExpress
+            | common_enums::CardNetwork::JCB
+            | common_enums::CardNetwork::DinersClub
+            | common_enums::CardNetwork::Discover
+            | common_enums::CardNetwork::CartesBancaires
+            | common_enums::CardNetwork::UnionPay
+            | common_enums::CardNetwork::Interac
+            | common_enums::CardNetwork::RuPay
+            | common_enums::CardNetwork::Maestro
+            | common_enums::CardNetwork::Star
+            | common_enums::CardNetwork::Pulse
+            | common_enums::CardNetwork::Accel
+            | common_enums::CardNetwork::Nyce => None,
+        }
+    }
 }
 
 impl Settings<SecuredSecret> {

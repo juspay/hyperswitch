@@ -327,6 +327,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BlackhawknetworkRedeemResponse, T, Paym
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data

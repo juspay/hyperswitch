@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ResponseId,
-        SetupMandateRequestData,
+        SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -45,7 +45,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, to_connector_meta,
-        to_connector_meta_from_secret, CardData, PaymentsAuthorizeRequestData,
+        to_connector_meta_from_secret, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPostAuthenticateRequestData,
         PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
         RouterData as _,
@@ -458,6 +458,24 @@ pub struct ThreeDSAuthResult {
     authentication_value: Option<Secret<String>>,
 }
 
+impl ForeignTryFrom<&ThreeDSAuthResult> for UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: &ThreeDSAuthResult) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: None,
+            cavv: value.authentication_value.clone(),
+            threeds_server_transaction_id: None,
+            message_version: None,
+            ds_trans_id: None,
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: None,
+            ucaf_collection_indicator: None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum NexixpayPaymentIntent {
     Capture,
@@ -706,7 +724,7 @@ fn process_nexixpay_preprocessing_response(
     (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
     error_stack::Report<errors::ConnectorError>,
 > {
-    let three_ds_data = response.three_d_s_auth_result;
+    let three_ds_data = response.three_d_s_auth_result.clone();
     let customer_details_encrypted: RedirectPayload = redirect_response
         .and_then(|res| res.payload.to_owned())
         .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
@@ -718,7 +736,7 @@ fn process_nexixpay_preprocessing_response(
 
     let meta_data = to_connector_meta_from_secret(metadata)?;
     let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
-        three_d_s_auth_result: Some(three_ds_data),
+        three_d_s_auth_result: Some(three_ds_data.clone()),
         three_d_s_auth_response: customer_details_encrypted.pa_res,
         authorization_operation_id: None,
         capture_operation_id: None,
@@ -729,6 +747,9 @@ fn process_nexixpay_preprocessing_response(
     })?);
 
     let status = AttemptStatus::from(response.operation.operation_result.clone());
+    let authentication_data = UcsAuthenticationData::foreign_try_from(&three_ds_data)
+        .ok()
+        .map(Box::new);
     let result = match status {
         AttemptStatus::Failure => Err(get_error_response(
             response.operation.operation_result.clone(),
@@ -742,6 +763,7 @@ fn process_nexixpay_preprocessing_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.operation.order_id),
             incremental_authorization_allowed: None,
+            authentication_data,
             charges: None,
         }),
     };
@@ -923,6 +945,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -947,7 +970,8 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                 )))
             }
             Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
+            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nexixpay"),
                 )
@@ -1187,6 +1211,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                                 response_body.operation.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1237,6 +1262,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                                 mandate_response.operation.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -1385,6 +1411,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.operation.order_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1468,6 +1495,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("nexixpay"),
@@ -1571,6 +1599,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1623,6 +1652,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NexixpayOperationResponse>>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1679,6 +1709,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NexixpayOperationResponse>>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1766,6 +1797,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.operation.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data

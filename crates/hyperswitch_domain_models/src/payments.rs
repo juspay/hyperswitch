@@ -1,6 +1,7 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
+use api_models::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers;
@@ -40,8 +41,9 @@ pub mod split_payments;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use masking::ExposeInterface;
 
-use self::payment_attempt::PaymentAttempt;
+use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -377,6 +379,22 @@ impl PaymentIntent {
         } else {
             Ok(())
         }
+    }
+
+    pub fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<CustomerDocumentDetails>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+                    .map(|data| data.customer_document_details)
+            })
+            .transpose()
+            .map(|opt| opt.flatten())
+            .map_err(|report| (*report.current_context()).clone())
     }
 }
 
@@ -1456,4 +1474,10 @@ impl VaultData {
             Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
         }
     }
+}
+
+/// Guest customer details for connectors
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+pub struct GuestCustomer {
+    pub customer_id: String,
 }

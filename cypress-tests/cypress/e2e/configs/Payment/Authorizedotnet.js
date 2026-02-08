@@ -49,6 +49,7 @@ const paymentMethodData = {
       avs_result_code: "Y",
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -733,11 +734,24 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_16",
+          },
         },
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "payload.id",
+      // Type of payment reference ID
+      type: "string",
     },
   },
 };

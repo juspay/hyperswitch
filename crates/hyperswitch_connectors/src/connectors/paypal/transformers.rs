@@ -673,6 +673,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
                 network_txn_id: None,
                 connector_response_reference_id: Some(info_response.id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -706,6 +707,7 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::MobilePayment(_) => Err(errors::ConnectorError::NotImplemented(
@@ -1331,6 +1333,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1737,6 +1740,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1951,6 +1955,7 @@ fn auth_success_response() -> PaymentsResponseData {
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     }
 }
@@ -2377,6 +2382,7 @@ where
                     .data
                     .request
                     .get_request_incremental_authorization(),
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2490,6 +2496,7 @@ impl<F, T>
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2543,6 +2550,7 @@ impl
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2594,6 +2602,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2618,6 +2627,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaypalThreeDsSyncResponse>> for Paym
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2658,6 +2668,7 @@ impl TryFrom<PaymentsResponseRouterData<PaypalThreeDsResponse>> for PaymentsAuth
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2720,6 +2731,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                     .clone()
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -3133,6 +3145,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             amount_captured: Some(amount_captured),
@@ -3178,6 +3191,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

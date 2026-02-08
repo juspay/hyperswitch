@@ -306,6 +306,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Hyperpg => {
+                hyperpg::transformers::HyperpgAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Iatapay => {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -593,6 +597,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Riskified => {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Cybersourcedecisionmanager => {
+                cybersourcedecisionmanager::transformers::CybersourcedecisionmanagerAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Plaid => {

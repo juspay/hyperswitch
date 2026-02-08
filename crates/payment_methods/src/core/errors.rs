@@ -47,3 +47,15 @@ pub enum VaultError {
     #[error("Failed while calling locker API")]
     ApiError,
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum ModularPaymentMethodError {
+    #[error("Failed to create payment method")]
+    CreateFailed,
+    #[error("Failed to retrieve payment method")]
+    RetrieveFailed,
+    #[error("Failed to update payment method")]
+    UpdateFailed,
+    #[error("Internal Server Error")]
+    InternalServerError,
+}

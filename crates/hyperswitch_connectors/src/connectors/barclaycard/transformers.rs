@@ -17,6 +17,7 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, ResponseId,
+        UcsAuthenticationData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
@@ -42,7 +43,7 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        self, AddressDetailsData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData,
         PaymentsSyncRequestData, RouterData as OtherRouterData,
     },
@@ -656,6 +657,29 @@ pub struct BarclaycardConsumerAuthValidateResponse {
     indicator: Option<String>,
 }
 
+impl ForeignTryFrom<&BarclaycardConsumerAuthValidateResponse> for UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(
+        value: &BarclaycardConsumerAuthValidateResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: value.indicator.clone(),
+            cavv: value.cavv.clone(),
+            threeds_server_transaction_id: None,
+            message_version: value.specification_version.clone(),
+            ds_trans_id: value
+                .directory_server_transaction_id
+                .as_ref()
+                .map(|id| id.clone().expose()),
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: value.xid.clone(),
+            ucaf_collection_indicator: value.ucaf_collection_indicator.clone(),
+        })
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BarclaycardThreeDSMetadata {
     three_ds_data: BarclaycardConsumerAuthValidateResponse,
@@ -833,6 +857,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -957,6 +982,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -1057,6 +1083,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -1192,12 +1219,15 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1210,6 +1240,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -1312,12 +1343,15 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1330,6 +1364,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -1432,12 +1467,15 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1450,6 +1488,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -1552,12 +1591,15 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1570,6 +1612,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -1703,6 +1746,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -1764,6 +1808,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -2240,6 +2285,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -2283,6 +2329,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupRespo
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -2366,6 +2413,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -2448,6 +2496,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -2773,6 +2822,7 @@ fn get_payment_response(
                     .unwrap_or(info_response.id.clone()),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
     }
@@ -2872,6 +2922,7 @@ fn convert_to_additional_payment_method_connector_response(
         payment_checks,
         card_network: None,
         domestic_network: None,
+        auth_code: None,
     }
 }
 
@@ -3046,6 +3097,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         connector_response,
@@ -3063,6 +3115,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -3132,6 +3185,7 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
             payment_checks,
             card_network: None,
             domestic_network: None,
+            auth_code: None,
         }
     }
 }

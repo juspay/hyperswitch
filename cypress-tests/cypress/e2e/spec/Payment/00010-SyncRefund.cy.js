@@ -58,7 +58,7 @@ describe("Card - Sync Refund flow test", () => {
       "No3DSAutoCapture"
     ];
 
-    cy.retrievePaymentCallTest(globalState, data);
+    cy.retrievePaymentCallTest({ globalState, data });
   });
 
   it("refund-call-test", () => {

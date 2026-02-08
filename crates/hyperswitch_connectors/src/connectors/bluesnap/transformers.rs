@@ -244,6 +244,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
@@ -423,6 +424,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("bluesnap"),
@@ -895,6 +897,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

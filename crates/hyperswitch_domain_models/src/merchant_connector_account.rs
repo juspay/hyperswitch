@@ -117,6 +117,10 @@ impl MerchantConnectorAccount {
 
         Ok(Some(provider))
     }
+
+    pub fn should_construct_webhook_setup_capability(&self) -> bool {
+        matches!(self.connector_type, enums::ConnectorType::PaymentProcessor)
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -186,13 +190,13 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
-    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
-                Some(merchant_connector_account.connector_name)
+                merchant_connector_account.connector_name
             }
             Self::MerchantConnectorDetails(merchant_connector_details) => {
-                Some(merchant_connector_details.connector_name)
+                merchant_connector_details.connector_name
             }
         }
     }

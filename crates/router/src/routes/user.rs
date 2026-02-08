@@ -1083,8 +1083,8 @@ pub async fn issue_embedded_token(
             )
         },
         &auth::ApiKeyAuth {
-            is_platform_allowed: false,
-            is_connected_allowed: false,
+            allow_platform_self_operation: false,
+            allow_connected_scope_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

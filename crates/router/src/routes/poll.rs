@@ -41,8 +41,8 @@ pub async fn retrieve_poll_status(
         poll_id,
         |state, auth, req, _| poll::retrieve_poll_status(state, req, auth.platform),
         &auth::HeaderAuth(auth::PublishableKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

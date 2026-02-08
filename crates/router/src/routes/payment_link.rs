@@ -21,11 +21,22 @@ pub async fn payment_link_retrieve(
     let payload = json_payload.into_inner();
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-        };
+    let (auth_type, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(err),
+            }
+        }
+    };
 
     api::server_wrap(
         flow,
@@ -132,8 +143,8 @@ pub async fn payments_link_list(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

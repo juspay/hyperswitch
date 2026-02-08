@@ -51,7 +51,6 @@ pub trait Payment:
     + MandateSetup
     + PaymentSession
     + PaymentToken
-    + PaymentsPreProcessing
     + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization

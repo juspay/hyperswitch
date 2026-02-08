@@ -1560,37 +1560,34 @@ impl Profile {
             )
     }
 
-    pub fn get_payment_webhook_statuses(&self) -> Cow<'_, [common_enums::IntentStatus]> {
+    pub fn get_configured_payment_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::IntentStatus]>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payment_statuses_enabled.as_ref())
             .filter(|statuses_vec| !statuses_vec.is_empty())
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
-            .unwrap_or_else(|| {
-                Cow::Borrowed(common_types::consts::DEFAULT_PAYMENT_WEBHOOK_TRIGGER_STATUSES)
-            })
     }
 
-    pub fn get_refund_webhook_statuses(&self) -> Cow<'_, [common_enums::RefundStatus]> {
+    pub fn get_configured_refund_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::RefundStatus]>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.refund_statuses_enabled.as_ref())
             .filter(|statuses_vec| !statuses_vec.is_empty())
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
-            .unwrap_or_else(|| {
-                Cow::Borrowed(common_types::consts::DEFAULT_REFUND_WEBHOOK_TRIGGER_STATUSES)
-            })
     }
 
-    pub fn get_payout_webhook_statuses(&self) -> Cow<'_, [common_enums::PayoutStatus]> {
+    pub fn get_configured_payout_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::PayoutStatus]>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payout_statuses_enabled.as_ref())
             .filter(|statuses_vec| !statuses_vec.is_empty())
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
-            .unwrap_or_else(|| {
-                Cow::Borrowed(common_types::consts::DEFAULT_PAYOUT_WEBHOOK_TRIGGER_STATUSES)
-            })
     }
 
     pub fn get_billing_processor_id(

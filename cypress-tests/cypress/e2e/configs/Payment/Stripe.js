@@ -63,6 +63,7 @@ const payment_method_data_3ds = {
     card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -85,6 +86,7 @@ const payment_method_data_no3ds = {
       address_postal_code_check: "pass",
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -1006,6 +1008,14 @@ export const connectorDetails = {
       pmListDynamicFieldWithBilling: requiredFields,
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "data.object.id",
+      // Type of payment reference ID
+      type: "string",
     },
   },
 };

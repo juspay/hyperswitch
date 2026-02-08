@@ -55,6 +55,7 @@ const multiUseMandateData = {
 const paymentMethodDataNo3DSResponse = {
   card: {
     authentication_data: null,
+    auth_code: null,
     card_exp_month: "06",
     card_exp_year: "50",
     card_extended_bin: null,
@@ -77,6 +78,7 @@ const paymentMethodDataNo3DSResponse = {
 const paymentMethodData3DSResponse = {
   card: {
     authentication_data: null,
+    auth_code: null,
     card_exp_month: "06",
     card_exp_year: "50",
     card_extended_bin: null,
