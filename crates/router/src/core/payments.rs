@@ -20,8 +20,8 @@ pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc,
-    time::Instant, vec::IntoIter,
+    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Instant,
+    vec::IntoIter,
 };
 
 use external_services::grpc_client;
@@ -50,7 +50,10 @@ use common_utils::{
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
-use futures::future::join_all;
+use futures::{
+    future::{join_all, BoxFuture},
+    FutureExt,
+};
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
@@ -9553,62 +9556,95 @@ where
         .map(|algo| StraightThroughRoutingStage {
             algorithm: Arc::new(algo.clone()),
         });
+
     let straight_through_routing_stage =
         request_straight_through_routing_stage.or(algorithmic_straight_through_routing_stage);
 
-    let (connectors, routing_approach, requires_eligibility) =
-        if let Some(straight_through_routing_stage) = straight_through_routing_stage {
-            let straight_through_routing_outcome = straight_through_routing_stage
-                .route(StraightThroughRoutingInput {
-                    creds_identifier: payment_data.get_creds_identifier(),
-                })
+    let creds_identifier = payment_data.get_creds_identifier();
+    let txn = TransactionData::Payment(transaction_data.clone());
+    let txn_data = transaction_data.clone();
+    let fallback = fallback_config.clone();
+    let eligible = eligible_connectors.clone();
+    let state_ref = &state;
+    let fallback_outcome = (
+        fallback.clone(),
+        common_enums::RoutingApproach::DefaultFallback,
+        true,
+    );
+
+    let routing_future: BoxFuture<
+        '_,
+        Option<(
+            Vec<api_models::routing::RoutableConnectorChoice>,
+            common_enums::RoutingApproach,
+            bool,
+        )>,
+    > = straight_through_routing_stage
+        .map(|stage| {
+            async move {
+                stage
+                    .route(StraightThroughRoutingInput { creds_identifier })
+                    .await
+                    .inspect_err(|err| {
+                        logger::error!(error=?err, "straight-through routing failed");
+                    })
+                    .ok()
+                    .map(|out| {
+                        (
+                            out.connectors.connectors,
+                            stage.routing_approach(),
+                            out.check_eligibility,
+                        )
+                    })
+            }
+            .boxed()
+        })
+        .unwrap_or_else(|| {
+            async move {
+                static_dynamic_routing_v1_for_payments(
+                    state_ref,
+                    platform,
+                    business_profile,
+                    txn_data,
+                    eligible,
+                    fallback.clone(),
+                )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("euclid: Failed execution of straight through routing")?;
+                .inspect_err(|err| {
+                    logger::error!(error=?err, "static/dynamic routing failed");
+                })
+                .ok()
+                .map(|out| {
+                    (
+                        out.connectors,
+                        out.routing_approach,
+                        out.requires_eligibility,
+                    )
+                })
+            }
+            .boxed()
+        });
 
-            logger::debug!("euclid_routing: straight through connector present");
-
-            (
-                straight_through_routing_outcome.connectors.connectors,
-                straight_through_routing_stage.routing_approach(),
-                straight_through_routing_outcome.check_eligibility,
-            )
-        } else {
-            // static & dynamic routing block
-            let routing_outcome_with_approach = static_dynamic_routing_v1_for_payments(
-                &state,
-                platform,
-                business_profile,
-                transaction_data.clone(),
-                eligible_connectors.clone(),
-                fallback_config.clone(),
-            )
-            .await?;
-
-            (
-                routing_outcome_with_approach.connectors,
-                routing_outcome_with_approach.routing_approach,
-                routing_outcome_with_approach.requires_eligibility,
-            )
-        };
+    let (connectors, routing_approach, requires_eligibility) =
+        routing_future.await.unwrap_or(fallback_outcome);
 
     let final_connectors = if requires_eligibility {
         routing::perform_eligibility_analysis_with_fallback(
             &state,
             platform.get_processor().get_key_store(),
-            connectors,
-            &TransactionData::Payment(transaction_data),
+            connectors.clone(),
+            &txn,
             eligible_connectors.clone(),
             business_profile,
         )
         .await
-        .unwrap_or_else(|err| {
+        .inspect_err(|err| {
             logger::error!(
                 error = ?err,
                 "euclid: eligibility analysis failed, using fallback connectors"
             );
-            fallback_config.clone()
         })
+        .unwrap_or_else(|_| fallback_config.clone())
     } else {
         connectors
     };
@@ -10408,7 +10444,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     transaction_data: core_routing::PaymentsDslInput<'_>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
-) -> RouterResult<routing::RoutingResultWithApproach> {
+) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let txn_type = transaction_type_from_payments_dsl(&transaction_data);
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
@@ -10478,10 +10514,10 @@ pub async fn static_dynamic_routing_v1_for_payments(
         );
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    {
+    let (connectors, routing_approach) = {
         let static_connectors_ref = &static_connectors;
         let transaction_data_ref = &transaction_data;
-        let (connectors, routing_approach) = business_profile
+        business_profile
             .dynamic_routing_algorithm
             .as_ref()
             .map(|_| routing::DynamicRoutingStage)
@@ -10510,13 +10546,13 @@ pub async fn static_dynamic_routing_v1_for_payments(
             })
             .await
             .unwrap_or_else(routing::RoutingConnectorOutcomeWithApproach::empty)
-            .resolve_or_fallback("dynamic-routing", static_connectors_ref, static_approach);
-    }
+            .resolve_or_fallback("dynamic-routing", static_connectors_ref, static_approach)
+    };
 
     #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
     let (connectors, routing_approach) = (static_connectors, static_approach);
 
-    Ok(routing::RoutingResultWithApproach {
+    Ok(routing::RoutingConnectorOutcomeWithApproachAndEligibility {
         connectors,
         routing_approach,
         requires_eligibility: true,

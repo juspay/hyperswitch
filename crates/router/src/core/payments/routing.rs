@@ -662,7 +662,7 @@ impl RoutingStage for StaticRoutingStage {
     }
 }
 
-pub struct RoutingResultWithApproach {
+pub struct RoutingConnectorOutcomeWithApproachAndEligibility {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
     pub routing_approach: common_enums::RoutingApproach,
     pub requires_eligibility: bool,
@@ -678,19 +678,13 @@ pub struct PreRoutingInput<'a> {
     pub creds_identifier: Option<&'a str>,
 }
 
-pub enum PreRoutingOutcome {
-    Connectors(Vec<api::ConnectorRoutingData>),
-}
-
 pub async fn resolve_pre_routed_connectors(
     input: PreRoutingInput<'_>,
-) -> RoutingResult<PreRoutingOutcome> {
-    let pre_routing_results = input
+) -> RoutingResult<Vec<api::ConnectorRoutingData>> {
+    let routable_connector_choice = input
         .pre_routing_results
         .as_ref()
-        .ok_or(errors::RoutingError::DslExecutionError)?;
-
-    let routable_connector_choice = pre_routing_results
+        .ok_or(errors::RoutingError::DslExecutionError)?
         .get(input.payment_method_type)
         .ok_or(errors::RoutingError::DslExecutionError)?;
 
@@ -714,10 +708,8 @@ pub async fn resolve_pre_routed_connectors(
 
         connector_routing_data.push(connector_data);
     }
-
     logger::debug!("euclid_routing: pre-routing connectors resolved");
-
-    Ok(PreRoutingOutcome::Connectors(connector_routing_data))
+    Ok(connector_routing_data)
 }
 
 pub fn try_get_attempt_connector<F, D>(
@@ -729,29 +721,27 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    let Some(ref connector_name) = payment_data.get_payment_attempt().connector else {
-        return Ok(None);
-    };
-
-    let connector_data = api::ConnectorData::get_connector_by_name(
-        connectors,
-        connector_name,
-        api::GetToken::Connector,
-        payment_data
-            .get_payment_attempt()
-            .merchant_connector_id
-            .clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Invalid connector name received in 'routed_through'")?;
-
-    routing_data.routed_through = Some(connector_name.clone());
-
-    logger::debug!("euclid_routing: predetermined connector present in attempt");
-
-    Ok(Some(api::ConnectorCallType::PreDetermined(
-        connector_data.into(),
-    )))
+    payment_data
+        .get_payment_attempt()
+        .connector
+        .as_ref()
+        .map(|connector_name| {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payment_data
+                    .get_payment_attempt()
+                    .merchant_connector_id
+                    .clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received in 'routed_through'")?;
+            routing_data.routed_through = Some(connector_name.clone());
+            logger::debug!("euclid_routing: predetermined connector present in attempt");
+            Ok(api::ConnectorCallType::PreDetermined(connector_data.into()))
+        })
+        .transpose()
 }
 
 pub fn try_get_mandate_connector<F, D>(
@@ -763,30 +753,25 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    let Some(mandate_connector_details) = payment_data.get_mandate_connector() else {
-        return Ok(None);
-    };
-
-    let connector_data = api::ConnectorData::get_connector_by_name(
-        connectors,
-        &mandate_connector_details.connector,
-        api::GetToken::Connector,
-        mandate_connector_details.merchant_connector_id.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Invalid connector name received in 'routed_through'")?;
-
-    routing_data.routed_through = Some(mandate_connector_details.connector.clone());
-
-    routing_data
-        .merchant_connector_id
-        .clone_from(&mandate_connector_details.merchant_connector_id);
-
-    logger::debug!("euclid_routing: predetermined mandate connector");
-
-    Ok(Some(api::ConnectorCallType::PreDetermined(
-        connector_data.into(),
-    )))
+    payment_data
+        .get_mandate_connector()
+        .map(|mandate_connector_details| {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                &mandate_connector_details.connector,
+                api::GetToken::Connector,
+                mandate_connector_details.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received in 'routed_through'")?;
+            routing_data.routed_through = Some(mandate_connector_details.connector.clone());
+            routing_data
+                .merchant_connector_id
+                .clone_from(&mandate_connector_details.merchant_connector_id);
+            logger::debug!("euclid_routing: predetermined mandate connector");
+            Ok(api::ConnectorCallType::PreDetermined(connector_data.into()))
+        })
+        .transpose()
 }
 
 pub fn try_get_pre_determined_connector<F, D>(
@@ -798,12 +783,10 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    if let Some(result) = try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)?
-    {
-        return Ok(Some(result));
+    match try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)? {
+        Some(connector) => Ok(Some(connector)),
+        None => try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data),
     }
-
-    try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data)
 }
 
 pub async fn try_pre_routing_connectors<F, D>(
@@ -834,9 +817,7 @@ where
             creds_identifier: payment_data.get_creds_identifier(),
         };
 
-        if let Ok(PreRoutingOutcome::Connectors(connectors)) =
-            resolve_pre_routed_connectors(pre_routing_input).await
-        {
+        if let Ok(connectors) = resolve_pre_routed_connectors(pre_routing_input).await {
             let first_connector = connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
