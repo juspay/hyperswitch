@@ -5,7 +5,6 @@
 ///
 /// [PrimitiveDateTime]: ::time::PrimitiveDateTime
 pub mod iso8601 {
-    use std::num::NonZeroU8;
 
     use serde::{ser::Error as _, Deserializer, Serialize, Serializer};
     use time::{
@@ -17,11 +16,10 @@ pub mod iso8601 {
         PrimitiveDateTime, UtcOffset,
     };
 
-    const FORMAT_CONFIG: EncodedConfig = Config::DEFAULT
-        .set_time_precision(TimePrecision::Second {
-            decimal_digits: NonZeroU8::new(3),
-        })
-        .encode();
+    const FORMAT_CONFIG: EncodedConfig =
+        Config::DEFAULT.set_time_precision(TimePrecision::Second {
+            decimal_digits: Some(6),
+        });
 
     /// Serialize a [`PrimitiveDateTime`] using the well-known ISO 8601 format.
     pub fn serialize<S>(date_time: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
