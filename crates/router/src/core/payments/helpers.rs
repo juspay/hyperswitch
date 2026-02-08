@@ -8681,3 +8681,44 @@ pub fn get_merchant_advice_code_recommended_action(
         _ => None,
     }
 }
+
+pub fn convert_to_string_vec<T: ToString>(val: Option<&Vec<T>>) -> Option<Vec<String>> {
+    val.map(|v| v.iter().map(|i| i.to_string()).collect())
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+pub fn get_search_filters(
+    constraints: &api_models::payments::PaymentListFilterConstraints,
+) -> api_models::analytics::search::SearchFilters {
+    api_models::analytics::search::SearchFilters {
+        payment_method: convert_to_string_vec(constraints.payment_method.as_ref()),
+        currency: convert_to_string_vec(constraints.currency.as_ref()),
+        status: convert_to_string_vec(constraints.status.as_ref()),
+        connector: convert_to_string_vec(constraints.connector.as_ref()),
+        payment_method_type: convert_to_string_vec(constraints.payment_method_type.as_ref()),
+        authentication_type: convert_to_string_vec(constraints.authentication_type.as_ref()),
+        card_network: convert_to_string_vec(constraints.card_network.as_ref()),
+        customer_id: constraints
+            .customer_id
+            .as_ref()
+            .map(|v| vec![v.get_string_repr().to_string()]),
+        payment_id: constraints
+            .payment_id
+            .as_ref()
+            .map(|v| vec![v.get_string_repr().to_string()]),
+        card_discovery: convert_to_string_vec(constraints.card_discovery.as_ref()),
+        merchant_order_reference_id: constraints
+            .merchant_order_reference_id
+            .as_ref()
+            .map(|v| vec![v.clone()]),
+        customer_email: constraints.customer_email.as_ref().map(|v| {
+            vec![common_utils::hashing::HashedString::from(
+                v.clone().expose(),
+            )]
+        }),
+        search_tags: None,
+        card_last_4: None,
+        amount: None,
+        amount_filter: constraints.amount_filter.clone(),
+    }
+}

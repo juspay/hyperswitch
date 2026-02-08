@@ -67,6 +67,14 @@ impl From<TimeRange> for OpensearchTimeRange {
     }
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct OpensearchRange {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gte: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lte: Option<i64>,
+}
+
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct OpenSearchConfig {
     host: String,
@@ -487,6 +495,7 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<Value>)>,
     pub time_range: Option<OpensearchTimeRange>,
+    pub amount_range: Option<OpensearchRange>,
     search_params: Vec<AuthInfo>,
     case_sensitive_fields: HashSet<&'static str>,
 }
@@ -501,6 +510,7 @@ impl OpenSearchQueryBuilder {
             count: Default::default(),
             filters: Default::default(),
             time_range: Default::default(),
+            amount_range: Default::default(),
             case_sensitive_fields: HashSet::from([
                 "customer_email.keyword",
                 "search_tags.keyword",
@@ -508,6 +518,7 @@ impl OpenSearchQueryBuilder {
                 "payment_id.keyword",
                 "amount",
                 "customer_id.keyword",
+                "merchant_order_reference_id.keyword",
             ]),
         }
     }
@@ -520,6 +531,11 @@ impl OpenSearchQueryBuilder {
 
     pub fn set_time_range(&mut self, time_range: OpensearchTimeRange) -> QueryResult<()> {
         self.time_range = Some(time_range);
+        Ok(())
+    }
+
+    pub fn set_amount_range(&mut self, amount_range: OpensearchRange) -> QueryResult<()> {
+        self.amount_range = Some(amount_range);
         Ok(())
     }
 
@@ -579,6 +595,16 @@ impl OpenSearchQueryBuilder {
             filter_array.push(json!({
                 "range": {
                     "@timestamp": range
+                }
+            }));
+        }
+
+        if let Some(ref amount_range) = self.amount_range {
+            let range = json!(amount_range);
+            let amount_field = self.get_amount_field(index);
+            filter_array.push(json!({
+                "range": {
+                    amount_field: range
                 }
             }));
         }
@@ -760,6 +786,7 @@ impl OpenSearchQueryBuilder {
             .iter()
             .map(|index| {
                 let mut payload = json!({
+                    "track_total_hits": true,
                     "query": query_obj.clone(),
                     "sort": [
                         Value::Object(sort_obj.clone())

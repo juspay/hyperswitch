@@ -79,9 +79,7 @@ use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
-pub use crate::analytics::opensearch::OpenSearchClient;
-#[cfg(feature = "olap")]
-use crate::analytics::AnalyticsProvider;
+use crate::analytics::{AnalyticsProvider, SearchProvider};
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "oltp")]
@@ -137,7 +135,7 @@ pub struct SessionState {
     pub base_url: String,
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
-    pub opensearch_client: Option<Arc<OpenSearchClient>>,
+    pub search_provider: SearchProvider,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
@@ -329,7 +327,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pools: HashMap<id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
-    pub opensearch_client: Option<Arc<OpenSearchClient>>,
+    pub search_provider: SearchProvider,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
@@ -452,12 +450,12 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = conf
-                .opensearch
+            let search_provider = conf.opensearch
                 .get_opensearch_client()
                 .await
                 .expect("Failed to initialize OpenSearch client.")
-                .map(Arc::new);
+                .map(SearchProvider::Opensearch)
+                .unwrap_or_default();
 
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -535,7 +533,7 @@ impl AppState {
                 #[cfg(feature = "olap")]
                 pools,
                 #[cfg(feature = "olap")]
-                opensearch_client,
+                search_provider,
                 request_id: None,
                 file_storage_client,
                 encryption_client,
@@ -664,7 +662,7 @@ impl AppState {
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
-            opensearch_client: self.opensearch_client.clone(),
+            search_provider: self.search_provider.clone(),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
