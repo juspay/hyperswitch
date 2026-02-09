@@ -7745,13 +7745,12 @@ async fn decide_payment_method_tokenize_action(
                     payment_method,
                     connector_name
                 );
-                //this will throw error, in repeat cit, since pm token generate wont be of this key
+
                 let connector_token_option = redis_conn
                     .get_key::<Option<String>>(&key.into())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?;
-                //new merchant,dont throw error??
 
                 match connector_token_option {
                     Some(connector_token) => {
