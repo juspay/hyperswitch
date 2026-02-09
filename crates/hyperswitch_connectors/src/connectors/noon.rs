@@ -881,6 +881,7 @@ impl webhooks::IncomingWebhook for Noon {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: noon::NoonWebhookEvent = request
             .body
