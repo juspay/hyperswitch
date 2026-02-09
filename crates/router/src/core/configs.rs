@@ -1,6 +1,7 @@
 pub mod dimension_config;
 pub mod dimension_state;
 
+use crate::db;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
@@ -126,10 +127,7 @@ impl ConfigType for serde_json::Value {
 /// that database fallback is used when superposition fails. It uses the config's
 /// `db_key` method to construct the database key from dimensions.
 pub async fn fetch_db_with_dimensions<C, M, O, P>(
-    storage: &(dyn hyperswitch_domain_models::configs::ConfigInterface<
-        Error = storage_impl::errors::StorageError,
-    > + Send
-          + Sync),
+    storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
 ) -> C::Output
@@ -161,10 +159,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// This function is specifically for DatabaseBackedConfig types and enforces
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
-    storage: &(dyn hyperswitch_domain_models::configs::ConfigInterface<
-        Error = storage_impl::errors::StorageError,
-    > + Send
-          + Sync),
+    storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,

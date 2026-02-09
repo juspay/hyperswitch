@@ -1,5 +1,4 @@
 use external_services::superposition;
-use hyperswitch_domain_models::configs::ConfigInterface;
 
 use super::{
     dimension_state::{Dimensions, HasMerchantId},
@@ -39,9 +38,7 @@ macro_rules! config {
             {
                 pub async fn [<get_ $superposition_key:lower>](
                     &self,
-                    storage: &(dyn ConfigInterface<Error = storage_impl::errors::StorageError>
-                          + Send
-                          + Sync),
+                    storage: &dyn crate::db::StorageInterface,
                     superposition_client: Option<&superposition::SuperpositionClient>,
                 ) -> $output {
                     fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
