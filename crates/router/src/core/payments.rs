@@ -8676,7 +8676,7 @@ pub async fn apply_filters_on_payments(
                         let payments_list: Vec<payments_api::PaymentsResponse> = response
                             .hits
                             .into_iter()
-                            .map(transformers::get_payments_response_from_opensearch_hit)
+                            .map(transformers::convert_opensearch_hit_to_payments_response)
                             .collect();
 
                         return Ok(services::ApplicationResponse::Json(

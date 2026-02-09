@@ -7006,111 +7006,144 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
 }
 
 #[cfg(all(feature = "v1", feature = "olap"))]
-pub fn get_payments_response_from_opensearch_hit(
+pub fn convert_opensearch_hit_to_payments_response(
     hit: serde_json::Value,
 ) -> api_models::payments::PaymentsResponse {
-    let get_str = |key: &str| hit.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());
-    let get_i64 = |key: &str| hit.get(key).and_then(|v| v.as_i64());
-    let parse_nanos = |key: &str| {
-        hit.get(key)
-            .and_then(|v| v.as_i64())
-            .and_then(|nanos| {
-                time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos)).ok()
-            })
+    let hit_str = |key: &str| hit.get(key).and_then(|v| v.as_str());
+    let hit_i64 = |key: &str| hit.get(key).and_then(|v| v.as_i64());
+
+    let parse_nano_sec_i64 = |nanos: Option<i64>| {
+        nanos
+            .and_then(|n| time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(n)).ok())
             .map(common_utils::date_time::convert_to_pdt)
     };
 
-    let active_attempt_id = get_str("active_attempt_id");
-    let attempts_list = hit.get("attempts_list").and_then(|v| v.as_array());
-    let active_attempt = active_attempt_id.and_then(|id| {
-        attempts_list.and_then(|list| {
-            list.iter().find(|att| {
-                att.get("attempt_id")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s == id)
-                    .unwrap_or(false)
-            })
-        })
-    });
+    let hit_date_time_nano_sec = |key: &str| parse_nano_sec_i64(hit_i64(key));
 
-    let get_att_str = |key: &str| {
+    let parse_json_from_str = |key: &str| {
+        hit.get(key)
+            .and_then(|v| v.as_str())
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+    };
+
+    let attempts_list = hit.get("attempts_list").and_then(|v| v.as_array());
+    let active_attempt_id = hit_str("active_attempt_id");
+
+    let active_attempt = match (attempts_list, active_attempt_id) {
+        (Some(list), Some(active_id)) => list.iter().find(|att| {
+            att.get("attempt_id")
+                .and_then(|v| v.as_str())
+                .is_some_and(|s| s == active_id)
+        }),
+        _ => None,
+    };
+
+    let attempt_str = |key: &str| {
         active_attempt
             .and_then(|a| a.get(key))
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
     };
-    let get_att_i64 = |key: &str| {
+
+    let attempt_i64 = |key: &str| {
         active_attempt
             .and_then(|a| a.get(key))
             .and_then(|v| v.as_i64())
     };
 
-    let payment_id_str = get_str("payment_id").unwrap_or_default();
-    let merchant_id_str = get_str("merchant_id").unwrap_or_default();
-    let status = get_str("status")
-        .and_then(|s| enums::IntentStatus::from_str(&s).ok())
+    let attempt_date_time_nano_sec = |key: &str| parse_nano_sec_i64(attempt_i64(key));
+
+    let payment_id_raw = hit_str("payment_id").unwrap_or_default().to_owned();
+    let merchant_id_raw = hit_str("merchant_id").unwrap_or_default().to_owned();
+
+    let payment_id = common_utils::id_type::PaymentId::try_from(Cow::from(payment_id_raw.clone()))
+        .unwrap_or_default();
+
+    let merchant_id =
+        common_utils::id_type::MerchantId::try_from(Cow::from(merchant_id_raw.clone()))
+            .unwrap_or_default();
+
+    let processor_mid_raw = hit_str("processor_merchant_id")
+        .unwrap_or(merchant_id_raw.as_str())
+        .to_owned();
+
+    let processor_merchant_id =
+        common_utils::id_type::MerchantId::try_from(Cow::from(processor_mid_raw))
+            .unwrap_or_else(|_| merchant_id.clone());
+
+    let status = hit_str("status")
+        .and_then(|s| enums::IntentStatus::from_str(s).ok())
         .unwrap_or(enums::IntentStatus::Failed);
 
-    let amount = get_i64("amount")
+    let amount = hit_i64("amount")
         .map(MinorUnit::new)
-        .unwrap_or(MinorUnit::new(0));
+        .unwrap_or_else(|| MinorUnit::new(0));
 
-    let created = parse_nanos("created_at");
-    let modified_at = parse_nanos("modified_at");
+    let created = hit_date_time_nano_sec("created_at");
+    let modified_at = hit_date_time_nano_sec("modified_at");
 
     api_models::payments::PaymentsResponse {
-        payment_id: common_utils::id_type::PaymentId::try_from(Cow::from(payment_id_str.clone()))
-            .unwrap_or_default(),
-        merchant_id: common_utils::id_type::MerchantId::try_from(Cow::from(
-            merchant_id_str.clone(),
-        ))
-        .unwrap_or_default(),
-        processor_merchant_id: common_utils::id_type::MerchantId::try_from(Cow::from(
-            get_str("processor_merchant_id").unwrap_or_else(|| merchant_id_str.clone()),
-        ))
-        .unwrap_or_else(|_| {
-            common_utils::id_type::MerchantId::try_from(Cow::from(merchant_id_str.clone()))
-                .unwrap_or_default()
-        }),
+        payment_id,
+        merchant_id,
+        processor_merchant_id,
+
         initiator: None,
         sdk_authorization: None,
         status,
         amount,
-        net_amount: get_att_i64("net_amount")
+
+        net_amount: attempt_i64("net_amount")
             .map(MinorUnit::new)
             .unwrap_or(amount),
-        amount_capturable: get_att_i64("amount_capturable")
+
+        amount_capturable: attempt_i64("amount_capturable")
             .map(MinorUnit::new)
-            .unwrap_or(MinorUnit::new(0)),
-        currency: get_str("currency").unwrap_or_default(),
+            .unwrap_or_else(|| MinorUnit::new(0)),
+
+        currency: hit_str("currency").unwrap_or_default().to_owned(),
+
         created,
         modified_at,
-        connector: get_str("connector"),
-        customer_id: get_str("customer_id")
-            .and_then(|id| common_utils::id_type::CustomerId::try_from(Cow::from(id)).ok()),
-        description: get_str("description"),
-        payment_method: get_str("payment_method")
-            .and_then(|s| enums::PaymentMethod::from_str(&s).ok()),
-        payment_method_type: get_str("payment_method_type")
-            .and_then(|s| enums::PaymentMethodType::from_str(&s).ok()),
-        connector_transaction_id: get_att_str("connector_transaction_id"),
-        merchant_connector_id: get_str("merchant_connector_id").and_then(|id| {
-            common_utils::id_type::MerchantConnectorAccountId::try_from(Cow::from(id)).ok()
+
+        connector: hit_str("connector").map(str::to_owned),
+
+        customer_id: hit_str("customer_id").and_then(|id| {
+            common_utils::id_type::CustomerId::try_from(Cow::from(id.to_owned())).ok()
         }),
-        profile_id: get_str("profile_id")
-            .and_then(|id| common_utils::id_type::ProfileId::try_from(Cow::from(id)).ok()),
-        attempt_count: get_i64("attempt_count")
+
+        description: hit_str("description").map(str::to_owned),
+
+        payment_method: hit_str("payment_method")
+            .and_then(|s| enums::PaymentMethod::from_str(s).ok()),
+
+        payment_method_type: hit_str("payment_method_type")
+            .and_then(|s| enums::PaymentMethodType::from_str(s).ok()),
+
+        connector_transaction_id: attempt_str("connector_transaction_id").map(str::to_owned),
+
+        merchant_connector_id: hit_str("merchant_connector_id").and_then(|id| {
+            common_utils::id_type::MerchantConnectorAccountId::try_from(Cow::from(id.to_owned()))
+                .ok()
+        }),
+
+        profile_id: hit_str("profile_id").and_then(|id| {
+            common_utils::id_type::ProfileId::try_from(Cow::from(id.to_owned())).ok()
+        }),
+
+        attempt_count: hit_i64("attempt_count")
             .and_then(|v| i16::try_from(v).ok())
             .unwrap_or(0),
         customer: None, // Complex to map from sessionizer
         billing: None,  // Complex to map from sessionizer
         shipping: None, // Complex to map from sessionizer
+
         payment_method_data: hit
             .get("payment_method_data")
             .and_then(|v| v.as_str())
             .and_then(|s| serde_json::from_str(s).ok()),
-        client_secret: get_str("client_secret").map(Secret::new),
-        amount_received: get_att_i64("amount_received").map(MinorUnit::new),
+
+        client_secret: hit_str("client_secret").map(|s| Secret::new(s.to_owned())),
+
+        amount_received: attempt_i64("amount_received").map(MinorUnit::new),
         refunds: None,
         disputes: None,
         attempts: None,
@@ -7118,42 +7151,36 @@ pub fn get_payments_response_from_opensearch_hit(
         mandate_id: None,
         mandate_data: None,
         off_session: None,
-        capture_on: active_attempt
-            .and_then(|a| a.get("capture_on"))
-            .and_then(|v| v.as_i64())
-            .and_then(|nanos| {
-                time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos)).ok()
-            })
-            .map(common_utils::date_time::convert_to_pdt),
+        capture_on: attempt_date_time_nano_sec("capture_on"),
         payment_token: None,
         email: None,
         name: None,
         phone: None,
-        return_url: get_str("return_url"),
-        statement_descriptor_name: get_str("statement_descriptor_name"),
-        statement_descriptor_suffix: get_str("statement_descriptor_suffix"),
+        return_url: hit_str("return_url").map(str::to_owned),
+        statement_descriptor_name: hit_str("statement_descriptor_name").map(str::to_owned),
+        statement_descriptor_suffix: hit_str("statement_descriptor_suffix").map(str::to_owned),
         next_action: None,
         cancellation_reason: None,
-        error_code: get_att_str("error_code"),
-        error_message: get_att_str("error_message"),
+        error_code: attempt_str("error_code").map(str::to_owned),
+        error_message: attempt_str("error_message").map(str::to_owned),
         error_details: None,
         unified_code: None,
         unified_message: None,
         payment_experience: None,
         connector_label: None,
-        business_label: get_str("business_label"),
-        business_country: get_str("business_country")
-            .and_then(|s| enums::CountryAlpha2::from_str(&s).ok()),
-        business_sub_label: get_str("business_sub_label"),
+        business_label: hit_str("business_label").map(str::to_owned),
+        business_country: hit_str("business_country")
+            .and_then(|s| enums::CountryAlpha2::from_str(s).ok()),
+        business_sub_label: hit_str("business_sub_label").map(str::to_owned),
         allowed_payment_method_types: None,
         manual_retry_allowed: None,
         frm_message: None,
-        setup_future_usage: get_str("setup_future_usage")
-            .and_then(|s| enums::FutureUsage::from_str(&s).ok()),
-        capture_method: get_att_str("capture_method")
-            .and_then(|s| enums::CaptureMethod::from_str(&s).ok()),
-        authentication_type: get_str("authentication_type")
-            .and_then(|s| enums::AuthenticationType::from_str(&s).ok()),
+        setup_future_usage: hit_str("setup_future_usage")
+            .and_then(|s| enums::FutureUsage::from_str(s).ok()),
+        capture_method: attempt_str("capture_method")
+            .and_then(|s| enums::CaptureMethod::from_str(s).ok()),
+        authentication_type: hit_str("authentication_type")
+            .and_then(|s| enums::AuthenticationType::from_str(s).ok()),
         connector_metadata: None,
         feature_metadata: None,
         reference_id: None,
@@ -7167,21 +7194,18 @@ pub fn get_payments_response_from_opensearch_hit(
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
-        browser_info: hit
-            .get("browser_info")
-            .and_then(|v| v.as_str())
-            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok()),
-        payment_method_id: get_str("payment_method_id"),
+        browser_info: parse_json_from_str("browser_info"),
+        payment_method_id: hit_str("payment_method_id").map(str::to_owned),
         payment_method_status: None,
         updated: modified_at,
         split_payments: None,
         frm_metadata: None,
-        merchant_order_reference_id: get_str("merchant_order_reference_id"),
+        merchant_order_reference_id: hit_str("merchant_order_reference_id").map(str::to_owned),
         order_tax_amount: None,
         connector_mandate_id: None,
-        mit_category: get_str("mit_category").and_then(|s| enums::MitCategory::from_str(&s).ok()),
+        mit_category: hit_str("mit_category").and_then(|s| enums::MitCategory::from_str(s).ok()),
         tokenization: None,
-        shipping_cost: get_i64("shipping_cost").map(MinorUnit::new),
+        shipping_cost: hit_i64("shipping_cost").map(MinorUnit::new),
         capture_before: None,
         extended_authorization_applied: None,
         extended_authorization_last_applied_at: None,
@@ -7204,9 +7228,6 @@ pub fn get_payments_response_from_opensearch_hit(
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         order_details: None,
-        metadata: hit
-            .get("metadata")
-            .and_then(|v| v.as_str())
-            .and_then(|s| serde_json::from_str(s).ok()),
+        metadata: parse_json_from_str("metadata"),
     }
 }

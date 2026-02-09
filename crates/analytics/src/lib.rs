@@ -1098,12 +1098,10 @@ impl SearchProvider {
                 opensearch::OpenSearchError::NotEnabled
             )),
             Self::CombinedOpensearch(_sqlx_client, opensearch_client) => {
-                let os_res = search::search_results(opensearch_client, req, auth).await;
-                os_res
+                search::search_results(opensearch_client, req, auth).await
             }
             Self::CombinedSqlx(_sqlx_client, opensearch_client) => {
-                let os_res = search::search_results(opensearch_client, req, auth).await;
-                os_res
+                search::search_results(opensearch_client, req, auth).await
             }
         }
     }

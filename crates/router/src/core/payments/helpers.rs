@@ -8683,7 +8683,7 @@ pub fn get_merchant_advice_code_recommended_action(
 }
 
 pub fn convert_to_string_vec<T: ToString>(val: Option<&Vec<T>>) -> Option<Vec<String>> {
-    val.map(|v| v.iter().map(|i| i.to_string()).collect())
+    val.map(|values| values.iter().map(|item| item.to_string()).collect())
 }
 
 #[cfg(all(feature = "v1", feature = "olap"))]
@@ -8701,19 +8701,19 @@ pub fn get_search_filters(
         customer_id: constraints
             .customer_id
             .as_ref()
-            .map(|v| vec![v.get_string_repr().to_string()]),
+            .map(|customer_id| vec![customer_id.get_string_repr().to_string()]),
         payment_id: constraints
             .payment_id
             .as_ref()
-            .map(|v| vec![v.get_string_repr().to_string()]),
+            .map(|payment_id| vec![payment_id.get_string_repr().to_string()]),
         card_discovery: convert_to_string_vec(constraints.card_discovery.as_ref()),
         merchant_order_reference_id: constraints
             .merchant_order_reference_id
             .as_ref()
-            .map(|v| vec![v.clone()]),
-        customer_email: constraints.customer_email.as_ref().map(|v| {
+            .map(|merchant_order_reference_id| vec![merchant_order_reference_id.clone()]),
+        customer_email: constraints.customer_email.as_ref().map(|customer_email| {
             vec![common_utils::hashing::HashedString::from(
-                v.clone().expose(),
+                customer_email.clone().expose(),
             )]
         }),
         search_tags: None,
