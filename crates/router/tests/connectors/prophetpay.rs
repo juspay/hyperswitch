@@ -11,7 +11,7 @@ impl utils::Connector for ProphetpayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Prophetpay;
         utils::construct_connector_data_old(
-            Box::new(&Prophetpay),
+            Box::new(&Prophetpay::new()),
             types::Connector::Prophetpay,
             types::api::GetToken::Connector,
             None,

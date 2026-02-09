@@ -9,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -51,7 +52,24 @@ use transformers as prophetpay;
 use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Debug, Clone)]
-pub struct Prophetpay;
+pub struct Prophetpay {
+    pub amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Default for Prophetpay {
+    fn default() -> Self {
+        Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
+
+impl Prophetpay {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 impl api::payments::MandateSetup for Prophetpay {}
 impl api::Payment for Prophetpay {}
 impl api::PaymentSession for Prophetpay {}
@@ -207,12 +225,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = prophetpay::ProphetpayRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        let amount = self.amount_converter.convert(req.request.amount, req.request.currency)?;
+        let connector_router_data = prophetpay::ProphetpayRouterData::from((amount, req));
         let connector_req = prophetpay::ProphetpayTokenRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -304,12 +318,8 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = prophetpay::ProphetpayRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        let amount = self.amount_converter.convert(req.request.amount, req.request.currency)?;
+        let connector_router_data = prophetpay::ProphetpayRouterData::from((amount, req));
         let connector_req =
             prophetpay::ProphetpayCompleteRequest::try_from(&connector_router_data)?;
 
