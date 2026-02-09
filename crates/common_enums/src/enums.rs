@@ -243,6 +243,39 @@ impl AttemptStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
+
+    pub fn should_update_payment_method(self) -> bool {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired => false,
+        }
+    }
 }
 
 #[derive(
@@ -743,29 +776,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum DocumentKind {
-    Cnpj,
-    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2943,6 +2953,7 @@ pub enum RelayStatus {
 pub enum RelayType {
     Refund,
     Capture,
+    IncrementalAuthorization,
 }
 
 #[derive(
@@ -9633,8 +9644,8 @@ impl From<RelayStatus> for RefundStatus {
 }
 
 impl From<AttemptStatus> for RelayStatus {
-    fn from(refund_status: AttemptStatus) -> Self {
-        match refund_status {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::AuthenticationFailed
             | AttemptStatus::RouterDeclined
@@ -9663,6 +9674,16 @@ impl From<AttemptStatus> for RelayStatus {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
+impl From<AuthorizationStatus> for RelayStatus {
+    fn from(authorization_status: AuthorizationStatus) -> Self {
+        match authorization_status {
+            AuthorizationStatus::Failure => Self::Failure,
+            AuthorizationStatus::Processing | AuthorizationStatus::Unresolved => Self::Pending,
+            AuthorizationStatus::Success => Self::Success,
         }
     }
 }
