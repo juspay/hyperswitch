@@ -13,53 +13,54 @@ use crate::consts::superposition as superposition_consts;
 #[macro_export]
 macro_rules! config {
     (
-        $config:ident => $output:ty,
-        superposition_key = $superposition_key:expr,
+        superposition_key = $superposition_key:ident,
+        output = $output:ty,
         default = $default:expr,
-        requires = $requirement:ty,
-        method = $method:ident
+        requires = $requirement:ty
     ) => {
-        /// Config definition
-        pub struct $config;
+        paste::paste! {
+            /// Config definition
+            pub struct [<$superposition_key:camel>];
 
-        impl superposition::Config for $config {
-            type Output = $output;
+            impl superposition::Config for [<$superposition_key:camel>] {
+                type Output = $output;
 
-            const SUPERPOSITION_KEY: &'static str = $superposition_key;
+                const SUPERPOSITION_KEY: &'static str =
+                    superposition_consts::$superposition_key;
 
-            const DEFAULT_VALUE: $output = $default;
-        }
+                const DEFAULT_VALUE: $output = $default;
+            }
 
-        /// Get $config - ONLY available when Dimensions has required state
-        impl<O, P> Dimensions<$requirement, O, P>
-        where
-            O: Send + Sync,
-            P: Send + Sync,
-        {
-            pub async fn $method(
-                &self,
-                storage: &(dyn ConfigInterface<Error = storage_impl::errors::StorageError>
-                      + Send
-                      + Sync),
-                superposition_client: Option<&superposition::SuperpositionClient>,
-            ) -> $output {
-                fetch_db_with_dimensions::<$config, $requirement, O, P>(
-                    storage,
-                    superposition_client,
-                    self,
-                )
-                .await
+            /// Get [<$superposition_key:camel>] - ONLY available when Dimensions has required state
+            impl<O, P> Dimensions<$requirement, O, P>
+            where
+                O: Send + Sync,
+                P: Send + Sync,
+            {
+                pub async fn [<get_ $superposition_key:lower>](
+                    &self,
+                    storage: &(dyn ConfigInterface<Error = storage_impl::errors::StorageError>
+                          + Send
+                          + Sync),
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                ) -> $output {
+                    fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
+                        storage,
+                        superposition_client,
+                        self,
+                    )
+                    .await
+                }
             }
         }
     };
 }
 
 config! {
-    RequiresCvv => bool,
-    superposition_key = superposition_consts::REQUIRES_CVV,
+    superposition_key = REQUIRES_CVV,
+    output = bool,
     default = true,
-    requires = HasMerchantId,
-    method = get_requires_cvv
+    requires = HasMerchantId
 }
 
 impl DatabaseBackedConfig for RequiresCvv {
@@ -75,11 +76,10 @@ impl DatabaseBackedConfig for RequiresCvv {
 }
 
 config! {
-    ImplicitCustomerUpdate => bool,
-    superposition_key = superposition_consts::IMPLICIT_CUSTOMER_UPDATE,
+    superposition_key = IMPLICIT_CUSTOMER_UPDATE,
+    output = bool,
     default = false,
-    requires = HasMerchantId,
-    method = get_implicit_customer_update
+    requires = HasMerchantId
 }
 
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
