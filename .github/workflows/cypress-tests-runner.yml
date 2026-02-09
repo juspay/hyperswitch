@@ -591,6 +591,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ env.PARALLEL_PAYMENTS_CONNECTORS }}"
+          NODE_OPTIONS: "--max-old-space-size=4096"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel 3
