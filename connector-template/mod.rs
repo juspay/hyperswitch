@@ -113,10 +113,10 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-    //    TODO! Check connector documentation, on which unit they are processing the currency.
-    //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-    //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor  // Default to Minor, template users should change based on connector
+        // TODO! Check connector documentation, on which unit they are processing the currency.
+        // If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        // if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -124,7 +124,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.{{project-name}}.base_url.as_ref()
+        connectors.{{project-name | downcase}}.base_url.as_ref()
     }
 
     fn get_auth_header(&self, auth_type:&ConnectorAuthType)-> CustomResult<Vec<(String,masking::Maskable<String>)>,errors::ConnectorError> {
@@ -203,6 +203,7 @@ impl
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     for {{project-name | downcase | pascal_case}}
 {
+    // Keeping empty implementation as in the original code
 }
 
 impl
@@ -418,7 +419,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
+        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
             .response
             .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
