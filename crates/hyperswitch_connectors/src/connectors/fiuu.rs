@@ -843,6 +843,9 @@ impl webhooks::IncomingWebhook for Fiuu {
                     webhooks_payment_response.amount.get_amount_as_string(),
                     webhooks_payment_response.currency
                 );
+                // SECURITY WARNING: MD5 is cryptographically broken and vulnerable to collision attacks.
+                // This is used here ONLY because the Fiuu API specification requires MD5 for webhook verification.
+                // Do NOT use MD5 for new implementations. Prefer SHA-256 or stronger.
                 let md5_key0 = hex::encode(
                     crypto::Md5
                         .generate_digest(key0.as_bytes())
