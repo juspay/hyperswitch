@@ -1638,6 +1638,34 @@ pub fn build_redirection_form(
                 }
             }
         },
+        RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+            let base_url = config.connectors.worldpayxml.secondary_base_url;
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="{base_url}/V2/Cruise/Collect">
+                            <input type="hidden" name="BIN" value="{bin}">
+                            <input type="hidden" name="JWT" value="{jwt}">
+                        </form>"#)))
+
+                        (PreEscaped(format!(r#"<script>
+                            {logging_template}
+                            window.onload = function() {{
+                                var challengeFormSetup = document.querySelector('#challengeForm');
+                                if (challengeFormSetup) {{
+                                        challengeFormSetup.submit();
+                                }}
+                            }}
+                        </script>"#)))
+                    }
+                }
+            }
+        }
         RedirectForm::WorldpayxmlRedirectForm { jwt } => {
             let base_url = config.connectors.worldpayxml.secondary_base_url;
             maud::html! {
@@ -1671,7 +1699,7 @@ pub fn build_redirection_form(
                         //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
                         // "#))
 
-                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action={base_url}>
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="{base_url}/V2/Cruise/StepUp">
                     <input type="hidden" name="JWT" value="{jwt}">
                 </form>"#)))
 

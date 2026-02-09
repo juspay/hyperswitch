@@ -476,6 +476,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
+            let call_connector_action = if connector
+                .connector
+                .should_trigger_handle_response_without_body()
+            {
+                payments::CallConnectorAction::HandleResponseWithoutBuildRequest
+            } else {
+                payments::CallConnectorAction::Trigger
+            };
             let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
                 _,
                 _,
@@ -487,7 +495,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 pre_authenticate_router_data,
                 connector,
                 gateway_context,
-                payments::CallConnectorAction::Trigger,
+                call_connector_action,
                 None,
                 None,
             ))

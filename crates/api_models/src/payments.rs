@@ -6685,6 +6685,11 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
+    /// Contains url to be rendered in an iframe
+    InvokeHiddenIframeUrl {
+        #[smithy(value_type = "String")]
+        redirect_to_url: String,
+    },
 }
 
 #[derive(
@@ -7013,7 +7018,6 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
 }
-
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]

@@ -20,11 +20,13 @@ use hyperswitch_domain_models::{
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        unified_authentication_service::PreAuthenticate,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -32,8 +34,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -63,7 +65,9 @@ use transformers as worldpayxml;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, ForeignTryFrom},
+    utils::{
+        self, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -92,6 +96,7 @@ impl api::RefundExecute for Worldpayxml {}
 impl api::RefundSync for Worldpayxml {}
 impl api::PaymentToken for Worldpayxml {}
 impl api::PaymentsCompleteAuthorize for Worldpayxml {}
+impl api::PaymentsPreAuthenticate for Worldpayxml {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Worldpayxml
@@ -238,6 +243,23 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             "Setup Mandate flow for Worldpayxml".to_string(),
         )
         .into())
+    }
+}
+
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for Worldpayxml
+{
+    fn handle_response(
+        &self,
+        data: &PaymentsPreAuthenticateRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, errors::ConnectorError> {
+        RouterData::try_from(ResponseRouterData {
+            response: res.response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 }
 
@@ -793,15 +815,27 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = self.build_headers(req, connectors)?;
+        if req
+            .request
+            .get_redirect_response_payload()
+            .ok()
+            .and_then(|response| {
+                serde_json::from_value::<worldpayxml::WorldpayxmlRedirectionResponse>(
+                    response.expose(),
+                )
+                .ok()
+            })
+            .is_some()
+        {
+            let cookie = worldpayxml::get_cookie_from_metadata(req.request.connector_meta.clone())?;
 
-        let cookie = worldpayxml::get_cookie_from_metadata(req.request.connector_meta.clone())?;
+            let mut cookie = vec![(
+                worldpayxml::worldpayxml_constants::COOKIE.to_string(),
+                Mask::into_masked(cookie),
+            )];
 
-        let mut cookie = vec![(
-            worldpayxml::worldpayxml_constants::COOKIE.to_string(),
-            Mask::into_masked(cookie),
-        )];
-
-        header.append(&mut cookie);
+            header.append(&mut cookie);
+        }
         Ok(header)
     }
 
@@ -822,8 +856,16 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
 
+        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
+
+        let connector_req_object = worldpayxml::PaymentService::try_from(connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayxml::worldpayxml_constants::XML_VERSION,
@@ -862,15 +904,19 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let header = res.headers;
         let response: worldpayxml::PaymentService =
             utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        RouterData::foreign_try_from((
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            header,
+        ))
     }
 
     fn get_error_response(
@@ -1367,5 +1413,21 @@ impl ConnectorSpecifications for Worldpayxml {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => *auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+        }
+    }
+
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        true
     }
 }

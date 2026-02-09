@@ -3759,6 +3759,12 @@ where
                                     &payment_attempt,
                                     &payment_intent,
                                 );
+                                // Check if connector is Worldpayxml and if status is DeviceDataCollectionPending -> required to render the script in an iframe
+                                if payment_attempt.connector == Some("worldpayxml".to_string()) && payment_attempt.status == enums::AttemptStatus::DeviceDataCollectionPending {
+                                    return api_models::payments::NextActionData::InvokeHiddenIframeUrl {
+                                        redirect_to_url: redirect_url,
+                                    };
+                                }
                                 // Check if redirection inside popup is enabled in the payment intent
                                 if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
                                     api_models::payments::NextActionData::RedirectInsidePopup {

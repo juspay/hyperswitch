@@ -612,6 +612,11 @@ pub trait ConnectorSpecifications {
         true
     }
 
+    /// Check if connector should trigger handle response without initiating a call to the connector
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        false
+    }
+
     /// Get connector's API webhook configuration object
     fn get_api_webhook_config(
         &self,

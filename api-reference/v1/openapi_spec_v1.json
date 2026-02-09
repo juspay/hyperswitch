@@ -23643,6 +23643,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains url to be rendered in an iframe",
+            "required": [
+              "redirect_to_url",
+              "type"
+            ],
+            "properties": {
+              "redirect_to_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_hidden_iframe_url"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {

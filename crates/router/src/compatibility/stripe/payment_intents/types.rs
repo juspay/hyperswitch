@@ -944,6 +944,14 @@ pub(crate) fn into_stripe_next_action(
                 sdk_uri: qr_code_url,
             }
         }
+        payments::NextActionData::InvokeHiddenIframeUrl { redirect_to_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(redirect_to_url),
+                },
+            }
+        }
     })
 }
 
