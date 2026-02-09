@@ -1,13 +1,13 @@
 pub mod dimension_config;
 pub mod dimension_state;
 
-use crate::db;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
+    db,
     routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{api, transformers::ForeignInto},
