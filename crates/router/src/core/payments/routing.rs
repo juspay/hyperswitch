@@ -721,12 +721,12 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    payment_data
+    Ok(payment_data
         .get_payment_attempt()
         .connector
         .as_ref()
-        .map(|connector_name| {
-            let connector_data = api::ConnectorData::get_connector_by_name(
+        .and_then(|connector_name| {
+            api::ConnectorData::get_connector_by_name(
                 connectors,
                 connector_name,
                 api::GetToken::Connector,
@@ -735,13 +735,19 @@ where
                     .merchant_connector_id
                     .clone(),
             )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received in 'routed_through'")?;
-            routing_data.routed_through = Some(connector_name.clone());
-            logger::debug!("euclid_routing: predetermined connector present in attempt");
-            Ok(api::ConnectorCallType::PreDetermined(connector_data.into()))
-        })
-        .transpose()
+            .inspect_err(|err| {
+                logger::warn!(
+                    error=?err,
+                    "euclid: invalid predetermined connector, ignoring"
+                );
+            })
+            .ok()
+            .map(|connector_data| {
+                logger::debug!("euclid_routing: predetermined connector present in attempt");
+                routing_data.routed_through = Some(connector_name.clone());
+                api::ConnectorCallType::PreDetermined(connector_data.into())
+            })
+        }))
 }
 
 pub fn try_get_mandate_connector<F, D>(
@@ -753,25 +759,31 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    payment_data
+    Ok(payment_data
         .get_mandate_connector()
-        .map(|mandate_connector_details| {
-            let connector_data = api::ConnectorData::get_connector_by_name(
+        .and_then(|mandate_connector_details| {
+            api::ConnectorData::get_connector_by_name(
                 connectors,
                 &mandate_connector_details.connector,
                 api::GetToken::Connector,
                 mandate_connector_details.merchant_connector_id.clone(),
             )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received in 'routed_through'")?;
-            routing_data.routed_through = Some(mandate_connector_details.connector.clone());
-            routing_data
-                .merchant_connector_id
-                .clone_from(&mandate_connector_details.merchant_connector_id);
-            logger::debug!("euclid_routing: predetermined mandate connector");
-            Ok(api::ConnectorCallType::PreDetermined(connector_data.into()))
-        })
-        .transpose()
+            .inspect_err(|err| {
+                logger::warn!(
+                    error=?err,
+                    "euclid: invalid mandate connector, ignoring"
+                );
+            })
+            .ok()
+            .map(|connector_data| {
+                logger::debug!("euclid_routing: predetermined mandate connector");
+                routing_data.routed_through = Some(mandate_connector_details.connector.clone());
+                routing_data
+                    .merchant_connector_id
+                    .clone_from(&mandate_connector_details.merchant_connector_id);
+                api::ConnectorCallType::PreDetermined(connector_data.into())
+            })
+        }))
 }
 
 pub fn try_get_pre_determined_connector<F, D>(

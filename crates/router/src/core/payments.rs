@@ -9503,25 +9503,41 @@ where
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
     // with the connector have to be made using the same connector account.
-    if let Some(connector_result) = routing::try_get_pre_determined_connector::<F, D>(
+    let pre_decided_connector = routing::try_get_pre_determined_connector::<F, D>(
         &state.conf.connectors,
         payment_data,
         routing_data,
-    )? {
-        return Ok(connector_result);
-    }
-
-    // Check if pre_routing connector is present
-    if let Some(connector_call_type) = routing::try_pre_routing_connectors::<F, D>(
-        &state,
-        platform,
-        business_profile,
-        payment_data,
-        routing_data,
     )
-    .await?
-    {
-        return Ok(connector_call_type);
+    .inspect_err(|err| {
+        logger::error!(
+            error = ?err,
+            "euclid: pre-determined connector resolution failed, continuing with routing"
+        );
+    })
+    .ok()
+    .flatten()
+    .or(
+        // Check if pre_routing connector is present
+        routing::try_pre_routing_connectors::<F, D>(
+            &state,
+            platform,
+            business_profile,
+            payment_data,
+            routing_data,
+        )
+        .await
+        .inspect_err(|err| {
+            logger::error!(
+                error = ?err,
+                "euclid: pre-routing connector resolution failed, continuing with routing"
+            );
+        })
+        .ok()
+        .flatten(),
+    );
+
+    if let Some(connector) = pre_decided_connector {
+        return Ok(connector);
     }
 
     let transaction_data = core_routing::PaymentsDslInput::new(
