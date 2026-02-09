@@ -63,27 +63,29 @@ pub async fn retrieve_dispute(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
-            dispute_id: req.dispute_id,
+            dispute_id: req.dispute_id.clone(),
         })?;
     core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
+    let db = &state.store;
     #[cfg(feature = "v1")]
-    let dispute_response =
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &dispute.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    #[cfg(feature = "v1")]
+    let mut dispute_response =
         if should_call_connector_for_dispute_sync(req.force_sync, dispute.dispute_status) {
-            let db = &state.store;
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
-            let payment_intent = db
-                .find_payment_intent_by_payment_id_merchant_id(
-                    &dispute.payment_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let payment_attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &dispute.attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
@@ -147,7 +149,7 @@ pub async fn retrieve_dispute(
 
             update_dispute_data(
                 &state,
-                platform,
+                platform.clone(),
                 business_profile,
                 Some(dispute.clone()),
                 dispute_sync_response,
@@ -157,9 +159,20 @@ pub async fn retrieve_dispute(
             .await
             .attach_printable("Dispute update failed")?
         } else {
-            api_models::disputes::DisputeResponse::foreign_from(dispute)
+            api_models::disputes::DisputeResponse::foreign_from(dispute.clone())
         };
+    #[cfg(feature = "v1")]
+    {
+        let validation_result = payment_intent.validate_amount_against_intent_state_metadata(None);
 
+        if let Err(err) = &validation_result {
+            logger::debug!(
+                ?err,
+                "Dispute validation failed against intent state metadata"
+            );
+        }
+        dispute_response.is_already_refunded = validation_result.is_err();
+    }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
 
@@ -183,10 +196,32 @@ pub async fn retrieve_disputes_list(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;
-    let disputes_list = disputes
+    let mut disputes_list: Vec<api_models::disputes::DisputeResponse> = disputes
         .into_iter()
         .map(api_models::disputes::DisputeResponse::foreign_from)
         .collect();
+    #[cfg(feature = "v1")]
+    for dispute_response in &mut disputes_list {
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_processor_merchant_id(
+                &dispute_response.payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let validation_result = payment_intent.validate_amount_against_intent_state_metadata(None);
+
+        if let Err(err) = &validation_result {
+            logger::debug!(
+                ?err,
+                "Dispute validation failed against intent state metadata"
+            );
+        }
+        dispute_response.is_already_refunded = validation_result.is_err();
+    }
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
@@ -293,7 +328,7 @@ pub async fn accept_dispute(
     )?;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -303,7 +338,7 @@ pub async fn accept_dispute(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -417,7 +452,7 @@ pub async fn submit_evidence(
         transformers::get_evidence_request_data(&state, &platform, req, &dispute).await?;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -427,7 +462,7 @@ pub async fn submit_evidence(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,

@@ -54,8 +54,8 @@ const payment_method_data_3ds = {
     last4: "3155",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -63,6 +63,7 @@ const payment_method_data_3ds = {
     card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -72,8 +73,8 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "AmericanExpress",
-    card_issuing_country: "INDIA",
+    card_issuer: "American Express US Cars",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -85,6 +86,7 @@ const payment_method_data_no3ds = {
       address_postal_code_check: "pass",
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -1006,6 +1008,14 @@ export const connectorDetails = {
       pmListDynamicFieldWithBilling: requiredFields,
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "data.object.id",
+      // Type of payment reference ID
+      type: "string",
     },
   },
 };

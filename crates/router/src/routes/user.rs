@@ -1063,3 +1063,57 @@ pub async fn clone_connector(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+pub async fn issue_embedded_token(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetEmbeddedToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, auth_data, _, _| {
+            user_core::issue_embedded_token(
+                state,
+                auth_data.platform.get_processor().clone(),
+                auth_data.profile,
+            )
+        },
+        &auth::ApiKeyAuth {
+            allow_platform_self_operation: false,
+            allow_connected_scope_operation: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn embedded_token_info(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::EmbeddedTokenInfo;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, auth_data, _, _| {
+            user_core::embedded_token_info(
+                state,
+                auth_data.platform.get_processor().clone(),
+                auth_data.profile,
+            )
+        },
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: None,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

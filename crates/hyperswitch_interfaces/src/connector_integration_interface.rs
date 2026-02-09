@@ -532,6 +532,12 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
+            Self::New(connector) => connector.is_balance_check_flow_required(current_flow),
+        }
+    }
     fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match self {
             Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
@@ -554,6 +560,12 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),
+            Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
         }
     }
     fn get_preprocessing_flow_if_needed(
@@ -734,6 +746,15 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_trigger_handle_response_without_body(),
             Self::New(connector) => connector.should_trigger_handle_response_without_body(),
+        }
+    }
+
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        match self {
+            Self::Old(connector) => connector.get_api_webhook_config(),
+            Self::New(connector) => connector.get_api_webhook_config(),
         }
     }
 }

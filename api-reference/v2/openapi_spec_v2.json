@@ -1556,6 +1556,78 @@
         "summary": "Customers - Create",
         "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Create a customer with name and email": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Create",
+        "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1613,6 +1685,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -1633,13 +1715,10 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Customers"
         ],
@@ -1655,6 +1734,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -1712,6 +1801,183 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer was Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/customers/{id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve",
+        "description": "Retrieves a customer's details.",
+        "operationId": "Retrieve a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Update",
+        "description": "Updates the customer's details in a customer object.",
+        "operationId": "Update a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer was Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Delete",
+        "description": "Delete a customer record.",
+        "operationId": "Delete a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -1744,6 +2010,63 @@
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/customers/list": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - List",
+        "description": "Lists all the customers for a particular merchant id.",
+        "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Customers retrieved",
@@ -2018,7 +2341,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2206,7 +2529,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2257,7 +2580,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2646,7 +2969,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -2659,6 +2982,70 @@
         "summary": "Payment Method - Create",
         "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
         "operationId": "Create Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-methods": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Create",
+        "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
+        "operationId": "Create Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2699,6 +3086,27 @@
         "summary": "Payment Method - Create Intent",
         "description": "Creates a payment method for customer with billing information and other metadata.",
         "operationId": "Create Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2739,6 +3147,27 @@
         "summary": "Payment Method - Confirm Intent",
         "description": "Update a payment method with customer's payment method related information.",
         "operationId": "Confirm Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2772,13 +3201,77 @@
       }
     },
     "/v2/payment-methods/{id}/update-saved-payment-method": {
-      "patch": {
+      "put": {
         "tags": [
           "Payment Methods"
         ],
         "summary": "Payment Method - Update",
         "description": "Update an existing payment method of a customer.",
         "operationId": "Update Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method Update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-methods/{id}/update-saved-payment-method": {
+      "put": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Update",
+        "description": "Update an existing payment method of a customer.",
+        "operationId": "Update Payment Method",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2828,6 +3321,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -2867,6 +3370,114 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-methods/{id}": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "operationId": "Retrieve Payment Method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Delete",
+        "description": "Deletes a payment method of a customer.",
+        "operationId": "Delete Payment Method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -2949,6 +3560,67 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/customers/{id}/saved-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - List Customer Saved Payment Methods",
+        "description": "List the payment methods saved for a customer",
+        "operationId": "List Customer Saved Payment Methods",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -2990,6 +3662,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3022,6 +3704,77 @@
         "summary": "Payment Method Session - Create",
         "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
         "operationId": "Create a payment method session",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionRequest"
+              },
+              "examples": {
+                "Create a payment method session with customer_id": {
+                  "value": {
+                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create the payment method session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions": {
+      "post": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Create",
+        "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
+        "operationId": "Create a payment method session",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3078,6 +3831,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3097,7 +3860,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "api_key": []
           }
         ]
       },
@@ -3117,6 +3880,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -3153,7 +3926,124 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions/{id}": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Retrieve",
+        "description": "Retrieve the payment method session",
+        "operationId": "Retrieve the payment method session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Delete a saved payment method",
+        "description": "Delete a saved payment method from the given payment method session.",
+        "operationId": "Delete a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionDeleteSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3175,6 +4065,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "responses": {
@@ -3194,7 +4094,58 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions/{id}/list-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - List Payment Methods",
+        "description": "List payment methods for the given payment method session.\nThis endpoint lists the enabled payment methods for the profile and the saved payment methods of the customer.",
+        "operationId": "List Payment methods for a Payment Method Session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3216,6 +4167,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
           }
         ],
         "requestBody": {
@@ -3258,7 +4219,81 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "publishable_key__client_secret": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions/{id}/update-saved-payment-method": {
+      "put": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Update a saved payment method",
+        "description": "Update a saved payment method from the given payment method session.",
+        "operationId": "Update a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionUpdateSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "456",
+                        "card_holder_name": "Narayan Bhat"
+                      }
+                    },
+                    "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -3335,7 +4370,84 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "publishable_key__client_secret": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-method-sessions/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Confirm a payment method session",
+        "description": "**Confirms a payment method session object with the payment method data**",
+        "operationId": "Confirm the payment method session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionConfirmRequest"
+              },
+              "examples": {
+                "Confirm the payment method session with card details": {
+                  "value": {
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "payment_method_subtype": "credit",
+                    "payment_method_type": "card"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key__client_secret": []
           }
         ]
       }
@@ -5286,7 +6398,12 @@
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25",
+            "example": "003925",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
             "nullable": true
           }
         }
@@ -7759,7 +8876,7 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "Cnpj",
+            "default": "cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -8738,6 +9855,10 @@
           },
           "authentication_data": {
             "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -8866,6 +9987,42 @@
           "credit",
           "debit"
         ]
+      },
+      "CardWithLimitedData": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
       },
       "CartesBancairesParams": {
         "type": "object",
@@ -9166,6 +10323,7 @@
           "ctp_mastercard",
           "ctp_visa",
           "cybersource",
+          "cybersourcedecisionmanager",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -9188,6 +10346,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperpg",
           "hyperswitch_vault",
           "inespay",
           "iatapay",
@@ -10570,14 +11729,12 @@
       "CustomerDetails": {
         "type": "object",
         "description": "Passing this object creates a new customer or attaches an existing customer to the payment",
-        "required": [
-          "id"
-        ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The identifier for the customer.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },
@@ -10614,6 +11771,14 @@
             "description": "The tax registration identifier of the customer.",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -10648,6 +11813,24 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          }
+        }
+      },
+      "CustomerDocumentDetails": {
+        "type": "object",
+        "required": [
+          "document_type",
+          "document_number"
+        ],
+        "properties": {
+          "document_type": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "document_number": {
+            "type": "string",
+            "description": "The customer's document number\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long",
+            "example": "12345678911",
+            "maxLength": 255
           }
         }
       },
@@ -10827,6 +12010,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10933,6 +12124,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11009,6 +12208,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11238,7 +12445,8 @@
           "connector",
           "connector_status",
           "connector_dispute_id",
-          "created_at"
+          "created_at",
+          "is_already_refunded"
         ],
         "properties": {
           "dispute_id": {
@@ -11319,6 +12527,10 @@
             "type": "string",
             "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
             "nullable": true
+          },
+          "is_already_refunded": {
+            "type": "boolean",
+            "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
           }
         }
       },
@@ -11326,6 +12538,7 @@
         "type": "object",
         "required": [
           "dispute_id",
+          "amount",
           "dispute_stage",
           "dispute_status",
           "connector_status",
@@ -11336,6 +12549,9 @@
           "dispute_id": {
             "type": "string",
             "description": "The identifier for dispute"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
@@ -11412,9 +12628,10 @@
       },
       "DocumentKind": {
         "type": "string",
+        "description": "Represents the type of identification document used for validation.",
         "enum": [
-          "CNPJ",
-          "CPF"
+          "cpf",
+          "cnpj"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -19620,7 +20837,9 @@
           "id",
           "merchant_id",
           "customer_id",
-          "payment_method_type"
+          "payment_method_type",
+          "network_transaction_id",
+          "raw_payment_method_data"
         ],
         "properties": {
           "id": {
@@ -19710,6 +20929,13 @@
               }
             ],
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "raw_payment_method_data": {
+            "$ref": "#/components/schemas/RawPaymentMethodData"
           }
         }
       },
@@ -19824,6 +21050,15 @@
             "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
+      },
+      "PaymentMethodRetrieveRequest": {
+        "type": "object",
+        "properties": {
+          "fetch_raw_detail": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -20031,6 +21266,14 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponseData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20183,6 +21426,7 @@
           "przelewy24",
           "prompt_pay",
           "pse",
+          "qris",
           "red_compra",
           "red_pagos",
           "samsung_pay",
@@ -20239,6 +21483,11 @@
                 "$ref": "#/components/schemas/ConnectorTokenDetails"
               }
             ],
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
             "nullable": true
           }
         },
@@ -20478,6 +21727,11 @@
           "cancellation_reason": {
             "type": "string",
             "description": "The reason for the payment cancel",
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         }
@@ -24467,6 +25721,21 @@
           }
         }
       },
+      "RawPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          }
+        ]
+      },
       "RealTimePaymentData": {
         "oneOf": [
           {
@@ -24509,6 +25778,17 @@
             ],
             "properties": {
               "viet_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "qris"
+            ],
+            "properties": {
+              "qris": {
                 "type": "object"
               }
             }
@@ -24686,6 +25966,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_with_limited_data"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/CardWithLimitedData"
               }
             }
           }
@@ -25632,6 +26930,7 @@
           "coingate",
           "cryptopay",
           "cybersource",
+          "cybersourcedecisionmanager",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -25653,6 +26952,7 @@
           "gocardless",
           "hipay",
           "helcim",
+          "hyperpg",
           "iatapay",
           "inespay",
           "itaubank",
@@ -27842,6 +29142,16 @@
           "journey"
         ]
       },
+      "UnifiedCode": {
+        "type": "string",
+        "enum": [
+          "UE_1000",
+          "UE_2000",
+          "UE_3000",
+          "UE_4000",
+          "UE_9000"
+        ]
+      },
       "UpdateActiveAttempt": {
         "oneOf": [
           {
@@ -27941,6 +29251,14 @@
             "description": "Masked VPA ID",
             "example": "ab********@okhdfcbank",
             "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27949,7 +29267,16 @@
         "properties": {
           "vpa_id": {
             "type": "string",
+            "description": "The Virtual Payment Address (VPA) for UPI collect payment",
             "example": "successtest@iata",
+            "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
             "nullable": true
           }
         }
@@ -27992,10 +29319,30 @@
         ]
       },
       "UpiIntentData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiQrData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiResponse": {
         "allOf": [
@@ -28010,6 +29357,16 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "UpiSource": {
+        "type": "string",
+        "description": "The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.",
+        "enum": [
+          "UPI_CC",
+          "UPI_CL",
+          "UPI_ACCOUNT",
+          "UPI_CC_CL"
         ]
       },
       "ValueType": {
@@ -28491,6 +29848,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
+            "example": "009825",
             "nullable": true
           }
         }
@@ -29251,26 +30614,25 @@
       "admin_api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account."
+        "name": "Authorization",
+        "description": "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account. This is only used during development."
       },
       "api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
+        "name": "Authorization",
+        "description": "Format: `api-key=<api_key>`\n\nUse the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
       },
-      "ephemeral_key": {
+      "jwt_key": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "publishable_key__client_secret": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
-      },
-      "publishable_key": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "api-key",
-        "description": "Publishable keys are a type of keys that can be public and have limited scope of usage."
+        "name": "Authorization",
+        "description": "Format: `publishable-key=<publishable-key>,client-secret=<client-secret>`\n\nPublishable keys are a type of keys that can be public and have limited scope of usage. Client Secret provide temporary access to singular data, such as access to a single customer object for a short period of time. This authentication scheme is used by the SDK."
       }
     }
   },

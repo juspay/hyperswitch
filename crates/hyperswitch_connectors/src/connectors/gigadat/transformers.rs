@@ -327,6 +327,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -363,6 +364,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             connector_response,

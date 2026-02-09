@@ -168,7 +168,6 @@ where
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }
@@ -182,14 +181,12 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
-            customer,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
@@ -207,6 +204,7 @@ where
                 error_message: router_data.request.error_message,
                 connector_transaction_id: router_data.request.connector_transaction_id,
                 connector: router_data.request.connector,
+                frm_transaction_id: frm_data.fraud_check.frm_transaction_id.clone(),
             }),
             response: FrmResponse::Transaction(router_data.response),
         }))
@@ -218,16 +216,27 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
-            customer,
         )
         .await?;
+
+        // Extract frm_transaction_id from checkout response
+        if let Ok(FraudCheckResponseData::TransactionResponse {
+            ref resource_id, ..
+        }) = router_data.response
+        {
+            frm_data.fraud_check.frm_transaction_id = match resource_id {
+                ResponseId::NoResponseId => None,
+                ResponseId::ConnectorTransactionId(id) => Some(id.clone()),
+                ResponseId::EncodedData(id) => Some(id.clone()),
+            };
+        }
+
         frm_data.fraud_check.last_step = FraudCheckLastStep::CheckoutOrSale;
         Ok(FrmRouterData {
             merchant_id: router_data.merchant_id,

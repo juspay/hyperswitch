@@ -659,7 +659,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpaym
         router_env::logger::info!(connector_response=?response);
         Ok(RefundSyncRouterData {
             response: Ok(RefundsResponseData {
-                connector_refund_id: data.request.refund_id.clone(),
+                connector_refund_id: data.request.get_connector_refund_id()?,
                 refund_status: enums::RefundStatus::from(response.last_event),
             }),
             ..data.clone()

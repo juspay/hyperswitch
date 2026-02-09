@@ -311,3 +311,23 @@ pub async fn get_user_theme_using_lineage(
     ))
     .await
 }
+
+pub async fn get_theme_version(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::GetUserThemeConfigVersion;
+    let theme_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        theme_id,
+        |state, (), theme_id, _| theme_core::get_user_theme_config_version(state, theme_id),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
