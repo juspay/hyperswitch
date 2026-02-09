@@ -26,8 +26,8 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -71,8 +71,6 @@ pub mod worldpayxml_constants {
     pub const WORLDPAYXML_DOC_TYPE: &str = r#"paymentService PUBLIC "-//Worldpay//DTD Worldpay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd""#;
     pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 64;
     pub const COOKIE: &str = "cookie";
-    pub const DDC_URL_TEST: &str = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/Collect";
-    pub const DDC_URL_LIVE: &str = "https://centinelapi.cardinalcommerce.com/V2/Cruise/Collect";
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -443,7 +441,7 @@ struct WorldpayxmlAddressData {
 #[derive(Debug, Serialize, Deserialize)]
 struct AdditionalThreeDSData {
     #[serde(rename = "@dfReferenceId")]
-    df_reference_id: Option<String>,
+    df_reference_id: Option<Secret<String>>,
     #[serde(rename = "@javaScriptEnabled")]
     javascript_enabled: bool,
     #[serde(rename = "@deviceChannel")]
@@ -597,7 +595,7 @@ struct ApplePayHeader {
 #[serde(rename_all = "PascalCase")]
 struct DDCRedirectResponse {
     action_code: String,
-    session_id: Option<String>,
+    session_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -683,15 +681,6 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
         })
     }
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorldpayxmlDDCData {
-    pub method_key: String,
-    pub ddc_method_url: String,
-    pub jwt: String,
-}
-
-use hyperswitch_domain_models::types::PaymentsPreAuthenticateRouterData;
 
 impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
     for PaymentsPreAuthenticateRouterData
@@ -1471,9 +1460,9 @@ struct Payload {
 struct ChallengeJwt {
     jti: String,
     iat: u64,
-    iss: String,
+    iss: Secret<String>,
     #[serde(rename = "OrgUnitId")]
-    org_unit_id: String,
+    org_unit_id: Secret<String>,
     #[serde(rename = "ReturnUrl")]
     return_url: String,
     #[serde(rename = "Payload")]
@@ -1486,9 +1475,9 @@ struct ChallengeJwt {
 struct DeviceDataCollectionJwt {
     jti: String,
     iat: u64,
-    iss: String,
+    iss: Secret<String>,
     #[serde(rename = "OrgUnitId")]
-    org_unit_id: String,
+    org_unit_id: Secret<String>,
 }
 
 pub fn get_cookie_from_metadata(metadata: Option<Value>) -> Result<String, errors::ConnectorError> {
@@ -1555,8 +1544,8 @@ fn generate_jwt_for_ddc(
     let payload_json = DeviceDataCollectionJwt {
         jti: uuid::Uuid::new_v4().to_string(),
         iat,
-        iss,
-        org_unit_id,
+        iss: Secret::new(iss),
+        org_unit_id: Secret::new(org_unit_id),
     };
 
     let payload_json = to_jwt_payload(&payload_json)
@@ -1608,8 +1597,8 @@ fn generate_challenge_jwt(
     let payload_json = ChallengeJwt {
         jti: uuid::Uuid::new_v4().to_string(),
         iat,
-        iss,
-        org_unit_id,
+        iss: Secret::new(iss),
+        org_unit_id: Secret::new(org_unit_id),
         return_url,
         payload: Payload {
             acs_url,
