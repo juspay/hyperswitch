@@ -55,7 +55,10 @@ pub async fn oidc_authorize(
          _| oidc_provider::process_authorize_request(state, req_payload, user),
         auth::auth_type(
             &auth::NoAuth,
-            &auth::DashboardNoPermissionAuth,
+            &auth::DashboardNoPermissionAuth {
+                allow_connected_operation: false,
+                allow_platform_operation: false,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

@@ -33,6 +33,8 @@ pub async fn create_profile_acquirer(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -77,6 +79,8 @@ pub async fn profile_acquirer_update(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),

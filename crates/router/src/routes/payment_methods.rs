@@ -83,6 +83,8 @@ pub async fn create_payment_method_api(
     };
     let jwt_auth = auth::JWTAuth {
         permission: Permission::MerchantCustomerRead,
+        allow_connected_operation: false,
+        allow_platform_operation: false,
     };
     let (auth_type, _api_key_type) =
         match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
@@ -871,6 +873,8 @@ pub async fn get_payment_method_token_data(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -905,6 +909,8 @@ pub async fn get_total_payment_method_count(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -1090,12 +1096,16 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorWrite,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorWrite,
+            allow_connected_operation: true,
+            allow_platform_operation: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1131,12 +1141,16 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorRead,
+            allow_connected_operation: false,
+            allow_platform_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

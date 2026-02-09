@@ -90,6 +90,8 @@ pub async fn retrieve_mandates_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),

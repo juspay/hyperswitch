@@ -81,6 +81,8 @@ pub async fn create_subscription(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -253,6 +255,8 @@ pub async fn confirm_subscription(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -313,6 +317,8 @@ pub async fn get_subscription_items(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -355,6 +361,8 @@ pub async fn get_subscription(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -394,6 +402,8 @@ pub async fn create_and_confirm_subscription(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
@@ -505,6 +515,8 @@ pub async fn list_subscriptions(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
