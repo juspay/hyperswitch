@@ -421,7 +421,7 @@ impl ObjectReferenceId {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
