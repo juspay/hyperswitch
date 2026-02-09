@@ -705,18 +705,6 @@ pub struct WebhookDetails {
     #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
     pub webhook_url: Option<Secret<String>>,
 
-    /// If this property is true, a webhook message is posted whenever a new payment is created
-    #[schema(example = true)]
-    pub payment_created_enabled: Option<bool>,
-
-    /// If this property is true, a webhook message is posted whenever a payment is successful
-    #[schema(example = true)]
-    pub payment_succeeded_enabled: Option<bool>,
-
-    /// If this property is true, a webhook message is posted whenever a payment fails
-    #[schema(example = true)]
-    pub payment_failed_enabled: Option<bool>,
-
     /// List of payment statuses that triggers a webhook for payment intents
     #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
     pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
