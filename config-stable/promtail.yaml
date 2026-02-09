@@ -1,0 +1,44 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+- job_name: router_file_logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      scrape_source: file
+      __path__: /var/log/router/**/*.log*
+  pipeline_stages:
+  - labeldrop:
+  # Dropping filename since it causes extra labels (leading to unnecessary loki indexes)
+    - filename
+
+- job_name: router_console_logs
+  docker_sd_configs:
+  - host: "unix:///var/run/docker.sock"
+    refresh_interval: 10s
+    filters:
+      - name: label
+        values: ["logs=promtail"]
+  relabel_configs:
+  - source_labels: ['__meta_docker_container_name']
+    regex: '/(.*)'
+    target_label: 'container'
+  - source_labels: ['__meta_docker_container_log_stream']
+    target_label: 'log_stream'
+  pipeline_stages:
+  - json:
+      expressions:
+        log_type:
+  - labels:
+      log_type:
+  - static_labels:
+      scrape_source: console
