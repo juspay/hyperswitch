@@ -1040,6 +1040,9 @@ pub struct PaymentMethodResponse {
 
     /// For Client based calls
     pub client_secret: Option<String>,
+
+    /// Billing details of the payment method
+    pub billing: Option<payments::Address>,
 }
 
 #[cfg(feature = "v1")]

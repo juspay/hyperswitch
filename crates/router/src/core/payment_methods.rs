@@ -1364,6 +1364,7 @@ pub async fn create_payment_method_card_core(
                 cvc_expiry_details,
                 req.customer_id,
                 None,
+                None,
             )?;
 
             Ok((resp, payment_method))
@@ -1516,6 +1517,7 @@ pub async fn create_volatile_payment_method_card_core(
                 cvc_expiry_details,
                 req.customer_id,
                 None,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1626,6 +1628,7 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
         None,
     )?;
 
@@ -2018,6 +2021,7 @@ pub async fn payment_method_intent_create(
         None,
         None,
         Some(customer_id),
+        None,
         None,
     )?;
 
@@ -3506,6 +3510,11 @@ pub async fn retrieve_payment_method(
         .await
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
+    let billing = payment_method
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from);
 
     transformers::generate_payment_method_response(
         &payment_method,
@@ -3516,6 +3525,7 @@ pub async fn retrieve_payment_method(
         }),
         payment_method.customer_id.clone(),
         raw_payment_method_data,
+        billing
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -3981,6 +3991,7 @@ pub async fn update_payment_method_core(
         Some(common_enums::StorageType::Persistent),
         card_cvc_token_details,
         updated_payment_method.customer_id.clone(),
+        None,
         None,
     )?;
 
