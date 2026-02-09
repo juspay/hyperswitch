@@ -54,7 +54,6 @@ macro_rules! config {
     };
 }
 
-// Define RequiresCvv struct and superposition::Config using the macro
 config! {
     RequiresCvv => bool,
     superposition_key = superposition_consts::REQUIRES_CVV,
@@ -63,10 +62,28 @@ config! {
     method = get_requires_cvv
 }
 
-// Manual implementation of DatabaseBackedConfig for RequiresCvv
-// This is REQUIRED by the trait and enforces db_key implementation
 impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
+    }
+}
+
+config! {
+    ImplicitCustomerUpdate => bool,
+    superposition_key = superposition_consts::IMPLICIT_CUSTOMER_UPDATE,
+    default = false,
+    requires = HasMerchantId,
+    method = get_implicit_customer_update
+}
+
+impl DatabaseBackedConfig for ImplicitCustomerUpdate {
+    const KEY: &'static str = "implicit_customer_update";
 
     fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
         let merchant_id = dimensions

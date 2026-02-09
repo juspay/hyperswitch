@@ -100,7 +100,10 @@ use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionS
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        configs::dimension_state::DimensionsWithMerchantId,
+        errors::{self, CustomResult, RouterResult},
+    },
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -266,6 +269,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -612,6 +616,7 @@ where
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -698,6 +703,7 @@ where
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -801,6 +807,7 @@ where
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -903,6 +910,7 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,
