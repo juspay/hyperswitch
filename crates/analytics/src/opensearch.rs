@@ -436,7 +436,6 @@ impl OpenSearchAuth {
 }
 
 impl OpenSearchConfig {
-
     pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {
         if !self.enabled {
             return Ok(None);
