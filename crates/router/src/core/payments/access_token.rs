@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorAccessTokenSuffix, ConnectorSpecifications},
+    api::{gateway, ConnectorSpecifications},
     consts as interfaces_consts,
 };
 
@@ -153,6 +153,8 @@ pub async fn add_access_token<
                 "Failed to get access token key for connector: {:?}",
                 connector.connector_name
             ))?;
+
+        router_env::logger::debug!("Fetching access token from Redis using key: {key}");
 
         let old_access_token = store
             .get_access_token(key.clone())
