@@ -352,7 +352,7 @@ services:
         RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
         WORKDIR hyperswitch-web
         RUN npm i --force
-    command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
+    command: bash -c 'npm run re:build && npx webpack serve --config webpack.dev.js --host 0.0.0.0'
     ports:
       - "9050:9050"
     environment:
