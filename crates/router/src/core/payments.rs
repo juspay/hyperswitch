@@ -10631,10 +10631,11 @@ where
         );
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    {
+    let (connectors, routing_approach) = {
         let static_connectors_ref = &static_connectors;
         let transaction_data_ref = &transaction_data;
-        let (connectors, routing_approach) = business_profile
+
+        business_profile
             .dynamic_routing_algorithm
             .as_ref()
             .map(|_| routing::DynamicRoutingStage)
@@ -10645,6 +10646,7 @@ where
                     transaction_data: transaction_data_ref,
                     static_connectors: static_connectors_ref,
                 };
+
                 dynamic_routing_stage
                     .route(dynamic_routing_input)
                     .await
@@ -10663,8 +10665,8 @@ where
             })
             .await
             .unwrap_or_else(routing::RoutingConnectorOutcomeWithApproach::empty)
-            .resolve_or_fallback("dynamic-routing", static_connectors_ref, static_approach);
-    }
+            .resolve_or_fallback("dynamic-routing", static_connectors_ref, static_approach)
+    };
 
     #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
     let (connectors, routing_approach) = (static_connectors, static_approach);
