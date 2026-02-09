@@ -1167,7 +1167,7 @@ pub struct WebhookTransaction {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TransactionType {
-    pub value: String,
+    pub value: i32,
     pub description: String,
 }
 
