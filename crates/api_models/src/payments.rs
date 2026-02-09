@@ -9896,6 +9896,7 @@ pub enum ApplePayCombinedMetadata {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PeachpaymentsData {
+    /// A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.
     pub rrn: Option<String>,
 }
 

@@ -32944,6 +32944,7 @@
         "properties": {
           "rrn": {
             "type": "string",
+            "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
             "nullable": true
           }
         }
