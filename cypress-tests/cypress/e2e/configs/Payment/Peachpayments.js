@@ -1,3 +1,4 @@
+import { error } from "console";
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -213,6 +214,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          error_code: "15",
           error_message: "No such issuer (invalid IIN)",
         },
       },

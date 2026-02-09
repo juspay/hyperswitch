@@ -9,7 +9,7 @@ const bluecodeBilling = {
 };
 
 export const connectorDetails = {
-  bank_redirect_pm: {
+  wallet_pm: {
     Bluecode: {
       Request: {
         amount: 6000,

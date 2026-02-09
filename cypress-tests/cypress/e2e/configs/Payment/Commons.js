@@ -790,24 +790,6 @@ export const connectorDetails = {
         },
       },
     }),
-    Bluecode: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "bluecode",
-        payment_method_data: {
-          wallet: {
-            bluecode_redirect: {},
-          },
-        },
-        billing: {
-          ...standardBillingAddress,
-          address: {
-            ...standardBillingAddress.address,
-            country: "AT",
-          },
-        },
-      },
-    }),
     Interac: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -824,6 +806,38 @@ export const connectorDetails = {
           address: {
             ...standardBillingAddress.address,
             country: "CA",
+          },
+        },
+      },
+    }),
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Bluecode: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "bluecode",
+        payment_method_data: {
+          wallet: {
+            bluecode_redirect: {},
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "AT",
           },
         },
       },
