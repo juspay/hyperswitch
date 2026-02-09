@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.09.0
+
+### Features
+
+- **proxy:** Add v1 proxy endpoint and update related documentation ([#11180](https://github.com/juspay/hyperswitch/pull/11180)) ([`0a513d7`](https://github.com/juspay/hyperswitch/commit/0a513d73459ec853342bb900e15d7b04e896444a))
+
+### Bug Fixes
+
+- **core:** Implement dynamic access token keys ([#11155](https://github.com/juspay/hyperswitch/pull/11155)) ([`3cb3b70`](https://github.com/juspay/hyperswitch/commit/3cb3b702984e385fbfeead68b015350206ac7d92))
+- **cypress:** Fix 3ds redirection flow and mandates in worldpayxml cypress-tests ([#11130](https://github.com/juspay/hyperswitch/pull/11130)) ([`3a492bc`](https://github.com/juspay/hyperswitch/commit/3a492bc2a94eb806054bf6772d86f30f13dbb76f))
+- **rouer:** Fix billing address fetch in payments create and confirm flow ([#11174](https://github.com/juspay/hyperswitch/pull/11174)) ([`0531764`](https://github.com/juspay/hyperswitch/commit/05317647bbb8131d5ef565b4bd23422497288d08))
+- **wasm:** Removing router env dependency from api models crate ([#11177](https://github.com/juspay/hyperswitch/pull/11177)) ([`a1b064b`](https://github.com/juspay/hyperswitch/commit/a1b064b371d6fa29b12ebc948222de81d2f27e99))
+
+**Full Changelog:** [`2026.02.06.0...2026.02.09.0`](https://github.com/juspay/hyperswitch/compare/2026.02.06.0...2026.02.09.0)
+
+- - -
+
 ## 2026.02.06.0
 
 ### Features
