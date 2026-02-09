@@ -3253,7 +3253,7 @@ fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorF
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::from([
-                            RequiredField::PixDocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
+                            RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
                             RequiredField::PixDocumentNumber.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
@@ -3690,7 +3690,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
-                            RequiredField::PixDocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
+                            RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
                             RequiredField::PixDocumentNumber.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),

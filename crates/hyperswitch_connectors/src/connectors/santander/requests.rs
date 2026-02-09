@@ -62,8 +62,8 @@ pub struct BoletoMetadataObject {
     pub client_secret: Secret<String>,
     pub workspace_id: Secret<String>,
     pub covenant_code: Secret<String>,
-    pub pix_key_value: Secret<String>,
-    pub pix_key_type: common_enums::enums::PixKeyType,
+    pub pix_key_value: Option<Secret<String>>,
+    pub pix_key_type: Option<responses::SantanderPixKeyType>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ pub struct PixMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
     pub pix_key_value: Secret<String>,
-    pub pix_key_type: common_enums::enums::PixKeyType,
+    pub pix_key_type: responses::SantanderPixKeyType,
     pub merchant_name: String,
     pub merchant_city: String,
 }

@@ -501,62 +501,6 @@ pub struct SantanderViolations {
     pub valor: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderWebhookBody {
-    pub message: MessageCode,   // meaning of this enum variant is not clear
-    pub function: FunctionType, // event type of the webhook
-    pub payment_type: WebhookPaymentType,
-    pub issue_date: String,
-    pub payment_date: String,
-    pub bank_code: String,
-    pub payment_channel: PaymentChannel,
-    pub payment_kind: PaymentKind,
-    pub covenant: String,
-    pub type_of_person_agreement: common_types::customers::DocumentKind,
-    pub agreement_document: String,
-    pub bank_number: String,
-    pub client_number: common_utils::id_type::CustomerId,
-    pub participant_code: String,
-    pub tx_id: String,
-    pub payer_document_type: common_types::customers::DocumentKind,
-    pub payer_document_number: String,
-    pub payer_name: String,
-    pub final_beneficiary_document_type: common_types::customers::DocumentKind,
-    pub final_beneficiary_document_number: String,
-    pub final_beneficiary_name: String,
-    pub due_date: String,
-    pub nominal_value: StringMajorUnit,
-    #[serde(rename = "payed_value")]
-    pub paid_value: String,
-    pub interest_value: String,
-    pub fine: String,
-    pub deduction_value: String,
-    pub rebate_value: String,
-    pub iof_value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MessageCode {
-    Wbhkpagest,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FunctionType {
-    Pagamento, // Payment
-    Estorno,   // Refund
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum WebhookPaymentType {
-    Santander,
-    OutrosBancos,
-    Pix,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 /// Represents the channel through which a boleto payment was made.

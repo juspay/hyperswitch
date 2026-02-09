@@ -90,7 +90,7 @@ pub struct BoletoAdditionalDetails {
     // It is a number which shows a contract between merchant and bank
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
-    pub pix_key: Option<PixKeyDetails>,
+    pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
 #[cfg(feature = "v2")]
@@ -149,21 +149,11 @@ pub enum PixAdditionalDetails {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
-pub struct PixKeyDetails {
-    /// The category of the Pix Key.
-    #[serde(rename = "type")]
-    pub key_type: common_enums::enums::PixKeyType,
-    /// The actual value of the Pix Key. Max length is typically 77 characters per BACEN regulations.
-    pub key: Secret<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: u32,
     /// Pix identification details
-    pub pix_key: Option<PixKeyDetails>,
+    pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -174,7 +164,7 @@ pub struct ScheduledExpirationTime {
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<u32>,
     /// Pix identification details
-    pub pix_key: Option<PixKeyDetails>,
+    pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

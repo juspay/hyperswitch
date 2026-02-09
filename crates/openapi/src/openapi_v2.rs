@@ -185,8 +185,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     components(schemas(
         api_models::payments::DocumentDetails,
-        api_models::payments::PixKeyDetails,
-        api_models::enums::PixKeyType,
+        api_models::enums::PixKey,
         api_models::enums::BoletoDocumentKind,
         api_models::enums::BoletoPaymentType,
         common_utils::types::MinorUnit,

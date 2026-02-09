@@ -7072,18 +7072,18 @@ placeholder="Enter your Client Secret"
 required=true
 type="Text"
 [[santander.metadata.pix]]
-name="pix_key_value"
-label="Chave Key"
-placeholder="Enter your Chave/Pix Key"
-required=true
-type="Text"
-[[santander.metadata.pix]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Select"
-options=["cpf", "cnpj", "email", "phone", "evp_token"]
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
 [[santander.metadata.pix]]
 name="merchant_city"
 label="Merchant City"
@@ -7110,6 +7110,19 @@ placeholder="Enter your Client Secret"
 required=true
 type="Text"
 [[santander.metadata.boleto]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=false
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.boleto]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=false
+type="Text"
+[[santander.metadata.boleto]]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
@@ -7121,19 +7134,6 @@ label="Covenant Code"
 placeholder="Enter the covenant code"
 required=true
 type="Text"
-[[santander.metadata.boleto]]
-name="pix_key_value"
-label="Chave Key"
-placeholder="Enter your Chave/Pix Key"
-required=true
-type="Text"
-[[santander.metadata.boleto]]
-name="pix_key_type"
-label="Chave Key Type"
-placeholder="Enter your Chave/Pix Key Type"
-required=true
-type="Select"
-options=["cpf", "cnpj", "email", "phone", "evp_token"]
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]

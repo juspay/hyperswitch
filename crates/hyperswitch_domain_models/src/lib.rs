@@ -165,9 +165,7 @@ impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetail
             document_kind: from.document_kind,
             payment_type: from.payment_type,
             covenant_code: from.covenant_code,
-            pix_key: from
-                .pix_key
-                .map(diesel_models::types::PixKeyDetails::convert_from),
+            pix_key: from.pix_key,
         }
     }
 
@@ -177,24 +175,7 @@ impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetail
             document_kind: self.document_kind,
             payment_type: self.payment_type,
             covenant_code: self.covenant_code,
-            pix_key: self.pix_key.map(|v| v.convert_back()),
-        }
-    }
-}
-
-impl ApiModelToDieselModelConvertor<api_models::payments::PixKeyDetails>
-    for diesel_models::types::PixKeyDetails
-{
-    fn convert_from(from: api_models::payments::PixKeyDetails) -> Self {
-        Self {
-            key_type: from.key_type,
-            key: from.key,
-        }
-    }
-    fn convert_back(self) -> api_models::payments::PixKeyDetails {
-        api_models::payments::PixKeyDetails {
-            key_type: self.key_type,
-            key: self.key,
+            pix_key: self.pix_key,
         }
     }
 }
@@ -207,18 +188,14 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAdditionalDetails>
             api_models::payments::PixAdditionalDetails::Immediate(v) => {
                 Self::Immediate(diesel_models::types::ImmediateExpirationTime {
                     time: v.time,
-                    pix_key: v
-                        .pix_key
-                        .map(diesel_models::types::PixKeyDetails::convert_from),
+                    pix_key: v.pix_key,
                 })
             }
             api_models::payments::PixAdditionalDetails::Scheduled(v) => {
                 Self::Scheduled(diesel_models::types::ScheduledExpirationTime {
                     date: v.date,
                     validity_after_expiration: v.validity_after_expiration,
-                    pix_key: v
-                        .pix_key
-                        .map(diesel_models::types::PixKeyDetails::convert_from),
+                    pix_key: v.pix_key,
                 })
             }
         }
@@ -229,14 +206,14 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAdditionalDetails>
             Self::Immediate(v) => api_models::payments::PixAdditionalDetails::Immediate(
                 api_models::payments::ImmediateExpirationTime {
                     time: v.time,
-                    pix_key: v.pix_key.map(|pk| pk.convert_back()),
+                    pix_key: v.pix_key,
                 },
             ),
             Self::Scheduled(v) => api_models::payments::PixAdditionalDetails::Scheduled(
                 api_models::payments::ScheduledExpirationTime {
                     date: v.date,
                     validity_after_expiration: v.validity_after_expiration,
-                    pix_key: v.pix_key.map(|pk| pk.convert_back()),
+                    pix_key: v.pix_key,
                 },
             ),
         }

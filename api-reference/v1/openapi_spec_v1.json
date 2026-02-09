@@ -13090,7 +13090,7 @@
           "pix_key": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixKeyDetails"
+                "$ref": "#/components/schemas/PixKey"
               }
             ],
             "nullable": true
@@ -20592,7 +20592,7 @@
           "pix_key": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixKeyDetails"
+                "$ref": "#/components/schemas/PixKey"
               }
             ],
             "nullable": true
@@ -33364,36 +33364,102 @@
           }
         }
       },
-      "PixKeyDetails": {
-        "type": "object",
-        "required": [
-          "key"
-        ],
-        "properties": {
-          "type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PixKeyType"
-              }
+      "PixKey": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
             ],
-            "nullable": true
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cpf"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
           },
-          "key": {
-            "type": "string",
-            "description": "The actual value of the Pix Key. Max length is typically 77 characters per BACEN regulations.",
-            "example": "test@gmail.com"
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cnpj"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "evp_token"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
           }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
-      },
-      "PixKeyType": {
-        "type": "string",
-        "enum": [
-          "cpf",
-          "cnpj",
-          "email",
-          "phone",
-          "evp_token"
-        ]
       },
       "PlatformAccountCreateRequest": {
         "type": "object",
@@ -36515,7 +36581,7 @@
           "pix_key": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixKeyDetails"
+                "$ref": "#/components/schemas/PixKey"
               }
             ],
             "nullable": true

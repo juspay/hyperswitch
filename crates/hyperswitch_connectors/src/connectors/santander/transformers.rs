@@ -1,10 +1,10 @@
 use api_models::payments::{QrCodeInformation, VoucherNextStepData};
 use common_enums::{
-    enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKeyType,
+    enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKey,
 };
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, Encode, ValueExt},
+    ext_traits::{Encode, ValueExt},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use crc::{Algorithm, Crc};
@@ -41,14 +41,13 @@ use crate::{
             SantanderValue,
         },
         responses::{
-            FunctionType, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
             SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
-            SantanderWebhookBody,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -419,28 +418,27 @@ impl
                     .or(Some(boleto_mca_metadata.covenant_code.clone()))
             });
 
-        let key_type = value
-            .0
-            .router_data
-            .request
-            .feature_metadata
-            .as_ref()
-            .and_then(|data| data.get_optional_pix_key_type())
-            .or(Some(boleto_mca_metadata.pix_key_type))
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata.boleto_additional_details.pix_key.type",
-            })?;
-
         let key = Some(Key {
-            key_type: Some(SantanderPixKeyType::from(key_type)),
+            key_type: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|data| {
+                    data.get_boleto_pix_key_and_value()
+                        .0
+                        .map(SantanderPixKeyType::from)
+                })
+                .or(boleto_mca_metadata.pix_key_type),
             dict_key: value
                 .0
                 .router_data
                 .request
                 .feature_metadata
                 .as_ref()
-                .and_then(|data| data.get_optional_pix_key_value())
-                .or(Some(boleto_mca_metadata.pix_key_value.clone())),
+                .and_then(|data| data.get_boleto_pix_key_and_value().1)
+                .or(boleto_mca_metadata.pix_key_value.clone()),
         });
 
         let messages = value
@@ -672,7 +670,7 @@ impl
             .request
             .feature_metadata
             .clone()
-            .and_then(|data| data.get_optional_pix_key_value())
+            .and_then(|data| data.get_pix_key_and_value().1)
             .or(Some(pix_mca_metadata.pix_key_value.clone()));
 
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
@@ -725,14 +723,14 @@ impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
     }
 }
 
-impl From<PixKeyType> for SantanderPixKeyType {
-    fn from(item: PixKeyType) -> Self {
+impl From<PixKey> for SantanderPixKeyType {
+    fn from(item: PixKey) -> Self {
         match item {
-            PixKeyType::Cpf => Self::Cpf,
-            PixKeyType::Cnpj => Self::Cnpj,
-            PixKeyType::Email => Self::Email,
-            PixKeyType::Phone => Self::Cellular,
-            PixKeyType::EvpToken => Self::Evp,
+            PixKey::Cpf(_) => Self::Cpf,
+            PixKey::Cnpj(_) => Self::Cnpj,
+            PixKey::Email(_) => Self::Email,
+            PixKey::Phone(_) => Self::Cellular,
+            PixKey::EvpToken(_) => Self::Evp,
         }
     }
 }
@@ -1196,24 +1194,6 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
     }
 }
 
-pub(crate) fn get_webhook_object_from_body(
-    body: &[u8],
-) -> CustomResult<SantanderWebhookBody, common_utils::errors::ParsingError> {
-    let webhook: SantanderWebhookBody = body.parse_struct("SantanderIncomingWebhook")?;
-
-    Ok(webhook)
-}
-
-pub(crate) fn get_santander_webhook_event(
-    event_type: FunctionType,
-) -> api_models::webhooks::IncomingWebhookEvent {
-    // need to confirm about the other possible webhook event statues, as of now only two known
-    match event_type {
-        FunctionType::Pagamento => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
-        FunctionType::Estorno => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
-    }
-}
-
 impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPaymentRequest {
     type Error = Error;
     fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
@@ -1343,7 +1323,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest
                     .request
                     .feature_metadata
                     .clone()
-                    .and_then(|data| data.get_optional_pix_key_value())
+                    .and_then(|data| data.get_pix_key_and_value().1)
                     .or(Some(pix_mca_metadata.pix_key_value.clone()));
 
                 Ok(Self {

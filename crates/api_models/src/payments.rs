@@ -11333,18 +11333,6 @@ impl FeatureMetadata {
             .as_ref()
             .map(|metadata| metadata.total_retry_count)
     }
-    /// Helper to extract the optional pix_key from nested PIX details
-    pub fn get_optional_pix_key_value(&self) -> Option<Secret<String>> {
-        self.pix_additional_details
-            .as_ref()
-            .and_then(|pix| pix.get_key_value())
-    }
-    /// Helper to extract the optional pix_key type from nested PIX details
-    pub fn get_optional_pix_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
-        self.pix_additional_details
-            .as_ref()
-            .and_then(|pix| pix.get_key_type())
-    }
     /// Helper to extract the optional covenant_code from boleto details
     pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
         self.boleto_additional_details
@@ -11363,6 +11351,30 @@ impl FeatureMetadata {
             pix_additional_details: self.pix_additional_details,
             boleto_additional_details: self.boleto_additional_details,
         }
+    }
+    /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
+    pub fn get_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(imm) => imm.pix_key.clone(),
+                PixAdditionalDetails::Scheduled(sch) => sch.pix_key.clone(),
+            });
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
+    /// Extracts the Pix key and its secret value specifically from BoletoAdditionalDetails
+    pub fn get_boleto_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.pix_key.clone());
+
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
     }
 }
 
@@ -11391,18 +11403,6 @@ pub struct FeatureMetadata {
 }
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
-    /// Helper to extract the optional pix_key from nested PIX details
-    pub fn get_optional_pix_key_value(&self) -> Option<Secret<String>> {
-        self.pix_additional_details
-            .as_ref()
-            .and_then(|pix| pix.get_key_value())
-    }
-    /// Helper to extract the optional pix_key type from nested PIX details
-    pub fn get_optional_pix_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
-        self.pix_additional_details
-            .as_ref()
-            .and_then(|pix| pix.get_key_type())
-    }
     /// Helper to extract the optional covenant_code from boleto details
     pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
         self.boleto_additional_details
@@ -11430,6 +11430,30 @@ impl FeatureMetadata {
             self
         }
     }
+    /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
+    pub fn get_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(imm) => imm.pix_key.clone(),
+                PixAdditionalDetails::Scheduled(sch) => sch.pix_key.clone(),
+            });
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
+    /// Extracts the Pix key and its secret value specifically from BoletoAdditionalDetails
+    pub fn get_boleto_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.pix_key.clone());
+
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
@@ -11448,8 +11472,14 @@ pub struct BoletoAdditionalDetails {
     #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
-    #[schema(value_type = Option<PixKeyDetails>)]
-    pub pix_key: Option<PixKeyDetails>,
+#[schema(
+        value_type = Option<PixKey>, 
+        example = json!({
+            "type": "email",
+            "value": "user@example.com"
+        })
+    )]
+    pub pix_key: Option<enums::PixKey>,
 }
 
 impl BoletoAdditionalDetails {
@@ -11479,45 +11509,20 @@ pub enum PixAdditionalDetails {
     Scheduled(ScheduledExpirationTime),
 }
 
-impl PixAdditionalDetails {
-    /// Helper to extract the optional pix_key value (Secret String)
-    pub fn get_key_value(&self) -> Option<Secret<String>> {
-        self.get_pix_key_details().map(|k| k.key.clone())
-    }
-
-    /// Helper to extract the optional pix_key type
-    pub fn get_key_type(&self) -> Option<common_enums::enums::PixKeyType> {
-        self.get_pix_key_details().map(|k| k.key_type)
-    }
-
-    /// Internal helper to reduce boilerplate in the match arms
-    fn get_pix_key_details(&self) -> Option<&PixKeyDetails> {
-        match self {
-            Self::Immediate(details) => details.pix_key.as_ref(),
-            Self::Scheduled(details) => details.pix_key.as_ref(),
-        }
-    }
-}
-
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     #[schema(value_type = u32)]
     pub time: u32,
     /// Pix identification details
-    #[schema(value_type = Option<PixKeyDetails>)]
-    pub pix_key: Option<PixKeyDetails>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PixKeyDetails {
-    /// The category of the Pix Key.
-    #[schema(value_type = Option<PixKeyType>, example="email")]
-    #[serde(rename = "type")]
-    pub key_type: common_enums::enums::PixKeyType,
-    /// The actual value of the Pix Key. Max length is typically 77 characters per BACEN regulations.
-    #[schema(value_type = String, example="test@gmail.com")]
-    pub key: Secret<String>,
+#[schema(
+        value_type = Option<PixKey>, 
+        example = json!({
+            "type": "email",
+            "value": "user@example.com"
+        })
+    )]
+    pub pix_key: Option<enums::PixKey>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -11530,8 +11535,14 @@ pub struct ScheduledExpirationTime {
     #[schema(value_type = Option<u32>, example=10)]
     pub validity_after_expiration: Option<u32>,
     /// Pix identification details
-    #[schema(value_type = Option<PixKeyDetails>)]
-    pub pix_key: Option<PixKeyDetails>,
+#[schema(
+        value_type = Option<PixKey>, 
+        example = json!({
+            "type": "email",
+            "value": "user@example.com"
+        })
+    )]
+    pub pix_key: Option<enums::PixKey>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]

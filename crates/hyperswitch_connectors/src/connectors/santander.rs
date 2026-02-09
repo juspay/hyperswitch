@@ -6,13 +6,12 @@ use std::sync::LazyLock;
 
 use common_enums::enums;
 use common_utils::{
-    crypto,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
+    ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::ResultExt;
+use error_stack::{ResultExt, report};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -48,7 +47,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use masking::{Maskable, PeekInterface, Secret};
+use masking::{Maskable, PeekInterface};
 
 use crate::{
     connectors::santander::{
@@ -59,7 +58,7 @@ use crate::{
         responses::{
             SanatanderAccessTokenResponse, SantanderErrorResponse, SantanderGenericErrorResponse,
             SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderRefundResponse,
-            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderWebhookBody,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse,
         },
     },
     constants::headers,
@@ -1459,58 +1458,27 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
     }
 }
 
-fn get_webhook_object_from_body(
-    body: &[u8],
-) -> CustomResult<SantanderWebhookBody, common_utils::errors::ParsingError> {
-    let webhook: SantanderWebhookBody = body.parse_struct("SantanderIncomingWebhook")?;
-
-    Ok(webhook)
-}
-
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Santander {
     fn get_webhook_object_reference_id(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.participant_code,
-            ),
-        ))
-    }
-    async fn verify_webhook_source(
-        &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
-        _connector_name: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true) // the source verification algorithm seems to be unclear as of now (Although MTLS is mentioned in the docs)
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let body = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(transformers::get_santander_webhook_event(body.function))
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(Box::new(webhook_body))
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
@@ -1553,7 +1521,7 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Santander {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
