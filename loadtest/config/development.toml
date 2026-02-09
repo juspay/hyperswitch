@@ -627,6 +627,9 @@ interac = { currency = "CAD"}
 [pm_filters.loonio]
 interac = { currency = "CAD"}
 
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
+
 [pm_filters.authorizedotnet]
 credit = { currency = "CAD,USD" }
 debit = { currency = "CAD,USD" }
