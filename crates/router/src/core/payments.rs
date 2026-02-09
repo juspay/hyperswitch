@@ -7745,13 +7745,12 @@ async fn decide_payment_method_tokenize_action(
                     payment_method,
                     connector_name
                 );
-                //this will throw error, in repeat cit, since pm token generate wont be of this key
+
                 let connector_token_option = redis_conn
                     .get_key::<Option<String>>(&key.into())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?;
-                //new merchant,dont throw error??
 
                 match connector_token_option {
                     Some(connector_token) => {
@@ -10533,6 +10532,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     let (connectors, routing_approach) = {
         let static_connectors_ref = &static_connectors;
         let transaction_data_ref = &transaction_data;
+
         business_profile
             .dynamic_routing_algorithm
             .as_ref()
@@ -10544,6 +10544,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
                     transaction_data: transaction_data_ref,
                     static_connectors: static_connectors_ref,
                 };
+
                 dynamic_routing_stage
                     .route(dynamic_routing_input)
                     .await
