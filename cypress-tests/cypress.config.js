@@ -33,7 +33,7 @@ export default defineConfig({
           return null;
         },
       });
-      
+
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
         if (
