@@ -2,6 +2,9 @@ use common_enums::{ParentGroup, PermissionGroup};
 use common_utils::pii;
 use masking::Secret;
 
+// Re-export for backward compatibility
+pub use common_enums::UserStatus;
+
 pub mod role;
 
 #[derive(Debug, serde::Serialize)]
@@ -32,12 +35,6 @@ pub struct ParentInfo {
 pub struct UpdateUserRoleRequest {
     pub email: pii::Email,
     pub role_id: String,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub enum UserStatus {
-    Active,
-    InvitationSent,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
