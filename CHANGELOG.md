@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.09.0-hotfix1
+
+### Features
+
+- **connector:** [SANTANDER] Implemented Pix and Boleto ([#11194](https://github.com/juspay/hyperswitch/pull/11194)) ([`c544b22`](https://github.com/juspay/hyperswitch/commit/c544b2293bffb9d511b14b2a605ef77c52721ce2))
+
+**Full Changelog:** [`2026.02.09.0...2026.02.09.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.02.09.0...2026.02.09.0-hotfix1)
+
+- - -
+
 ## 2026.02.09.0
 
 ### Features
