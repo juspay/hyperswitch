@@ -99,10 +99,13 @@ pub use self::{
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v2")]
 use crate::core::payments;
+#[cfg(feature = "v1")]
+use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
 use crate::{
     core::{
         configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult},
+        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -216,6 +219,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -303,6 +307,29 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+    #[cfg(feature = "v1")]
+    async fn create_payment_method(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _platform: &domain::Platform,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+        _feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn fetch_payment_method(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _platform: &domain::Platform,
+        _feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
+        Ok(None)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -589,7 +616,26 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _provider: &domain::Provider,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
+        _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn update_modular_pm_and_mandate<'b>(
+        &self,
+        _state: &SessionState,
+        _resp: &types::RouterData<F, R, PaymentsResponseData>,
+        _platform: &domain::Platform,
+        // `PaymentData` is kept mutable for updating `payment_attempt.connector_mandate_detail`
+        // Ideally, this update should be moved to `update_trackers`
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+        _request_payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {

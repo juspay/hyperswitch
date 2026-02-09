@@ -48,6 +48,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -247,6 +248,7 @@ impl<F: Clone + Sync>
             error_message: None,
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
+            processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
         };
         let authorization = state
             .store
