@@ -144,6 +144,30 @@ impl ConnectorEnum {
             }
         }
     }
+    /// This keeps the generics <F, Req, Res> so existing callers don't break
+    pub fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                // router_data is automatically coerced to &dyn AccessTokenData
+                connector.get_access_token_key(
+                    // router_data as &dyn AccessTokenData,
+                    router_data,
+                    merchant_connector_id_or_connector_name,
+                )
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(
+                    // router_data as &dyn AccessTokenData,
+                    router_data,
+                    merchant_connector_id_or_connector_name,
+                )
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -806,23 +830,6 @@ impl ConnectorCommon for ConnectorEnum {
     }
 }
 
-impl ConnectorAccessTokenSuffix for ConnectorEnum {
-    fn get_access_token_key<F, Req, Res>(
-        &self,
-        router_data: &RouterData<F, Req, Res>,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-            }
-            Self::New(connector) => {
-                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-            }
-        }
-    }
-}
-
 /// Trait representing the connector integration interface
 ///
 /// This trait defines the methods required for a connector integration interface.
@@ -1015,3 +1022,6 @@ impl api::ConnectorTransactionId for ConnectorEnum {
         }
     }
 }
+
+//re-add if stops working
+// impl ConnectorAccessTokenSuffix for BoxedConnectorV2 {}
