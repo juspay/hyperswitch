@@ -744,6 +744,7 @@ impl webhooks::IncomingWebhook for Volt {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         if request.body.is_empty() {
             Ok(IncomingWebhookEvent::EndpointVerification)
