@@ -242,8 +242,13 @@ impl TryFrom<&ConnectorAuthType> for MifinityAuthType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MifinityPaymentsResponse {
     payload: Vec<MifinityPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -306,6 +311,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
 #[serde(rename_all = "camelCase")]
 pub struct MifinityPsyncResponse {
     payload: Vec<MifinityPsyncPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
