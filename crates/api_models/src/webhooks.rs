@@ -421,21 +421,9 @@ impl ObjectReferenceId {
     }
 }
 
-fn serialize_resource_object<S>(resource_object: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    // Parse Vec<u8> as JSON and serialize it
-    // resource_object is always valid JSON (created from serde_json::to_vec)
-    serde_json::from_slice::<serde_json::Value>(resource_object)
-        .map_err(serde::ser::Error::custom)?
-        .serialize(serializer)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
-    #[serde(serialize_with = "serialize_resource_object")]
     pub resource_object: Vec<u8>,
 }
 

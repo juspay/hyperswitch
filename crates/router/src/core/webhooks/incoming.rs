@@ -275,9 +275,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .ok(); // Don't fail if extraction fails - gateway functions will fetch MCA when needed
 
-            // Pass MCA from URL directly - gateway functions will fetch if needed
-            let merchant_connector_account_owned = mca_data.merchant_connector_account.clone();
-
             // Determine webhook processing path (Direct vs UCS vs Shadow UCS) and handle event type extraction
             let (execution_path, updated_state) =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
@@ -321,7 +318,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         &mca_data.connector_name,
                         &body,
                         &request_details,
-                        merchant_connector_account_owned.clone(),
+                        mca_data.merchant_connector_account.clone(),
+                        object_ref_id.clone(),
                         common_enums::ExecutionMode::Shadow,
                     ))
                     .await
@@ -333,29 +331,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         "Using Direct connector processing for webhook",
                     );
                     // DIRECT PATH: Use original state (no proxy overrides needed for Direct)
-                    // Need to decode body first
-                    let decoded_body = mca_data
-                        .connector
-                        .decode_webhook_body(
-                            &request_details,
-                            platform.get_processor().get_account().get_id(),
-                            merchant_connector_account_owned
-                                .clone()
-                                .and_then(|mca| mca.connector_webhook_details.clone()),
-                            &mca_data.connector_name,
-                        )
-                        .await
-                        .switch()
-                        .attach_printable("There was an error in incoming webhook body decoding")?;
-
                     process_direct_webhook_transform(
                         &state,
                         &platform,
                         &mca_data.connector,
                         &mca_data.connector_name,
-                        decoded_body.into(),
                         &request_details,
-                        merchant_connector_account_owned.clone(),
+                        mca_data.merchant_connector_account.clone(),
                         object_ref_id.clone(),
                     )
                     .await
@@ -425,7 +407,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     let webhook_effect = match process_webhook_further {
         true => {
-            // Gateway operations are now integrated into process_direct_webhook, process_ucs_webhook, and process_shadow_webhook
             // Extract results from webhook_processing_result
             let source_verified = webhook_processing_result.source_verified;
 
@@ -679,7 +660,6 @@ pub struct WebhookProcessingResult<'a> {
     pub webhook_resource_data: Option<WebhookResourceData>,
     pub object_reference_id: Option<api::ObjectReferenceId>,
     #[serde(skip)]
-    // IncomingWebhookDetails doesn't implement Serialize - not needed for comparison
     pub webhook_details: Option<api::IncomingWebhookDetails>,
     #[serde(skip)] // Not needed for comparison - context, not result
     pub merchant_connector_account: Option<domain::MerchantConnectorAccount>,
@@ -706,10 +686,6 @@ pub enum ThreeDsProcessingMode {
 
 /// Process shadow UCS webhook transformation with dual execution (UCS + Direct)
 /// Comparison data sending to validation service is spawned in background
-///
-/// Note: The lifetime 'a is tied to request_details (via ShadowUcsData), not to state.
-/// This allows updated_state to be dropped after async calls complete, since the result
-/// doesn't actually reference state - only request_details.
 #[allow(clippy::too_many_arguments)]
 async fn process_shadow_webhook_transform<'a>(
     state: &SessionState,
@@ -719,36 +695,15 @@ async fn process_shadow_webhook_transform<'a>(
     body: &actix_web::web::Bytes,
     request_details: &'a IncomingWebhookRequestDetails<'a>,
     merchant_connector_account: Option<domain::MerchantConnectorAccount>,
+    object_ref_id: Option<webhooks::ObjectReferenceId>,
     execution_mode: common_enums::ExecutionMode,
 ) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Extract object_ref_id early (needed for both UCS and Direct paths)
-    let object_ref_id = connector
-        .get_webhook_object_reference_id(request_details)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .ok();
-
     // Step 1: Execute Direct path FIRST
-    let decoded_body = connector
-        .decode_webhook_body(
-            request_details,
-            platform.get_processor().get_account().get_id(),
-            merchant_connector_account
-                .as_ref()
-                .and_then(|mca| mca.connector_webhook_details.clone()),
-            connector_name,
-        )
-        .await
-        .switch()
-        .attach_printable(
-            "There was an error in incoming webhook body decoding for shadow processing",
-        )?;
-
     let mut direct_processing_result = process_direct_webhook_transform(
         state,
         platform,
         connector,
         connector_name,
-        decoded_body.into(),
         request_details,
         merchant_connector_account.clone(),
         object_ref_id.clone(),
@@ -864,11 +819,24 @@ async fn process_direct_webhook_transform<'a>(
     platform: &domain::Platform,
     connector: &ConnectorEnum,
     connector_name: &str,
-    decoded_body: actix_web::web::Bytes,
     request_details: &'a IncomingWebhookRequestDetails<'a>, // Lifetime 'a tied to request_details
     mca_option: Option<domain::MerchantConnectorAccount>,
     object_ref_id: Option<webhooks::ObjectReferenceId>,
 ) -> errors::RouterResult<WebhookProcessingResult<'a>> {
+    // Decode webhook body first (needed for all direct path processing)
+    let decoded_body = connector
+        .decode_webhook_body(
+            request_details,
+            platform.get_processor().get_account().get_id(),
+            mca_option
+                .as_ref()
+                .and_then(|mca| mca.connector_webhook_details.clone()),
+            connector_name,
+        )
+        .await
+        .switch()
+        .attach_printable("There was an error in incoming webhook body decoding")?;
+
     // Create request_details with decoded body for connector processing
     let updated_request_details = IncomingWebhookRequestDetails {
         method: request_details.method.clone(),
@@ -1051,7 +1019,7 @@ async fn process_direct_webhook_transform<'a>(
                 event_type,
                 source_verified,
                 transform_data: None,
-                decoded_body: Some(decoded_body),
+                decoded_body: Some(decoded_body.into()),
                 shadow_ucs_data: None,
                 webhook_resource_data,
                 object_reference_id: Some(object_ref_id.clone()),
@@ -1066,7 +1034,7 @@ async fn process_direct_webhook_transform<'a>(
                 event_type,
                 source_verified: false,
                 transform_data: None,
-                decoded_body: Some(decoded_body),
+                decoded_body: Some(decoded_body.into()),
                 shadow_ucs_data: None,
                 webhook_resource_data,
                 object_reference_id: object_ref_id,
