@@ -666,7 +666,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
             txn_details,
             payment_method,
             instruction: None,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
             three_ds_two_enrolled: None,
             recurring_type: None,
         })
@@ -694,7 +694,7 @@ impl
             txn_details,
             payment_method,
             instruction: None,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
             three_ds_two_enrolled: None,
             recurring_type: None,
         })
@@ -714,7 +714,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             txn_details,
             payment_method,
             instruction: None,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
             three_ds_two_enrolled: None,
             recurring_type: None,
         })
@@ -741,7 +741,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             txn_details,
             payment_method,
             instruction,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
             three_ds_two_enrolled,
             recurring_type,
         })
@@ -770,7 +770,7 @@ impl
             txn_details,
             payment_method,
             instruction,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
             three_ds_two_enrolled: None,
             recurring_type: None,
         })
@@ -799,7 +799,7 @@ impl
             txn_details,
             payment_method: PaymentDetails::Mandate,
             instruction,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
             three_ds_two_enrolled: None,
             recurring_type,
         })
