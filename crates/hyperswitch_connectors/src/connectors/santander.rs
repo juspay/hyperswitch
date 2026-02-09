@@ -1007,7 +1007,11 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true) // Hardcoded to true as the source verification algorithm for Santander remains to be unknown (in docs it is mentioned as MTLS)
+        // Santander documentation indicates MTLS (Mutual TLS) for webhook verification,
+        // which should be handled at the transport/infrastructure layer, not application layer.
+        // Until proper verification is implemented, we reject webhook requests for security.
+        // TODO: Implement proper MTLS verification or signature-based verification as per Santander's spec
+        Err(errors::ConnectorError::WebhookSourceVerificationFailed.into())
     }
 
     fn get_webhook_object_reference_id(
