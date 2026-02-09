@@ -3541,6 +3541,7 @@ impl GetPaymentMethodType for UpiData {
             Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
             Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
             Self::UpiQr(_) => api_enums::PaymentMethodType::UpiQr,
+            Self::UpiInApp(_) => api_enums::PaymentMethodType::UpiInApp,
         }
     }
 }
@@ -4250,6 +4251,8 @@ pub enum UpiData {
     #[smithy(value_type = "UpiIntentData")]
     UpiIntent(UpiIntentData),
     UpiQr(UpiQrData),
+    #[smithy(value_type = "UpiInAppData")]
+    UpiInApp(UpiInAppData),
 }
 
 #[derive(
@@ -4274,6 +4277,22 @@ pub struct UpiQrData {}
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiIntentData {}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct UpiInAppData {
+    /// The customer virtual payment address (VPA)
+    #[schema(value_type = Option<String>, example = "customer@bank")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The merchant virtual payment address (VPA)
+    #[schema(value_type = Option<String>, example = "merchant@bank")]
+    #[smithy(value_type = "Option<String>")]
+    pub payee_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {

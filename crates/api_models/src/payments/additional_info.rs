@@ -338,6 +338,8 @@ pub enum UpiAdditionalData {
     UpiIntent(Box<super::UpiIntentData>),
     #[schema(value_type = UpiQrData)]
     UpiQr(Box<super::UpiQrData>),
+    #[smithy(value_type = "UpiInAppAdditionalData")]
+    UpiInApp(Box<UpiInAppAdditionalData>),
 }
 
 #[derive(
@@ -349,6 +351,22 @@ pub struct UpiCollectAdditionalData {
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct UpiInAppAdditionalData {
+    /// The customer virtual payment address (VPA)
+    #[schema(value_type = Option<String>, example = "customer@bank")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_vpa: Option<MaskedUpiVpaId>,
+    /// The merchant virtual payment address (VPA)
+    #[schema(value_type = Option<String>, example = "merchant@bank")]
+    #[smithy(value_type = "Option<String>")]
+    pub payee_vpa: Option<MaskedUpiVpaId>,
 }
 
 #[derive(

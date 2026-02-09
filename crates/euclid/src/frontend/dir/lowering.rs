@@ -90,6 +90,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
             enums::UpiType::UpiCollect => Self::UpiCollect,
             enums::UpiType::UpiIntent => Self::UpiIntent,
             enums::UpiType::UpiQr => Self::UpiQr,
+            enums::UpiType::UpiInApp => Self::UpiInApp,
         }
     }
 }

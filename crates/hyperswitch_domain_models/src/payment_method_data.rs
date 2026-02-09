@@ -635,6 +635,7 @@ pub enum UpiData {
     UpiCollect(UpiCollectData),
     UpiIntent(UpiIntentData),
     UpiQr(UpiQrData),
+    UpiInApp(UpiInAppData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -648,6 +649,13 @@ pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UpiQrData {}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiInAppData {
+    pub payer_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    pub payee_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1521,6 +1529,12 @@ impl From<api_models::payments::UpiData> for UpiData {
             }
             api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
             api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQrData {}),
+            api_models::payments::UpiData::UpiInApp(upi) => {
+                Self::UpiInApp(UpiInAppData {
+                    payer_vpa: upi.payer_vpa,
+                    payee_vpa: upi.payee_vpa,
+                })
+            }
         }
     }
 }
@@ -1537,6 +1551,12 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
             }
             UpiData::UpiQr(_) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {})),
+            UpiData::UpiInApp(upi) => Self::UpiInApp(Box::new(
+                api_models::payments::additional_info::UpiInAppAdditionalData {
+                    payer_vpa: upi.payer_vpa.map(MaskedUpiVpaId::from),
+                    payee_vpa: upi.payee_vpa.map(MaskedUpiVpaId::from),
+                },
+            )),
         }
     }
 }
@@ -2253,6 +2273,7 @@ impl GetPaymentMethodType for UpiData {
             Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
             Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
             Self::UpiQr(_) => api_enums::PaymentMethodType::UpiQr,
+            Self::UpiInApp(_) => api_enums::PaymentMethodType::UpiInApp,
         }
     }
 }

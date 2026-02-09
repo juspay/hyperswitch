@@ -150,6 +150,11 @@ impl
                     }),
                     None,
                 ),
+                UpiData::UpiInApp(_) => (
+                    common_enums::CountryAlpha2::IN,
+                    None,
+                    None,
+                ),
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (
                     common_enums::CountryAlpha2::IN,
                     None,

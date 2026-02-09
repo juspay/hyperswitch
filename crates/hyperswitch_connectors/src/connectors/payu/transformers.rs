@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData, WalletData},
+    payment_method_data::{PaymentMethodData, UpiData, WalletData},
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -65,6 +65,7 @@ pub struct PayuPaymentMethod {
 pub enum PayuPaymentMethodData {
     Card(PayuCard),
     Wallet(PayuWallet),
+    Upi(PayuUpi),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -92,6 +93,15 @@ pub struct PayuWallet {
 pub enum PayuWalletCode {
     Ap,
     Jp,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayuUpi {
+    #[serde(rename = "type")]
+    pub upi_type: String,
+    pub value: String,
+    pub vpa: Option<Secret<String>>,
 }
 
 impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPaymentsRequest {
@@ -150,6 +160,28 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Unknown Wallet in Payment Method".to_string(),
+                )),
+            },
+            PaymentMethodData::Upi(upi_data) => match upi_data {
+                UpiData::UpiInApp(upi_inapp_data) => {
+                    let vpa = upi_inapp_data
+                        .payer_vpa
+                        .clone()
+                        .map(|v| v.expose())
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "payment_method_data.upi.inapp.payer_vpa",
+                        })?;
+
+                    Ok(PayuPaymentMethod {
+                        pay_method: PayuPaymentMethodData::Upi(PayuUpi {
+                            upi_type: "UPI_INAPP".to_string(),
+                            value: "INAPP".to_string(),
+                            vpa: Some(Secret::new(vpa)),
+                        }),
+                    })
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Only UPI InApp is supported for PayU".to_string(),
                 )),
             },
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -236,6 +268,7 @@ pub struct PayuPaymentsResponse {
     pub three_ds_protocol_version: Option<String>,
     pub order_id: String,
     pub ext_order_id: Option<String>,
+    pub route_params: Option<PayuRouteParams>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsResponseData>>
@@ -245,13 +278,26 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
     fn try_from(
         item: ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        // Extract UPI mode from route params if present
+        let connector_metadata = PayuUpiMode::from_route_params(&item.response.route_params)
+            .and_then(|mode| {
+                let metadata = serde_json::json!({
+                    "upi_mode": match mode {
+                        PayuUpiMode::CreditCard => "CREDIT_CARD",
+                        PayuUpiMode::PrepaidInstrument => "PREPAID_INSTRUMENT",
+                        PayuUpiMode::Standard => "STANDARD",
+                    }
+                });
+                serde_json::to_value(metadata).ok()
+            });
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status_code),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: item
                     .response
@@ -450,6 +496,7 @@ pub struct PayuOrderResponseData {
     pay_method: Option<PayuOrderResponsePayMethod>,
     products: Option<Vec<PayuProductData>>,
     status: OrderStatus,
+    route_params: Option<PayuRouteParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -473,6 +520,13 @@ pub enum PayuOrderResponsePayMethod {
     CardToken,
     Pbl,
     Installemnts,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayuRouteParams {
+    /// Payment mode for UPI transactions (UPICC for credit card, UPIPPI for prepaid instrument)
+    pub mode: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -499,13 +553,27 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
             Some(order) => order,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
+
+        // Extract UPI mode from route params if present
+        let connector_metadata = PayuUpiMode::from_route_params(&order.route_params)
+            .and_then(|mode| {
+                let metadata = serde_json::json!({
+                    "upi_mode": match mode {
+                        PayuUpiMode::CreditCard => "CREDIT_CARD",
+                        PayuUpiMode::PrepaidInstrument => "PREPAID_INSTRUMENT",
+                        PayuUpiMode::Standard => "STANDARD",
+                    }
+                });
+                serde_json::to_value(metadata).ok()
+            });
+
         Ok(Self {
             status: enums::AttemptStatus::from(order.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(order.order_id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: order
                     .ext_order_id
@@ -634,6 +702,33 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>>
             }),
             ..item.data
         })
+    }
+}
+
+/// UPI payment mode detected from PayU response
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PayuUpiMode {
+    /// Credit card on UPI
+    #[serde(rename = "UPICC")]
+    CreditCard,
+    /// Prepaid instrument on UPI
+    #[serde(rename = "UPIPPI")]
+    PrepaidInstrument,
+    /// Standard UPI payment
+    Standard,
+}
+
+impl PayuUpiMode {
+    /// Extract UPI mode from route params
+    pub fn from_route_params(route_params: &Option<PayuRouteParams>) -> Option<Self> {
+        route_params
+            .as_ref()
+            .and_then(|params| params.mode.as_ref())
+            .and_then(|mode| match mode.as_str() {
+                "UPICC" => Some(Self::CreditCard),
+                "UPIPPI" => Some(Self::PrepaidInstrument),
+                _ => Some(Self::Standard),
+            })
     }
 }
 

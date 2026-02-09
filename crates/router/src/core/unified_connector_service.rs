@@ -823,6 +823,13 @@ pub fn build_unified_connector_service_payment_method(
                     let upi_details = payments_grpc::UpiQr {};
                     PaymentMethod::UpiQr(upi_details)
                 }
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiInApp(_) => {
+                    // UPI InApp uses same grpc type as UpiCollect for now
+                    let upi_details = payments_grpc::UpiCollect {
+                        vpa_id: None,
+                    };
+                    PaymentMethod::UpiCollect(upi_details)
+                }
             };
 
             Ok(payments_grpc::PaymentMethod {

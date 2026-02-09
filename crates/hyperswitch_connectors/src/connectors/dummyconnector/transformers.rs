@@ -107,6 +107,14 @@ pub enum DummyConnectorUpi {
     UpiCollect(DummyConnectorUpiCollect),
 }
 
+impl Default for DummyConnectorUpi {
+    fn default() -> Self {
+        Self::UpiCollect(DummyConnectorUpiCollect {
+            vpa_id: Secret::new("default@vpa".to_string()),
+        })
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DummyConnectorUpiCollect {
     vpa_id: Secret<String, pii::UpiVpaMaskingStrategy>,
@@ -210,6 +218,10 @@ impl<const T: u8> TryFrom<&DummyConnectorRouterData<&PaymentsAuthorizeRouterData
                     UpiData::UpiCollect(data) => Ok(DummyPaymentMethodData::Upi(
                         DummyConnectorUpi::try_from(data.clone())?,
                     )),
+                    UpiData::UpiInApp(_) => {
+                        // UPI InApp treated as UPI Collect for dummy connector
+                        Ok(DummyPaymentMethodData::Upi(DummyConnectorUpi::default()))
+                    }
                     UpiData::UpiIntent(_) | UpiData::UpiQr(_) => {
                         Err(ConnectorError::NotImplemented("UPI flow".to_string()).into())
                     }
