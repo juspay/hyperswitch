@@ -11472,9 +11472,8 @@ pub struct BoletoAdditionalDetails {
     #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
-#[schema(
-        value_type = Option<PixKey>, 
-        example = json!({
+    #[schema(
+        value_type = Option<PixKey>, example = json!({
             "type": "email",
             "value": "user@example.com"
         })
@@ -11515,9 +11514,8 @@ pub struct ImmediateExpirationTime {
     #[schema(value_type = u32)]
     pub time: u32,
     /// Pix identification details
-#[schema(
-        value_type = Option<PixKey>, 
-        example = json!({
+    #[schema(
+        value_type = Option<PixKey>, example = json!({
             "type": "email",
             "value": "user@example.com"
         })
@@ -11535,9 +11533,8 @@ pub struct ScheduledExpirationTime {
     #[schema(value_type = Option<u32>, example=10)]
     pub validity_after_expiration: Option<u32>,
     /// Pix identification details
-#[schema(
-        value_type = Option<PixKey>, 
-        example = json!({
+    #[schema(
+        value_type = Option<PixKey>, example = json!({
             "type": "email",
             "value": "user@example.com"
         })

@@ -7,7 +7,7 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
     str::FromStr,
 };
-use masking::Secret;
+
 pub use accounts::{
     MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
 };
@@ -18,6 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
+use masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -10659,7 +10660,9 @@ pub enum ExpiryType {
     Scheduled,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
+)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum PixKey {

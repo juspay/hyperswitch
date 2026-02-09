@@ -11,7 +11,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{ResultExt, report};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
