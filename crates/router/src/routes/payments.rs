@@ -619,6 +619,7 @@ pub async fn payments_retrieve(
         allow_platform_self_operation: false,
     };
 
+    // checking or validating
     let (auth_type, auth_flow) = match auth::check_internal_api_key_auth(
         req.headers(),
         &payload,
@@ -1469,8 +1470,7 @@ pub async fn payments_complete_authorize(
     };
 
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payment_confirm_req, api_auth)
-        {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payment_confirm_req, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -2524,7 +2524,7 @@ pub async fn payments_submit_eligibility(
     };
 
     let (auth_type, _auth_flow) =
-        match auth::check_client_secret_and_get_auth(http_req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(http_req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -2586,11 +2586,11 @@ impl GetLockingInput for payment_types::PaymentsRequest {
                     api_identifier: api_identifier.clone(),
                     override_lock_retries: None,
                 };
-                if let Some(customer_id) = self
-                    .customer_id
-                    .as_ref()
-                    .or(self.customer.as_ref().map(|customer| &customer.id))
-                {
+                if let Some(customer_id) = self.customer_id.as_ref().or_else(|| {
+                    self.customer
+                        .as_ref()
+                        .and_then(|customer| customer.id.as_ref())
+                }) {
                     api_locking::LockAction::HoldMultiple {
                         inputs: vec![
                             intent_id_locking_input,
@@ -3568,6 +3568,16 @@ pub async fn payment_get_intent_using_merchant_reference_id(
 
     let merchant_reference_id = path.into_inner();
 
+    let auth_type: &dyn auth::AuthenticateAndFetch<_, _> =
+        if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+            &auth::MerchantIdAuth
+        } else {
+            &auth::V2ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            }
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -3584,10 +3594,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
             ))
             .await
         },
-        &auth::V2ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
-        },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

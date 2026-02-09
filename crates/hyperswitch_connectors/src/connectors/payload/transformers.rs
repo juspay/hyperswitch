@@ -294,6 +294,62 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
     }
 }
 
+// ACH-specific transformer for SetupMandate using /payment_methods API
+impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest {
+    type Error = Error;
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup mandate with non zero amount".to_string(),
+                connector: "Payload".to_string(),
+            }
+            .into());
+        }
+
+        match &item.request.payment_method_data {
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_type,
+                bank_account_holder_name,
+                ..
+            }) => {
+                let account_type = bank_type
+                    .map(|b_type| match b_type {
+                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
+                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_type",
+                    })?;
+
+                let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                    }
+                })?;
+
+                let customer_id = item.get_connector_customer_id()?;
+
+                Ok(Self {
+                    account_id: Secret::new(customer_id),
+                    bank_account: requests::PayloadBankAccountData {
+                        account_number: account_number.clone(),
+                        routing_number: routing_number.clone(),
+                        account_type,
+                    },
+                    account_holder,
+                    payment_method_type: requests::PayloadPaymentMethodType::BankAccount,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payload"),
+            )
+            .into()),
+        }
+    }
+}
+
 impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     for requests::PayloadPaymentsRequest
 {
@@ -408,6 +464,7 @@ where
                             authentication_data: None,
                             payment_checks: Some(payment_checks),
                             card_network: None,
+                            auth_code: None,
                             domestic_network: None,
                         }
                     })
@@ -454,6 +511,75 @@ where
                     ..item.data
                 })
             }
+        }
+    }
+}
+
+// Response transformer for ACH SetupMandate using /payment_methods API
+impl<F, T>
+    TryFrom<ResponseRouterData<F, responses::PayloadPaymentMethodResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            responses::PayloadPaymentMethodResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Only store payment method ID if verification_status is verified or owner-verified
+        // Fail the SetupMandate if not verified
+        if response.verification_status.is_verified() {
+            let mandate_reference = Some(MandateReference {
+                connector_mandate_id: Some(response.id.clone()),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            });
+
+            Ok(Self {
+                status: enums::AttemptStatus::Charged, // SetupMandate succeeded
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(mandate_reference),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    authentication_data: None,
+                    charges: None,
+                }),
+                connector_response: None,
+                ..item.data
+            })
+        } else {
+            // Not verified - fail the SetupMandate
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
+                    message: format!(
+                        "Bank account verification status is {:?}",
+                        response.verification_status
+                    ),
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: Some(response.id),
+                    connector_response_reference_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                connector_response: None,
+                ..item.data
+            })
         }
     }
 }

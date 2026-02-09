@@ -3344,7 +3344,7 @@
                   "value": {
                     "card": {
                       "card_exp_month": "11",
-                      "card_exp_year": "25",
+                      "card_exp_year": "30",
                       "card_holder_name": "John Doe",
                       "card_number": "4242424242424242"
                     },
@@ -9644,7 +9644,12 @@
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25",
+            "example": "003925",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
             "nullable": true
           }
         }
@@ -11394,6 +11399,33 @@
           }
         ]
       },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BankDebitResponse": {
         "allOf": [
           {
@@ -13025,6 +13057,71 @@
           }
         }
       },
+      "BoletoAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "due_date": {
+            "type": "string",
+            "description": "Due Date for the Boleto",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "document_kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoDocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentType"
+              }
+            ],
+            "nullable": true
+          },
+          "covenant_code": {
+            "type": "string",
+            "example": "3568253",
+            "nullable": true
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "BoletoDocumentKind": {
+        "type": "string",
+        "enum": [
+          "commercial_invoice",
+          "service_invoice",
+          "promissory_note",
+          "rural_promissory_note",
+          "receipt",
+          "insurance_policy",
+          "credit_card_invoice",
+          "proposal",
+          "deposit_or_funding",
+          "cheque",
+          "direct_promissory_note",
+          "other"
+        ]
+      },
+      "BoletoPaymentType": {
+        "type": "string",
+        "enum": [
+          "fixed_amount",
+          "flexible_amount",
+          "installment"
+        ]
+      },
       "BoletoVoucherData": {
         "type": "object",
         "properties": {
@@ -13044,7 +13141,6 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "Cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -14151,6 +14247,10 @@
           },
           "authentication_data": {
             "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -14771,6 +14871,7 @@
           "ctp_mastercard",
           "ctp_visa",
           "cybersource",
+          "cybersourcedecisionmanager",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -14793,6 +14894,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperpg",
           "hyperswitch_vault",
           "inespay",
           "iatapay",
@@ -16598,14 +16700,12 @@
       "CustomerDetails": {
         "type": "object",
         "description": "Passing this object creates a new customer or attaches an existing customer to the payment",
-        "required": [
-          "id"
-        ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The identifier for the customer.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },
@@ -16642,6 +16742,14 @@
             "description": "The tax registration identifier of the customer.",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16684,6 +16792,14 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "customer_document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16758,6 +16874,24 @@
           "desktop",
           "gaming_console"
         ]
+      },
+      "CustomerDocumentDetails": {
+        "type": "object",
+        "required": [
+          "document_type",
+          "document_number"
+        ],
+        "properties": {
+          "document_type": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "document_number": {
+            "type": "string",
+            "description": "The customer's document number\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long",
+            "example": "12345678911",
+            "maxLength": 255
+          }
+        }
       },
       "CustomerId": {
         "type": "string",
@@ -17105,6 +17239,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17189,6 +17331,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17250,6 +17400,14 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "document_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDocumentDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17719,11 +17877,33 @@
           "dispute_lost"
         ]
       },
+      "DocumentDetails": {
+        "type": "object",
+        "required": [
+          "document_number"
+        ],
+        "properties": {
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "document_number": {
+            "type": "string",
+            "description": "Cpf or Cnpj number",
+            "example": "20201210000155"
+          }
+        }
+      },
       "DocumentKind": {
         "type": "string",
+        "description": "Represents the type of identification document used for validation.",
         "enum": [
-          "CNPJ",
-          "CPF"
+          "cpf",
+          "cnpj"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -18557,6 +18737,22 @@
               }
             ],
             "nullable": true
+          },
+          "pix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "boleto_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18787,6 +18983,28 @@
             ],
             "properties": {
               "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_document_type"
+            ],
+            "properties": {
+              "user_document_type": {
                 "type": "object",
                 "required": [
                   "options"
@@ -20367,6 +20585,28 @@
           "propertyName": "method_key"
         }
       },
+      "ImmediateExpirationTime": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Expiration time in seconds",
+            "minimum": 0
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "IncrementalAuthorizationResponse": {
         "type": "object",
         "required": [
@@ -21158,7 +21398,7 @@
           "merchant_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantAccountRequestType"
+                "$ref": "#/components/schemas/MerchantAccountType"
               }
             ],
             "nullable": true
@@ -24734,6 +24974,14 @@
             "type": "string",
             "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25859,6 +26107,17 @@
                 "$ref": "#/components/schemas/CardDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
           }
         ]
       },
@@ -26355,6 +26614,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code for the payment",
+            "example": "003225",
             "nullable": true
           }
         }
@@ -28265,6 +28530,12 @@
             ],
             "nullable": true
           },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -29853,6 +30124,12 @@
             ],
             "nullable": true
           },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -30628,6 +30905,14 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object."
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30635,7 +30920,8 @@
       "PaymentsUpdateMetadataResponse": {
         "type": "object",
         "required": [
-          "payment_id"
+          "payment_id",
+          "status"
         ],
         "properties": {
           "payment_id": {
@@ -30645,6 +30931,22 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }
@@ -32975,6 +33277,32 @@
           }
         }
       },
+      "PixAdditionalDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "immediate"
+            ],
+            "properties": {
+              "immediate": {
+                "$ref": "#/components/schemas/ImmediateExpirationTime"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "scheduled"
+            ],
+            "properties": {
+              "scheduled": {
+                "$ref": "#/components/schemas/ScheduledExpirationTime"
+              }
+            }
+          }
+        ]
+      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -33052,6 +33380,103 @@
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
+        }
+      },
+      "PixKey": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cpf"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cnpj"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "evp_token"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PlatformAccountCreateRequest": {
@@ -34243,13 +34668,13 @@
         "type": "string",
         "enum": [
           "do_not_retry",
-          "retry_after10_days",
-          "retry_after1_hour",
-          "retry_after24_hours",
-          "retry_after2_days",
-          "retry_after4_days",
-          "retry_after6_days",
-          "retry_after8_days",
+          "retry_after_10_days",
+          "retry_after_1_hour",
+          "retry_after_24_hours",
+          "retry_after_2_days",
+          "retry_after_4_days",
+          "retry_after_6_days",
+          "retry_after_8_days",
           "retry_after_instrument_update",
           "retry_later",
           "retry_with_different_payment_method_data",
@@ -34754,6 +35179,31 @@
           "schedule_refund"
         ]
       },
+      "RelayCaptureRequestData": {
+        "type": "object",
+        "required": [
+          "authorized_amount",
+          "amount_to_capture",
+          "currency"
+        ],
+        "properties": {
+          "authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is authorized for capture",
+            "example": 6540
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being captured",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -34764,6 +35214,28 @@
             "properties": {
               "refund": {
                 "$ref": "#/components/schemas/RelayRefundRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capture"
+            ],
+            "properties": {
+              "capture": {
+                "$ref": "#/components/schemas/RelayCaptureRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "incremental_authorization"
+            ],
+            "properties": {
+              "incremental_authorization": {
+                "$ref": "#/components/schemas/RelayIncrementalAuthorizationRequestData"
               }
             }
           }
@@ -34783,6 +35255,31 @@
           "message": {
             "type": "string",
             "description": "The error message"
+          }
+        }
+      },
+      "RelayIncrementalAuthorizationRequestData": {
+        "type": "object",
+        "required": [
+          "total_amount",
+          "additional_amount",
+          "currency"
+        ],
+        "properties": {
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Original amount + additional amount of the transaction",
+            "example": 6540
+          },
+          "additional_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount by which the payment needs is incremented",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },
@@ -34915,7 +35412,9 @@
       "RelayType": {
         "type": "string",
         "enum": [
-          "refund"
+          "refund",
+          "capture",
+          "incremental_authorization"
         ]
       },
       "RequestPaymentMethodTypes": {
@@ -35478,6 +35977,7 @@
           "coingate",
           "cryptopay",
           "cybersource",
+          "cybersourcedecisionmanager",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -35499,6 +35999,7 @@
           "gocardless",
           "hipay",
           "helcim",
+          "hyperpg",
           "iatapay",
           "inespay",
           "itaubank",
@@ -36075,6 +36576,35 @@
           "low_value",
           "transaction_risk_analysis"
         ]
+      },
+      "ScheduledExpirationTime": {
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Expiration time in terms of date, format: YYYY-MM-DD",
+            "example": "2026-07-08"
+          },
+          "validity_after_expiration": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days after expiration date for which the QR code remains valid",
+            "example": 10,
+            "nullable": true,
+            "minimum": 0
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "SdkDisplayMode": {
         "type": "string",
@@ -38691,6 +39221,12 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code generated for the payment",
+            "example": "009825",
             "nullable": true
           }
         }

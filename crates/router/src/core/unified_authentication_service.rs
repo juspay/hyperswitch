@@ -873,7 +873,7 @@ pub async fn authentication_create_core(
         acquirer_details,
         new_authentication.profile_acquirer_id,
         customer_details,
-        req.customer_details.map(|details| details.id.clone()),
+        req.customer_details.and_then(|details| details.id.clone()),
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -928,12 +928,13 @@ impl
                 .ok_or(ApiErrorResponse::InternalServerError)
                 .attach_printable("Customer id not found in authentication create request")?;
             Some(CustomerDetails {
-                id: customer_id.clone(),
+                id: Some(customer_id.clone()),
                 name: details.name,
                 email: details.email,
                 phone: details.phone,
                 phone_country_code: details.phone_country_code,
                 tax_registration_id: details.tax_registration_id,
+                document_details: details.customer_document_details,
             })
         } else {
             None
@@ -1090,7 +1091,7 @@ pub async fn authentication_eligibility_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1298,7 +1299,7 @@ pub async fn authentication_authenticate_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1585,6 +1586,31 @@ pub async fn authentication_eligibility_check_core(
     _auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
     let authentication_id = req.authentication_id.clone();
+    let db = &*state.store;
+    let merchant_account = platform.get_processor().get_account();
+    let merchant_id = merchant_account.get_id();
+    let key_manager_state = (&state).into();
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    req.client_secret
+        .as_ref()
+        .map(|client_secret| {
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                client_secret.peek(),
+                &authentication,
+            )
+        })
+        .transpose()?;
     let eligibility_handler = EligibilityHandler::new(state, platform, req);
     // Run the checks in sequence, short-circuiting on the first that returns a next action
     let sdk_next_action = eligibility_handler
@@ -1759,7 +1785,7 @@ pub async fn authentication_sync_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -2102,7 +2128,7 @@ pub async fn authentication_post_sync_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -2218,6 +2244,15 @@ pub async fn authentication_session_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
+    req.client_secret
+        .map(|client_secret| {
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                client_secret.peek(),
+                &authentication,
+            )
+        })
+        .transpose()?;
+
     let mut session_tokens = Vec::new();
 
     let business_profile = state
@@ -2235,8 +2270,7 @@ pub async fn authentication_session_core(
         if let Some(value) = business_profile.authentication_product_ids.clone() {
             let session_token = get_session_token_for_click_to_pay(
                 &state,
-                platform.get_processor().get_account().get_id(),
-                &platform,
+                platform.get_processor(),
                 value,
                 &authentication,
             )
@@ -2258,8 +2292,7 @@ pub async fn authentication_session_core(
 #[cfg(feature = "v1")]
 pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     authentication: &hyperswitch_domain_models::authentication::Authentication,
 ) -> RouterResult<api_models::authentication::AuthenticationSessionToken> {
@@ -2273,9 +2306,9 @@ pub async fn get_session_token_for_click_to_pay(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            processor.get_account().get_id(),
             &click_to_pay_mca_id,
-            platform.get_processor().get_key_store(),
+            processor.get_key_store(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2313,9 +2346,9 @@ pub async fn get_session_token_for_click_to_pay(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    platform.get_processor().get_key_store().merchant_id.clone(),
+                    processor.get_key_store().merchant_id.clone(),
                 ),
-                platform.get_processor().get_key_store().key.peek(),
+                processor.get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())

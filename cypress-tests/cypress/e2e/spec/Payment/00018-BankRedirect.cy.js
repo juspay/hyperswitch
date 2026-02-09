@@ -430,7 +430,7 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["OnlineBankingFpx"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 

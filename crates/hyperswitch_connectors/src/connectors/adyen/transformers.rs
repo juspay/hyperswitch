@@ -153,18 +153,21 @@ pub struct AdditionalData {
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
     //FPAN Gpay
+    #[serde(flatten)]
     paymentdatasource: Option<AdyenPaymentDataSource>,
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
     capture_delay_hours: Option<u64>,
+    pub auth_code: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 struct AdyenPaymentDataSource {
-    #[serde(rename = "type")]
+    #[serde(rename = "paymentdatasource.type")]
     data_type: String,
+    #[serde(rename = "paymentdatasource.tokenized")]
     tokenized: String,
 }
 
@@ -575,6 +578,7 @@ pub enum AdyenPaymentResponse {
 pub struct AdyenResponse {
     psp_reference: String,
     result_code: AdyenStatus,
+
     amount: Option<Amount>,
     merchant_reference: String,
     refusal_reason: Option<String>,
@@ -4482,11 +4486,15 @@ pub fn get_adyen_response(
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
         });
-    let network_txn_id = response.additional_data.and_then(|additional_data| {
-        additional_data
-            .network_tx_reference
-            .map(|network_tx_id| network_tx_id.expose())
-    });
+    let network_txn_id = response
+        .additional_data
+        .as_ref()
+        .and_then(|additional_data| {
+            additional_data
+                .network_tx_reference
+                .as_ref()
+                .map(|network_tx_id| network_tx_id.clone().expose())
+        });
 
     let charges = match &response.splits {
         Some(split_items) => Some(construct_charge_response(response.store, split_items)),
@@ -4506,13 +4514,18 @@ pub fn get_adyen_response(
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
-
+    let connector_response = pmt.and_then(|pmt| {
+        response
+            .additional_data
+            .and_then(|additional_data| additional_data.auth_code.clone())
+            .map(|auth_code| ConnectorResponseData::with_auth_code(auth_code, pmt))
+    });
     Ok(AdyenPaymentsResponseData {
         status,
         error,
         payments_response_data,
         txn_amount,
-        connector_response: None,
+        connector_response,
     })
 }
 
@@ -4963,6 +4976,7 @@ pub fn get_qr_metadata(
             image_data_url,
             qr_code_url,
             display_to_timestamp,
+            expiry_type: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()
@@ -5101,6 +5115,9 @@ pub fn get_present_to_shopper_metadata(
                 instructions_url: response.action.instructions_url.clone(),
                 entry_date: None,
                 digitable_line: None,
+                qr_code_url: None,
+                barcode: None,
+                expiry_date: None,
             };
 
             Some(voucher_data.encode_to_value())

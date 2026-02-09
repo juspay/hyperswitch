@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_intent;
 use masking::ExposeInterface;
 
 use crate::{
@@ -44,7 +45,6 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
-        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -60,7 +60,22 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = self.payment_intent.customer_id.clone();
+
+        let customer_details = self
+            .payment_intent
+            .customer_details
+            .clone()
+            .map(|customer_details_encrypted| {
+                customer_details_encrypted
+                    .into_inner()
+                    .expose()
+                    .parse_value::<payment_intent::CustomerData>("CustomerData")
+            })
+            .transpose()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to parse customer data from payment intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
@@ -92,17 +107,9 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                     .get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
-                email: customer
-                    .clone()
-                    .and_then(|customer_data| {
-                        customer_data
-                            .email
-                            .map(|email| Email::try_from(email.into_inner().expose()))
-                    })
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "customer.customer_data.email",
-                    })?,
+                email: customer_details
+                    .as_ref()
+                    .and_then(|customer_data| customer_data.email.clone()),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -146,6 +153,13 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: self
+                .payment_intent
+                .get_customer_document_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
         };
 
         Ok(router_data)
