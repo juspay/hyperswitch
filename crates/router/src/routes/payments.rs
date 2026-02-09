@@ -1209,6 +1209,21 @@ pub async fn payments_connector_session(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
+    // Determine auth type based on Authorization header presence
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            // If Authorization header is present, use SdkAuthorizationAuth
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            // If Authorization header is not present, use PublishableKeyAuth
+            None => Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            })),
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -1236,10 +1251,7 @@ pub async fn payments_connector_session(
                 header_payload.clone(),
             )
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        &*auth,
         locking_action,
     ))
     .await

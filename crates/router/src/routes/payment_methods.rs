@@ -739,15 +739,33 @@ pub async fn list_customer_payment_method_api_client(
     let api_key = auth::get_api_key(req.headers()).ok();
     let api_auth = auth::ApiKeyAuth {
         allow_connected_scope_operation: true,
-        allow_platform_self_operation: true,
+        allow_platform_self_operation: false,
     };
-    let (auth, _, is_ephemeral_auth) =
-        match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
-            .await
-        {
-            Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+
+    // Check if Authorization header is present for SDK authorization
+    let (auth, _, is_ephemeral_auth) = match req
+        .headers()
+        .get(actix_web::http::header::AUTHORIZATION)
+    {
+        Some(_) => {
+            // If Authorization header is present, use SdkAuthorizationAuth
+            let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+                Box::new(auth::SdkAuthorizationAuth {
+                    allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                    allow_platform_self_operation: api_auth.allow_platform_self_operation,
+                });
+            (auth, api::AuthFlow::Client, false)
+        }
+        None => {
+            // If Authorization header is not present, use existing logic
+            match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
+                .await
+            {
+                Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+    };
 
     Box::pin(api::server_wrap(
         flow,

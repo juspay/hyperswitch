@@ -5224,16 +5224,7 @@ where
         ))
     } else {
         let payload = payload.get_required_value("ClientSecretFetch")?;
-        let (auth, auth_flow) = {
-            #[cfg(feature = "v1")]
-            {
-                check_sdk_auth_and_get_auth(headers, payload, api_auth)?
-            }
-            #[cfg(feature = "v2")]
-            {
-                check_client_secret_and_get_auth(headers, payload, api_auth)?
-            }
-        };
+        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload, api_auth)?;
         Ok((auth, auth_flow, false))
     }
 }
