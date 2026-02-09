@@ -32,8 +32,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts, errors};
 use josekit;
-use masking::Secret;
-use router_env::{self, Env};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -594,6 +593,21 @@ struct ApplePayHeader {
     transaction_id: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct DDCRedirectResponse {
+    action_code: String,
+    session_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlRedirectionResponse {
+    m_d: Option<String>,
+    response: String,
+    transaction_id: Option<String>,
+}
+
 #[cfg(feature = "payouts")]
 impl TryFrom<LastEvent> for enums::PayoutStatus {
     type Error = errors::ConnectorError;
@@ -690,38 +704,34 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
         let metadata_for_jwt =
             WorldpayxmlConnectorMetadataObject::try_from(item.data.connector_meta_data.as_ref())?;
 
+        let bin = match item.data.request.payment_method_data {
+            PaymentMethodData::Card(ref card_info) => card_info.card_number.get_card_isin(),
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: "PreAuthenticate flow is not supported for this payment method"
+                        .to_string(),
+                    connector: "WorldpayWPG",
+                }
+                .into())
+            }
+        };
+
         let jwt = generate_jwt_for_ddc(metadata_for_jwt)?;
 
-        let ddc_method_url = if router_env::env::which() == Env::Production {
-            worldpayxml_constants::DDC_URL_LIVE.to_string()
-        } else {
-            worldpayxml_constants::DDC_URL_TEST.to_string()
-        };
-
-        let three_ds_data = WorldpayxmlDDCData {
-            method_key: "JWT".to_string(),
-            ddc_method_url,
-            jwt,
-        };
-
-        let connector_metadata = Some(
-            serde_json::to_value(&three_ds_data)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to serialize ThreeDsData")?,
-        );
+        let redirection_form = RedirectForm::WorldpayxmlDDCForm { bin, jwt };
 
         let response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::NoResponseId,
-            redirection_data: Box::new(None),
+            redirection_data: Box::new(Some(redirection_form)),
             mandate_reference: Box::new(None),
-            connector_metadata,
+            connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charges: None,
         });
         Ok(Self {
-            status: common_enums::AttemptStatus::AuthenticationPending,
+            status: common_enums::AttemptStatus::DeviceDataCollectionPending,
             response,
             ..item.data
         })
@@ -1786,6 +1796,7 @@ impl<F>
         }
     }
 }
+
 impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1797,18 +1808,192 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 connector: "worldpayxml",
             })?
         }
-        // let submit: Option<Submit>;
 
         let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let submit: Option<Submit> = if item
+        println!(
+            "In Complete Authorize flow >>> {:?}",
+            item.router_data.request.redirect_response
+        );
+        println!(
+            "{:?} >>>",
+            item.router_data
+                .request
+                .get_redirect_response_payload()?
+                .expose()
+        );
+        println!(
+            "{:?} >>>",
+            item.router_data
+                .request
+                .redirect_response
+                .clone()
+                .and_then(|response| response.params.and_then(|p| Some(p.expose())))
+        );
+
+        // let submit: Option<Submit> = if item
+        //     .router_data
+        //     .request
+        //     .redirect_response
+        //     .as_ref()
+        //     .and_then(|r| r.params.as_ref())
+        //     .map(|p| p.clone().expose())
+        //     .filter(|s| !s.is_empty())
+        //     .is_some()
+        // {
+        //     let order_code = if item.router_data.connector_request_reference_id.len()
+        //         <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+        //     {
+        //         Ok(item.router_data.connector_request_reference_id.clone())
+        //     } else {
+        //         Err(errors::ConnectorError::MaxFieldLengthViolated {
+        //             connector: "Worldpayxml".to_string(),
+        //             field_name: "order_code".to_string(),
+        //             max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+        //             received_length: item.router_data.connector_request_reference_id.len(),
+        //         })
+        //     }?;
+
+        //     let capture_delay = if item.router_data.request.is_auto_capture()? {
+        //         Some(AutoCapture::On)
+        //     } else {
+        //         Some(AutoCapture::Off)
+        //     };
+        //     let description = item.router_data.description.clone().ok_or(
+        //         errors::ConnectorError::MissingRequiredField {
+        //             field_name: "description",
+        //         },
+        //     )?;
+
+        //     let additional_threeds_data = Some(AdditionalThreeDSData {
+        //         df_reference_id: item.router_data.request.frm_id.clone(),
+        //         javascript_enabled: true,
+        //         device_channel: "Browser".to_string(),
+        //         challenge_preference: ChallengePreference::ChallengeRequested,
+        //     });
+        //     let browser_info = item.router_data.request.get_browser_info()?;
+        //     let accept_header = browser_info.accept_header.clone().ok_or(
+        //         errors::ConnectorError::MissingRequiredField {
+        //             field_name: "browser_info.accept_header",
+        //         },
+        //     )?;
+        //     let user_agent_header = browser_info.user_agent.clone().ok_or(
+        //         errors::ConnectorError::MissingRequiredField {
+        //             field_name: "browser_info.user_agent",
+        //         },
+        //     )?;
+
+        //     let session = Some(Session {
+        //         id: item.router_data.connector_request_reference_id.clone(),
+        //         shopper_ip_address: browser_info.clone().get_ip_address()?,
+        //     });
+
+        //     let exponent = item
+        //         .router_data
+        //         .request
+        //         .currency
+        //         .number_of_digits_after_decimal_point()
+        //         .to_string();
+        //     let amount = WorldpayXmlAmount {
+        //         currency_code: item.router_data.request.currency.to_owned(),
+        //         exponent,
+        //         value: item.amount.to_owned(),
+        //     };
+        //     let shopper = get_shopper_details_cauth(
+        //         item.router_data,
+        //         Some(accept_header),
+        //         Some(user_agent_header),
+        //     )?;
+        //     let billing_address = item
+        //         .router_data
+        //         .get_optional_billing()
+        //         .and_then(get_address_details);
+        //     let shipping_address = item
+        //         .router_data
+        //         .get_optional_shipping()
+        //         .and_then(get_address_details);
+        //     let payment_details = match item.router_data.request.payment_method_data.clone() {
+        //         Some(PaymentMethodData::Card(req_card)) => PaymentDetails::try_from((
+        //             &req_card,
+        //             item.router_data.request.capture_method,
+        //             session,
+        //         ))?,
+        //         _ => Err(errors::ConnectorError::NotImplemented(
+        //             connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
+        //         ))?,
+        //     };
+
+        //     Some(Submit {
+        //         order: Order {
+        //             order_code,
+        //             capture_delay,
+        //             description: Some(description),
+        //             amount: Some(amount),
+        //             payment_details: Some(payment_details),
+        //             shopper,
+        //             shipping_address,
+        //             billing_address,
+        //             additional_threeds_data,
+        //             info_threed_secure: None,
+        //             session: None,
+        //         },
+        //     })
+        // } else
+
+        let redirect_response = item
             .router_data
             .request
             .get_redirect_response_payload()
-            .ok()
-            .is_none()
+            .ok();
+
+        let submit: Option<Submit> = if redirect_response
+            .clone()
+            .and_then(|response| {
+                serde_json::from_value::<WorldpayxmlRedirectionResponse>(response.expose()).ok()
+            })
+            .is_some()
         {
+            let info_threed_secure: Option<Info3DSecure> = Some(Info3DSecure {
+                completed_authentication: CompletedAuthentication {},
+            });
+
+            let code = item
+                .router_data
+                .request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                })?;
+
+            let session = Some(CompleteAuthSession {
+                id: Secret::new(code.clone()),
+            });
+
+            Some(Submit {
+                order: Order {
+                    order_code: code,
+                    capture_delay: None,
+                    description: None,
+                    amount: None,
+                    payment_details: None,
+                    shopper: None,
+                    shipping_address: None,
+                    billing_address: None,
+                    additional_threeds_data: None,
+                    info_threed_secure,
+                    session,
+                },
+            })
+        } else {
+            let response = redirect_response.and_then(|response| {
+                serde_json::from_value::<DDCRedirectResponse>(response.expose()).ok()
+            });
+
+            let session_id = response.and_then(|response| response.session_id);
+            // .and_then(|payload| payload.session_id);
+
             let order_code = if item.router_data.connector_request_reference_id.len()
                 <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
             {
@@ -1834,7 +2019,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
             )?;
 
             let additional_threeds_data = Some(AdditionalThreeDSData {
-                df_reference_id: item.router_data.request.frm_id.clone(),
+                df_reference_id: session_id,
                 javascript_enabled: true,
                 device_channel: "Browser".to_string(),
                 challenge_preference: ChallengePreference::ChallengeRequested,
@@ -1904,39 +2089,6 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     additional_threeds_data,
                     info_threed_secure: None,
                     session: None,
-                },
-            })
-        } else {
-            let info_threed_secure: Option<Info3DSecure> = Some(Info3DSecure {
-                completed_authentication: CompletedAuthentication {},
-            });
-
-            let code = item
-                .router_data
-                .request
-                .connector_transaction_id
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                })?;
-
-            let session = Some(CompleteAuthSession {
-                id: Secret::new(code.clone()),
-            });
-
-            Some(Submit {
-                order: Order {
-                    order_code: code,
-                    capture_delay: None,
-                    description: None,
-                    amount: None,
-                    payment_details: None,
-                    shopper: None,
-                    shipping_address: None,
-                    billing_address: None,
-                    additional_threeds_data: None,
-                    info_threed_secure,
-                    session,
                 },
             })
         };

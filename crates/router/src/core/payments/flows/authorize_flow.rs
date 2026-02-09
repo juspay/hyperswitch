@@ -410,22 +410,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }
                     _ => false,
                 },
-                api_models::enums::Connector::Worldpayxml => {
-                    match &authorize_router_data.response {
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            connector_metadata,
-                            ..
-                        }) => {
-                            let ddc_via_jwt_data: Option<
-                                api_models::payments::PaymentsConnectorDDCviaJWTData,
-                            > = connector_metadata.clone().and_then(|metadata| {
-                                metadata.parse_value("PaymentsConnectorDDCviaJWTData").ok()
-                            });
-                            ddc_via_jwt_data.is_none()
-                        }
-                        _ => false,
-                    }
-                }
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
                 _ => false,

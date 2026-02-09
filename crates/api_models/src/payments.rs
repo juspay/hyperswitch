@@ -6615,6 +6615,11 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
+    /// Contains url to be rendered in an iframe
+    InvokeHiddenIframeUrl {
+        #[smithy(value_type = "String")]
+        redirect_to_url: String,
+    },
 }
 
 #[derive(
@@ -6641,16 +6646,6 @@ pub enum IframeData {
         /// ThreeDS Protocol version
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
-    },
-    #[serde(rename = "JWT")]
-    #[smithy(nested_value_type)]
-    DDCviaJWT {
-        /// DDC method url
-        #[smithy(value_type = "String")]
-        ddc_method_url: String,
-        /// JWT
-        #[smithy(value_type = "String")]
-        jwt: String,
     },
 }
 
@@ -6947,21 +6942,12 @@ pub struct SepaBankTransferInstructions {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
-    pub method_key: String,
     pub directory_server_id: String,
     pub three_ds_method_url: String,
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
 }
-
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct PaymentsConnectorDDCviaJWTData {
-    pub method_key: String,
-    pub ddc_method_url: String,
-    pub jwt: String,
-}
-
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
@@ -10764,8 +10750,6 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub client_secret: Secret<String>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
-    /// Fraud/Session ID received from the DDC call
-    pub frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

@@ -3735,6 +3735,12 @@ where
                                     &payment_attempt,
                                     &payment_intent,
                                 );
+                                // Check if connector is Worldpayxml and if status is DeviceDataCollectionPending -> required to render the script in an iframe
+                                if payment_attempt.connector == Some("worldpayxml".to_string()) && payment_attempt.status == enums::AttemptStatus::DeviceDataCollectionPending {
+                                    return api_models::payments::NextActionData::InvokeHiddenIframeUrl {
+                                        redirect_to_url: redirect_url,
+                                    };
+                                }
                                 // Check if redirection inside popup is enabled in the payment intent
                                 if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
                                     api_models::payments::NextActionData::RedirectInsidePopup {
@@ -3802,7 +3808,12 @@ where
                                 },
                                 None => None
                             })
-                            .or(next_action_invoke_hidden_frame.map(|iframe_data| api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data }));
+                            .or(match next_action_invoke_hidden_frame{
+                                Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
+                                    threeds_invoke_data,
+                                )?),
+                                None => None
+                            });
             }
         };
 
@@ -4167,13 +4178,31 @@ pub fn wait_screen_next_steps_check(
 
 pub fn next_action_invoke_hidden_frame(
     payment_attempt: &storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::IframeData>> {
-    let iframedata: Option<Result<api_models::payments::IframeData, _>> = payment_attempt
+) -> RouterResult<Option<api_models::payments::PaymentsConnectorThreeDsInvokeData>> {
+    let connector_three_ds_invoke_data: Option<
+        Result<api_models::payments::PaymentsConnectorThreeDsInvokeData, _>,
+    > = payment_attempt
         .connector_metadata
         .clone()
-        .map(|metadata| metadata.parse_value("IframeData"));
-    let data = iframedata.transpose().ok().flatten();
-    Ok(data)
+        .map(|metadata| metadata.parse_value("PaymentsConnectorThreeDsInvokeData"));
+
+    let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
+    Ok(three_ds_invoke_data)
+}
+
+pub fn construct_connector_invoke_hidden_frame(
+    connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
+) -> RouterResult<api_models::payments::NextActionData> {
+    let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {
+        three_ds_method_data_submission: connector_three_ds_invoke_data
+            .three_ds_method_data_submission,
+        three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
+        three_ds_method_url: connector_three_ds_invoke_data.three_ds_method_url,
+        directory_server_id: connector_three_ds_invoke_data.directory_server_id,
+        message_version: connector_three_ds_invoke_data.message_version,
+    };
+
+    Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
 }
 
 #[cfg(feature = "v1")]
@@ -6152,7 +6181,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .transpose()?,
             tokenization: payment_data.payment_intent.tokenization,
             router_return_url,
-            frm_id: payment_data.frm_id.clone(),
         })
     }
 }

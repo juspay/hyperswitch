@@ -65,7 +65,9 @@ use transformers as worldpayxml;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, ForeignTryFrom, PaymentsAuthorizeRequestData},
+    utils::{
+        self, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -815,9 +817,14 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         let mut header = self.build_headers(req, connectors)?;
         if req
             .request
-            .redirect_response
-            .clone()
-            .and_then(|response| response.payload)
+            .get_redirect_response_payload()
+            .ok()
+            .and_then(|response| {
+                serde_json::from_value::<worldpayxml::WorldpayxmlRedirectionResponse>(
+                    response.expose(),
+                )
+                .ok()
+            })
             .is_some()
         {
             let cookie = worldpayxml::get_cookie_from_metadata(req.request.connector_meta.clone())?;

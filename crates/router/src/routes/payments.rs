@@ -1460,7 +1460,6 @@ pub async fn payments_complete_authorize(
         shipping: payload.shipping.clone(),
         client_secret: Some(payload.client_secret.peek().clone()),
         threeds_method_comp_ind: payload.threeds_method_comp_ind.clone(),
-        frm_id: payload.frm_id.clone(),
         ..Default::default()
     };
 
