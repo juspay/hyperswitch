@@ -1095,6 +1095,7 @@ impl
                 .transpose()?,
             connector_metadata: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            description: None,
         })
     }
 }
@@ -1180,6 +1181,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .map(|s| s.into()),
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            merchant_order_reference_id: None,
         })
     }
 }
@@ -5521,6 +5523,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(|s| s.into()),
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            merchant_order_reference_id: None,
         })
     }
 }
