@@ -795,7 +795,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 let expiry_year_4_digit = network_token_data.get_card_expiry_year_4_digit()?;
 
                 let payment_source = PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
-                    token: cards::CardNumber::from(network_token_data.network_token.clone()),
+                    token: cards::CardNumber::from(network_token_data.decrypted_token.clone()),
                     decrypt_type: "network_token".to_string(),
                     token_type,
                     expiry_month: exp_month,

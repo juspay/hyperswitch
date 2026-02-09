@@ -336,7 +336,7 @@ pub struct NetworkTokenDetailsForNetworkTransactionId {
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
-    pub network_token: cards::NetworkToken,
+    pub decrypted_token: cards::NetworkToken,
     pub token_exp_month: Secret<String>,
     pub token_exp_year: Secret<String>,
     pub card_holder_name: Option<Secret<String>>,
@@ -546,15 +546,15 @@ impl From<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDet
     for DecryptedWalletTokenDetailsForNetworkTransactionId
 {
     fn from(
-        network_token_details_for_nti: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+        decrypted_token_details_for_nti: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     ) -> Self {
         Self {
-            network_token: network_token_details_for_nti.network_token,
-            token_exp_month: network_token_details_for_nti.token_exp_month,
-            token_exp_year: network_token_details_for_nti.token_exp_year,
-            card_holder_name: network_token_details_for_nti.card_holder_name,
-            token_source: network_token_details_for_nti.token_source,
-            eci: network_token_details_for_nti.eci,
+            decrypted_token: decrypted_token_details_for_nti.decrypted_token,
+            token_exp_month: decrypted_token_details_for_nti.token_exp_month,
+            token_exp_year: decrypted_token_details_for_nti.token_exp_year,
+            card_holder_name: decrypted_token_details_for_nti.card_holder_name,
+            token_source: decrypted_token_details_for_nti.token_source,
+            eci: decrypted_token_details_for_nti.eci,
         }
     }
 }
@@ -3314,10 +3314,10 @@ impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetw
             token_exp_month: Some(network_token_with_ntid.token_exp_month.clone()),
             token_exp_year: Some(network_token_with_ntid.token_exp_year.clone()),
             card_holder_name: network_token_with_ntid.card_holder_name.clone(),
-            last4: Some(network_token_with_ntid.network_token.get_last4().clone()),
+            last4: Some(network_token_with_ntid.decrypted_token.get_last4().clone()),
             token_isin: Some(
                 network_token_with_ntid
-                    .network_token
+                    .decrypted_token
                     .get_card_isin()
                     .clone(),
             ),

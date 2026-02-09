@@ -1149,10 +1149,10 @@ pub struct InteracCustomerInfoDetails {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
-    /// The Network Token
+    /// The Decrypted Token
     #[schema(value_type = String, example = "4604000460040787")]
     #[smithy(value_type = "String")]
-    pub network_token: cards::NetworkToken,
+    pub decrypted_token: cards::NetworkToken,
 
     /// The token's expiry month
     #[schema(value_type = String, example = "05")]

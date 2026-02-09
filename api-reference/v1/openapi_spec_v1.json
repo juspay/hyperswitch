@@ -23152,16 +23152,16 @@
         "type": "object",
         "description": "Network Transaction ID and Decrypted Wallet Token Details",
         "required": [
-          "network_token",
+          "decrypted_token",
           "token_exp_month",
           "token_exp_year",
           "card_holder_name",
           "network_transaction_id"
         ],
         "properties": {
-          "network_token": {
+          "decrypted_token": {
             "type": "string",
-            "description": "The Network Token",
+            "description": "The Decrypted Token",
             "example": "4604000460040787"
           },
           "token_exp_month": {
@@ -34535,7 +34535,7 @@
                 ]
               },
               "data": {
-                "$ref": "#/components/schemas/common_payments_types.NetworkTransactionIdAndDecryptedWalletTokenDetails"
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
               }
             }
           },

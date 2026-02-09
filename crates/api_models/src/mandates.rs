@@ -180,6 +180,8 @@ pub enum RecurringDetails {
     /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
     /// is not stored in the application
     /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    #[smithy(value_type = "NetworkTransactionIdAndDecryptedWalletTokenDetails")]
+    #[schema(value_type = NetworkTransactionIdAndDecryptedWalletTokenDetails)]
     NetworkTransactionIdAndDecryptedWalletTokenDetails(
         Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
