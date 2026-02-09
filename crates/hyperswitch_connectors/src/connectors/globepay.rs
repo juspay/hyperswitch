@@ -48,7 +48,11 @@ use rand::distributions::DistString;
 use time::OffsetDateTime;
 use transformers as globepay;
 
-use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, convert_amount},
+};
 
 #[derive(Clone)]
 pub struct Globepay {
@@ -272,13 +276,35 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Globepay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let amount = response
+            .amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.minor_amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let currency = response
+            .currency
+            .unwrap_or(data.request.currency)
+            .to_string();
+
+        let response_integrity_object =
+            utils::get_authorise_integrity_object(self.amount_converter, amount, currency)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -344,13 +370,34 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
             .parse_struct("globepay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let sync_amount = response
+            .amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let sync_currency = response
+            .currency
+            .unwrap_or(data.request.currency)
+            .to_string();
+
+        let response_integrity_object =
+            utils::get_sync_integrity_object(self.amount_converter, sync_amount, sync_currency)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -450,14 +497,40 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Globepa
             .parse_struct("Globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let refund_amount = response
+            .refund_amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.minor_refund_amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let refund_currency = response
+            .currency
+            .unwrap_or(data.request.currency)
+            .to_string();
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            refund_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -523,14 +596,40 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globepay 
             .parse_struct("Globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let refund_amount = response
+            .refund_amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.minor_refund_amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let refund_currency = response
+            .currency
+            .unwrap_or(data.request.currency)
+            .to_string();
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            refund_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

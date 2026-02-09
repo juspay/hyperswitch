@@ -173,6 +173,10 @@ pub struct GlobepayPaymentsResponse {
     qrcode_img: Option<url::Url>,
     return_code: GlobepayReturnCode, //Execution result
     return_msg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, strum::Display, Serialize)]
@@ -253,6 +257,10 @@ pub struct GlobepaySyncResponse {
     pub order_id: Option<String>,
     pub return_code: GlobepayReturnCode,
     pub return_msg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -382,6 +390,10 @@ pub struct GlobepayRefundResponse {
     pub refund_id: Option<String>,
     pub return_code: GlobepayReturnCode,
     pub return_msg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refund_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<enums::Currency>,
 }
 
 impl<T> TryFrom<RefundsResponseRouterData<T, GlobepayRefundResponse>> for RefundsRouterData<T> {
