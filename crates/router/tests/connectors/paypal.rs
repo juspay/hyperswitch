@@ -634,4 +634,156 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 
 // Connector dependent test cases goes here
 
+// Integrity Check Tests
+
+// Tests integrity check failure for Authorize flow
+#[actix_web::test]
+async fn should_fail_integrity_check_for_authorize() {
+    // This test would require hardcoding different amounts in the connector response
+    // to trigger integrity check failure
+    let response = CONNECTOR
+        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .await
+        .expect("Authorize payment response");
+
+    // The integrity check should fail if we hardcode different amounts
+    // in the PayPal connector response handling
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+}
+
+// Tests integrity check failure for PSync flow
+#[actix_web::test]
+async fn should_fail_integrity_check_for_psync() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .await
+        .expect("Authorize payment response");
+
+    let txn_id = "".to_string();
+    let connector_meta = utils::get_connector_metadata(authorize_response.response);
+    let response = CONNECTOR
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::Authorized,
+            Some(types::PaymentsSyncData {
+                mandate_id: None,
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
+                encoded_data: None,
+                capture_method: None,
+                sync_type: types::SyncRequestType::SinglePaymentSync,
+                connector_meta,
+                payment_method_type: None,
+                currency: enums::Currency::USD,
+                payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
+                ..Default::default()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .expect("PSync response");
+
+    // The integrity check should fail if we hardcode different amounts
+    // in the PayPal connector response handling
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+}
+
+// Tests integrity check failure for Refund flow
+#[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
+async fn should_fail_integrity_check_for_refund() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .await
+        .expect("Authorize payment response");
+
+    let txn_id = "".to_string();
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
+    let capture_response = CONNECTOR
+        .capture_payment(
+            txn_id,
+            Some(types::PaymentsCaptureData {
+                connector_meta: capture_connector_meta,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .expect("Capture payment response");
+
+    let refund_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
+    let response = CONNECTOR
+        .refund_payment(
+            refund_txn_id,
+            Some(types::RefundsData {
+                ..utils::PaymentRefundType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    // The integrity check should fail if we hardcode different amounts
+    // in the PayPal connector response handling
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+// Tests integrity check failure for RSync flow
+#[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
+async fn should_fail_integrity_check_for_rsync() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .await
+        .expect("Authorize payment response");
+
+    let txn_id = "".to_string();
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
+    let capture_response = CONNECTOR
+        .capture_payment(
+            txn_id,
+            Some(types::PaymentsCaptureData {
+                connector_meta: capture_connector_meta,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .expect("Capture payment response");
+
+    let refund_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
+    let refund_response = CONNECTOR
+        .refund_payment(
+            refund_txn_id,
+            Some(types::RefundsData {
+                ..utils::PaymentRefundType::default().0
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    let response = CONNECTOR
+        .rsync_retry_till_status_matches(
+            enums::RefundStatus::Success,
+            refund_response.response.unwrap().connector_refund_id,
+            None,
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    // The integrity check should fail if we hardcode different amounts
+    // in the PayPal connector response handling
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests

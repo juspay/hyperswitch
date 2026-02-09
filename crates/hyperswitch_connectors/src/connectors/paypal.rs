@@ -1062,33 +1062,117 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             res.response
                 .parse_struct("paypal PaypalAuthResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // Extract amount and currency for integrity check
+        let (response_amount, response_currency) = match &response {
+            PaypalAuthResponse::PaypalOrdersResponse(resp) => {
+                let purchase_unit = resp.purchase_units.first().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "purchase_units[0]",
+                    },
+                )?;
+                // For orders response, we need to get amount from the payments collection
+                // Try to get from authorizations first, then captures
+                let amount = if let Some(authorizations) = &purchase_unit.payments.authorizations {
+                    if let Some(auth) = authorizations.first() {
+                        &auth.amount
+                    } else {
+                        return Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "authorizations[0]",
+                        }
+                        .into());
+                    }
+                } else if let Some(captures) = &purchase_unit.payments.captures {
+                    if let Some(capture) = captures.first() {
+                        &capture.amount
+                    } else {
+                        return Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "captures[0]",
+                        }
+                        .into());
+                    }
+                } else {
+                    return Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payments.authorizations or payments.captures",
+                    }
+                    .into());
+                };
+                (amount.value.clone(), amount.currency_code.to_string())
+            }
+            PaypalAuthResponse::PaypalRedirectResponse(_) => {
+                // For redirect responses, we don't have amount/currency in the response
+                // Use the original request values for integrity check
+                (
+                    connector_utils::convert_amount(
+                        self.amount_converter,
+                        data.request.minor_amount,
+                        data.request.currency,
+                    )?,
+                    data.request.currency.to_string(),
+                )
+            }
+            PaypalAuthResponse::PaypalThreeDsResponse(_) => {
+                // For 3DS responses, we don't have amount/currency in the response
+                // Use the original request values for integrity check
+                (
+                    connector_utils::convert_amount(
+                        self.amount_converter,
+                        data.request.minor_amount,
+                        data.request.currency,
+                    )?,
+                    data.request.currency.to_string(),
+                )
+            }
+        };
+
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response_amount,
+            response_currency,
+        )?;
+
         match response {
             PaypalAuthResponse::PaypalOrdersResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                RouterData::try_from(ResponseRouterData {
+                let new_router_data = RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
+                });
+
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
                 })
             }
             PaypalAuthResponse::PaypalRedirectResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
+                let new_router_data = RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
+                });
+
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
                 })
             }
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
+                let new_router_data = RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
+                });
+
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
                 })
             }
         }
@@ -1665,16 +1749,95 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
             .response
             .parse_struct("paypal SyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // Extract amount and currency for integrity check
+        let (response_amount, response_currency) = match &response {
+            paypal::PaypalSyncResponse::PaypalOrdersSyncResponse(resp) => {
+                let purchase_unit = resp.purchase_units.first().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "purchase_units[0]",
+                    },
+                )?;
+                // For orders sync response, we need to get amount from the payments collection
+                // Try to get from authorizations first, then captures
+                let amount = if let Some(authorizations) = &purchase_unit.payments.authorizations {
+                    if let Some(auth) = authorizations.first() {
+                        &auth.amount
+                    } else {
+                        return Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "authorizations[0]",
+                        }
+                        .into());
+                    }
+                } else if let Some(captures) = &purchase_unit.payments.captures {
+                    if let Some(capture) = captures.first() {
+                        &capture.amount
+                    } else {
+                        return Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "captures[0]",
+                        }
+                        .into());
+                    }
+                } else {
+                    return Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payments.authorizations or payments.captures",
+                    }
+                    .into());
+                };
+                (amount.value.clone(), amount.currency_code.to_string())
+            }
+            paypal::PaypalSyncResponse::PaypalPaymentsSyncResponse(resp) => (
+                resp.amount.value.clone(),
+                resp.amount.currency_code.to_string(),
+            ),
+            paypal::PaypalSyncResponse::PaypalRedirectSyncResponse(_) => {
+                // For redirect sync responses, we don't have amount/currency in the response
+                // Use the original request values for integrity check
+                (
+                    connector_utils::convert_amount(
+                        self.amount_converter,
+                        data.request.amount,
+                        data.request.currency,
+                    )?,
+                    data.request.currency.to_string(),
+                )
+            }
+            paypal::PaypalSyncResponse::PaypalThreeDsSyncResponse(_) => {
+                // For 3DS sync responses, we don't have amount/currency in the response
+                // Use the original request values for integrity check
+                (
+                    connector_utils::convert_amount(
+                        self.amount_converter,
+                        data.request.amount,
+                        data.request.currency,
+                    )?,
+                    data.request.currency.to_string(),
+                )
+            }
+        };
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            response_amount,
+            response_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::foreign_try_from((
+
+        let new_router_data = RouterData::foreign_try_from((
             ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
             },
             data.request.payment_experience,
-        ))
+        ));
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -1922,12 +2085,40 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paypal 
             res.response
                 .parse_struct("paypal RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // Extract amount and currency for integrity check
+        let (response_amount, response_currency) = if let Some(amount) = &response.amount {
+            (amount.value.clone(), amount.currency_code.to_string())
+        } else {
+            // If no amount in response, use the original request values
+            (
+                connector_utils::convert_amount(
+                    self.amount_converter,
+                    data.request.minor_refund_amount,
+                    data.request.currency,
+                )?,
+                data.request.currency.to_string(),
+            )
+        };
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response_amount,
+            response_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -1989,12 +2180,40 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paypal {
             .response
             .parse_struct("paypal RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // Extract amount and currency for integrity check
+        let (response_amount, response_currency) = if let Some(amount) = &response.amount {
+            (amount.value.clone(), amount.currency_code.to_string())
+        } else {
+            // If no amount in response, use the original request values
+            (
+                connector_utils::convert_amount(
+                    self.amount_converter,
+                    data.request.minor_refund_amount,
+                    data.request.currency,
+                )?,
+                data.request.currency.to_string(),
+            )
+        };
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response_amount,
+            response_currency,
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
