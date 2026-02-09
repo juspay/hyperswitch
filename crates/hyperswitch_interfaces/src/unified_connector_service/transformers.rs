@@ -400,12 +400,9 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 let upi_mode = upi_data
                     .upi_mode
                     .map(|mode| {
-                        payments_grpc::UpiSource::try_from(mode).map_err(|_| {
-                            error_stack::Report::new(
-                                UnifiedConnectorServiceError::ParsingFailed,
-                            )
+                        payments_grpc::UpiSource::try_from(mode)
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)
                             .attach_printable("Failed to parse upi_mode from UCS connector response")
-                        })
                     })
                     .transpose()?
                     .map(hyperswitch_domain_models::payment_method_data::UpiSource::foreign_from);

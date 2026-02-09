@@ -3207,7 +3207,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let response_router_data = response;
 
-        // Get updated additional payment method data from connector response (including UPI upi_mode)
+        // Get updated additional payment method data from connector response
         let updated_payment_method_data = payment_data
             .payment_attempt
             .payment_method_data

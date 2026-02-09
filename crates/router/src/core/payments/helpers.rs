@@ -6,6 +6,8 @@ pub use ::payment_methods::helpers::{
 };
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
+#[cfg(feature = "v2")]
+use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
@@ -7607,6 +7609,39 @@ pub fn add_connector_response_to_additional_payment_data(
             }),
             samsung_pay: samsung_pay.clone(),
         },
+        #[cfg(feature = "v2")]
+        (
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(details),
+            },
+            AdditionalPaymentMethodConnectorResponse::Upi {
+                upi_mode: Some(upi_mode),
+            },
+        ) => {
+            let upi_source = Some(UpiSource::from(upi_mode));
+            let updated_details = match details {
+                UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
+                    api_models::payments::additional_info::UpiCollectAdditionalData {
+                        vpa_id: None,
+                        upi_source,
+                    },
+                )),
+                UpiAdditionalData::UpiIntent(_) => {
+                    UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                        upi_source,
+                        app_name: None,
+                    }))
+                }
+                UpiAdditionalData::UpiQr(_) => {
+                    UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData {
+                        upi_source,
+                    }))
+                }
+            };
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(updated_details),
+            }
+        }
 
         _ => additional_payment_data,
     }
@@ -7703,34 +7738,14 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse value into additional_payment_method_data")?;
 
-    let additional_payment_method_data = match (
-        parsed_additional_payment_method_data,
-        connector_response_pm_data,
-    ) {
-        (Some(additional_pm_data), Some(connector_response_pm_data)) => {
-            let upi_mode_override =
-                if let AdditionalPaymentMethodConnectorResponse::Upi { upi_mode } =
-                    &connector_response_pm_data
-                {
-                    upi_mode.clone()
-                } else {
-                    None
-                };
-
-            let mut additional_pm_data = add_connector_response_to_additional_payment_data(
+    let additional_payment_method_data = parsed_additional_payment_method_data
+        .zip(connector_response_pm_data)
+        .map(|(additional_pm_data, connector_response_pm_data)| {
+            add_connector_response_to_additional_payment_data(
                 additional_pm_data,
                 connector_response_pm_data,
-            );
-            // Apply UPI mode override if present
-            if let Some(ref mode) = upi_mode_override {
-                override_upi_source_in_additional_payment_data(&mut additional_pm_data, mode);
-            }
-
-            Some(additional_pm_data)
-        }
-        (Some(additional_pm_data), None) => Some(additional_pm_data),
-        (None, _) => None,
-    };
+            )
+        });
 
     additional_payment_method_data
         .as_ref()
@@ -7738,38 +7753,6 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encode additional pm data")
-}
-
-#[cfg(feature = "v2")]
-pub fn override_upi_source_in_additional_payment_data(
-    additional_payment_data: &mut api_models::payments::AdditionalPaymentData,
-    upi_mode: &hyperswitch_domain_models::payment_method_data::UpiSource,
-) {
-    use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
-
-    if let api_models::payments::AdditionalPaymentData::Upi {
-        details: Some(details),
-    } = additional_payment_data
-    {
-        let upi_source = Some(api_models::payments::UpiSource::from(upi_mode.clone()));
-        *details = match details {
-            UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
-                api_models::payments::additional_info::UpiCollectAdditionalData {
-                    vpa_id: None,
-                    upi_source,
-                },
-            )),
-            UpiAdditionalData::UpiIntent(_) => {
-                UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
-                    upi_source,
-                    app_name: None,
-                }))
-            }
-            UpiAdditionalData::UpiQr(_) => {
-                UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData { upi_source }))
-            }
-        };
-    }
 }
 
 #[cfg(feature = "v2")]
