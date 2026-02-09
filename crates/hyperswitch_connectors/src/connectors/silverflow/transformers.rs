@@ -39,8 +39,8 @@ impl<T> From<(MinorUnit, T)> for SilverflowRouterData<T> {
 // Basic structures for Silverflow API
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Amount {
-    value: MinorUnit,
-    currency: String,
+    pub value: MinorUnit,
+    pub currency: String,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
