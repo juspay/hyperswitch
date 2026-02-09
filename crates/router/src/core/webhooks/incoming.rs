@@ -1440,22 +1440,17 @@ async fn payments_incoming_webhook_flow(
             Some(payments::CallConnectorAction::Trigger)
         }
     });
-    let payment_attempt = webhook_resource_data
-        .as_ref()
-        .map(|data| match data {
-            WebhookResourceData::Payment { payment_attempt } => payment_attempt.clone(),
-        })
-        .async_map(|payment_attempt| async { Ok(payment_attempt) })
-        .await
-        .async_unwrap_or_else(|| async {
+    let payment_attempt =
+        if let Some(WebhookResourceData::Payment { payment_attempt }) = &webhook_resource_data {
+            payment_attempt.clone()
+        } else {
             get_payment_attempt_from_object_reference_id(
                 &state,
                 webhook_details.object_reference_id.clone(),
                 &platform,
             )
-            .await
-        })
-        .await?;
+            .await?
+        };
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
@@ -2774,20 +2769,17 @@ async fn disputes_incoming_webhook_flow(
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
-        let payment_attempt = webhook_resource_data
-            .as_ref()
-            .map(|context| context.get_payment_attempt().clone())
-            .async_map(|payment_attempt| async { Ok(payment_attempt) })
-            .await
-            .async_unwrap_or_else(|| async {
+        let payment_attempt = match webhook_resource_data.as_ref() {
+            Some(context) => context.get_payment_attempt().clone(),
+            None => {
                 get_payment_attempt_from_object_reference_id(
                     &state,
                     webhook_details.object_reference_id,
                     &platform,
                 )
-                .await
-            })
-            .await?;
+                .await?
+            }
+        };
         let dispute_details = connector
             .get_dispute_details(
                 request_details,
