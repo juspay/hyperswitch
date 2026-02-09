@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -167,6 +167,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                     let vpa = upi_inapp_data
                         .payer_vpa
                         .clone()
+                        .map(|v| v.expose())
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "payment_method_data.upi.inapp.payer_vpa",
                         })?;
@@ -175,7 +176,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                         pay_method: PayuPaymentMethodData::Upi(PayuUpi {
                             upi_type: "UPI_INAPP".to_string(),
                             value: "INAPP".to_string(),
-                            vpa: Some(vpa),
+                            vpa: Some(Secret::new(vpa)),
                         }),
                     })
                 }

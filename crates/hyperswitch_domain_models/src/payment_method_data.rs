@@ -653,17 +653,8 @@ pub struct UpiQrData {}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpiInAppData {
-    pub psp: Option<String>,
     pub payer_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
     pub payee_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
-    pub bank_account_reference_id: Option<String>,
-    pub amount: Option<String>,
-    pub currency: Option<String>,
-    pub purpose: Option<String>,
-    pub mobile_number: Option<Secret<String>>,
-    pub transaction_reference_id: Option<String>,
-    pub issuing_gateway: Option<String>,
-    pub upi_app: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1540,17 +1531,8 @@ impl From<api_models::payments::UpiData> for UpiData {
             api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQrData {}),
             api_models::payments::UpiData::UpiInApp(upi) => {
                 Self::UpiInApp(UpiInAppData {
-                    psp: upi.psp,
                     payer_vpa: upi.payer_vpa,
                     payee_vpa: upi.payee_vpa,
-                    bank_account_reference_id: upi.bank_account_reference_id,
-                    amount: upi.amount,
-                    currency: upi.currency,
-                    purpose: upi.purpose,
-                    mobile_number: upi.mobile_number,
-                    transaction_reference_id: upi.transaction_reference_id,
-                    issuing_gateway: upi.issuing_gateway,
-                    upi_app: upi.upi_app,
                 })
             }
         }
@@ -1571,14 +1553,8 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiQr(_) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {})),
             UpiData::UpiInApp(upi) => Self::UpiInApp(Box::new(
                 api_models::payments::additional_info::UpiInAppAdditionalData {
-                    psp: upi.psp,
                     payer_vpa: upi.payer_vpa.map(MaskedUpiVpaId::from),
                     payee_vpa: upi.payee_vpa.map(MaskedUpiVpaId::from),
-                    amount: upi.amount,
-                    currency: upi.currency,
-                    payment_mode: None,
-                    epg_transaction_id: None,
-                    upi_app: upi.upi_app,
                 },
             )),
         }

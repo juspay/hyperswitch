@@ -3,8 +3,10 @@
 //! This module handles UPI InApp payment operations including SDK parameter generation,
 //! mandate creation, and transaction mode detection.
 
+use common_enums::enums::Currency;
 use common_utils::{
     crypto::{HmacSha256, SignMessage},
+    date_time,
 };
 use error_stack::{ResultExt, report};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -13,32 +15,28 @@ use uuid::Uuid;
 use crate::{
     core::errors::{ApiErrorResponse, RouterResult},
     types::upi_inapp::{
-        self, UPIPaymentMode, UPIPSP, UpiInAppCreateMandateSDKParams, UpiInAppMandateSDKParamsRequest,
+        self, UPIPaymentMode, UpiInAppCreateMandateSDKParams, UpiInAppMandateSDKParamsRequest,
         UpiInAppMandateSDKParamsResponse, UpiInAppPSPAccountDetails, UpiInAppSDKParamsRequest,
         UpiInAppSDKParamsResponse, UpiInAppSessionParams, UpiInAppSplitSettlementDetails,
         UpiInAppTransactionSDKParams,
     },
 };
 
-/// Generate current timestamp in the format YYYYMMDDHHMMSS
+/// Generate current timestamp in the format YYYYMMDDHHMMSS using common_utils
 fn generate_timestamp() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_else(|_| std::time::Duration::from_secs(0));
-    let secs = now.as_secs() as i64;
-    let days = secs / 86400;
-    let rem_day = secs % 86400;
-    let hour = rem_day / 3600;
-    let rem_hour = rem_day % 3600;
-    let min = rem_hour / 60;
-    let sec = rem_hour % 60;
-
-    // Approximate date calculation from Unix epoch (good enough for logging/timestamps)
-    let year = 1970 + days / 365;
-    let month = 1 + ((days % 365) / 30) % 12;
-    let day = 1 + (days % 30);
-
-    format!("{:04}{:02}{:02}{:02}{:02}{:02}", year, month, day, hour, min, sec)
+    date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+        .unwrap_or_else(|_| {
+            let now = time::OffsetDateTime::now_utc();
+            format!(
+                "{:04}{:02}{:02}{:02}{:02}{:02}",
+                now.year(),
+                now.month() as u8,
+                now.day(),
+                now.hour(),
+                now.minute(),
+                now.second()
+            )
+        })
 }
 
 /// Generate SDK parameters for UPI InApp transaction
@@ -48,7 +46,12 @@ pub fn generate_upi_inapp_sdk_params(
 ) -> RouterResult<UpiInAppSDKParamsResponse> {
     let timestamp = generate_timestamp();
 
-    let currency = request.currency.unwrap_or_else(|| "INR".to_string());
+    let currency = request
+        .currency
+        .as_ref()
+        .and_then(|c| c.parse::<Currency>().ok())
+        .unwrap_or(Currency::INR);
+    let currency_code = currency.to_string();
     let uuid_part = Uuid::new_v4().to_string().replace('-', "");
     let upi_id = format!(
         "{}{}",
@@ -65,7 +68,7 @@ pub fn generate_upi_inapp_sdk_params(
 
     // Build signature payload
     let payload = build_signature_payload(
-        &currency,
+        &currency_code,
         &request.mobile_number,
         psp_account_details.mcc.expose().as_str(),
         psp_account_details.channel_id.expose().as_str(),
@@ -80,26 +83,19 @@ pub fn generate_upi_inapp_sdk_params(
         &split_details,
     );
 
-    // Generate signature based on PSP type
-    let signature = match psp_account_details.psp {
-        UPIPSP::AxisBiz => {
-            generate_hmac_signature(&payload, &psp_account_details.signing_key)?
-        }
-        UPIPSP::YesBiz | UPIPSP::Bhim => {
-            generate_rsa_signature(&payload, &psp_account_details.signing_key)?
-        }
-    };
+    // Generate HMAC signature (connector-specific signature logic should be in connector transformers)
+    let signature = generate_hmac_signature(&payload, &psp_account_details.signing_key)?;
 
     let sdk_params = UpiInAppTransactionSDKParams {
         merchant_request_id: request.transaction_reference_id.clone(),
         customer_vpa: payer_vpa_str.clone(),
         merchant_vpa: payee_vpa_str.clone(),
         amount: request.amount.clone(),
-        currency: currency.clone(),
+        currency: currency_code.clone(),
         transaction_reference_id: request.transaction_reference_id.clone(),
         signature,
         timestamp,
-        psp: psp_account_details.psp.as_str().to_string(),
+        psp: psp_account_details.psp.to_string(), // psp is now a String in the struct
         upi_app: request.upi_app,
         split_settlement: request.split_settlement.map(|s| {
             serde_json::to_string(&s)
@@ -125,7 +121,7 @@ pub fn generate_upi_inapp_session_params(
     mga_entries: Vec<upi_inapp::MGAEntry>,
 ) -> RouterResult<UpiInAppSessionParams> {
     let timestamp = generate_timestamp();
-    let currency = "INR".to_string();
+    let currency = Currency::INR.to_string();
 
     // Build value to be signed
     let mobile = mobile_number
@@ -135,7 +131,6 @@ pub fn generate_upi_inapp_session_params(
 
     let mcc = psp_account_details.mcc.expose().clone();
     let channel_id = psp_account_details.channel_id.expose().clone();
-    let merchant_id_psp = psp_account_details.merchant_id.expose().clone();
     let prefix = psp_account_details.prefix.expose().clone();
 
     let value_to_be_signed = format!(
@@ -149,15 +144,8 @@ pub fn generate_upi_inapp_session_params(
         timestamp,
     );
 
-    // Generate signature
-    let signature = match psp_account_details.psp {
-        UPIPSP::AxisBiz => {
-            generate_hmac_signature(&value_to_be_signed, &psp_account_details.signing_key)?
-        }
-        UPIPSP::YesBiz | UPIPSP::Bhim => {
-            generate_rsa_signature(&value_to_be_signed, &psp_account_details.signing_key)?
-        }
-    };
+    // Generate signature (connector-specific signature logic should be in connector transformers)
+    let signature = generate_hmac_signature(&value_to_be_signed, &psp_account_details.signing_key)?;
 
     // Build VPA with gateway ref ID entries
     let vpa_with_ref_id_and_gw = mga_entries
@@ -193,7 +181,7 @@ pub fn generate_upi_inapp_mandate_params(
     validate_mandate_request(&request)?;
 
     let timestamp = generate_timestamp();
-    let currency = "INR".to_string();
+    let currency = Currency::INR.to_string();
     let merchant_request_id = format!("MANDATE_{}", request.transaction_reference_id);
 
     // Build mandate signature payload with purpose
@@ -227,15 +215,8 @@ pub fn generate_upi_inapp_mandate_params(
         merchant_request_id,
     );
 
-    // Generate signature based on PSP type
-    let signature = match psp_account_details.psp {
-        UPIPSP::AxisBiz => {
-            generate_hmac_signature(&payload, &psp_account_details.signing_key)?
-        }
-        UPIPSP::YesBiz | UPIPSP::Bhim => {
-            generate_rsa_signature(&payload, &psp_account_details.signing_key)?
-        }
-    };
+    // Generate signature (connector-specific signature logic should be in connector transformers)
+    let signature = generate_hmac_signature(&payload, &psp_account_details.signing_key)?;
 
     let mandate_params = UpiInAppCreateMandateSDKParams {
         merchant_request_id,
@@ -246,7 +227,7 @@ pub fn generate_upi_inapp_mandate_params(
         transaction_reference_id: request.transaction_reference_id,
         signature,
         timestamp,
-        psp: psp_account_details.psp.as_str().to_string(),
+        psp: psp_account_details.psp.to_string(),
         recipient_name,
         amount_rule: request.amount_rule,
         recurrence_pattern: request.recurrence_pattern,
@@ -396,20 +377,6 @@ fn generate_hmac_signature(
         .attach_printable("Failed to generate HMAC signature for UPI InApp")?;
 
     Ok(base64::encode(signature))
-}
-
-/// Generate RSA signature for YesBiz/BHIM PSP
-fn generate_rsa_signature(
-    _payload: &str,
-    _signing_key: &Secret<String>,
-) -> RouterResult<String> {
-    // RSA signature generation for UPI InApp
-    // For production, implement using ring::signature::RsaKeyPair with proper PKCS8 key loading
-    Err(report!(ApiErrorResponse::NotImplemented {
-        message: hyperswitch_domain_models::errors::api_error_response::NotImplementedMessage::Reason(
-            "RSA signature generation for UPI InApp is not yet implemented".to_string()
-        ),
-    }))
 }
 
 /// Validate UPI InApp request fields

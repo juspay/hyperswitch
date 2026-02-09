@@ -3,15 +3,11 @@
 //! This module contains types for handling UPI InApp payments including
 //! SDK parameter generation, PSP integration, and transaction mode detection.
 
-use common_enums::enums;
 use common_utils::{
-    crypto::{HmacSha256, SignMessage},
-    errors::{CustomResult, CryptoError},
     pii,
 };
-use error_stack::{ResultExt, report};
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 /// Custom error type for UPI InApp operations
@@ -25,38 +21,6 @@ pub enum UpiInAppError {
     SignatureGenerationFailed(String),
     #[error("Missing required field: {0}")]
     MissingField(&'static str),
-}
-
-/// Payment Service Provider (PSP) types for UPI InApp
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum UPIPSP {
-    /// Axis Biz PSP - uses HMAC-SHA256 signature
-    AxisBiz,
-    /// Yes Biz PSP - uses RSA signature
-    YesBiz,
-    /// BHIM PSP - uses RSA signature
-    Bhim,
-}
-
-impl UPIPSP {
-    /// Parse PSP from string
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_uppercase().as_str() {
-            "AXIS_BIZ" | "AXISBIZ" => Some(Self::AxisBiz),
-            "YES_BIZ" | "YESBIZ" => Some(Self::YesBiz),
-            "BHIM" => Some(Self::Bhim),
-            _ => None,
-        }
-    }
-
-    /// Get PSP name as string
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::AxisBiz => "AXIS_BIZ",
-            Self::YesBiz => "YES_BIZ",
-            Self::Bhim => "BHIM",
-        }
-    }
 }
 
 /// Payment mode detected from gateway response
@@ -73,25 +37,6 @@ pub enum UPIPaymentMode {
 }
 
 impl Default for UPIPaymentMode {
-    fn default() -> Self {
-        Self::Standard
-    }
-}
-
-/// Payment mode detected from gateway response
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum UPIInAppPaymentMode {
-    /// Standard bank account payment via UPI InApp
-    Standard,
-    /// Credit card payment via UPI InApp
-    CreditCard,
-    /// Prepaid instrument (PPI) payment via UPI InApp
-    PrepaidInstrument,
-    /// Credit line payment via UPI InApp
-    CreditLine,
-}
-
-impl Default for UPIInAppPaymentMode {
     fn default() -> Self {
         Self::Standard
     }
@@ -120,8 +65,8 @@ pub struct PartnerSplit {
 /// PSP account details for UPI InApp
 #[derive(Debug, Clone)]
 pub struct UpiInAppPSPAccountDetails {
-    /// PSP type
-    pub psp: UPIPSP,
+    /// PSP identifier as string
+    pub psp: String,
     /// Merchant ID for the PSP
     pub merchant_id: Secret<String>,
     /// Channel ID for the PSP
@@ -130,7 +75,7 @@ pub struct UpiInAppPSPAccountDetails {
     pub mcc: Secret<String>,
     /// PSP-specific prefix
     pub prefix: Secret<String>,
-    /// Signing key (HMAC key for AxisBiz, private key for YesBiz/BHIM)
+    /// Signing key
     pub signing_key: Secret<String>,
     /// Remarks (optional)
     pub remarks: Option<Secret<String>>,
@@ -146,9 +91,8 @@ impl TryFrom<&ConnectorAuthType> for UpiInAppPSPAccountDetails {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => {
-                // Default to AxisBiz for SignatureKey auth
                 Ok(Self {
-                    psp: UPIPSP::AxisBiz,
+                    psp: "AXIS_BIZ".to_string(),
                     merchant_id: api_key.clone(),
                     channel_id: key1.clone(),
                     mcc: key1.clone(),
@@ -160,9 +104,8 @@ impl TryFrom<&ConnectorAuthType> for UpiInAppPSPAccountDetails {
                 })
             }
             ConnectorAuthType::CertificateAuth { certificate: _, private_key } => {
-                // Use for YesBiz/BHIM with RSA private key
                 Ok(Self {
-                    psp: UPIPSP::YesBiz,
+                    psp: "YES_BIZ".to_string(),
                     merchant_id: private_key.clone(),
                     channel_id: private_key.clone(),
                     mcc: private_key.clone(),
@@ -384,21 +327,6 @@ pub struct VpaWithGwRefIdAndGw {
     pub gateway: String,
 }
 
-/// PSP configuration for UPI InApp
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpiInAppPSPConfig {
-    /// PSP identifier
-    pub psp: UPIPSP,
-    /// Whether JWS encryption is enabled
-    pub jws_enabled: bool,
-    /// JWS key ID
-    pub kid: Option<String>,
-    /// JWS algorithm
-    pub alg: Option<String>,
-    /// MGA (Merchant Gateway Account) entries
-    pub mga: Vec<MGAEntry>,
-}
-
 /// MGA (Merchant Gateway Account) entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MGAEntry {
@@ -430,85 +358,5 @@ impl UpiPaymentSource {
     /// Deserialize from JSON string
     pub fn from_json_string(s: &str) -> Option<Self> {
         serde_json::from_str(s).ok()
-    }
-}
-
-/// Utility functions for UPI InApp signature generation
-pub mod signature_utils {
-    use super::*;
-
-    /// Generate HMAC-SHA256 signature for AxisBiz PSP
-    pub fn generate_hmac_signature(
-        payload: &str,
-        signing_key: &Secret<String>,
-    ) -> CustomResult<String, CryptoError> {
-        let key = signing_key.peek().as_bytes();
-        let msg = payload.as_bytes();
-
-        let hmac = HmacSha256;
-        let signature = hmac.sign_message(key, msg)?;
-
-        Ok(base64::encode(signature))
-    }
-
-    /// Format split settlement details for signature payload
-    pub fn format_split_details(
-        details: &Option<UpiInAppSplitSettlementDetails>,
-    ) -> String {
-        match details {
-            Some(split) => {
-                let partner_splits: String = split
-                    .partners_split
-                    .iter()
-                    .map(|p| format!("{}{}", p.partner_id, p.value))
-                    .collect();
-
-                format!(
-                    "{}{}{}",
-                    split.merchant_split, partner_splits, split.split_type
-                )
-            }
-            None => String::new(),
-        }
-    }
-
-    /// Build signature payload in alphabetical order
-    pub fn build_signature_payload(
-        currency: &str,
-        mobile_number: &Option<Secret<String>>,
-        mcc: &str,
-        channel_id: &str,
-        customer_id: &str,
-        merchant_id: &str,
-        timestamp: &str,
-        account_reference_id: &str,
-        amount: &str,
-        payer_vpa: &str,
-        payee_vpa: &str,
-        transaction_reference: &str,
-        split_details: &str,
-    ) -> String {
-        let mobile = mobile_number
-            .as_ref()
-            .map(|m| m.peek().clone())
-            .unwrap_or_default();
-
-        // Format: currency + mobile + mcc + channelId + customerId + merchantId + timestamp + accountRef + amount + payerVPA + payeeVPA + transactionRef + splitDetails
-        format!(
-            "{}{}{}{}{}{}{}{}{}{}{}{}{}",
-            currency,
-            mobile,
-            mcc,
-            channel_id,
-            customer_id,
-            merchant_id,
-            timestamp,
-            account_reference_id,
-            amount,
-            payer_vpa,
-            payee_vpa,
-            transaction_reference,
-            split_details
-        )
     }
 }

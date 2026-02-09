@@ -4284,9 +4284,6 @@ pub struct UpiIntentData {}
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiInAppData {
-    /// The payment service provider (PSP) for UPI InApp (e.g., AXIS_BIZ, YES_BIZ, BHIM)
-    #[schema(value_type = String, example = "AXIS_BIZ")]
-    pub psp: Option<String>,
     /// The customer virtual payment address (VPA)
     #[schema(value_type = Option<String>, example = "customer@bank")]
     #[smithy(value_type = "Option<String>")]
@@ -4295,38 +4292,6 @@ pub struct UpiInAppData {
     #[schema(value_type = Option<String>, example = "merchant@bank")]
     #[smithy(value_type = "Option<String>")]
     pub payee_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
-    /// The bank account reference ID for the transaction
-    #[schema(value_type = Option<String>, example = "abc123")]
-    #[smithy(value_type = "Option<String>")]
-    pub bank_account_reference_id: Option<String>,
-    /// The transaction amount
-    #[schema(value_type = Option<String>, example = "100.00")]
-    #[smithy(value_type = "Option<String>")]
-    pub amount: Option<String>,
-    /// The currency for the transaction (default: INR)
-    #[schema(value_type = Option<String>, example = "INR")]
-    #[smithy(value_type = "Option<String>")]
-    pub currency: Option<String>,
-    /// The purpose of the transaction
-    #[schema(value_type = Option<String>, example = "MERCHANT_PURCHASE")]
-    #[smithy(value_type = "Option<String>")]
-    pub purpose: Option<String>,
-    /// Mobile number of the customer
-    #[schema(value_type = Option<String>, example = "9876543210")]
-    #[smithy(value_type = "Option<String>")]
-    pub mobile_number: Option<Secret<String>>,
-    /// The transaction reference ID
-    #[schema(value_type = Option<String>, example = "txn_123456")]
-    #[smithy(value_type = "Option<String>")]
-    pub transaction_reference_id: Option<String>,
-    /// The issuing gateway for the transaction
-    #[schema(value_type = Option<String>, example = "HDFC")]
-    #[smithy(value_type = "Option<String>")]
-    pub issuing_gateway: Option<String>,
-    /// The payment source/app name
-    #[schema(value_type = Option<String>, example = "BHIM")]
-    #[smithy(value_type = "Option<String>")]
-    pub upi_app: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
