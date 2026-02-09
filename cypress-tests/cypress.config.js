@@ -33,12 +33,6 @@ export default defineConfig({
           return null;
         },
       });
-      on("before:browser:launch", (browser, launchOptions) => {
-        if (browser.name === "electron") {
-          launchOptions.args.push("--disable-dev-shm-usage");
-        }
-        return launchOptions;
-      });
       
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
