@@ -728,6 +728,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         });
         Ok(Self {
@@ -2215,6 +2216,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 });
 
