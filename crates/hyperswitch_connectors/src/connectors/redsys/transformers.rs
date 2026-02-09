@@ -710,6 +710,30 @@ pub struct RedsysTransaction {
     ds_signature_version: String,
 }
 
+pub fn extract_amount_from_sync_response(
+    response: &RedsysSyncResponse,
+) -> Result<Option<(String, String)>, errors::ConnectorError> {
+    let message_data = &response
+        .body
+        .consultaoperacionesresponse
+        .consultaoperacionesreturn
+        .messages
+        .version
+        .message;
+
+    if let Some(ref response_data) = message_data.response {
+        let amount = response_data.ds_amount.clone();
+        let currency = response_data.ds_currency.clone();
+
+        match (amount, currency) {
+            (Some(amt), Some(curr)) => Ok(Some((amt, curr))),
+            _ => Ok(None),
+        }
+    } else {
+        Ok(None)
+    }
+}
+
 fn to_connector_response_data<T>(connector_response: &str) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
