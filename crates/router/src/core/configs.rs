@@ -187,13 +187,7 @@ where
     };
 
     match superposition_result {
-        Ok(value) => {
-            metrics::CONFIG_SUPERPOSITION_FETCH.add(
-                1,
-                router_env::metric_attributes!(("config_type", config_type)),
-            );
-            value
-        }
+        Ok(value) => value,
         Err(_) => {
             router_env::logger::info!("Retrieving config from database for key '{}'", db_key);
 
