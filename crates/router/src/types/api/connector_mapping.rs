@@ -481,7 +481,7 @@ impl ConnectorData {
                 //     Ok(Box::new(connector::Wellsfargopayout::new()))
                 // }
                 enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
-                enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
+                enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(connector::Zsl::new()))),
                 enums::Connector::Plaid => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
