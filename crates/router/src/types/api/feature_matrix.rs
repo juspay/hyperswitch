@@ -397,7 +397,7 @@ impl FeatureMatrixConnectorData {
                 // enums::Connector::Wellsfargopayout => {
                 //     Ok(Box::new(connector::Wellsfargopayout::new()))
                 // }
-                enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
+                enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(connector::Zen::new()))),
                 enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
                 enums::Connector::Plaid => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
