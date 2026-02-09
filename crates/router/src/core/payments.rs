@@ -8607,96 +8607,93 @@ pub async fn apply_filters_on_payments(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
-    common_utils::metrics::utils::record_operation_time(
+    Box::pin(common_utils::metrics::utils::record_operation_time(
         async {
             let merchant_id = platform.get_processor().get_account().get_id();
-            match state.search_provider.is_opensearch_enabled() {
-                true => {
-                    logger::info!("Attempting to query OpenSearch for payment list with filters");
+            if state.search_provider.is_opensearch_enabled() {
+                logger::info!("Attempting to query OpenSearch for payment list with filters");
 
-                    let (merchant_id_opt, profile_id_opt) =
-                        if let Some(ref profile_ids) = profile_id_list {
-                            if let Some(profile_id) = profile_ids.first() {
-                                (Some(merchant_id.clone()), Some(profile_id.clone()))
-                            } else {
-                                (Some(merchant_id.clone()), None)
-                            }
+                let (merchant_id_opt, profile_id_opt) =
+                    if let Some(ref profile_ids) = profile_id_list {
+                        if let Some(profile_id) = profile_ids.first() {
+                            (Some(merchant_id.clone()), Some(profile_id.clone()))
                         } else {
                             (Some(merchant_id.clone()), None)
-                        };
-
-                    let org_id = platform.get_processor().get_account().get_org_id();
-                    let auth_info = match (merchant_id_opt, profile_id_opt) {
-                        (Some(mid), Some(pid)) => {
-                            vec![
-                                common_utils::types::authentication::AuthInfo::ProfileLevel {
-                                    org_id: org_id.clone(),
-                                    merchant_id: mid,
-                                    profile_ids: vec![pid],
-                                },
-                            ]
                         }
-                        (Some(mid), None) => {
-                            vec![
-                                common_utils::types::authentication::AuthInfo::MerchantLevel {
-                                    org_id: org_id.clone(),
-                                    merchant_ids: vec![mid],
-                                },
-                            ]
-                        }
-                        _ => {
-                            return Err(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Invalid authentication info resolution");
-                        }
+                    } else {
+                        (Some(merchant_id.clone()), None)
                     };
 
-                    let filters = helpers::get_search_filters(&constraints);
+                let org_id = platform.get_processor().get_account().get_org_id();
+                let auth_info = match (merchant_id_opt, profile_id_opt) {
+                    (Some(mid), Some(pid)) => {
+                        vec![
+                            common_utils::types::authentication::AuthInfo::ProfileLevel {
+                                org_id: org_id.clone(),
+                                merchant_id: mid,
+                                profile_ids: vec![pid],
+                            },
+                        ]
+                    }
+                    (Some(mid), None) => {
+                        vec![
+                            common_utils::types::authentication::AuthInfo::MerchantLevel {
+                                org_id: org_id.clone(),
+                                merchant_ids: vec![mid],
+                            },
+                        ]
+                    }
+                    _ => {
+                        return Err(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid authentication info resolution");
+                    }
+                };
 
-                    let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
-                        index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
-                        search_req: api_models::analytics::search::GetSearchRequest {
-                            offset: i64::from(constraints.offset.unwrap_or(0)),
-                            count: i64::from(constraints.limit),
-                            query: String::new(),
-                            filters: Some(filters),
-                            time_range: constraints.time_range,
-                        },
-                    };
+                let filters = helpers::get_search_filters(&constraints);
 
-                    match state
-                        .search_provider
-                        .search_results(search_req, auth_info)
-                        .await
-                    {
-                        Ok(response) => {
-                            logger::info!(
-                                count = response.hits.len(),
-                                total = response.count,
-                                "Successfully retrieved payments from OpenSearch"
-                            );
-                            let payments_list: Vec<payments_api::PaymentsResponse> = response
-                                .hits
-                                .into_iter()
-                                .map(transformers::get_payments_response_from_opensearch_hit)
-                                .collect();
+                let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
+                    index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
+                    search_req: api_models::analytics::search::GetSearchRequest {
+                        offset: i64::from(constraints.offset.unwrap_or(0)),
+                        count: i64::from(constraints.limit),
+                        query: String::new(),
+                        filters: Some(filters),
+                        time_range: constraints.time_range,
+                    },
+                };
 
-                            return Ok(services::ApplicationResponse::Json(
-                                payments_api::PaymentListResponseV2 {
-                                    count: payments_list.len(),
-                                    total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
-                                    data: payments_list,
-                                },
-                            ));
-                        }
-                        Err(error) => {
-                            logger::error!(
-                                ?error,
-                                "OpenSearch query failed, falling back to PostgreSQL"
-                            );
-                        }
+                match state
+                    .search_provider
+                    .search_results(search_req, auth_info)
+                    .await
+                {
+                    Ok(response) => {
+                        logger::info!(
+                            count = response.hits.len(),
+                            total = response.count,
+                            "Successfully retrieved payments from OpenSearch"
+                        );
+                        let payments_list: Vec<payments_api::PaymentsResponse> = response
+                            .hits
+                            .into_iter()
+                            .map(transformers::get_payments_response_from_opensearch_hit)
+                            .collect();
+
+                        return Ok(services::ApplicationResponse::Json(
+                            payments_api::PaymentListResponseV2 {
+                                count: payments_list.len(),
+                                total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
+                                data: payments_list,
+                            },
+                        ));
+                    }
+                    Err(error) => {
+                        logger::error!(
+                            ?error,
+                            "OpenSearch query failed, falling back to PostgreSQL"
+                        );
                     }
                 }
-                false => {}
             }
 
             let limit = &constraints.limit;
@@ -8758,7 +8755,7 @@ pub async fn apply_filters_on_payments(
             "merchant_id",
             platform.get_processor().get_account().get_id().clone()
         )),
-    )
+    ))
     .await
 }
 
