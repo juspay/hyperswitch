@@ -6,7 +6,7 @@ use std::{
     fmt::Debug,
     future::Future,
     str,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -22,6 +22,7 @@ pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
+    events::ExternalServiceCallCollector,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
@@ -364,6 +365,9 @@ where
     logger::info!("Added API event to request extensions for access in middleware");
     state.event_handler().log_event(&api_event);
 
+    request.extensions_mut().insert(session_state.observability.clone());
+    logger::info!("Added observability collector to request extensions for access in middleware");
+
     output
 }
 
@@ -570,21 +574,28 @@ where
         time_taken_ms = request_duration.as_millis(),
     );
 
-    // TEST: Move test data from request extensions to response extensions
-    if let Some(test_data) = request.extensions().get::<String>() {
-        res.extensions_mut().insert(test_data.clone());
-        logger::info!("🔧 TEST: Moved extension data from request to response: {}", test_data);
-    } else {
-        logger::info!("⚠️ TEST: No extension data found in request to move");
-    }
+    // // TEST: Move test data from request extensions to response extensions
+    // if let Some(test_data) = request.extensions().get::<String>() {
+    //     res.extensions_mut().insert(test_data.clone());
+    //     logger::info!("🔧 TEST: Moved extension data from request to response: {}", test_data);
+    // } else {
+    //     logger::info!("⚠️ TEST: No extension data found in request to move");
+    // }
 
-    // Move ApiEvent from request extensions to response extensions
-    if let Some(api_event) = request.extensions().get::<ApiEvent>() {
-        res.extensions_mut().insert(api_event.clone());
-        logger::info!("🔧 Moved ApiEvent from request to response extensions");
-    } else {
-        logger::info!("⚠️ No ApiEvent found in request extensions to move");
-    }
+    // // Move ApiEvent from request extensions to response extensions
+    // if let Some(api_event) = request.extensions().get::<ApiEvent>() {
+    //     res.extensions_mut().insert(api_event.clone());
+    //     logger::info!("🔧 Moved ApiEvent from request to response extensions");
+    // } else {
+    //     logger::info!("⚠️ No ApiEvent found in request extensions to move");
+    // }
+
+    // if let Some(obs_collector) = request.extensions().get::<Arc<Mutex<ExternalServiceCallCollector>>>() {
+    //     res.extensions_mut().insert(obs_collector.clone());
+    //     logger::info!("🔧 Moved ExternalServiceCallCollector from request to response extensions");
+    // } else {
+    //     logger::info!("⚠️ No ExternalServiceCallCollector found in request extensions to move");
+    // }
 
     res
 }

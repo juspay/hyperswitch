@@ -1,6 +1,8 @@
 use actix_web::HttpRequest;
 use api_models::{admin::MerchantId, organization::OrganizationId};
-pub use common_utils::events::{ApiEventMetric, ApiEventsType};
+pub use common_utils::events::{
+    ApiEventMetric, ApiEventsType, ExternalServiceCall,
+};
 use common_utils::{id_type::ProfileId, impl_api_event_type};
 use hyperswitch_domain_models::merchant_account;
 use router_env::{types::FlowMetric, RequestId};
@@ -198,7 +200,9 @@ pub struct NewApiEvent{
     pub http_method: Option<String>,
     #[serde(flatten)]
     pub infra_components: Option<serde_json::Value>,
+    pub external_service_calls: Vec<ExternalServiceCall>,
 }
+
 
 impl From<ApiEvent> for NewApiEvent {
     fn from(api_event: ApiEvent) -> Self {
@@ -221,6 +225,7 @@ impl From<ApiEvent> for NewApiEvent {
             hs_latency: api_event.hs_latency,
             http_method: Some(api_event.http_method),
             infra_components: api_event.infra_components,
+            external_service_calls: Vec::new(),
         }
     }
 }
@@ -234,3 +239,11 @@ impl KafkaMessage for NewApiEvent {
         self.request_id.clone().unwrap_or_default()
     }
 }
+
+// #[derive(Debug, Serialize)]
+// #[serde(rename_all = "snake_case")]
+// pub struct ObservabilityContext {
+//     pub merchant_id: Option<common_utils::id_type::MerchantId>,
+//     pub organization_id: Option<common_utils::id_type::OrganizationId>,
+//     pub profile_id: Option<common_utils::id_type::ProfileId>,
+// }

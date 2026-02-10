@@ -103,6 +103,7 @@ where
     T: GetKeymanagerTenant + ConvertRaw + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
+    let start_time = std::time::Instant::now();
     let url = format!("{}/{endpoint}", &state.url);
 
     logger::info!(key_manager_request=?request_body);
@@ -131,15 +132,33 @@ where
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
 
+    logger::info!("Sending request to Key Manager at endpoint: {}", url);
     let response = send_encryption_request(
         state,
         HeaderMap::from_iter(header.into_iter()),
         url,
-        method,
+        method.clone(),
         request_body,
     )
     .await
     .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
+
+    let kms_metadata = crate::events::ExternalServiceCall {
+        service_name: "KeyManager".to_string(),
+        endpoint: endpoint.to_string(),
+        method: method.to_string(),
+        status_code: Some(response.status().as_u16()),
+        success: response.status().is_success(),
+        latency_ms: start_time.elapsed().as_millis() as u32,
+        metadata: std::collections::HashMap::new(),
+    };
+
+    // logger::info!("Keymanager observability data: {:?}", kms_metadata);
+    logger::info!("Key manager state observability collector created from: {}", state.created_from);
+    if let Ok(mut collector) = state.observability.lock() {
+        collector.record(kms_metadata.clone());
+        logger::info!("Recorded Keymanager observability data: {:?}", kms_metadata);
+    }
 
     logger::info!(key_manager_response=?response);
 

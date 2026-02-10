@@ -22,6 +22,15 @@ CREATE TABLE new_api_events_queue (
     `latency` UInt128,
     `hs_latency` Nullable(UInt128),
     `created_at_timestamp` DateTime64(3),
+    `external_service_calls` Array(Tuple(
+        service_name String,
+        endpoint String,
+        method String,
+        status_code UInt16,
+        success Bool,
+        latency_ms UInt32,
+        metadata String  -- stored as JSON string since it's a map
+    ))
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-new-api-log-events',
 kafka_group_name = 'hyper_new_api_events',
@@ -69,6 +78,15 @@ CREATE TABLE new_api_events (
     `hs_latency` Nullable(UInt128),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `external_service_calls` Array(Tuple(
+        service_name String,
+        endpoint String,
+        method String,
+        status_code UInt16,
+        success Bool,
+        latency_ms UInt32,
+        metadata String
+    )),
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1,
     INDEX flowIndex api_flow TYPE bloom_filter GRANULARITY 1,
     INDEX merchantIndex merchant_id TYPE bloom_filter GRANULARITY 1
@@ -98,6 +116,7 @@ SELECT
     latency,
     hs_latency,
     created_at_timestamp AS created_at,
-    now() AS inserted_at
+    now() AS inserted_at,
+    external_service_calls
 FROM new_api_events_queue
 WHERE length(_error) = 0;

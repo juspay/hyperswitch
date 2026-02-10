@@ -1,9 +1,11 @@
 use ::payment_methods::state as pm_state;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{events::ExternalServiceCallCollector, types::keymanager::KeyManagerState};
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
 use hyperswitch_interfaces::configs;
+use router_env::logger;
+use std::sync::{Arc, Mutex};
 
 use crate::{
     routes::app,
@@ -13,6 +15,7 @@ use crate::{
 impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
     fn foreign_from((app_state, tenant): (&app::AppState, configs::Tenant)) -> Self {
         let conf = app_state.conf.key_manager.get_inner();
+        logger::info!("Creating key manager state from app state and tenant from impl");
         Self {
             global_tenant_id: app_state.conf.multitenancy.global_tenant.tenant_id.clone(),
             tenant_id: tenant.tenant_id.clone(),
@@ -27,12 +30,15 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
+            created_from: "foreign_from_app_state".to_string(),
         }
     }
 }
 impl From<&app::SessionState> for KeyManagerState {
     fn from(state: &app::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
+        logger::info!("Creating key manager state from session state from impl");
         Self {
             global_tenant_id: state.conf.multitenancy.global_tenant.tenant_id.clone(),
             tenant_id: state.tenant.tenant_id.clone(),
@@ -47,6 +53,8 @@ impl From<&app::SessionState> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            observability: state.observability.clone(),
+            created_from: "from_session_state".to_string(),
         }
     }
 }
