@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix3
+
+### Features
+
+- **platform:** Support incremental authorization for platform payments ([#11208](https://github.com/juspay/hyperswitch/pull/11208)) ([`08b9930`](https://github.com/juspay/hyperswitch/commit/08b9930f3d7ab9e237b8e556886075a53681f180))
+
+**Full Changelog:** [`2026.02.04.1-hotfix2...2026.02.04.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix2...2026.02.04.1-hotfix3)
+
+- - -
+
 ## 2026.02.04.1-hotfix2
 
 ### Features
