@@ -116,7 +116,15 @@ impl SuperpositionClient {
                     timeout: config.request_timeout,
                 },
             ),
-            experimentation_options: None,
+            experimentation_options: Some( superposition_provider::types::ExperimentationOptions{
+                refresh_strategy: superposition_provider::RefreshStrategy::Polling(
+                    superposition_provider::PollingStrategy {
+                        interval: config.polling_interval,
+                        timeout: config.request_timeout,
+                    }),
+                evaluation_cache: None,
+                default_toss: None,
+            }),
         };
 
         // Create provider and set up OpenFeature
