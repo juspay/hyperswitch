@@ -757,10 +757,20 @@ pub async fn link_routing_config(
                                 &mut dynamic_routing_ref,
                             )
                             .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to update the elimination routing config in Decision Engine",
-                            )?;
+                            .map_err(|err| {
+                                match err.current_context() {
+                                    errors::ApiErrorResponse::GenericNotFoundError { .. } => err
+                                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                        .attach_printable("Decision engine config not found"),
+                                    _ => err
+                                        .change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable(
+                                            "Unable to setup decision engine dynamic routing",
+                                        ),
+                                }
+                            })?;
                         } else {
                             let data: routing_types::EliminationRoutingConfig =
                                 routing_algorithm.algorithm_data
