@@ -86,6 +86,11 @@ impl From<api_models::relay::RelayData> for RelayData {
                 additional_amount: relay_incremental_authorization_request.additional_amount,
                 currency: relay_incremental_authorization_request.currency,
             }),
+            api_models::relay::RelayData::Void(relay_void_request) => Self::Void(RelayVoidData {
+                amount: relay_void_request.amount,
+                currency: relay_void_request.currency,
+                cancellation_reason: relay_void_request.cancellation_reason,
+            }),
         }
     }
 }
@@ -118,6 +123,16 @@ impl From<api_models::relay::RelayIncrementalAuthorizationRequestData>
             total_amount: relay.total_amount,
             additional_amount: relay.additional_amount,
             currency: relay.currency,
+        }
+    }
+}
+
+impl From<api_models::relay::RelayVoidRequestData> for RelayVoidData {
+    fn from(relay: api_models::relay::RelayVoidRequestData) -> Self {
+        Self {
+            amount: relay.amount,
+            currency: relay.currency,
+            cancellation_reason: relay.cancellation_reason,
         }
     }
 }
@@ -228,6 +243,32 @@ impl RelayUpdate {
             },
         }
     }
+
+    pub fn try_from_void_response(
+        (status, response): (
+            common_enums::AttemptStatus,
+            Result<router_response_types::PaymentsResponseData, ErrorResponse>,
+        ),
+    ) -> CustomResult<Self, ApiErrorResponse> {
+        match response {
+            Err(error) => Ok(Self::ErrorUpdate {
+                error_code: error.code,
+                error_message: error.reason.unwrap_or(error.message),
+                status: common_enums::RelayStatus::Failure,
+            }),
+            Ok(response) => match response {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    ..
+                } => Ok(Self::StatusUpdate {
+                    connector_reference_id: resource_id.get_optional_response_id(),
+                    status: common_enums::RelayStatus::from(status),
+                }),
+                _ => Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment Response Not Supported"),
+            },
+        }
+    }
 }
 
 impl From<RelayData> for api_models::relay::RelayData {
@@ -256,6 +297,13 @@ impl From<RelayData> for api_models::relay::RelayData {
                         currency: relay_incremental_authorization_request.currency,
                     },
                 )
+            }
+            RelayData::Void(relay_void_request) => {
+                Self::Void(api_models::relay::RelayVoidRequestData {
+                    amount: relay_void_request.amount,
+                    currency: relay_void_request.currency,
+                    cancellation_reason: relay_void_request.cancellation_reason,
+                })
             }
         }
     }
@@ -298,6 +346,13 @@ impl From<Relay> for api_models::relay::RelayResponse {
                     },
                 )
             }
+            RelayData::Void(relay_void_request) => {
+                api_models::relay::RelayData::Void(api_models::relay::RelayVoidRequestData {
+                    amount: relay_void_request.amount,
+                    currency: relay_void_request.currency,
+                    cancellation_reason: relay_void_request.cancellation_reason,
+                })
+            }
         });
         Self {
             id: value.id,
@@ -319,13 +374,14 @@ pub enum RelayData {
     Refund(RelayRefundData),
     Capture(RelayCaptureData),
     IncrementalAuthorization(RelayIncrementalAuthorizationData),
+    Void(RelayVoidData),
 }
 
 impl RelayData {
     pub fn get_refund_data(&self) -> CustomResult<RelayRefundData, ApiErrorResponse> {
         match self.clone() {
             Self::Refund(refund_data) => Ok(refund_data),
-            Self::Capture(_) | Self::IncrementalAuthorization(_) => {
+            Self::Capture(_) | Self::IncrementalAuthorization(_) | Self::Void(_) => {
                 Err(ApiErrorResponse::InternalServerError)
                     .attach_printable("relay data does not contain relay refund data")
             }
@@ -335,7 +391,7 @@ impl RelayData {
     pub fn get_capture_data(&self) -> CustomResult<RelayCaptureData, ApiErrorResponse> {
         match self.clone() {
             Self::Capture(capture_data) => Ok(capture_data),
-            Self::Refund(_) | Self::IncrementalAuthorization(_) => {
+            Self::Refund(_) | Self::IncrementalAuthorization(_) | Self::Void(_) => {
                 Err(ApiErrorResponse::InternalServerError)
                     .attach_printable("relay data does not contain relay capture data")
             }
@@ -349,10 +405,20 @@ impl RelayData {
             Self::IncrementalAuthorization(incremental_authorization_data) => {
                 Ok(incremental_authorization_data)
             }
-            Self::Refund(_) | Self::Capture(_) => Err(ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "relay data does not contain relay incremental authorization data",
-                ),
+            Self::Refund(_) | Self::Capture(_) | Self::Void(_) => Err(
+                ApiErrorResponse::InternalServerError,
+            )
+            .attach_printable("relay data does not contain relay incremental authorization data"),
+        }
+    }
+
+    pub fn get_void_data(&self) -> CustomResult<RelayVoidData, ApiErrorResponse> {
+        match self.clone() {
+            Self::Void(void_data) => Ok(void_data),
+            Self::Refund(_) | Self::Capture(_) | Self::IncrementalAuthorization(_) => Err(
+                ApiErrorResponse::InternalServerError,
+            )
+            .attach_printable("relay data does not contain relay incremental authorization data"),
         }
     }
 }
@@ -376,6 +442,13 @@ pub struct RelayIncrementalAuthorizationData {
     pub total_amount: MinorUnit,
     pub additional_amount: MinorUnit,
     pub currency: enums::Currency,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RelayVoidData {
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<enums::Currency>,
+    pub cancellation_reason: Option<String>,
 }
 
 #[derive(Debug)]
