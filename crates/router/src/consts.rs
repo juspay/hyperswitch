@@ -363,6 +363,13 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// Blocklist guard enabled configuration key - controls whether the payment method blocklist feature is active for a merchant
+    pub const BLOCKLIST_GUARD_ENABLED: &str = "blocklist_guard_enabled";
+    /// extended card bin enabled configuration key 
+    pub const EXTENDED_CARD_BIN_ENABLED: &str = "extended_card_bin_enabled";
+    /// should call gsm configuration
+    pub const SHOULD_CALL_GSM : &str = "should_call_gsm_";
+
 }
 
 #[cfg(test)]

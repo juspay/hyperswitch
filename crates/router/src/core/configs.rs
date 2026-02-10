@@ -179,15 +179,22 @@ where
     let default_value = C::DEFAULT_VALUE;
     let config_type = C::KEY;
 
+    router_env::logger::info!("here in fetch_db_config ");
     let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context, targeting_context).await,
-        None => Err(error_stack::report!(
-            superposition::SuperpositionError::ClientError(
-                "No superposition client available".to_string()
-            )
-        )),
+        Some(client) => {
+            router_env::logger::info!("here in client super fetch call");
+            C::fetch(client, context, targeting_context).await
+        }
+        None => {
+            router_env::logger::info!("here in client super fetch call failed");
+            Err(error_stack::report!(
+                superposition::SuperpositionError::ClientError(
+                    "No superposition client available".to_string()
+                )
+            ))
+        }
     };
-
+    
     match superposition_result {
         Ok(value) => {
             metrics::CONFIG_SUPERPOSITION_FETCH.add(

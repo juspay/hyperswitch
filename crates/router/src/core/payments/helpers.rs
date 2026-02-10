@@ -1905,7 +1905,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
-                    let customer_id_str = customer_id.get_string_repr().to_owned();
                     let targeting_context= superposition::TargetingContext::new().with_customer_id(customer_id.clone());
                     let implicit_customer_update = dimensions
                         .get_implicit_customer_update(state.store.as_ref(), state.superposition_service.as_deref(), &targeting_context)
@@ -5249,6 +5248,7 @@ mod test {
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
+    state: &SessionState,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
     payment_method_token: Option<&PaymentMethodToken>,

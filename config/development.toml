@@ -1473,10 +1473,10 @@ internal_api_key = "test_internal_api_key"
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = false # Enable Superposition integration
+enabled = true # Enable Superposition integration
 endpoint = "http://localhost:8081" # Superposition service endpoint
 token = "123456" # Superposition token
-org_id = "localorg" # Organization ID in Superposition
+org_id = "orgid195762276145303557" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)

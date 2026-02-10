@@ -24,7 +24,7 @@ use std::{
     vec::IntoIter,
 };
 
-use external_services::grpc_client;
+use external_services::{grpc_client,superposition};
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
@@ -47,6 +47,7 @@ use common_utils::{
     id_type, pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
+use crate::core::configs;
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
@@ -1125,15 +1126,21 @@ where
                     )
                     .await?;
 
+                    
+
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
+                        let dimension = configs::dimension_state::Dimensions::new()
+                            .with_merchant_id(platform.get_provider().get_account().get_id().clone());
                         let config_bool = retry::config_should_call_gsm(
+                            state,
                             &*state.store,
                             platform.get_processor().get_account().get_id(),
                             &business_profile,
+                            &dimension,
                         )
                         .await;
 
@@ -6390,24 +6397,13 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-        .await;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
 
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
-
+    let targeting_context = superposition::TargetingContext::new();
+    let blocklist_guard_enabled = dimensions
+        .get_blocklist_guard_enabled(state.store.as_ref(), state.superposition_service.as_deref(), &targeting_context).await;
+    logger::info!("blocklist_guard_enabled {:?}", blocklist_guard_enabled);
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?

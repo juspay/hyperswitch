@@ -2,7 +2,7 @@ use external_services::superposition;
 use hyperswitch_domain_models::configs::ConfigInterface;
 
 use super::{
-    dimension_state::{Dimensions, HasMerchantId},
+    dimension_state::{Dimensions, HasMerchantId, HasProfileId},
     fetch_db_with_dimensions, DatabaseBackedConfig,
 };
 use crate::consts::superposition as superposition_consts;
@@ -33,9 +33,8 @@ macro_rules! config {
             fn build_targeting_key(targeting_ctx: &superposition::TargetingContext) -> Option<String> {
                 targeting_ctx.$targeting_method()
             }
-            
-        }
 
+        }
         /// Get $config - ONLY available when Dimensions has required state
         impl<O, P> Dimensions<$requirement, O, P>
         where
@@ -101,6 +100,57 @@ config! {
 // This is REQUIRED by the trait and enforces db_key implementation
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
+    }
+}
+
+
+
+// Define BlocklistGuardEnabled struct and superposition::Config using the macro
+config! {
+    BlocklistGuardEnabled => bool,
+    superposition_key = superposition_consts::BLOCKLIST_GUARD_ENABLED,
+    default = false,
+    requires = HasMerchantId,
+    method = get_blocklist_guard_enabled,
+    targeting_key = customer_id
+}
+
+// Manual implementation of DatabaseBackedConfig for BlocklistGuardEnabled
+// This is REQUIRED by the trait and enforces db_key implementation
+impl DatabaseBackedConfig for BlocklistGuardEnabled {
+    const KEY: &'static str = "blocklist_guard_enabled";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
+    }
+}
+
+
+// Define BlocklistGuardEnabled struct and superposition::Config using the macro
+config! {
+    ShouldCallGsm => bool,
+    superposition_key = superposition_consts::SHOULD_CALL_GSM,
+    default = false,
+    requires = HasMerchantId,
+    method = get_should_call_gsm,
+    targeting_key = customer_id
+}
+
+// Manual implementation of DatabaseBackedConfig for BlocklistGuardEnabled
+// This is REQUIRED by the trait and enforces db_key implementation
+impl DatabaseBackedConfig for ShouldCallGsm {
+    const KEY: &'static str = "should_call_gsm_";
 
     fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
         let merchant_id = dimensions

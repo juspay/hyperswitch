@@ -272,6 +272,7 @@ impl SuperpositionClient {
     {
         let evaluation_context = self.build_evaluation_context(context, targeting_key);
         let type_name = std::any::type_name::<T>();
+        router_env::logger::info!("evaluation {:?}", evaluation_context);
 
         self.client
             .get_value(key, &evaluation_context)
@@ -308,8 +309,10 @@ pub trait Config {
     where
         open_feature::Client: GetValue<Self::Output>,
     {
+        router_env::logger::info!("in superposition client");
         async move {
             let targeting_key = Self::build_targeting_key(targeting_context);
+            router_env::logger::info!("targeting key {:?}",targeting_key);
             match superposition_client
                 .get_config_value::<Self::Output>(Self::SUPERPOSITION_KEY, context.as_ref(), targeting_key.as_ref())
                 .await
