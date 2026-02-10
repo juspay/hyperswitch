@@ -869,8 +869,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 
-[braintree.metadata.paypal_sdk]
+[[braintree.metadata.paypal_sdk]]
 client_id="Client ID"
+name="client_id"
+label="Client Id"
+placeholder="Enter Client Id"
+required=true
+type="Text"
 
 [bambora]
 [[bambora.credit]]
