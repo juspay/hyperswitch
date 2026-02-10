@@ -33,8 +33,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication::MessageExtensionAttribute, AuthenticationData, BrowserInformation,
-        CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId, SetupMandateRequestData,
-        PaymentsCancelPostCaptureData,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -2385,12 +2385,9 @@ where
             .minor_amount_capturable
             .map(|amount| amount.get_amount_as_i64());
         let response = &item.response;
-        let (status, redirection_data, connector_response_data) =
-            process_nuvei_payment_response(NuveiPaymentResponseData::new(
-                amount,
-                item.data.payment_method,
-                response,
-            ))?;
+        let (status, redirection_data, connector_response_data) = process_nuvei_payment_response(
+            NuveiPaymentResponseData::new(amount, item.data.payment_method, response),
+        )?;
 
         let (amount_captured, minor_amount_capturable) = get_amount_captured(
             response.partial_approval.clone(),
@@ -2431,44 +2428,65 @@ where
     }
 }
 
-
 // Generic implementation for other flow types
-impl TryFrom<ResponseRouterData<PostCaptureVoid, NuveiPaymentsResponse, PaymentsCancelPostCaptureData, PaymentsResponseData>>
-    for RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostCaptureVoid,
+            NuveiPaymentsResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PostCaptureVoid, NuveiPaymentsResponse, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            PostCaptureVoid,
+            NuveiPaymentsResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let post_capture_void_status = match item.response.transaction_status {
-                Some(NuveiTransactionStatus::Approved) => common_enums::PostCaptureVoidStatus::Succeeded,
-                Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+            Some(NuveiTransactionStatus::Approved) => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+            Some(NuveiTransactionStatus::Processing) | Some(NuveiTransactionStatus::Pending) => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            Some(NuveiTransactionStatus::Redirect) => Err(
+                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                    "Redirect status is not expected in post capture void flow".to_owned(),
+                )),
+            )?,
+
+            None => match item.response.status {
+                NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => {
                     common_enums::PostCaptureVoidStatus::Failed
-                },
-                Some(NuveiTransactionStatus::Processing) | Some(NuveiTransactionStatus::Pending) => common_enums::PostCaptureVoidStatus::Pending,
-                Some(NuveiTransactionStatus::Redirect) => Err(errors::ConnectorError::UnexpectedResponseError (
-                     bytes::Bytes::from("Redirect status is not expected in post capture void flow".to_owned())
-                ))?,
-  
-                None => match item.response.status {
-                    NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => common_enums::PostCaptureVoidStatus::Failed,
-                    NuveiPaymentStatus::Processing => common_enums::PostCaptureVoidStatus::Pending,
-                    NuveiPaymentStatus::Success => common_enums::PostCaptureVoidStatus::Succeeded,
                 }
-            };      
+                NuveiPaymentStatus::Processing => common_enums::PostCaptureVoidStatus::Pending,
+                NuveiPaymentStatus::Success => common_enums::PostCaptureVoidStatus::Succeeded,
+            },
+        };
 
-            let description = post_capture_void_status.is_post_capture_void_failure().then_some(item.response.reason.clone()).flatten();   
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then_some(item.response.reason.clone())
+            .flatten();
 
-          Ok(Self {
-                response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
-                    post_capture_void_status,
-                    connector_reference_id: item.response.transaction_id.clone(),
-                    description,
-                }),
-                ..item.data
-            })
-
-}
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: item.response.transaction_id.clone(),
+                description,
+            }),
+            ..item.data
+        })
+    }
 }
 
 // Generic implementation for other flow types

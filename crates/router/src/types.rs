@@ -527,7 +527,6 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
-
 }
 impl Capturable for PaymentsCancelPostCaptureData {
     fn get_captured_amount<F>(
@@ -553,8 +552,8 @@ impl Capturable for PaymentsCancelPostCaptureData {
     where
         F: Clone,
     {
-    // Capture not available after post capture void flow, hence return 0
-     Some(0)
+        // Capture not available after post capture void flow, hence return 0
+        Some(0)
     }
 }
 impl Capturable for PaymentsApproveData {}

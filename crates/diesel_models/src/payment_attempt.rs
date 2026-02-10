@@ -2934,15 +2934,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::VoidPostCaptureUpdate {
                 amount_capturable,
                 updated_by,
-            } =>  Self {
+            } => Self {
                 amount: None,
-                currency:  None,
-                authentication_type:  None,
-                status:  None,
-                payment_method:  None,
+                currency: None,
+                authentication_type: None,
+                status: None,
+                payment_method: None,
                 modified_at: common_utils::date_time::now(),
-                browser_info:  None,
-                connector:  None,
+                browser_info: None,
+                connector: None,
                 payment_token: None,
                 payment_method_data: None,
                 payment_method_type: None,

@@ -2023,7 +2023,7 @@ pub enum PaymentAttemptUpdate {
     VoidPostCaptureUpdate {
         updated_by: String,
         amount_capturable: MinorUnit,
-    }
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -2581,7 +2581,7 @@ impl PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::VoidPostCaptureUpdate {
                 updated_by,
                 amount_capturable,
-            }
+            },
         }
     }
 
@@ -2610,7 +2610,7 @@ impl PaymentAttemptUpdate {
             | Self::IncrementalAuthorizationAmountUpdate { .. }
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
-            | Self::PostSessionTokensUpdate { .. } 
+            | Self::PostSessionTokensUpdate { .. }
             | Self::VoidPostCaptureUpdate { .. } => None,
         }
     }

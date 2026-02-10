@@ -347,9 +347,7 @@ impl PaymentIntent {
         if self
             .state_metadata
             .as_ref()
-            .map(|state_metadata| {
-                state_metadata.is_post_capture_void_issued()
-            })
+            .map(|state_metadata| state_metadata.is_post_capture_void_issued())
             .unwrap_or(false)
         {
             Err(error_stack::report!(
