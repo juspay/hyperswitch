@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
@@ -119,6 +120,9 @@ pub struct RouterData<Flow, Request, Response> {
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+
+    // Document details of the customer consisting of document number and type
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -726,6 +730,12 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     ApplePay {
         auth_code: Option<String>,
+    },
+    SepaBankTransfer {
+        debitor_iban: Option<Secret<String>>,
+        debitor_bic: Option<Secret<String>>,
+        debitor_name: Option<Secret<String>>,
+        debitor_email: Option<Secret<String>>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]

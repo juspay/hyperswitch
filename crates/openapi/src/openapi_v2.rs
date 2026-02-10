@@ -115,10 +115,15 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for customers
         routes::customers::customers_create,
+        routes::customers::customers_create_v1,
         routes::customers::customers_retrieve,
+        routes::customers::customers_retrieve_v1,
         routes::customers::customers_update,
+        routes::customers::customers_update_v1,
         routes::customers::customers_delete,
+        routes::customers::customers_delete_v1,
         routes::customers::customers_list,
+        routes::customers::customers_list_v1,
 
         //Routes for payments
         routes::payments::payments_create_intent,
@@ -134,22 +139,34 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
+        routes::payment_method::create_payment_method_api_v1,
         routes::payment_method::create_payment_method_intent_api,
         routes::payment_method::confirm_payment_method_intent_api,
         routes::payment_method::payment_method_update_api,
+        routes::payment_method::payment_method_update_api_v1,
         routes::payment_method::payment_method_retrieve_api,
+        routes::payment_method::payment_method_retrieve_api_v1,
         routes::payment_method::payment_method_delete_api,
+        routes::payment_method::payment_method_delete_api_v1,
         routes::payment_method::network_token_status_check_api,
         routes::payment_method::list_customer_payment_method_api,
+        routes::payment_method::list_customer_payment_method_api_v1,
         routes::payment_method::payment_method_get_token_details_api,
+        routes::payment_method::payment_method_get_token_details_api_v1,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,
+        routes::payment_method::payment_method_session_create_v1,
         routes::payment_method::payment_method_session_retrieve,
+        routes::payment_method::payment_method_session_retrieve_v1,
         routes::payment_method::payment_method_session_list_payment_methods,
+        routes::payment_method::payment_method_session_list_payment_methods_v1,
         routes::payment_method::payment_method_session_update_saved_payment_method,
+        routes::payment_method::payment_method_session_update_saved_payment_method_v1,
         routes::payment_method::payment_method_session_delete_saved_payment_method,
+        routes::payment_method::payment_method_session_delete_saved_payment_method_v1,
         routes::payment_method::payment_method_session_confirm,
+        routes::payment_method::payment_method_session_confirm_v1,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -162,12 +179,17 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for proxy
         routes::proxy::proxy_core,
+        routes::proxy::proxy_core_v1,
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
         routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
+        api_models::payments::DocumentDetails,
+        api_models::enums::PixKey,
+        api_models::enums::BoletoDocumentKind,
+        api_models::enums::BoletoPaymentType,
         common_utils::types::MinorUnit,
         common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,
@@ -255,6 +277,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerUpdateRequest,
         api_models::customers::CustomerDeleteResponse,
+        api_models::customers::CustomerDocumentDetails,
         api_models::ephemeral_key::ResourceId,
         api_models::payment_methods::PaymentMethodCreate,
         api_models::payment_methods::PaymentMethodIntentCreate,
@@ -311,7 +334,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::Currency,
         api_models::enums::CavvAlgorithm,
         api_models::enums::ExemptionIndicator,
-        api_models::enums::DocumentKind,
+        common_types::customers::DocumentKind,
         api_models::enums::IntentStatus,
         api_models::enums::CaptureMethod,
         api_models::enums::FutureUsage,
@@ -448,6 +471,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkType,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
+        api_models::payments::PixAdditionalDetails,
+        api_models::payments::ImmediateExpirationTime,
+        api_models::payments::ScheduledExpirationTime,
+        api_models::payments::BoletoAdditionalDetails,
         api_models::payments::PaymentProcessingDetailsAt,
         api_models::payments::ApplepayInitiative,
         api_models::payments::PaymentProcessingDetails,
@@ -461,6 +488,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
+        api_models::payments::PeachpaymentsData,
         api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::WalletData,
@@ -832,6 +860,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
         api_models::payments::additional_info::WalletAdditionalDataForCard,
+        api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData,
         api_models::payments::WalletResponse,
         api_models::payments::WalletResponseData,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,

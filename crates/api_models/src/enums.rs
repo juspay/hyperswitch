@@ -161,6 +161,7 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+    Cybersourcedecisionmanager,
 }
 
 #[derive(
@@ -293,6 +294,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserDocumentType { options: Vec<String> },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,

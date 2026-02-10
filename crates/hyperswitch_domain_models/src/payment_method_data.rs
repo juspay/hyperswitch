@@ -961,7 +961,7 @@ pub struct BoletoVoucherData {
     /// The bank number associated with the boleto
     pub bank_number: Option<Secret<String>>,
     /// The type of document (e.g., CPF, CNPJ)
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<common_types::customers::DocumentKind>,
     /// The percentage of fine applied for late payment
     pub fine_percentage: Option<String>,
     /// The number of days after due date when fine is applied
@@ -2267,7 +2267,15 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
     fn from(value: BankTransferData) -> Self {
         match value {
             BankTransferData::AchBankTransfer {} => Self::Ach {},
-            BankTransferData::SepaBankTransfer {} => Self::Sepa {},
+
+            BankTransferData::SepaBankTransfer {} => Self::Sepa(Box::new(
+                api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData {
+                    debitor_iban: None,
+                    debitor_bic: None,
+                    debitor_name: None,
+                    debitor_email: None,
+                },
+            )),
             BankTransferData::BacsBankTransfer {} => Self::Bacs {},
             BankTransferData::MultibancoBankTransfer {} => Self::Multibanco {},
             BankTransferData::PermataBankTransfer {} => Self::Permata {},
