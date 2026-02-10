@@ -33677,7 +33677,7 @@
       },
       "PostCaptureVoidStatus": {
         "type": "string",
-        "description": "Indicates the type of payment method. Eg: 'card', 'wallet', etc.",
+        "description": "The status of a post-capture void operation",
         "enum": [
           "succeeded",
           "pending",
