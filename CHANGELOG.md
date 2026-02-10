@@ -1,4 +1,4 @@
-  # Changelog
+# Changelog
 
 All notable changes to HyperSwitch will be documented here.
 
