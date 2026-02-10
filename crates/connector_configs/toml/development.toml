@@ -2908,6 +2908,8 @@ key1 = "Razorpay Secret"
   payment_method_type = "bancontact_card"
 [[mollie.wallet]]
   payment_method_type = "paypal"
+[[mollie.pay_later]]
+  payment_method_type = "klarna"
 [mollie.connector_auth.BodyKey]
 api_key="API Key"
 key1="Profile Token"
@@ -7049,58 +7051,84 @@ type="Select"
 options=[]
 
 [santander]
-[[santander.voucher]]
-  payment_method_type = "boleto"
 [[santander.bank_transfer]]
-  payment_method_type = "pix"
-
-[santander.connector_auth.BodyKey]
-api_key="Client ID"
-key1="Client Secret"
-
-[santander.metadata.pix_key]
-name="pix_key"
+payment_method_type = "pix"
+[[santander.voucher]]
+payment_method_type = "boleto"
+[santander.connector_auth.CertificateAuth]
+certificate="Base64 encoded PEM formatted certificate chain"
+private_key="Base64 encoded PEM formatted private key"
+  
+[[santander.metadata.pix]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.pix]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix]]
+name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-
-[santander.metadata.expiration_time]
-name="expiration_time"
-label="Expiration Time"
-placeholder="Enter your Pix QR Code Expiration Time"
-required=true
-type="Number"
-
-[santander.metadata.cpf]
-name="cpf"
-label="Cpf"
-placeholder="Enter your cpf number"
-required=true
-type="Text"
-
-[santander.metadata.merchant_city]
+[[santander.metadata.pix]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-
-[santander.metadata.merchant_name]
+[[santander.metadata.pix]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
 required=true
 type="Text"
 
-[santander.metadata.workspace_id]
+[[santander.metadata.boleto]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.boleto]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.boleto]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=false
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.boleto]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=false
+type="Text"
+[[santander.metadata.boleto]]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
 required=true
 type="Text"
-
-[santander.metadata.covenant_code]
+[[santander.metadata.boleto]]
 name="covenant_code"
 label="Covenant Code"
 placeholder="Enter the covenant code"
@@ -7224,6 +7252,47 @@ required=true
 type="Text"
 [calida.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[hyperpg]
+[[hyperpg.credit]]
+payment_method_type = "Mastercard"
+[[hyperpg.credit]]
+payment_method_type = "Visa"
+[[hyperpg.credit]]
+payment_method_type = "Interac"
+[[hyperpg.credit]]
+payment_method_type = "AmericanExpress"
+[[hyperpg.credit]]
+payment_method_type = "JCB"
+[[hyperpg.credit]]
+payment_method_type = "DinersClub"
+[[hyperpg.credit]]
+payment_method_type = "Discover"
+[[hyperpg.credit]]
+payment_method_type = "CartesBancaires"
+[[hyperpg.credit]]
+payment_method_type = "UnionPay"
+[[hyperpg.debit]]
+payment_method_type = "Mastercard"
+[[hyperpg.debit]]
+payment_method_type = "Visa"
+[[hyperpg.debit]]
+payment_method_type = "Interac"
+[[hyperpg.debit]]
+payment_method_type = "AmericanExpress"
+[[hyperpg.debit]]
+payment_method_type = "JCB"
+[[hyperpg.debit]]
+payment_method_type = "DinersClub"
+[[hyperpg.debit]]
+payment_method_type = "Discover"
+[[hyperpg.debit]]
+payment_method_type = "CartesBancaires"
+[[hyperpg.debit]]
+payment_method_type = "UnionPay"
+[hyperpg.connector_auth.BodyKey]
+api_key="Username"
+key1="Password"
 
 [katapult]
 [katapult.connector_auth.HeaderKey]

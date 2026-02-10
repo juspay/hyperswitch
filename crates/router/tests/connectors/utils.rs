@@ -473,6 +473,7 @@ pub trait ConnectorActions: Connector {
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
                     tax_registration_id: Some("1232343243".to_string().into()),
+                    document_details: None,
                 }),
                 vendor_details: None,
                 priority: None,
@@ -567,6 +568,7 @@ pub trait ConnectorActions: Connector {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 
@@ -1020,6 +1022,7 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            feature_metadata: None,
         };
         Self(data)
     }

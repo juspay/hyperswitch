@@ -23,7 +23,9 @@ use crate::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types,
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 
 /// RouterDataConversion trait
@@ -139,6 +141,30 @@ impl ConnectorEnum {
             Self::Old(connector) => connector.validate_file_upload(purpose, file_size, file_type),
             Self::New(connector) => {
                 connector.validate_file_upload_v2(purpose, file_size, file_type)
+            }
+        }
+    }
+    /// This keeps the generics <F, Req, Res> so existing callers don't break
+    pub fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                // router_data is automatically coerced to &dyn AccessTokenData
+                connector.get_access_token_key(
+                    // router_data as &dyn AccessTokenData,
+                    router_data,
+                    merchant_connector_id_or_connector_name,
+                )
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(
+                    // router_data as &dyn AccessTokenData,
+                    router_data,
+                    merchant_connector_id_or_connector_name,
+                )
             }
         }
     }
@@ -326,10 +352,11 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_webhook_event_type(request),
-            Self::New(connector) => connector.get_webhook_event_type(request),
+            Self::Old(connector) => connector.get_webhook_event_type(request, snapshot),
+            Self::New(connector) => connector.get_webhook_event_type(request, snapshot),
         }
     }
 
@@ -357,10 +384,11 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_dispute_details(request),
-            Self::New(connector) => connector.get_dispute_details(request),
+            Self::Old(connector) => connector.get_dispute_details(request, snapshot),
+            Self::New(connector) => connector.get_dispute_details(request, snapshot),
         }
     }
 
@@ -802,23 +830,6 @@ impl ConnectorCommon for ConnectorEnum {
     }
 }
 
-impl ConnectorAccessTokenSuffix for ConnectorEnum {
-    fn get_access_token_key<F, Req, Res>(
-        &self,
-        router_data: &RouterData<F, Req, Res>,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-            }
-            Self::New(connector) => {
-                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-            }
-        }
-    }
-}
-
 /// Trait representing the connector integration interface
 ///
 /// This trait defines the methods required for a connector integration interface.
@@ -1011,3 +1022,6 @@ impl api::ConnectorTransactionId for ConnectorEnum {
         }
     }
 }
+
+//re-add if stops working
+// impl ConnectorAccessTokenSuffix for BoxedConnectorV2 {}

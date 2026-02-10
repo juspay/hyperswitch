@@ -1438,6 +1438,7 @@ mod tests {
             net_amount: MinorUnit::new(6540),
             processor_merchant_id: merchant_id,
             initiator: None,
+            sdk_authorization: None,
             connector: None,
             customer: None,
             disputes: None,
