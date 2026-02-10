@@ -1044,6 +1044,7 @@ impl webhooks::IncomingWebhook for Xendit {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let body: XenditWebhookEvent = request
             .body

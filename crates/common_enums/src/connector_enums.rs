@@ -95,6 +95,7 @@ pub enum Connector {
     CtpMastercard,
     CtpVisa,
     Cybersource,
+    Cybersourcedecisionmanager,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
@@ -259,6 +260,7 @@ impl Connector {
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
+                | (Self::Santander, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -312,6 +314,7 @@ impl Connector {
             | Self::Coingate
             | Self::Cryptopay
             | Self::Custombilling
+            | Self::Cybersourcedecisionmanager
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal

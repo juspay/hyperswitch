@@ -150,6 +150,8 @@ pub struct ConfigMetadata {
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
+    pub pix: Option<Vec<InputData>>,
+    pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
@@ -521,6 +523,7 @@ impl ConnectorConfig {
             Connector::CtpVisa => Ok(connector_data.ctp_visa),
             Connector::Custombilling => Ok(connector_data.custombilling),
             Connector::Cybersource => Ok(connector_data.cybersource),
+            Connector::Cybersourcedecisionmanager => Ok(connector_data.cybersourcedecisionmanager),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyBillingConnector => Ok(connector_data.dummy_connector),
             Connector::Iatapay => Ok(connector_data.iatapay),
