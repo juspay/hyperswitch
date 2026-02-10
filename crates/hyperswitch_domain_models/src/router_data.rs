@@ -735,6 +735,12 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     ApplePay {
         auth_code: Option<String>,
     },
+    SepaBankTransfer {
+        debitor_iban: Option<Secret<String>>,
+        debitor_bic: Option<Secret<String>>,
+        debitor_name: Option<Secret<String>>,
+        debitor_email: Option<Secret<String>>,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {

@@ -7587,6 +7587,26 @@ pub fn add_connector_response_to_additional_payment_data(
             interac: Some(api_models::payments::InteracPaymentMethod { customer_info }),
         },
         (
+            api_models::payments::AdditionalPaymentData::BankTransfer { .. },
+            AdditionalPaymentMethodConnectorResponse::SepaBankTransfer {
+                debitor_iban,
+                debitor_bic,
+                debitor_name,
+                debitor_email,
+            },
+        ) => api_models::payments::AdditionalPaymentData::BankTransfer {
+            details: Some(
+                api_models::payments::additional_info::BankTransferAdditionalData::Sepa(Box::new(
+                    api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData {
+                        debitor_iban,
+                        debitor_bic,
+                        debitor_name,
+                        debitor_email,
+                    },
+                )),
+            ),
+        },
+        (
             api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay,
                 google_pay,
