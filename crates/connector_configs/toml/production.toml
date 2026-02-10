@@ -870,7 +870,6 @@ required=true
 type="Text"
 
 [[braintree.metadata.paypal_sdk]]
-client_id="Client ID"
 name="client_id"
 label="Client Id"
 placeholder="Enter Client Id"
@@ -3323,6 +3322,7 @@ key1 = "Client ID"
 merchant_secret = "Source verification key"
 [paypal.metadata.paypal_sdk]
 client_id = "Client ID"
+required=true
 
 [paypal_payout]
 [[paypal_payout.wallet]]
