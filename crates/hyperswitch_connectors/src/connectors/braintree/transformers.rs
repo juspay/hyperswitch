@@ -300,6 +300,24 @@ pub struct VaultTransactionBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
+    payment_initiator: PaymentInitiatorType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    channel: String,
+    order_id: String,
+    payment_initiator: PaymentInitiatorType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInitiatorType {
+    Unscheduled,
+    RecurringFirst,
 }
 
 #[derive(Debug, Serialize)]
@@ -307,6 +325,7 @@ pub struct VaultTransactionBody {
 pub enum TransactionBody {
     Regular(RegularTransactionBody),
     Vault(VaultTransactionBody),
+    Mandate(MandateTransactionBody),
 }
 
 #[derive(Debug, Serialize)]
@@ -341,12 +360,12 @@ impl
                 true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
                 false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
             },
-            TransactionBody::Regular(RegularTransactionBody {
+            TransactionBody::Mandate(MandateTransactionBody {
                 amount: item.amount.to_owned(),
                 merchant_account_id: metadata.merchant_account_id,
                 channel: CHANNEL_CODE.to_string(),
-                customer_details: None,
                 order_id: item.router_data.connector_request_reference_id.clone(),
+                payment_initiator: PaymentInitiatorType::Unscheduled,
             }),
         );
         Ok(Self {
@@ -631,6 +650,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
@@ -746,6 +766,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         reason: Some(transaction_data.status.to_string()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -768,6 +789,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -792,6 +814,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -807,6 +830,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         reason: Some(txn.status.to_string()),
                         attempt_status: None,
                         connector_transaction_id: Some(txn.id.clone()),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -822,6 +846,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: txn.legacy_id.clone(),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -877,6 +902,7 @@ fn get_error_response<T>(
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -958,6 +984,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         reason: Some(transaction_data.status.to_string().clone()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -980,6 +1007,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1004,6 +1032,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -1022,6 +1051,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         reason: Some(txn.status.to_string()),
                         attempt_status: None,
                         connector_transaction_id: Some(txn.id.clone()),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -1044,6 +1074,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1093,6 +1124,7 @@ impl<F>
                         reason: Some(transaction_data.status.to_string().clone()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -1115,6 +1147,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1163,6 +1196,7 @@ impl<F>
                         reason: Some(transaction_data.status.to_string().clone()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -1185,6 +1219,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -1404,6 +1439,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
                             reason: Some(refund_data.status.to_string().clone()),
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.id),
+                            connector_response_reference_id: None,
                             status_code: item.http_code,
                             network_advice_code: None,
                             network_decline_code: None,
@@ -1617,6 +1653,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
@@ -1852,13 +1889,23 @@ impl
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
-                        let gpay_data: payment_types::GpaySessionTokenData =
+                        let gpay_data: payment_types::GpayMetaData =
                             if let Some(connector_meta) = data.connector_meta_data.clone() {
-                                connector_meta
+                                let metadata = connector_meta
                                     .expose()
-                                    .parse_value("GpaySessionTokenData")
+                                    .parse_value::<payment_types::GpaySessionTokenData>(
+                                        "GpaySessionTokenData",
+                                    )
                                     .change_context(errors::ConnectorError::ParsingFailed)
-                                    .attach_printable("Failed to parse gpay metadata")?
+                                    .attach_printable("Failed to parse gpay metadata")?;
+                                if let Some(gpay_metadata) = metadata.google_pay.data {
+                                    gpay_metadata
+                                } else {
+                                    return Err(errors::ConnectorError::InvalidConnectorConfig {
+                                    config:
+                                        "metadata.google_pay, no googlepay metadata is configured",
+                                }.into());
+                                }
                             } else {
                                 return Err(errors::ConnectorError::NoConnectorMetaData)
                                     .attach_printable("connector_meta_data is None");
@@ -1868,8 +1915,8 @@ impl
                             api_models::payments::GpaySessionTokenResponse::GooglePaySession(
                                 api_models::payments::GooglePaySessionResponse {
                                     merchant_info: payment_types::GpayMerchantInfo {
-                                        merchant_name: gpay_data.data.merchant_info.merchant_name,
-                                        merchant_id: gpay_data.data.merchant_info.merchant_id,
+                                        merchant_name: gpay_data.merchant_info.merchant_name,
+                                        merchant_id: gpay_data.merchant_info.merchant_id,
                                     },
                                     shipping_address_required: false,
                                     email_required: false,
@@ -1877,7 +1924,7 @@ impl
                                         payment_types::GpayShippingAddressParameters {
                                             phone_number_required: false,
                                         },
-                                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                                    allowed_payment_methods: gpay_data.allowed_payment_methods,
                                     transaction_info: payment_types::GpayTransactionInfo {
                                         country_code: data.request.country.ok_or(
                                             errors::ConnectorError::MissingRequiredField {
@@ -2044,6 +2091,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         reason: Some(transaction_data.status.to_string().clone()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -2059,6 +2107,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -2248,6 +2297,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         reason: Some(void_data.status.to_string().clone()),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -2263,6 +2313,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -2375,6 +2426,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         reason: Some(edge_data.node.status.to_string().clone()),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -2390,6 +2442,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
@@ -2484,6 +2537,7 @@ impl
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id: item.router_data.connector_request_reference_id.clone(),
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
                 }),
             )
         } else {
@@ -2596,6 +2650,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id: item.router_data.connector_request_reference_id.clone(),
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
                 }),
             )
         } else {
@@ -2676,6 +2731,7 @@ fn get_braintree_redirect_form(
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
                 errors::ConnectorError::NotImplemented("given payment method".to_owned()),
             )?,

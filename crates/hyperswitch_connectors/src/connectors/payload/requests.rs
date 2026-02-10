@@ -64,6 +64,7 @@ pub struct CustomerRequest {
     pub keep_active: bool,
     pub email: Email,
     pub name: Secret<String>,
+    pub primary_processing_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -144,4 +145,31 @@ pub struct PayloadRefundRequest {
     pub amount: StringMajorUnit,
     #[serde(rename = "ledger[0][assoc_transaction_id]")]
     pub ledger_assoc_transaction_id: String,
+}
+
+// Request struct for ACH SetupMandate using /payment_methods API
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadPaymentMethodRequest {
+    pub account_id: Secret<String>, // Customer ID from createCustomer
+    #[serde(flatten)]
+    pub bank_account: PayloadBankAccountData,
+    pub account_holder: Secret<String>,
+    #[serde(rename = "type")]
+    pub payment_method_type: PayloadPaymentMethodType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadBankAccountData {
+    #[serde(rename = "bank_account[account_number]")]
+    pub account_number: Secret<String>,
+    #[serde(rename = "bank_account[routing_number]")]
+    pub routing_number: Secret<String>,
+    #[serde(rename = "bank_account[account_type]")]
+    pub account_type: PayloadAccAccountType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadPaymentMethodType {
+    BankAccount,
 }

@@ -3,8 +3,10 @@ use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankDebitData, BankRedirectData, PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    payment_method_data::{
+        BankDebitData, BankRedirectData, PayLaterData, PaymentMethodData, WalletData,
+    },
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_request_types::ResponseId,
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
@@ -12,7 +14,7 @@ use hyperswitch_domain_models::{
     },
     types,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -21,8 +23,9 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        get_unimplemented_payment_method_error_message, AddressDetailsData, BrowserInformationData,
-        CardData as CardDataUtil, CustomerData, PaymentMethodTokenizationRequestData,
+        convert_amount, get_unimplemented_payment_method_error_message, AddressData,
+        AddressDetailsData, BrowserInformationData, CardData as CardDataUtil, CustomerData,
+        OrderDetailsWithAmountData, PaymentMethodTokenizationRequestData,
         PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
         RouterData as OtherRouterData,
     },
@@ -82,6 +85,7 @@ pub enum MolliePaymentMethodData {
     Bancontact,
     CreditCard(Box<CreditCardMethodData>),
     DirectDebit(Box<DirectDebitMethodData>),
+    Klarna(Box<KlarnaMethodData>),
     #[serde(untagged)]
     MandatePayment(Box<MandatePaymentMethodData>),
 }
@@ -103,6 +107,83 @@ pub struct IdealMethodData {
 pub struct PaypalMethodData {
     billing_address: Option<Address>,
     shipping_address: Option<Address>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KlarnaMethodData {
+    billing_address: Address,
+    lines: Vec<MollieLinesItems>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieLinesItems {
+    description: String,
+    quantity: i32,
+    quantity_unit: Option<String>,
+    unit_price: OrderItemUnitPrice,
+    total_amount: OrderItemUnitPrice,
+    discount_amount: Option<OrderItemUnitPrice>,
+    sku: Option<String>,
+    image_url: Option<String>,
+}
+
+impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesItems {
+    type Error = Error;
+    fn try_from(
+        (order_details, currency): (types::OrderDetailsWithAmount, enums::Currency),
+    ) -> Result<Self, Self::Error> {
+        let description = order_details.get_order_description()?;
+        let quantity = i32::from(order_details.get_order_quantity());
+        let quantity_unit = order_details.get_optional_order_quantity_unit();
+        let sku = order_details.get_optional_sku();
+        let image_url = order_details.get_optional_product_img_link();
+        let mollie_converter = super::Mollie::new().amount_converter;
+        let unit_price_value = convert_amount(
+            mollie_converter,
+            order_details.get_order_unit_price(),
+            currency,
+        )?;
+
+        let discount_amount_value = order_details
+            .get_optional_unit_discount_amount()
+            .map(|unit_discount_amount| {
+                convert_amount(mollie_converter, unit_discount_amount, currency)
+            })
+            .transpose()?;
+
+        let total_amount_value = convert_amount(
+            mollie_converter,
+            order_details.get_order_total_amount()?,
+            currency,
+        )?;
+
+        Ok(Self {
+            description,
+            quantity,
+            quantity_unit,
+            unit_price: OrderItemUnitPrice {
+                currency,
+                value: unit_price_value,
+            },
+            total_amount: OrderItemUnitPrice {
+                currency,
+                value: total_amount_value,
+            },
+            discount_amount: discount_amount_value
+                .map(|value| OrderItemUnitPrice { currency, value }),
+            sku,
+            image_url,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderItemUnitPrice {
+    currency: enums::Currency,
+    value: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -149,6 +230,32 @@ pub struct Address {
     pub city: String,
     pub region: Option<Secret<String>>,
     pub country: api_models::enums::CountryAlpha2,
+    pub given_name: Option<Secret<String>>,
+    pub family_name: Option<Secret<String>>,
+    pub email: Option<Email>,
+}
+
+impl Address {
+    fn validate_and_build_klarna_billing_address(
+        address_details: hyperswitch_domain_models::address::Address,
+    ) -> Result<Self, Error> {
+        let address = address_details.address.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "Billing Address details for Klarna",
+            },
+        )?;
+
+        Ok(Self {
+            street_and_number: address.get_combined_address_line()?,
+            postal_code: address.get_zip()?.to_owned(),
+            city: address.get_city()?.to_owned(),
+            region: address.get_optional_state(),
+            country: address.get_country()?.to_owned(),
+            given_name: Some(address.get_first_name()?.clone()),
+            family_name: Some(address.get_last_name()?.clone()),
+            email: Some(address_details.get_email()?.clone()),
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -243,12 +350,13 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::PayLater(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -347,6 +455,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                     },
                 )))
             }
+            PaymentMethodData::PayLater(ref paylater_data) => {
+                MolliePaymentMethodData::try_from((item.router_data, paylater_data))
+            }
             PaymentMethodData::BankRedirect(ref redirect_data) => {
                 MolliePaymentMethodData::try_from((item.router_data, redirect_data))
             }
@@ -380,6 +491,36 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             capture_mode,
             customer_id,
         })
+    }
+}
+
+impl TryFrom<(&types::PaymentsAuthorizeRouterData, &PayLaterData)> for MolliePaymentMethodData {
+    type Error = Error;
+    fn try_from(
+        (item, value): (&types::PaymentsAuthorizeRouterData, &PayLaterData),
+    ) -> Result<Self, Self::Error> {
+        match value {
+            PayLaterData::KlarnaRedirect {} => {
+                let billing_address = Address::validate_and_build_klarna_billing_address(
+                    item.get_billing()?.clone(),
+                )?;
+
+                let lines = item
+                    .request
+                    .get_order_details()?
+                    .into_iter()
+                    .map(|order_detail| {
+                        MollieLinesItems::try_from((order_detail, item.request.currency))
+                    })
+                    .collect::<Result<Vec<MollieLinesItems>, Error>>()?;
+
+                Ok(Self::Klarna(Box::new(KlarnaMethodData {
+                    billing_address,
+                    lines,
+                })))
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        }
     }
 }
 
@@ -533,12 +674,17 @@ fn get_address_details(
             let city = address.get_city()?.to_owned();
             let region = None;
             let country = address.get_country()?.to_owned();
+            let given_name = address.get_optional_first_name();
+            let family_name = address.get_optional_last_name();
             Some(Address {
                 street_and_number,
                 postal_code,
                 city,
                 region,
                 country,
+                given_name,
+                family_name,
+                email: None,
             })
         }
         None => None,
@@ -563,6 +709,15 @@ pub struct MolliePaymentsResponse {
     pub links: Links,
     pub mandate_id: Option<Secret<String>>,
     pub payment_id: Option<String>,
+    pub details: Option<MolliePaymentDetails>,
+}
+
+/// Details object containing failure information for failed payments
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MolliePaymentDetails {
+    pub failure_reason: Option<String>,
+    pub failure_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -670,6 +825,49 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.status.clone());
+
+        // Handle failed payments: extract error details from the details object
+        // Mollie returns 2xx but with status "failed" when payment fails after 3DS authentication
+        if crate::utils::is_payment_failure(status) {
+            let (failure_reason, failure_message) = item
+                .response
+                .details
+                .as_ref()
+                .map(|details| {
+                    (
+                        details.failure_reason.clone(),
+                        details.failure_message.clone(),
+                    )
+                })
+                .unwrap_or((None, None));
+
+            let error_code = failure_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+            let error_message = failure_message
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+
+            return Ok(Self {
+                status,
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.id),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                    connector_response_reference_id: None,
+                }),
+                ..item.data
+            });
+        }
+
         let url = item
             .response
             .links
@@ -687,7 +885,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 connector_mandate_request_reference_id: None,
             });
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response
@@ -700,6 +898,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

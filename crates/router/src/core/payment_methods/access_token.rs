@@ -1,9 +1,9 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::VaultRouterData;
+use hyperswitch_interfaces::consts;
 
 use crate::{
-    consts,
     core::{
         errors::{self, RouterResult},
         payments,
@@ -161,6 +161,7 @@ pub async fn refresh_connector_auth(
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

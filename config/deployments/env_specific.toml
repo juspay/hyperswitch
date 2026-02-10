@@ -279,6 +279,10 @@ sessionizer_disputes = "sessionizer-dispute-events"
 # Configuration for the Key Manager Service
 [key_manager]
 url = "http://localhost:5000" # URL of the encryption service
+# Enable / disable legacy key store decryption behavior.
+# Set to true if upgrading from previous versions of Hyperswitch.
+# Set to false for new deployments to use newer / correct decryption behavior.
+use_legacy_key_store_decryption = false
 
 # This section provides some secret values.
 [secrets]
@@ -296,6 +300,12 @@ host = "127.0.0.1"
 shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
+# Keep-alive timeout in seconds
+keep_alive = 5              
+# Client request timeout in milliseconds
+client_request_timeout = 5000
+# Client disconnect timeout in milliseconds
+client_disconnect_timeout = 1000
 
 # HTTPS Server Configuration
 # Self-signed Private Key and Certificate can be generated with mkcert for local development
@@ -357,6 +367,7 @@ key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
+check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
@@ -393,7 +404,7 @@ connector_names = "connector_names"     # Comma-separated list of allowed connec
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]

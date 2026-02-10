@@ -42,7 +42,7 @@ use hyperswitch_interfaces::{
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsVoidType, RefundExecuteType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{ExposeInterface, Mask};
 use rand::distributions::DistString;
@@ -148,6 +148,7 @@ impl ConnectorCommon for Payeezy {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -569,6 +570,7 @@ impl IncomingWebhook for Payeezy {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }

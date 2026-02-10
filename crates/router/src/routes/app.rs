@@ -153,6 +153,14 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
     }
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.request_id.clone()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.api_client.add_request_id(request_id.clone());
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
+    }
 }
 impl SessionState {
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
@@ -180,10 +188,23 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
+        // For shadow mode, disable event publishing in UCS
+        let config_override = match unified_connector_service_execution_mode {
+            ExecutionMode::Shadow => Some(
+                serde_json::json!({
+                    "events": {
+                        "enabled": false
+                    }
+                })
+                .to_string(),
+            ),
+            _ => None,
+        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
+            .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -554,6 +575,7 @@ impl AppState {
             #[cfg(feature = "keymanager_mtls")]
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+            use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -881,7 +903,11 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/proxy")
+        let base_path = format!(
+            "/{}/proxy",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        web::scope(&base_path)
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -1349,7 +1375,11 @@ pub struct Customers;
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/customers",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         #[cfg(all(feature = "olap", feature = "v2"))]
         {
             route = route
@@ -1558,7 +1588,11 @@ impl Payouts {
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-methods",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1581,8 +1615,17 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
                 )
                 .service(
+                    web::resource("/get-network-token-eligibility")
+                        .route(web::get().to(payment_methods::get_pm_nt_eligibility_api)),
+                )
+                .service(
                     web::resource("/{payment_method_id}/check-network-token-status")
                         .route(web::get().to(payment_methods::network_token_status_check_api)),
+                )
+                .service(
+                    web::resource("/token/{payment_method_temporary_token}/details").route(
+                        web::get().to(payment_methods::payment_method_get_token_details_api),
+                    ),
                 );
 
             route = route.service(
@@ -1698,7 +1741,11 @@ pub struct PaymentMethodSession;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-method-sessions").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-method-sessions",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         route = route.service(
             web::resource("")
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
@@ -1807,6 +1854,8 @@ impl Oidc {
                     .route(web::get().to(oidc::oidc_discovery)),
             )
             .service(web::resource("/oauth2/jwks").route(web::get().to(oidc::jwks_endpoint)))
+            .service(web::resource("/oidc/authorize").route(web::get().to(oidc::oidc_authorize)))
+            .service(web::resource("/oauth2/token").route(web::post().to(oidc::oidc_token)))
     }
 }
 
@@ -1840,9 +1889,16 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::organization_retrieve))
-                    .route(web::put().to(admin::organization_update)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::organization_retrieve))
+                            .route(web::put().to(admin::organization_update)),
+                    )
+                    .service(
+                        web::resource("/convert_to_platform")
+                            .route(web::post().to(admin::convert_organization_to_platform)),
+                    ),
             )
     }
 }
@@ -1898,7 +1954,7 @@ impl MerchantAccount {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut routes = web::scope("/accounts")
+        let routes = web::scope("/accounts")
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(admin::merchant_account_list)))
             .service(
@@ -1919,12 +1975,6 @@ impl MerchantAccount {
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
             );
-        if state.conf.platform.enabled {
-            routes = routes.service(
-                web::resource("/{id}/platform")
-                    .route(web::post().to(admin::merchant_account_enable_platform_account)),
-            )
-        }
         routes.app_data(web::Data::new(state))
     }
 }
@@ -1977,6 +2027,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
+                        .route(web::post().to(connector_webhook_register)),
                 );
         }
         #[cfg(feature = "oltp")]
@@ -3042,11 +3096,20 @@ impl User {
                         .route(web::get().to(user::theme::list_all_themes_in_lineage)),
                 )
                 .service(
-                    web::resource("/{theme_id}")
-                        .route(web::get().to(user::theme::get_user_theme_using_theme_id))
-                        .route(web::put().to(user::theme::update_user_theme))
-                        .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
-                        .route(web::delete().to(user::theme::delete_user_theme)),
+                    web::scope("/{theme_id}")
+                        .service(
+                            web::resource("")
+                                .route(web::get().to(user::theme::get_user_theme_using_theme_id))
+                                .route(web::put().to(user::theme::update_user_theme))
+                                .route(
+                                    web::post().to(user::theme::upload_file_to_user_theme_storage),
+                                )
+                                .route(web::delete().to(user::theme::delete_user_theme)),
+                        )
+                        .service(
+                            web::resource("/version")
+                                .route(web::get().to(user::theme::get_theme_version)),
+                        ),
                 ),
         );
         route
@@ -3072,6 +3135,18 @@ impl ConnectorOnboarding {
                 web::resource("/reset_tracking_id")
                     .route(web::post().to(connector_onboarding::reset_tracking_id)),
             )
+    }
+}
+
+pub struct Embedded;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl Embedded {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/embedded")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(user::embedded_token_info)))
+            .service(web::resource("/token").route(web::get().to(user::issue_embedded_token)))
     }
 }
 

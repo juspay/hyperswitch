@@ -1,3 +1,4 @@
+use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
@@ -62,10 +63,10 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_intent_by_payment_id_merchant_id(
+    async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
@@ -89,7 +90,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -98,7 +99,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -107,7 +108,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
@@ -115,7 +116,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -147,7 +148,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, Self::Error>;
@@ -160,6 +161,23 @@ pub struct CustomerData {
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
+}
+
+impl CustomerData {
+    pub fn fill_missing_fields(&mut self, other: &Self) {
+        self.name = self.name.clone().or_else(|| other.name.clone());
+        self.email = self.email.clone().or_else(|| other.email.clone());
+        self.phone = self.phone.clone().or_else(|| other.phone.clone());
+        self.phone_country_code = self
+            .phone_country_code
+            .clone()
+            .or_else(|| other.phone_country_code.clone());
+        self.tax_registration_id = self
+            .tax_registration_id
+            .clone()
+            .or_else(|| other.tax_registration_id.clone());
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -247,6 +265,7 @@ pub struct PaymentIntentUpdateFields {
     pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -261,8 +280,9 @@ pub enum PaymentIntentUpdate {
         feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: Option<serde_json::Value>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
@@ -329,6 +349,10 @@ pub enum PaymentIntentUpdate {
         shipping_address_id: Option<String>,
         updated_by: String,
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    },
+    StateMetadataUpdate {
+        state_metadata: common_types::payments::PaymentIntentStateMetadata,
+        updated_by: String,
     },
 }
 
@@ -459,6 +483,8 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -512,6 +538,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -560,6 +587,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -606,6 +634,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -652,6 +681,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -701,6 +731,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -789,6 +820,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
                     enable_partial_authorization,
+                    state_metadata: None,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -838,6 +870,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -881,6 +914,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -927,6 +961,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -969,6 +1004,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state_metadata: None,
             }),
         }
     }
@@ -981,10 +1017,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self {
-                metadata: Some(metadata),
+                metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1175,6 +1213,60 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details,
                 ..Default::default()
             },
+            PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata,
+                updated_by,
+            } => Self {
+                state_metadata: Some(state_metadata),
+                updated_by,
+                amount: None,
+                currency: None,
+                status: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                billing_address_id: None,
+                shipping_address_id: None,
+                modified_at: None,
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                fingerprint_id: None,
+                session_expiry: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                payment_channel: None,
+                feature_metadata: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
+                enable_overcapture: None,
+                shipping_cost: None,
+            },
         }
     }
 }
@@ -1222,8 +1314,17 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self::MetadataUpdate {
                 metadata,
+                updated_by,
+                feature_metadata,
+            },
+            PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata,
+                updated_by,
+            } => Self::StateMetadataUpdate {
+                state_metadata,
                 updated_by,
             },
             PaymentIntentUpdate::Update(value) => {
@@ -1267,6 +1368,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
+                    shipping_cost: value.shipping_cost,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1436,6 +1538,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            shipping_cost,
+            state_metadata,
         } = value;
         Self {
             amount,
@@ -1486,6 +1590,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            shipping_cost,
+            state_metadata,
         }
     }
 }
@@ -1974,6 +2080,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
         })
     }
     async fn convert_back(
@@ -2236,6 +2343,7 @@ impl behaviour::Conversion for PaymentIntent {
             tokenization: None,
             active_attempt_id_type: Some(self.active_attempt_id_type),
             active_attempts_group_id: self.active_attempts_group_id,
+            state_metadata: None,
         })
     }
 }
@@ -2323,6 +2431,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            state_metadata: self.state_metadata,
         })
     }
 
@@ -2437,6 +2546,7 @@ impl behaviour::Conversion for PaymentIntent {
                 tokenization: storage_model.tokenization,
                 partner_merchant_identifier_details: storage_model
                     .partner_merchant_identifier_details,
+                state_metadata: storage_model.state_metadata,
             })
         }
         .await
@@ -2522,6 +2632,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            state_metadata: self.state_metadata,
         })
     }
 }

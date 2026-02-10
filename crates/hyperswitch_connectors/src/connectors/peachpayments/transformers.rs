@@ -5,7 +5,7 @@ use common_enums::enums as storage_enums;
 use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, NetworkTokenData, PaymentMethodData},
+    payment_method_data::{Card, CardWithLimitedDetails, NetworkTokenData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{RefundsData, ResponseId},
@@ -25,7 +25,10 @@ use time::OffsetDateTime;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, CardData, NetworkTokenData as _, RouterData as OtherRouterData},
+    utils::{
+        self, CardData, CardWithLimitedData as _, NetworkTokenData as _,
+        RouterData as OtherRouterData,
+    },
 };
 
 pub struct PeachpaymentsRouterData<T> {
@@ -54,9 +57,6 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
 }
 
 const CHARGE_METHOD: &str = "ecommerce_card_payment_only";
-const COF_DATA_TYPE: &str = "adhoc";
-const COF_DATA_SOURCE: &str = "cit";
-const COF_DATA_MODE: &str = "initial";
 
 // Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
@@ -90,9 +90,9 @@ pub enum PeachpaymentsPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CardOnFileData {
     #[serde(rename = "type")]
-    pub _type: String,
-    pub source: String,
-    pub mode: String,
+    pub _type: CofType,
+    pub source: CofSource,
+    pub mode: CofMode,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -105,6 +105,30 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cof_data: Option<CardOnFileData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CofType {
+    Adhoc,
+    Recurring,
+    Instalment,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CofSource {
+    Cit,
+    Mit,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CofMode {
+    Initial,
+    Subsequent,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -169,10 +193,14 @@ pub struct CardDetails {
     pub pan: CardNumber,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_name: Option<Secret<String>>,
-    pub expiry_year: Secret<String>,
-    pub expiry_month: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiry_year: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiry_month: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -182,6 +210,7 @@ pub struct NetworkTokenDetails {
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
     pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     pub scheme: Option<CardNetworkLowercase>,
 }
@@ -392,7 +421,9 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, req_card)),
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
-
+            PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                Self::try_from((item, card_with_limited_details))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -465,9 +496,9 @@ impl
                 network_token_data,
                 amount,
                 cof_data: CardOnFileData {
-                    _type: COF_DATA_TYPE.to_string(),
-                    source: COF_DATA_SOURCE.to_string(),
-                    mode: COF_DATA_MODE.to_string(),
+                    _type: CofType::Adhoc,
+                    source: CofSource::Cit,
+                    mode: CofMode::Initial,
                 },
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
@@ -519,9 +550,10 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
         let card = CardDetails {
             pan: req_card.card_number.clone(),
             cardholder_name: req_card.card_holder_name.clone(),
-            expiry_year: req_card.get_card_expiry_year_2_digit()?,
-            expiry_month: req_card.card_exp_month.clone(),
+            expiry_year: Some(req_card.get_card_expiry_year_2_digit()?),
+            expiry_month: Some(req_card.card_exp_month.clone()),
             cvv: Some(req_card.card_cvc.clone()),
+            eci: None,
         };
 
         let amount = AmountDetails {
@@ -550,6 +582,87 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
+                cof_data: None,
+            });
+
+        // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
+        let send_date_time = OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Iso8601::DEFAULT)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self::Card(PeachpaymentsPaymentsCardRequest {
+            charge_method: CHARGE_METHOD.to_string(),
+            reference_id: item.router_data.connector_request_reference_id.clone(),
+            ecommerce_card_payment_only_transaction_data: ecommerce_data,
+            pos_data: None,
+            send_date_time,
+        }))
+    }
+}
+
+impl
+    TryFrom<(
+        &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        CardWithLimitedDetails,
+    )> for PeachpaymentsPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, card_with_limited_details): (
+            &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+            CardWithLimitedDetails,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount_in_cents = item.amount;
+
+        let connector_merchant_config =
+            PeachPaymentsConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
+        let merchant_information = MerchantInformation {
+            client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
+        };
+
+        let routing_reference = RoutingReference {
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
+        };
+
+        let card = CardDetails {
+            pan: card_with_limited_details.card_number.clone(),
+            cardholder_name: card_with_limited_details.card_holder_name.clone(),
+            expiry_year: card_with_limited_details.get_card_expiry_year_2_digit()?,
+            expiry_month: card_with_limited_details.card_exp_month.clone(),
+            cvv: None,
+            eci: card_with_limited_details.eci.clone(),
+        };
+
+        let amount = AmountDetails {
+            amount: amount_in_cents,
+            currency_code: item.router_data.request.currency,
+            display_amount: None,
+        };
+
+        let pre_auth_inc_ext_capture_flow = if matches!(
+            item.router_data.request.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+        ) {
+            Some(PreAuthIncExtCaptureFlow {
+                dcc_mode: DccMode::NoDcc,
+                txn_ref_nr: item.router_data.connector_request_reference_id.clone(),
+            })
+        } else {
+            None
+        };
+
+        let ecommerce_data =
+            EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
+                merchant_information,
+                routing_reference,
+                card,
+                amount,
+                rrn: item.router_data.request.merchant_order_reference_id.clone(),
+                pre_auth_inc_ext_capture_flow,
+                cof_data: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -708,6 +821,7 @@ impl<F>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -748,6 +862,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -825,14 +940,6 @@ pub struct EcommerceCardPaymentOnlyResponseData {
     pub trace_id: Option<String>,
 }
 
-fn is_payment_success(value: Option<&String>) -> bool {
-    if let Some(val) = value {
-        val == "00" || val == "08" || val == "X94"
-    } else {
-        false
-    }
-}
-
 fn get_error_code(response_code: Option<&ResponseCode>) -> String {
     response_code
         .and_then(|code| code.value())
@@ -868,12 +975,7 @@ pub fn get_peachpayments_response(
     errors::ConnectorError,
 > {
     let status = common_enums::AttemptStatus::from(response.transaction_result);
-    let payments_response = if !is_payment_success(
-        response
-            .response_code
-            .as_ref()
-            .and_then(|code| code.value()),
-    ) {
+    let payments_response = if utils::is_payment_failure(status) {
         Err(ErrorResponse {
             code: get_error_code(response.response_code.as_ref()),
             message: get_error_message(response.response_code.as_ref()),
@@ -883,6 +985,7 @@ pub fn get_peachpayments_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(response.transaction_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -897,6 +1000,7 @@ pub fn get_peachpayments_response(
             network_txn_id: None,
             connector_response_reference_id: Some(response.transaction_id),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     };
@@ -917,12 +1021,7 @@ pub fn get_webhook_response(
         .transaction
         .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
     let status = common_enums::AttemptStatus::from(transaction.transaction_result);
-    let webhook_response = if !is_payment_success(
-        transaction
-            .response_code
-            .as_ref()
-            .and_then(|code| code.value()),
-    ) {
+    let webhook_response = if utils::is_payment_failure(status) {
         Err(ErrorResponse {
             code: get_error_code(transaction.response_code.as_ref()),
             message: get_error_message(transaction.response_code.as_ref()),
@@ -932,6 +1031,7 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(transaction.transaction_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -950,6 +1050,7 @@ pub fn get_webhook_response(
             network_txn_id: None,
             connector_response_reference_id: Some(transaction.transaction_id.clone()),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     };
@@ -991,12 +1092,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
         let status = common_enums::AttemptStatus::from(item.response.transaction_result);
 
         // Check if it's an error response
-        let response = if !is_payment_success(
-            item.response
-                .response_code
-                .as_ref()
-                .and_then(|code| code.value()),
-        ) {
+        let response = if utils::is_payment_failure(status) {
             Err(ErrorResponse {
                 code: get_error_code(item.response.response_code.as_ref()),
                 message: get_error_message(item.response.response_code.as_ref()),
@@ -1004,6 +1100,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.transaction_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1024,6 +1121,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };

@@ -45,7 +45,7 @@ use hyperswitch_interfaces::{
     consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsAuthorizeType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use lazy_static::lazy_static;
 use masking::{Mask, Maskable, PeekInterface};
@@ -158,6 +158,7 @@ impl ConnectorCommon for Square {
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -890,6 +891,7 @@ impl IncomingWebhook for Square {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: square::SquareWebhookBody = request
             .body

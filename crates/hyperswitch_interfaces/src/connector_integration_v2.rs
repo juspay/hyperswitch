@@ -22,6 +22,7 @@ pub trait ConnectorV2:
     + api::payments_v2::PaymentV2
     + api::ConnectorRedirectResponse
     + webhooks::IncomingWebhook
+    + api::merchant_connector_webhook_management_v2::ConfigureConnectorWebhookV2
     + api::ConnectorAuthenticationTokenV2
     + api::ConnectorAccessTokenV2
     + api::disputes_v2::DisputeV2
@@ -44,6 +45,7 @@ impl<
             + api::ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + api::merchant_connector_webhook_management_v2::ConfigureConnectorWebhookV2
             + api::ConnectorAuthenticationTokenV2
             + api::ConnectorAccessTokenV2
             + api::disputes_v2::DisputeV2
@@ -214,6 +216,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

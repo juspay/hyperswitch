@@ -30,6 +30,7 @@ pub mod cryptopay;
 pub mod ctp_mastercard;
 pub mod custombilling;
 pub mod cybersource;
+pub mod cybersourcedecisionmanager;
 pub mod datatrans;
 pub mod deutschebank;
 pub mod digitalvirgo;
@@ -55,6 +56,7 @@ pub mod gocardless;
 pub mod gpayments;
 pub mod helcim;
 pub mod hipay;
+pub mod hyperpg;
 pub mod hyperswitch_vault;
 pub mod hyperwallet;
 pub mod iatapay;
@@ -130,6 +132,7 @@ pub mod wellsfargopayout;
 pub mod wise;
 pub mod worldline;
 pub mod worldpay;
+pub mod worldpaymodular;
 pub mod worldpayvantiv;
 pub mod worldpayxml;
 pub mod xendit;
@@ -147,12 +150,13 @@ pub use self::{
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
-    custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,
+    custombilling::Custombilling, cybersource::Cybersource,
+    cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
     ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
     fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti, forte::Forte,
     getnet::Getnet, gigadat::Gigadat, globalpay::Globalpay, globepay::Globepay,
-    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
     hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
     inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
@@ -170,6 +174,6 @@ pub use self::{
     tokenio::Tokenio, trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
-    zen::Zen, zift::Zift, zsl::Zsl,
+    worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
+    worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,
 };

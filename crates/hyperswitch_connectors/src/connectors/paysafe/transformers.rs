@@ -937,6 +937,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleRespons
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             payment_method_token: Some(PaymentMethodToken::Token(
@@ -1010,6 +1011,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1047,6 +1049,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1738,6 +1741,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1956,6 +1960,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 reason,
                 attempt_status: None,
                 connector_transaction_id: Some(connector_transaction_id),
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1971,6 +1976,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -2046,6 +2052,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsR
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -2114,6 +2121,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

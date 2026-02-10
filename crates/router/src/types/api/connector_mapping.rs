@@ -295,6 +295,9 @@ impl ConnectorData {
                 enums::Connector::HyperswitchVault => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
                 }
+                enums::Connector::Hyperpg => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hyperpg::new())))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -414,6 +417,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                enums::Connector::Worldpaymodular => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Worldpaymodular::new(),
+                ))),
                 enums::Connector::Worldpayvantiv => Ok(ConnectorEnum::Old(Box::new(
                     connector::Worldpayvantiv::new(),
                 ))),
@@ -481,6 +487,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Signifyd
                 | enums::Connector::Riskified
+                | enums::Connector::Cybersourcedecisionmanager
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal

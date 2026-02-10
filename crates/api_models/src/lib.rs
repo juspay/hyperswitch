@@ -25,6 +25,7 @@ pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
+pub mod merchant_connector_webhook_management;
 pub mod oidc;
 pub mod open_router;
 pub mod organization;
@@ -32,6 +33,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod platform;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;

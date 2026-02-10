@@ -12,7 +12,9 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -47,6 +49,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, ConnectorCustomerType, PaymentsVoidType, Response, SetupMandateType},
@@ -256,6 +259,7 @@ impl ConnectorCommon for Payload {
                 .map(|details_value| details_value.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -297,10 +301,18 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        _req: &SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transactions", self.base_url(connectors)))
+        // Use /payment_methods for ACH, /transactions for cards
+        match &req.request.payment_method_data {
+            PaymentMethodData::BankDebit(
+                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                    ..
+                },
+            ) => Ok(format!("{}/payment_methods", self.base_url(connectors))),
+            _ => Ok(format!("{}/transactions", self.base_url(connectors))),
+        }
     }
 
     fn get_request_body(
@@ -308,8 +320,21 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        // Use different request struct for ACH vs cards
+        match &req.request.payment_method_data {
+            PaymentMethodData::BankDebit(
+                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                    ..
+                },
+            ) => {
+                let connector_req = requests::PayloadPaymentMethodRequest::try_from(req)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+            _ => {
+                let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+        }
     }
 
     fn build_request(
@@ -333,19 +358,42 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
-        let response: responses::PayloadPaymentsResponse = res
-            .response
-            .parse_struct("PayloadPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        match &data.request.payment_method_data {
+            PaymentMethodData::BankDebit(
+                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                    ..
+                },
+            ) => {
+                let response: responses::PayloadPaymentMethodResponse = res
+                    .response
+                    .parse_struct("PayloadPaymentMethodResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            _ => {
+                let response: responses::PayloadPaymentsResponse = res
+                    .response
+                    .parse_struct("PayloadPaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(
@@ -451,9 +499,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = Vec::new();
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -861,6 +912,49 @@ impl webhooks::IncomingWebhook for Payload {
         Ok(request.body.to_vec())
     }
 
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<DisputePayload, errors::ConnectorError> {
+        let webhook_body: responses::PayloadWebhookEvent = request
+            .body
+            .parse_struct("PayloadWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let payment_context = snapshot.map(|s| s.get_payment_context()).ok_or(
+            errors::ConnectorError::GenericError {
+                error_message: "Payment context not found".to_string(),
+                error_object: serde_json::Value::Null,
+            },
+        )?;
+        let currency = payment_context.currency.ok_or_else(|| {
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            }
+        })?;
+
+        let amount = StringMinorUnitForConnector
+            .convert(payment_context.amount, currency)
+            .change_context(errors::ConnectorError::AmountConversionFailed)?;
+
+        Ok(DisputePayload {
+            amount,
+            currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: webhook_body.triggered_on.transaction_id.ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_dispute_id",
+                }
+            })?,
+            connector_reason: None,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            connector_status: webhook_body.trigger.as_str().to_string(),
+            created_at: None,
+            updated_at: None,
+        })
+    }
+
     fn get_webhook_source_verification_signature(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -896,12 +990,9 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::Decline
             | responses::PayloadWebhooksTrigger::Deposit
             | responses::PayloadWebhooksTrigger::Reject
-            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
-            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+            | responses::PayloadWebhooksTrigger::Chargeback => {
                 let reference_id = webhook_body
                     .triggered_on
                     .transaction_id
@@ -913,9 +1004,12 @@ impl webhooks::IncomingWebhook for Payload {
             }
             // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
             // The only differentiator is the distinct IDs received for payment and refund.
-            responses::PayloadWebhooksTrigger::Refund
-            | responses::PayloadWebhooksTrigger::Chargeback
-            | responses::PayloadWebhooksTrigger::ChargebackReversal => {
+            responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear
+            | responses::PayloadWebhooksTrigger::ChargebackReversal
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::Refund => {
                 Err(errors::ConnectorError::WebhooksNotImplemented.into())
             }
         }
@@ -924,13 +1018,34 @@ impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: responses::PayloadWebhookEvent =
             request.body.parse_struct("PayloadWebhookEvent").switch()?;
 
-        Ok(api_models::webhooks::IncomingWebhookEvent::from(
-            webhook_body.trigger,
-        ))
+        // Check if this is an ACH late failure (network rejection after payment was already Charged)
+        // These should be treated as disputes, unlike regular Chargeback which uses normal flow
+        let is_ach_late_failure = snapshot
+            .map(|s| {
+                let payment_context = s.get_payment_context();
+                let is_ach =
+                    payment_context.payment_method_type == Some(enums::PaymentMethodType::Ach);
+                let is_charged = payment_context.previous_status == enums::AttemptStatus::Charged;
+                let is_late_failure_trigger = matches!(
+                    webhook_body.trigger,
+                    responses::PayloadWebhooksTrigger::Decline
+                        | responses::PayloadWebhooksTrigger::Reject
+                        | responses::PayloadWebhooksTrigger::BankAccountReject
+                );
+                is_ach && is_charged && is_late_failure_trigger
+            })
+            .unwrap_or(false);
+
+        Ok(if is_ach_late_failure {
+            api_models::webhooks::IncomingWebhookEvent::DisputeLost
+        } else {
+            api_models::webhooks::IncomingWebhookEvent::from(webhook_body.trigger)
+        })
     }
 
     fn get_webhook_resource_object(
@@ -960,6 +1075,7 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         common_enums::CardNetwork::Discover,
         common_enums::CardNetwork::Mastercard,
         common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::DinersClub,
     ];
 
     payload_supported_payment_methods.add(

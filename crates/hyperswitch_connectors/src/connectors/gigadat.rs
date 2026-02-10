@@ -181,6 +181,7 @@ impl ConnectorCommon for Gigadat {
             reason: Some(response.err).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -591,6 +592,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             reason: Some(response.message).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -980,6 +982,7 @@ impl webhooks::IncomingWebhook for Gigadat {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let query_params = get_webhook_query_params(request)?;
         let body_str = std::str::from_utf8(request.body)

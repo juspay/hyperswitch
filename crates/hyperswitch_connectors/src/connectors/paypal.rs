@@ -73,7 +73,7 @@ use hyperswitch_interfaces::{
         PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
         SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
@@ -191,6 +191,7 @@ impl Paypal {
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -367,6 +368,7 @@ impl ConnectorCommon for Paypal {
             reason,
             attempt_status: None,
             connector_transaction_id: response.debug_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -493,6 +495,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2176,6 +2179,7 @@ impl IncomingWebhook for Paypal {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let payload: paypal::PaypalWebooksEventType = request
             .body
@@ -2257,6 +2261,7 @@ impl IncomingWebhook for Paypal {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let webhook_payload: paypal::PaypalWebhooksBody = request
             .body
@@ -2574,7 +2579,9 @@ impl ConnectorSpecifications for Paypal {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data: _,
                 payment_method,
+                ..
             } => payment_method == Some(enums::PaymentMethod::Card),
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

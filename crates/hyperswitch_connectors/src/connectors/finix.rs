@@ -337,6 +337,7 @@ impl ConnectorCommon for Finix {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1181,6 +1182,7 @@ impl webhooks::IncomingWebhook for Finix {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         if is_test_webhook(request) {
             return Ok(IncomingWebhookEvent::SetupWebhook);
@@ -1196,6 +1198,7 @@ impl webhooks::IncomingWebhook for Finix {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let webhook_body: finix::FinixWebhookBody =
             request

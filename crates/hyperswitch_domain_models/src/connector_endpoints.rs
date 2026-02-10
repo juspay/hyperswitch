@@ -44,6 +44,7 @@ pub struct Connectors {
     pub ctp_visa: NoParams,
     pub custombilling: NoParams,
     pub cybersource: ConnectorParams,
+    pub cybersourcedecisionmanager: ConnectorParams,
     pub datatrans: ConnectorParamsWithSecondaryBaseUrl,
     pub deutschebank: ConnectorParams,
     pub digitalvirgo: ConnectorParams,
@@ -69,6 +70,7 @@ pub struct Connectors {
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub hipay: ConnectorParamsWithThreeUrls,
+    pub hyperpg: ConnectorParams,
     pub hyperswitch_vault: ConnectorParams,
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,
@@ -145,6 +147,7 @@ pub struct Connectors {
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub worldpaymodular: ConnectorParams,
     pub worldpayvantiv: ConnectorParamsWithThreeUrls,
     pub worldpayxml: ConnectorParamsWithSecondaryBaseUrl,
     pub xendit: ConnectorParams,
@@ -243,6 +246,8 @@ pub struct AdyenParamsWithThreeBaseUrls {
     pub payout_base_url: String,
     /// third base url
     pub dispute_base_url: String,
+    // fourth base url
+    pub management_base_url: String,
 }
 /// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]

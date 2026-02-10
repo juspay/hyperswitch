@@ -95,6 +95,7 @@ pub enum Connector {
     CtpMastercard,
     CtpVisa,
     Cybersource,
+    Cybersourcedecisionmanager,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
@@ -117,6 +118,7 @@ pub enum Connector {
     Gpayments,
     Hipay,
     Helcim,
+    Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
     Inespay,
@@ -189,6 +191,7 @@ pub enum Connector {
     Worldpay,
     Worldpayvantiv,
     Worldpayxml,
+    Worldpaymodular,
     Signifyd,
     Plaid,
     Riskified,
@@ -257,6 +260,7 @@ impl Connector {
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
+                | (Self::Santander, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -310,6 +314,7 @@ impl Connector {
             | Self::Coingate
             | Self::Cryptopay
             | Self::Custombilling
+            | Self::Cybersourcedecisionmanager
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
@@ -331,6 +336,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
+            | Self::Hyperpg
             | Self::HyperswitchVault
             | Self::Iatapay
 			| Self::Inespay
@@ -385,6 +391,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            | Self::Worldpaymodular
             | Self::Worldpayvantiv
             | Self::Worldpayxml
             | Self::Xendit

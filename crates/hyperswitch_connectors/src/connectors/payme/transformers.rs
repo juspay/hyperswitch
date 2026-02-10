@@ -236,6 +236,7 @@ fn get_pay_sale_error_response(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(pay_sale_response.payme_sale_id.clone()),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -269,6 +270,7 @@ impl TryFrom<&PaymePaySaleResponse> for PaymentsResponseData {
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         })
     }
@@ -322,6 +324,7 @@ fn get_sale_query_error_response(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(sale_query_response.sale_payme_id.clone()),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -340,6 +343,7 @@ impl From<&SaleQuery> for PaymentsResponseData {
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }
     }
@@ -520,6 +524,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
@@ -627,6 +632,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -753,6 +759,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -893,6 +900,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("payme"),
@@ -966,6 +974,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
@@ -1010,6 +1019,7 @@ impl TryFrom<&TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -1258,6 +1268,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaymeRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1333,6 +1344,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1348,6 +1360,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1391,6 +1404,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymeQueryTransactionResponse, T, Refun
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(pay_sale_response.payme_transaction_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,

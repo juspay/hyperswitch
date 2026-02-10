@@ -606,6 +606,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
@@ -883,6 +884,7 @@ fn handle_cards_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.instance_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -899,6 +901,7 @@ fn handle_cards_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
     Ok((status, error, payment_response_data))
@@ -927,6 +930,7 @@ fn handle_bank_redirects_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
     Ok((status, error, payment_response_data))
@@ -960,6 +964,7 @@ fn handle_bank_redirects_error_response(
         status_code,
         attempt_status: Some(status),
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -973,6 +978,7 @@ fn handle_bank_redirects_error_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
     Ok((status, error, payment_response_data))
@@ -1016,6 +1022,7 @@ fn handle_bank_redirects_sync_response(
                     .payment_request_id
                     .clone(),
             ),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1038,6 +1045,7 @@ fn handle_bank_redirects_sync_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
     Ok((status, error, payment_response_data))
@@ -1074,6 +1082,7 @@ pub fn handle_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: payment_information.references.payment_request_id.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1090,6 +1099,7 @@ pub fn handle_webhook_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     };
     Ok((status, error, payment_response_data))
@@ -1187,6 +1197,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1713,6 +1724,7 @@ fn handle_cards_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1750,6 +1762,7 @@ fn handle_webhooks_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.references.payment_request_id.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1782,6 +1795,7 @@ fn handle_bank_redirects_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1822,6 +1836,7 @@ fn handle_bank_redirects_refund_sync_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1852,6 +1867,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
