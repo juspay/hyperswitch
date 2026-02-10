@@ -119,6 +119,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_connector_account::connector_update,
         routes::merchant_connector_account::connector_delete,
 
+        // Routes for connector webhook configuration
+        routes::merchant_connector_account::connector_webhook_register,
+
         //Routes for gsm
         routes::gsm::create_gsm_rule,
         routes::gsm::get_gsm_rule,
@@ -298,6 +301,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::PartnerMerchantIdentifierDetails,
         common_types::payments::PartnerApplicationDetails,
         common_types::payments::MerchantApplicationDetails,
+        common_types::connector_webhook_configuration::WebhookSetupCapabilities,
+        common_types::connector_webhook_configuration::WebhookConfigType,
         api_models::enums::PaymentChannel,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse,
@@ -335,6 +340,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::BusinessPayoutLinkConfig,
         api_models::admin::CardTestingGuardConfig,
         api_models::admin::CardTestingGuardStatus,
+        api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerUpdateRequest,
         api_models::customers::CustomerDeleteResponse,
@@ -379,6 +386,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::TokenDataType,
         api_models::enums::PaymentMethodType,
         api_models::enums::ConnectorType,
+        api_models::enums::ConnectorWebhookEventType,
         api_models::enums::PayoutConnectors,
         api_models::enums::AuthenticationConnectors,
         api_models::enums::Currency,
@@ -435,6 +443,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultSdk,
         api_models::enums::VaultTokenType,
+        api_models::enums::WebhookRegistrationStatus,
         api_models::admin::ExternalVaultConnectorDetails,
         api_models::admin::VaultTokenField,
         api_models::admin::MerchantConnectorCreate,
