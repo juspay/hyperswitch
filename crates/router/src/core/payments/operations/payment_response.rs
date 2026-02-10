@@ -840,8 +840,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             )?;
         state
             .store
-            .update_authorization_by_merchant_id_authorization_id(
-                router_data.merchant_id.clone(),
+            .update_authorization_by_processor_merchant_id_authorization_id(
+                payment_data.payment_intent.processor_merchant_id.clone(),
                 authorization_id,
                 authorization_update,
             )
@@ -851,8 +851,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         //Fetch all the authorizations of the payment and send in incremental authorization response
         let authorizations = state
             .store
-            .find_all_authorizations_by_merchant_id_payment_id(
-                &router_data.merchant_id,
+            .find_all_authorizations_by_processor_merchant_id_payment_id(
+                &payment_data.payment_intent.processor_merchant_id,
                 payment_data.payment_intent.get_id(),
             )
             .await
