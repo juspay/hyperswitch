@@ -426,9 +426,10 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
             }),
-            None => {
-                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into())
-            }
+            None => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("Unexpected error: payment_method_data is None in UCS connector response")),
         }
     }
 }

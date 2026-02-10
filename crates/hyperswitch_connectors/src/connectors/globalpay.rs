@@ -51,7 +51,7 @@ use hyperswitch_interfaces::{
         PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
         Response, TokenizationType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest};
@@ -1053,6 +1053,7 @@ impl IncomingWebhook for Globalpay {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: response::GlobalpayWebhookObjectEventType = request
             .body
