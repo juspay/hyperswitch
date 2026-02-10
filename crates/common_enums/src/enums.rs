@@ -18,6 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
+use masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -10586,4 +10587,149 @@ pub enum RetryType {
 pub enum RoutingRegion {
     Region1,
     Region2,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoDocumentKind {
+    /// Commercial invoice for goods/products
+    CommercialInvoice,
+    /// Service invoice
+    ServiceInvoice,
+    /// Standard promissory note (promise to pay later)
+    PromissoryNote,
+    /// Promissory note for rural/agricultural operations
+    RuralPromissoryNote,
+    /// Payment receipt
+    Receipt,
+    /// Insurance policy payment
+    InsurancePolicy,
+    /// Credit card statement / invoice payment
+    CreditCardInvoice,
+    /// Commercial proposal / quotation acceptance
+    Proposal,
+    /// Deposit or account funding (e.g. wallet top-up)
+    DepositOrFunding,
+    /// Cheque-based payment
+    Cheque,
+    /// Direct promissory note between parties
+    DirectPromissoryNote,
+    /// Any other document type
+    Other,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoPaymentType {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed minimum–maximum range.
+    FlexibleAmount,
+    /// The payer may make up to 99 partial payments.
+    Installment,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpiryType {
+    Immediate,
+    Scheduled,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum PixKey {
+    #[schema(value_type = String)]
+    Cpf(Secret<String>),
+    #[schema(value_type = String)]
+    Cnpj(Secret<String>),
+    #[schema(value_type = String)]
+    Email(Secret<String>),
+    #[schema(value_type = String)]
+    Phone(Secret<String>),
+    #[schema(value_type = String)]
+    EvpToken(Secret<String>),
+}
+
+/// Helper extension for PixKey to extract the secret value regardless of variant
+impl PixKey {
+    pub fn get_inner_value(&self) -> Secret<String> {
+        match self {
+            Self::Cpf(val)
+            | Self::Cnpj(val)
+            | Self::Email(val)
+            | Self::Phone(val)
+            | Self::EvpToken(val) => val.clone(),
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorWebhookEventType {
+    AllEvents,
+    SpecificEvent(EventType),
+}
+
+/// The status of webhook registration
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookRegistrationStatus {
+    // Webhook registration is successful
+    #[default]
+    Success,
+    // Webhook registration has failed
+    Failure,
 }

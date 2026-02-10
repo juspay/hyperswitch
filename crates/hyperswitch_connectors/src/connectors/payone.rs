@@ -44,7 +44,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::{
@@ -380,6 +380,7 @@ impl IncomingWebhook for Payone {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }

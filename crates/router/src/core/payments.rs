@@ -3503,6 +3503,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }),
                 search_tags: None,
                 apple_pay_recurring_details: None,
+                pix_additional_details: None,
+                boleto_additional_details: None,
             }),
             ..Default::default()
         };
@@ -4010,6 +4012,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     }),
                     search_tags: None,
                     apple_pay_recurring_details: None,
+                    pix_additional_details: None,
+                    boleto_additional_details: None,
                 }),
                 ..Default::default()
             };
