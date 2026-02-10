@@ -130,7 +130,7 @@ pub async fn fetch_db_with_dimensions<C, M, O, P>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
-    targeting_context: &superposition::TargetingContext,
+    targeting_key: Option<&String>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -148,7 +148,7 @@ where
         superposition_client,
         &db_key,
         context,
-        targeting_context,
+        targeting_key,
     )
     .await
 }
@@ -171,7 +171,7 @@ pub async fn fetch_db_config<C>(
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,
-    targeting_context: &superposition::TargetingContext,
+    targeting_key: Option<&String>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -182,7 +182,7 @@ where
     let config_type = C::KEY;
 
     let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context, targeting_context).await,
+        Some(client) => C::fetch(client, context, targeting_key).await,
         None => Err(error_stack::report!(
             superposition::SuperpositionError::ClientError(
                 "No superposition client available".to_string()

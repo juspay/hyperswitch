@@ -1882,9 +1882,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
-    let dimensions =
-        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
-
     let storage_scheme = provider.get_account().storage_scheme;
     let key_store = provider.get_key_store();
     let request_customer_details = req
@@ -1982,6 +1979,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .get_implicit_customer_update(
                             state.store.as_ref(),
                             state.superposition_service.as_deref(),
+                            customer_id.clone(),
                         )
                         .await;
 

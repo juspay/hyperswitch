@@ -16,7 +16,7 @@ macro_rules! config {
         output = $output:ty,
         default = $default:expr,
         requires = $requirement:ty,
-        targeting_key = $targeting_method:ident
+        targeting_key = $targeting_type:ty
     ) => {
         paste::paste! {
             /// Config definition
@@ -24,6 +24,8 @@ macro_rules! config {
 
             impl superposition::Config for [<$superposition_key:camel>] {
                 type Output = $output;
+                
+                type TargetingKey: $targeting_type;
 
                 const SUPERPOSITION_KEY: &'static str =
                     superposition_consts::$superposition_key;
@@ -41,11 +43,14 @@ macro_rules! config {
                     &self,
                     storage: &dyn StorageInterface,
                     superposition_client: Option<&superposition::SuperpositionClient>,
+                    targeting_key: Option<&$targeting_type>,
                 ) -> $output {
+                    let targeting_key_str = targeting_key.map(|k| k.get_string_repr().to_owned());
                     fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
                         storage,
                         superposition_client,
                         self,
+                        targeting_key_str,
                     )
                     .await
                 }
@@ -59,7 +64,7 @@ config! {
     output = bool,
     default = true,
     requires = HasMerchantId,
-     targeting_key = customer_id
+    targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for RequiresCvv {
@@ -79,7 +84,7 @@ config! {
     output = bool,
     default = false,
     requires = HasMerchantId,
-    targeting_key = customer_id
+    targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
