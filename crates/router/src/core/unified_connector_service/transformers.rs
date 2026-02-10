@@ -746,6 +746,14 @@ impl
             .map(payments_grpc::FutureUsage::foreign_try_from)
             .transpose()?;
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
@@ -768,7 +776,7 @@ impl
             sync_type: Some(
                 payments_grpc::SyncRequestType::foreign_from(&router_data.request.sync_type).into(),
             ),
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             metadata: None,
             test_mode: router_data.test_mode,
         })
@@ -1095,6 +1103,7 @@ impl
                 .transpose()?,
             connector_metadata: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            description: router_data.description.clone(),
         })
     }
 }
@@ -1180,6 +1189,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .map(|s| s.into()),
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -3021,27 +3031,24 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
     }
 }
 
-impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
+    fn foreign_from(card_network: common_enums::CardNetwork) -> Self {
         match card_network {
-            common_enums::CardNetwork::Visa => Ok(Self::Visa),
-            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
-            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
-            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
-            common_enums::CardNetwork::Discover => Ok(Self::Discover),
-            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
-            common_enums::CardNetwork::UnionPay => Ok(Self::Unionpay),
-            common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
-            common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
-            common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
-            _ => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Card Network not supported".to_string(),
-                )
-                .into(),
-            ),
+            common_enums::CardNetwork::Visa => Self::Visa,
+            common_enums::CardNetwork::Mastercard => Self::Mastercard,
+            common_enums::CardNetwork::JCB => Self::Jcb,
+            common_enums::CardNetwork::DinersClub => Self::Diners,
+            common_enums::CardNetwork::Discover => Self::Discover,
+            common_enums::CardNetwork::CartesBancaires => Self::CartesBancaires,
+            common_enums::CardNetwork::UnionPay => Self::Unionpay,
+            common_enums::CardNetwork::RuPay => Self::Rupay,
+            common_enums::CardNetwork::Maestro => Self::Maestro,
+            common_enums::CardNetwork::AmericanExpress => Self::Amex,
+            common_enums::CardNetwork::Interac => Self::InteracCard,
+            common_enums::CardNetwork::Star => Self::Star,
+            common_enums::CardNetwork::Pulse => Self::Pulse,
+            common_enums::CardNetwork::Accel => Self::Accel,
+            common_enums::CardNetwork::Nyce => Self::Nyce,
         }
     }
 }
@@ -3080,8 +3087,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
         let card_network = network_token_data
             .card_network
             .clone()
-            .map(payments_grpc::CardNetwork::foreign_try_from)
-            .transpose()?;
+            .map(payments_grpc::CardNetwork::foreign_from);
 
         #[cfg(feature = "v1")]
         let network_token = Self {
@@ -3153,8 +3159,7 @@ impl
         let card_network = card_nti_data
             .card_network
             .clone()
-            .map(payments_grpc::CardNetwork::foreign_try_from)
-            .transpose()?;
+            .map(payments_grpc::CardNetwork::foreign_from);
 
         let card_details_for_nti = Self {
             card_number: Some(
@@ -5525,6 +5530,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(|s| s.into()),
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
