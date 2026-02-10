@@ -1527,6 +1527,7 @@ impl webhooks::IncomingWebhook for Barclaycard {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -1656,6 +1657,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
@@ -1680,6 +1682,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data

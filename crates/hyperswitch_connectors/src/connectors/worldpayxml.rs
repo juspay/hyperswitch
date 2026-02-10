@@ -33,7 +33,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -208,14 +208,14 @@ impl ConnectorCommon for Worldpayxml {
 impl ConnectorValidation for Worldpayxml {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<common_enums::PaymentMethodType>,
-        _pm_data: PaymentMethodData,
+        pm_type: Option<common_enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::NotSupported {
-            message: "mandate payment".to_string(),
-            connector: "worldpayxml",
-        }
-        .into())
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::ApplePay,
+            utils::PaymentMethodDataType::GooglePay,
+        ]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -228,16 +228,99 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Worldpayxml
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors).to_owned())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        if req.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "WorldpayWPG".to_string(),
+            }
+            .into());
+        }
+
+        let authorize_req = utils::convert_payment_authorize_router_response((
+            req,
+            utils::convert_setup_mandate_router_data_to_authorize_router_data(req),
+        ));
+
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            authorize_req.request.minor_amount,
+            authorize_req.request.currency,
+        )?;
+
+        let connector_router_data =
+            worldpayxml::WorldpayxmlRouterData::from((amount, &authorize_req));
+        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
+
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+        )?;
+
+        Ok(RequestContent::RawBytes(connector_req))
+    }
+
     fn build_request(
         &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Setup Mandate flow for Worldpayxml".to_string(),
-        )
-        .into())
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        SetupMandateRouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 }
 
@@ -1196,21 +1279,24 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let body: worldpayxml::WorldpayXmlWebhookBody =
-            utils::deserialize_xml_to_struct(request.body)?;
-        let order_code = body.notify.order_status_event.order_code.clone();
-        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event) {
+        let body_str = std::str::from_utf8(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let body: worldpayxml::WorldpayFormWebhookBody = serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let order_code = body.order_code.clone();
+        if worldpayxml::is_refund_event(body.payment_status) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
         }
-        if worldpayxml::is_transaction_event(body.notify.order_status_event.payment.last_event) {
+        if worldpayxml::is_transaction_event(body.payment_status) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(order_code),
             ));
         }
         #[cfg(feature = "payouts")]
-        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
+        if worldpayxml::is_payout_event(body.payment_status) {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
             ));
@@ -1221,20 +1307,26 @@ impl webhooks::IncomingWebhook for Worldpayxml {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let body: worldpayxml::WorldpayXmlWebhookBody =
-            utils::deserialize_xml_to_struct(request.body)?;
+        let body_str = std::str::from_utf8(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let webhook_body: worldpayxml::WorldpayFormWebhookBody =
+            serde_urlencoded::from_str(body_str)
+                .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
         #[cfg(feature = "payouts")]
         {
-            if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
+            if worldpayxml::is_payout_event(webhook_body.payment_status) {
                 return Ok(worldpayxml::get_payout_webhook_event(
-                    body.notify.order_status_event.payment.last_event,
+                    webhook_body.payment_status,
                 ));
             }
         }
 
         Ok(worldpayxml::get_payment_webhook_event(
-            body.notify.order_status_event.payment.last_event,
+            webhook_body.payment_status,
         ))
     }
 
@@ -1242,8 +1334,12 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let body: worldpayxml::WorldpayXmlWebhookBody =
-            utils::deserialize_xml_to_struct(request.body)?;
+        let body_str = std::str::from_utf8(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let body: worldpayxml::WorldpayFormWebhookBody = serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
         Ok(Box::new(body))
     }
 }
@@ -1310,7 +1406,7 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
             common_enums::PaymentMethod::Wallet,
             common_enums::PaymentMethodType::GooglePay,
             PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
+                mandates: common_enums::FeatureStatus::Supported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
@@ -1321,7 +1417,7 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
             common_enums::PaymentMethod::Wallet,
             common_enums::PaymentMethodType::ApplePay,
             PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
+                mandates: common_enums::FeatureStatus::Supported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,

@@ -2138,6 +2138,7 @@ impl webhooks::IncomingWebhook for Cybersource {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
     }
@@ -2291,6 +2292,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirect_response = request_data.redirect_response.as_ref()?;
@@ -2345,6 +2347,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
@@ -2369,6 +2372,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data

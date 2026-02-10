@@ -191,7 +191,7 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
             processor.get_account().get_id(),
             processor.get_key_store(),
