@@ -24,7 +24,7 @@ macro_rules! config {
 
             impl superposition::Config for [<$superposition_key:camel>] {
                 type Output = $output;
-                
+
                 const SUPERPOSITION_KEY: &'static str =
                     superposition_consts::$superposition_key;
 

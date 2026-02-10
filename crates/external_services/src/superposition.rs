@@ -220,7 +220,6 @@ pub trait Config {
         open_feature::Client: GetValue<Self::Output>,
     {
         async move {
-        
             match superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
