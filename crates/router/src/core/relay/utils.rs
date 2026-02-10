@@ -493,6 +493,8 @@ pub async fn construct_relay_void_router_data(
             capture_method: None,
             split_payments: None,
             merchant_order_reference_id: None,
+            feature_metadata: None,
+            payment_method_type: None,
         },
         response: Err(ErrorResponse::default()),
         access_token: None,
