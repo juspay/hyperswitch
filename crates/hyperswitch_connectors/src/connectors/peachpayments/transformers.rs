@@ -210,6 +210,7 @@ pub struct NetworkTokenDetails {
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
     pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     pub scheme: Option<CardNetworkLowercase>,
 }
