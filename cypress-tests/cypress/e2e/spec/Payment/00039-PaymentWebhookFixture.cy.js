@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 
 let globalState;
 let connector;
@@ -33,6 +34,23 @@ describe("Payment Webhook Tests", () => {
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
+  });
+
+  it("merchant-create-call-test", () => {
+    cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
+  });
+
+  it("api-key-create-call-test", () => {
+    cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+  });
+
+  it("Create merchant connector account", () => {
+    cy.createConnectorCallTest(
+      "payment_processor",
+      fixtures.createConnectorBody,
+      payment_methods_enabled,
+      globalState
+    );
   });
 
   context("NoThreeDS Manual payment flow test", () => {
