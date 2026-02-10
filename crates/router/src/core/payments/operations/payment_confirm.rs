@@ -731,24 +731,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_details_present,
         )?;
 
-        let payment_method_data_after_card_bin_call = request
+        let payment_method_data_from_request = request
             .payment_method_data
             .as_ref()
             .and_then(|request_payment_method_data| {
-                request_payment_method_data.payment_method_data.as_ref()
-            })
-            .zip(additional_pm_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+                request_payment_method_data.payment_method_data.clone()
+            });
 
         let payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
-            .or(payment_method_data_after_card_bin_call.map(Into::into));
+            .or(payment_method_data_from_request.map(Into::into))
+            .zip(additional_pm_data)
+            .map(|(payment_method_data, additional_payment_data)| {
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            });
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()

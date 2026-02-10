@@ -65,7 +65,6 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use hyperswitch_domain_models::{
-    payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
@@ -9072,11 +9071,7 @@ async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectors
     payment_data: &D,
     connector_choice: T,
     business_profile: &domain::Profile,
-) -> RouterResult<(
-    api_models::payments::MandateReferenceId,
-    hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    api::ConnectorData,
-)>
+) -> RouterResult<api::ConnectorData>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9109,14 +9104,7 @@ where
             "No eligible connector found for the network transaction id based mit flow",
         )?;
 
-    let recurring_details = domain_recurring_details::try_from(recurring_payment_details.clone())?;
-    let (mandate_reference_id, payment_method_details_for_network_transaction_id) =
-        recurring_details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()?;
-    Ok((
-        mandate_reference_id,
-        payment_method_details_for_network_transaction_id,
-        eligible_connector_data.clone(),
-    ))
+    Ok(eligible_connector_data.clone())
 }
 
 pub fn get_proxy_connector_filters(
@@ -9161,7 +9149,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let (mandate_reference_id, payment_method_details, eligible_connector_data) =
+    let eligible_connector_data=
         match connector_choice {
             api::ConnectorChoice::StraightThrough(straight_through) => {
                 get_eligible_connector_for_proxy(
@@ -9193,15 +9181,6 @@ where
     // Set the eligible connector in the attempt
     payment_data
         .set_connector_in_payment_attempt(Some(eligible_connector_data.connector_name.to_string()));
-
-    // Set `NetworkMandateId` as the MandateId
-    payment_data.set_mandate_id(payments_api::MandateIds {
-        mandate_id: None,
-        mandate_reference_id: Some(mandate_reference_id),
-    });
-
-    // Set the card details received in the recurring details within the payment method data.
-    payment_data.set_payment_method_data(Some(payment_method_details));
 
     Ok(eligible_connector_data)
 }
