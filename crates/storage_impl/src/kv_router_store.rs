@@ -145,6 +145,22 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.router_store.get_accounts_replica_pool()
     }
+
+    fn get_master_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_master_pool_manager()
+    }
+
+    fn get_replica_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_replica_pool_manager()
+    }
+
+    fn get_accounts_master_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_accounts_master_pool_manager()
+    }
+
+    fn get_accounts_replica_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_accounts_replica_pool_manager()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
