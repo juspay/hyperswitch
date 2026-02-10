@@ -16,12 +16,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 #[cfg(feature = "v1")]
-use payment_methods::client::{
-    self as pm_client,
-    list::ListCustomerPaymentMethods,
-    list::{ListCustomerPaymentMethodsV1Request, ListCustomerPaymentMethodsV1Response},
-};
-#[cfg(feature = "v1")]
 use masking::Mask;
 use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "v1")]
@@ -30,6 +24,12 @@ use payment_methods::client::{
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
+};
+#[cfg(feature = "v1")]
+use payment_methods::client::{
+    self as pm_client,
+    list::ListCustomerPaymentMethods,
+    list::{ListCustomerPaymentMethodsV1Request, ListCustomerPaymentMethodsV1Response},
 };
 use router_env::{logger, RequestId, RequestIdentifier};
 #[cfg(feature = "v1")]
