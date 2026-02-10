@@ -663,14 +663,7 @@ pub async fn link_routing_config(
             if routing_algorithm.name == helpers::SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
-                dynamic_routing_ref
-                    .success_based_algorithm
-                    .clone()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "missing success_based_algorithm in dynamic_algorithm_ref from business_profile table",
-                    )?
-                    .enabled_feature,
+                routing::DynamicRoutingFeatures::DynamicConnectorSelection,
                 routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
 
@@ -742,14 +735,7 @@ pub async fn link_routing_config(
             {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
-                dynamic_routing_ref
-                    .elimination_routing_algorithm
-                    .clone()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "missing elimination_routing_algorithm in dynamic_algorithm_ref from business_profile table",
-                    )?
-                    .enabled_feature,
+                routing::DynamicRoutingFeatures::DynamicConnectorSelection,
                 routing_types::DynamicRoutingType::EliminationRouting,
             );
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
