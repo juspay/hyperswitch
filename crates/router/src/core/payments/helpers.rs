@@ -33,7 +33,6 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
-use external_services::superposition;
 use futures::future::Either;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -1979,7 +1978,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .get_implicit_customer_update(
                             state.store.as_ref(),
                             state.superposition_service.as_deref(),
-                            customer_id.clone(),
+                            Some(&customer_id),
                         )
                         .await;
 

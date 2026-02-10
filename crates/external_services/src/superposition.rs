@@ -217,7 +217,7 @@ pub trait Config {
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
                     context.as_ref(),
-                    targeting_key.as_ref(),
+                    targeting_key,
                 )
                 .await
             {

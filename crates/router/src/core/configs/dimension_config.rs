@@ -4,7 +4,7 @@ use super::{
     dimension_state::{Dimensions, HasMerchantId},
     fetch_db_with_dimensions, DatabaseBackedConfig,
 };
-use crate::{consts::superposition as superposition_consts, db::StorageInterface};
+use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
 /// Macro to generate config struct and superposition::Config trait implementation
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -25,8 +25,6 @@ macro_rules! config {
             impl superposition::Config for [<$superposition_key:camel>] {
                 type Output = $output;
                 
-                type TargetingKey: $targeting_type;
-
                 const SUPERPOSITION_KEY: &'static str =
                     superposition_consts::$superposition_key;
 
@@ -45,12 +43,12 @@ macro_rules! config {
                     superposition_client: Option<&superposition::SuperpositionClient>,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
-                    let targeting_key_str = targeting_key.map(|k| k.get_string_repr().to_owned());
+                    let targeting_key_str = targeting_key.map(|id| id.get_string_repr().to_owned());
                     fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
                         storage,
                         superposition_client,
                         self,
-                        targeting_key_str,
+                        targeting_key_str.as_ref(),
                     )
                     .await
                 }
