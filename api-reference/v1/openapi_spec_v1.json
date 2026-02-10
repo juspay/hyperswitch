@@ -2792,6 +2792,80 @@
         ]
       }
     },
+    "/account/{account_id}/connectors/webhooks/{merchant_connector_id}": {
+      "post": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Configure Connector Webhook - Register",
+        "description": "Setup webhook configuration for an existing Merchant at the connector.",
+        "operationId": "Register a Connector Webhook",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant_connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorWebhookRegisterRequest"
+              },
+              "examples": {
+                "Register  webhook for a specific event": {
+                  "value": {
+                    "event_type": {
+                      "specific_event": "payment_succeeded"
+                    }
+                  }
+                },
+                "Register a standard webhook": {
+                  "value": {
+                    "event_type": "standard"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Connector Webhook Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterConnectorWebhookResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/gsm": {
       "post": {
         "tags": [
@@ -12209,7 +12283,7 @@
             ],
             "properties": {
               "sepa": {
-                "type": "object"
+                "$ref": "#/components/schemas/SepaBankTransferPaymentAdditionalData"
               }
             }
           },
@@ -15112,6 +15186,14 @@
               }
             ],
             "nullable": true
+          },
+          "peachpayments": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15238,6 +15320,42 @@
           "google_pay": {
             "type": "object",
             "description": "This field contains the Google Pay certificates and credentials",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectorWebhookEventType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "all_events"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "specific_event"
+            ],
+            "properties": {
+              "specific_event": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ConnectorWebhookRegisterRequest": {
+        "type": "object",
+        "description": "Register a webhook at the connector",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
             "nullable": true
           }
         },
@@ -33233,6 +33351,16 @@
           }
         }
       },
+      "PeachpaymentsData": {
+        "type": "object",
+        "properties": {
+          "rrn": {
+            "type": "string",
+            "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
+          }
+        }
+      },
       "PeriodUnit": {
         "type": "string",
         "enum": [
@@ -35161,6 +35289,40 @@
           "schedule_refund"
         ]
       },
+      "RegisterConnectorWebhookResponse": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_registration_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RelayCaptureRequestData": {
         "type": "object",
         "required": [
@@ -36851,6 +37013,35 @@
           "reference": {
             "type": "string",
             "example": "U2PVVSEV4V9Y"
+          }
+        }
+      },
+      "SepaBankTransferPaymentAdditionalData": {
+        "type": "object",
+        "properties": {
+          "debitor_iban": {
+            "type": "string",
+            "description": "debitor IBAN",
+            "example": "DE89370400440532013000",
+            "nullable": true
+          },
+          "debitor_bic": {
+            "type": "string",
+            "description": "debitor BIC",
+            "example": "MARKDEF1100",
+            "nullable": true
+          },
+          "debitor_name": {
+            "type": "string",
+            "description": "debitor name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "debitor_email": {
+            "type": "string",
+            "description": "debitor email",
+            "example": "johndoe@example.com",
+            "nullable": true
           }
         }
       },
@@ -39697,7 +39888,7 @@
             "type": "string",
             "description": "Standard webhook configuration supporting all events hyperswitch provides",
             "enum": [
-              "Standard"
+              "AllEvents"
             ]
           },
           {
@@ -39817,6 +40008,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
       },
       "WebhookSetupCapabilities": {
         "type": "object",

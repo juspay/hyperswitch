@@ -2596,13 +2596,12 @@ impl PaymentMethod {
 
     pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
         match self {
-            Self::BankRedirect => true,
+            Self::BankTransfer | Self::BankRedirect => true,
             Self::Card
             | Self::CardRedirect
             | Self::PayLater
             | Self::Wallet
             | Self::GiftCard
-            | Self::BankTransfer
             | Self::Crypto
             | Self::BankDebit
             | Self::Reward
@@ -10689,4 +10688,47 @@ impl PixKey {
             | Self::EvpToken(val) => val.clone(),
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorWebhookEventType {
+    AllEvents,
+    SpecificEvent(EventType),
+}
+
+/// The status of webhook registration
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookRegistrationStatus {
+    // Webhook registration is successful
+    #[default]
+    Success,
+    // Webhook registration has failed
+    Failure,
 }
