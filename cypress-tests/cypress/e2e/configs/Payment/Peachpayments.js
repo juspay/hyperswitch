@@ -1,4 +1,3 @@
-import { error } from "console";
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {

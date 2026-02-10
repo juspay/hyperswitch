@@ -12,10 +12,6 @@ export const connectorDetails = {
   wallet_pm: {
     Bluecode: {
       Request: {
-        amount: 6000,
-        currency: "EUR",
-        confirm: true,
-        capture_method: "automatic",
         payment_method: "wallet",
         payment_method_type: "bluecode",
         authentication_type: "no_three_ds",
