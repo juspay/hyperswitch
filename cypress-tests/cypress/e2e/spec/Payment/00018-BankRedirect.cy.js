@@ -501,5 +501,4 @@ describe("Bank Redirect tests", () => {
       cy.retrievePaymentCallTest(globalState, data);
     });
   });
-
 });
