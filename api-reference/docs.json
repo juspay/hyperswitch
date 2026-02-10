@@ -26,7 +26,6 @@
                 "group": "Essentials",
                 "pages": [
                   "essentials/authentication",
-                  "essentials/auth-uplift",
                   "essentials/error_codes",
                   "essentials/rate_limit",
                   "essentials/go-live"
