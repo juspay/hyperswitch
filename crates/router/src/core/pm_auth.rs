@@ -530,6 +530,7 @@ async fn store_bank_details_in_payment_methods(
                 vault_source_details: Default::default(),
                 created_by: None,
                 last_modified_by: None,
+                customer_details: None,
             };
 
             new_entries.push(pm_new);
@@ -767,7 +768,6 @@ pub async fn retrieve_payment_method_from_auth_service(
     processor: &domain::Processor,
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,
-    _customer: &Option<domain::Customer>,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 

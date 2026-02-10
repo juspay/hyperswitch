@@ -1013,6 +1013,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
+
         #[cfg(feature = "v2")]
         let response = Self {
             id: item.get_id(),
@@ -1066,9 +1067,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?,
         };
 
-        let webhook_setup_details =
-            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
-                .get_api_webhook_config();
+        let webhook_setup_capabilities = item
+            .should_construct_webhook_setup_capability()
+            .then(|| api_types::ConnectorData::convert_connector(item.connector_name.as_str()))
+            .transpose()?
+            .map(|connector_enum| connector_enum.get_api_webhook_config().clone());
 
         #[cfg(feature = "v1")]
         let response = Self {
@@ -1125,7 +1128,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities: Some(webhook_setup_details.clone()),
+            webhook_setup_capabilities,
         };
         Ok(response)
     }
@@ -1629,26 +1632,33 @@ impl
             .map(api_types::Address::from);
 
         // This change is to fix a merchant integration
-        // If billing.email is not passed by the merchant, and if the customer email is present, then use the `customer.email` as the billing email
+        // If billing.email is not passed by the merchant, and if the customer email is present, then use that as the billing email
+        // Priority order for fallback email: `payment_intent.customer_details.email` > `customer.email`
         if let Some(billing_address) = &mut billing_address {
             billing_address.email = billing_address.email.clone().or_else(|| {
-                customer
-                    .and_then(|cust| {
-                        cust.email
-                            .as_ref()
-                            .map(|email| pii::Email::from(email.clone()))
+                customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
                     })
-                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email))
             });
         } else {
             billing_address = Some(payments::Address {
-                email: customer
-                    .and_then(|cust| {
-                        cust.email
-                            .as_ref()
-                            .map(|email| pii::Email::from(email.clone()))
-                    })
-                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+                email: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    }),
                 ..Default::default()
             });
         }
@@ -1661,15 +1671,25 @@ impl
             billing: billing_address,
             amount: payment_attempt
                 .map(|pa| api_types::Amount::from(pa.net_amount.get_order_amount())),
-            email: customer
-                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
-            phone: customer
-                .and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.phone)),
-            name: customer
-                .and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
-                .or(customer_details_from_pi.clone().and_then(|cd| cd.name)),
+            email: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.email.clone())
+                .or_else(|| {
+                    customer
+                        .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
+                }),
+            phone: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.phone.clone())
+                .or_else(|| {
+                    customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner()))
+                }),
+            name: customer_details_from_pi
+                .as_ref()
+                .and_then(|cd| cd.name.clone())
+                .or_else(|| {
+                    customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
+                }),
             ..Self::default()
         })
     }
@@ -1907,6 +1927,11 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
                 .as_ref()
                 .map(|phone| phone.get_inner().to_owned()),
             phone_country_code: customer.phone_country_code.clone(),
+            customer_document_details: customer
+                .document_details
+                .clone()
+                .map(|encryptable| encryptable.into_inner())
+                .and_then(|secret_value| secret_value.parse_value("CustomerDocumentDetails").ok()),
         }
     }
 }

@@ -41,6 +41,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsCancelRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -224,7 +225,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentRejectOperation<'b, F>, PaymentData<F>)>

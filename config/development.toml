@@ -227,6 +227,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 affirm.base_url = "https://sandbox.affirm.com/api"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
+adyen.management_base_url = "https://management-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
@@ -256,6 +257,7 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 coingate.base_url = "https://api-sandbox.coingate.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
+cybersourcedecisionmanager.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
 datatrans.secondary_base_url = "https://pay.sandbox.datatrans.com/"
 deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
@@ -283,6 +285,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+hyperpg.base_url = "https://sandbox.hyperpg.in"
 hyperswitch_vault.base_url = "http://localhost:8080"
 hyperwallet.base_url = "https://uat-api.paylution.com"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
@@ -338,8 +341,8 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
-santander.base_url = "https://pix.santander.com.br/api/v1/sandbox/"
-santander.secondary_base_url = "https://trust-sandbox.api.santander.com.br/collection_bill_management/"
+santander.base_url = "https://trust-pix-h.santander.com.br/"
+santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
 shift4.base_url = "https://api.shift4.com/"
 sift.base_url = "https://api.sift.com/v205"
 silverflow.base_url = "https://api-sbx.silverflow.co/v1"
@@ -432,7 +435,7 @@ private_key = ""  # RSA private key used for signing ID tokens (Generate using: 
 [oidc.client.c1]
 client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
 client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
-redirect_uri = ""  # Redirect URI registered for the OIDC client 
+redirect_uri = ""  # Redirect URI registered for the OIDC client
 
 
 [bank_config.eps]
@@ -520,6 +523,10 @@ upi_intent = { country = "IN", currency = "INR" }
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
 
+[pm_filters.hyperpg]
+credit = { currency = "INR,USD,GBP,EUR" }
+debit = { currency = "INR,USD,GBP,EUR" }
+
 [pm_filters.plaid]
 open_banking_pis = { currency = "EUR,GBP" }
 
@@ -605,6 +612,7 @@ debit = { country = "US", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BA
 [pm_filters.xendit]
 credit = { country = "ID,PH", currency = "IDR,PHP,USD,SGD,MYR" }
 debit = { country = "ID,PH", currency = "IDR,PHP,USD,SGD,MYR" }
+qris = {currency = "IDR" }
 
 [pm_filters.tsys]
 credit = { country = "NA", currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, SVC, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, BYN, KPW, STN, MRU, VES" }
@@ -831,6 +839,7 @@ interac = { currency = "CAD"}
 eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 przelewy24 = { country = "PL", currency = "PLN,EUR" }
+klarna = { country = "DE,AT,NL,BE,FR,GB,IT,ES,PT,SE,DK,FI,NO,CH,IR,CZ,PL,GR,SK", currency = "EUR,GBP,DKK,SEK,NOK,CHF,PLN,CZK" }
 
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
@@ -1011,6 +1020,7 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.boku]
 dana = { country = "ID", currency = "IDR" }
@@ -1110,7 +1120,7 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 connectors_with_delayed_session_response = "trustpay,payme"
 
 [save_payment_method_on_session.unsupported_payment_methods]
-pay_later = "klarna,affirm"
+pay_later = "klarna,affirm,afterpay_clearpay"
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
@@ -1129,9 +1139,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }
 card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie"
 card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie"
 pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "checkout,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,tesouro"
+wallet.apple_pay.connector_list = "checkout,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,nmi,tesouro,worldpayxml"
 wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "checkout,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,tesouro"
+wallet.google_pay.connector_list = "checkout,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,nmi,tesouro,worldpayxml"
 wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -1154,9 +1164,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
 card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex"
 card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular"
+wallet.apple_pay.connector_list = "checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml"
 wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "checkout,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix,tesouro,worldpaymodular"
+wallet.google_pay.connector_list = "checkout,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -1415,7 +1425,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
-ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -1506,3 +1516,5 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
+payment_methods_prefix = "v2"
+

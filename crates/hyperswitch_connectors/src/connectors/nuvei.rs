@@ -62,7 +62,7 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::ExposeInterface;
 use transformers as nuvei;
@@ -73,7 +73,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        RouterData as _,
+        PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -1358,6 +1358,7 @@ impl IncomingWebhook for Nuvei {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         // Parse the webhook payload
         let webhook = get_webhook_object_from_body(request.body)?;
@@ -1405,6 +1406,7 @@ impl IncomingWebhook for Nuvei {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let webhook = request
             .body
@@ -1701,9 +1703,10 @@ impl ConnectorSpecifications for Nuvei {
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
-                *auth_type == enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::SetupMandate {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
         }
     }
 

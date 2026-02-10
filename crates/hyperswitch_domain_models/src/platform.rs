@@ -55,6 +55,7 @@ pub enum Initiator {
     Api {
         merchant_id: common_utils::id_type::MerchantId,
         merchant_account_type: common_enums::MerchantAccountType,
+        publishable_key: String,
     },
     Jwt {
         user_id: String,

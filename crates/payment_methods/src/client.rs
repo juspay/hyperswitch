@@ -1,21 +1,33 @@
 //! Payment method microservice flows and lightweight client context.
 
 /// Create payment method flow.
+#[cfg(feature = "v1")]
 pub mod create;
 /// Delete payment method flow.
 pub mod delete;
+/// List customer payment methods flow.
+#[cfg(feature = "v1")]
+pub mod list;
+#[cfg(feature = "v1")]
 /// Retrieve payment method flow.
 pub mod retrieve;
 /// Update payment method flow.
+#[cfg(feature = "v1")]
 pub mod update;
 
 use common_utils::request::Headers;
+#[cfg(feature = "v1")]
 pub use create::{CreatePaymentMethod, CreatePaymentMethodV1Request};
 pub use delete::{DeletePaymentMethod, DeletePaymentMethodV1Request};
 use hyperswitch_interfaces::micro_service::MicroserviceClient;
+#[cfg(feature = "v1")]
 pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
-pub use update::{UpdatePaymentMethod, UpdatePaymentMethodV1Request};
+#[cfg(feature = "v1")]
+pub use update::{
+    CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethodV1Request,
+};
 
 use crate::configs::ModularPaymentMethodServiceUrl;
 
@@ -45,7 +57,7 @@ impl<'a> PaymentMethodClient<'a> {
     }
 }
 
-impl<'a> MicroserviceClient for PaymentMethodClient<'a> {
+impl MicroserviceClient for PaymentMethodClient<'_> {
     fn base_url(&self) -> &url::Url {
         self.base_url.as_ref()
     }

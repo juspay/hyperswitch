@@ -60,17 +60,6 @@ impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for &PaymentStat
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentStatus {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -128,7 +117,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -179,7 +167,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         _processor: &domain::Processor,
         payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -209,7 +196,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequ
         req_state: ReqState,
         _processor: &domain::Processor,
         payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -242,6 +228,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -389,7 +376,7 @@ async fn get_tracker_for_sync<
         })?;
 
     let authorizations = db
-        .find_all_authorizations_by_merchant_id_payment_id(
+        .find_all_authorizations_by_processor_merchant_id_payment_id(
             platform.get_processor().get_account().get_id(),
             &payment_id,
         )
@@ -457,7 +444,7 @@ async fn get_tracker_for_sync<
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             match db
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
                     storage_scheme,
                 )

@@ -47,6 +47,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -207,7 +208,6 @@ impl<F: Clone + Sync>
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -247,6 +247,7 @@ impl<F: Clone + Sync>
             error_message: None,
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
+            processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
         };
         let authorization = state
             .store
@@ -319,17 +320,6 @@ impl<F: Clone + Send + Sync>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _state: &SessionState,
@@ -358,7 +348,6 @@ impl<F: Clone + Send + Sync>
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

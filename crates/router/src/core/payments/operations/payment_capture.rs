@@ -44,6 +44,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -295,7 +296,6 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>

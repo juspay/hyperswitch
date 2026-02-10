@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payments::RequestSurchargeDetails,
+    customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
+    payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -54,6 +55,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -161,6 +163,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             payment_intent.customer_id.as_ref(),
+            None,
         ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -186,6 +189,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
         let customer_details = helpers::get_customer_details_from_request(request);
+
+        payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
+            state,
+            payment_intent.customer_details,
+            &customer_details,
+            platform.get_processor(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to store customer data in payment intent")?;
 
         let amount = request
             .amount
@@ -563,17 +576,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentUpdate {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -734,7 +736,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -747,7 +748,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             state,
             payment_data,
             platform,
-            customer,
             storage_scheme,
             business_profile,
             should_retry_with_pan,
@@ -815,7 +815,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
@@ -932,7 +931,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_id = customer.clone().map(|c| c.customer_id);
+        let customer_id = payment_data.payment_intent.customer_id.clone();
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;
@@ -1096,6 +1095,15 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
             tax_registration_id: value
                 .tax_registration_id
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
+            customer_document_details: CustomerDocumentDetails::from(
+                &value
+                    .document_details
+                    .map(|customer_document_details| customer_document_details.into_inner()),
+            )
+            .map_err(|report| {
+                router_env::logger::error!(error = ?report, "Failed to convert customer document details");
+                errors::ApiErrorResponse::InternalServerError
+            })?,
         })
     }
 }

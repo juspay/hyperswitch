@@ -43,6 +43,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
     > {
@@ -134,6 +135,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
         };
 
         let creds_identifier = request
@@ -250,7 +252,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
@@ -261,14 +262,20 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(masking::Secret::new);
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
                 .update_payment_intent(
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
+                        metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
+                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,
@@ -314,17 +321,6 @@ impl<
 where
     for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Data = PaymentData<F>>,
 {
-    #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<&payments::CustomerDetails>,
-        processor: &domain::Processor,
-    ) -> errors::CustomResult<(), errors::StorageError> {
-        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
-    }
-
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -380,7 +376,6 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

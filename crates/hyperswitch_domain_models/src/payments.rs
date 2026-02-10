@@ -1,6 +1,7 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
+use api_models::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers;
@@ -40,8 +41,9 @@ pub mod split_payments;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use masking::ExposeInterface;
 
-use self::payment_attempt::PaymentAttempt;
+use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -377,6 +379,39 @@ impl PaymentIntent {
         } else {
             Ok(())
         }
+    }
+
+    pub fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<CustomerDocumentDetails>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+                    .map(|data| data.customer_document_details)
+            })
+            .transpose()
+            .map(|opt| opt.flatten())
+            .map_err(|report| (*report.current_context()).clone())
+    }
+    #[cfg(feature = "v1")]
+    pub fn get_optional_feature_metadata(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::FeatureMetadata>,
+        common_utils::errors::ParsingError,
+    > {
+        self.feature_metadata
+            .as_ref()
+            .map(|details| {
+                ValueExt::parse_value::<api_models::payments::FeatureMetadata>(
+                    details.clone(),
+                    "FeatureMetadata",
+                )
+            })
+            .transpose()
     }
 }
 
@@ -1357,6 +1392,12 @@ where
                 .as_ref()
                 .and_then(|data| data.apple_pay_recurring_details.clone()),
             payment_revenue_recovery_metadata,
+            pix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_additional_details.clone()),
+            boleto_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.boleto_additional_details.clone()),
         }))
     }
 }

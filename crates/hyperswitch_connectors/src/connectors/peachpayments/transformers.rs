@@ -210,6 +210,7 @@ pub struct NetworkTokenDetails {
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
     pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     pub scheme: Option<CardNetworkLowercase>,
 }
@@ -653,12 +654,6 @@ impl
             None
         };
 
-        let cof_data = Some(CardOnFileData {
-            _type: CofType::Adhoc,
-            source: CofSource::Mit,
-            mode: CofMode::Subsequent,
-        });
-
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -667,7 +662,7 @@ impl
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data,
+                cof_data: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
