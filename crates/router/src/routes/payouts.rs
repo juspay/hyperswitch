@@ -56,8 +56,8 @@ pub async fn payouts_create(
             payouts_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -91,8 +91,8 @@ pub async fn payouts_retrieve(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -135,8 +135,8 @@ pub async fn payouts_update(
             payouts_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -158,11 +158,22 @@ pub async fn payouts_confirm(
     payload.confirm = Some(true);
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth_type, _auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth_type, _auth_flow) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+    };
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -205,8 +216,8 @@ pub async fn payouts_cancel(
             payouts_cancel_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -233,8 +244,8 @@ pub async fn payouts_fulfill(
             payouts_fulfill_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -262,8 +273,8 @@ pub async fn payouts_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -301,8 +312,8 @@ pub async fn payouts_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -335,8 +346,8 @@ pub async fn payouts_list_by_filter(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -374,8 +385,8 @@ pub async fn payouts_list_by_filter_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -408,8 +419,8 @@ pub async fn payouts_list_available_filters_for_merchant(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
@@ -447,8 +458,8 @@ pub async fn payouts_list_available_filters_for_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
@@ -485,8 +496,8 @@ pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) ->
         |state, auth: auth::AuthenticationData, _, _| get_payout_filters_core(state, auth.platform),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,

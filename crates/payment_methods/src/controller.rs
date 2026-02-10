@@ -57,6 +57,7 @@ pub trait PaymentMethodsController {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
+        payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
@@ -138,6 +139,15 @@ pub trait PaymentMethodsController {
         req: api::PaymentMethodCreate,
         key_store: &merchant_key_store::MerchantKeyStore,
         bank: &payouts::Bank,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+
+    #[cfg(feature = "v1")]
+    async fn add_bank_debit_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        bank_debit_data: api_models::payment_methods::BankDebitDetail,
+        key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 

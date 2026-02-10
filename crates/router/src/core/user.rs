@@ -22,9 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "email")]
-use router_env::env;
-use router_env::logger;
+use router_env::{env, logger};
 use storage_impl::errors::StorageError;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
@@ -64,6 +62,16 @@ pub async fn signup_with_merchant_id(
     auth_id: Option<String>,
     theme_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
+    // Validate platform feature is enabled if Platform org requested
+    fp_utils::when(
+        request.organization_type == Some(common_enums::OrganizationType::Platform)
+            && !state.conf.platform.enabled,
+        || {
+            Err(report!(UserErrors::InvalidPlatformOperation)
+                .attach_printable("Platform feature is not enabled"))
+        },
+    )?;
+
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
         .get_new_merchant()
@@ -1688,6 +1696,10 @@ pub async fn create_platform_account(
     user_from_token: auth::UserFromToken,
     req: user_api::PlatformAccountCreateRequest,
 ) -> UserResponse<user_api::PlatformAccountCreateResponse> {
+    fp_utils::when(matches!(env::which(), env::Env::Production), || {
+        Err(report!(UserErrors::InvalidPlatformOperation))
+    })?;
+
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from(req)?;
@@ -1702,11 +1714,8 @@ pub async fn create_platform_account(
         .accounts_store
         .update_organization_by_org_id(
             &organization.get_organization_id(),
-            diesel_models::organization::OrganizationUpdate::Update {
-                organization_name: None,
-                organization_details: None,
-                metadata: None,
-                platform_merchant_id: Some(merchant_account.get_id().to_owned()),
+            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                platform_merchant_id: merchant_account.get_id().clone(),
             },
         )
         .await

@@ -150,6 +150,8 @@ pub struct ConfigMetadata {
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
+    pub pix: Option<Vec<InputData>>,
+    pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
@@ -227,6 +229,7 @@ pub struct ConnectorTomlConfig {
     pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
+    pub network_token: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -274,6 +277,7 @@ pub struct ConnectorConfig {
     pub itaubank: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
+    pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
     pub deutschebank: Option<ConnectorTomlConfig>,
     pub digitalvirgo: Option<ConnectorTomlConfig>,
@@ -298,6 +302,7 @@ pub struct ConnectorConfig {
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gpayments: Option<ConnectorTomlConfig>,
     pub hipay: Option<ConnectorTomlConfig>,
+    pub hyperpg: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
@@ -518,6 +523,7 @@ impl ConnectorConfig {
             Connector::CtpVisa => Ok(connector_data.ctp_visa),
             Connector::Custombilling => Ok(connector_data.custombilling),
             Connector::Cybersource => Ok(connector_data.cybersource),
+            Connector::Cybersourcedecisionmanager => Ok(connector_data.cybersourcedecisionmanager),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyBillingConnector => Ok(connector_data.dummy_connector),
             Connector::Iatapay => Ok(connector_data.iatapay),
@@ -546,6 +552,7 @@ impl ConnectorConfig {
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Hipay => Ok(connector_data.hipay),
             Connector::HyperswitchVault => Ok(connector_data.hyperswitch_vault),
+            Connector::Hyperpg => Ok(connector_data.hyperpg),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),

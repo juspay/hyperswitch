@@ -362,7 +362,7 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["OpenBankingUk"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
@@ -430,7 +430,7 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["OnlineBankingFpx"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
@@ -498,7 +498,7 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Interac"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });

@@ -9,6 +9,7 @@ pub enum ApiIdentifier {
     Organization,
     MerchantAccount,
     MerchantConnector,
+    MerchantConnectorWebhookManagement,
     Configs,
     Customers,
     Ephemeral,
@@ -63,9 +64,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantTransferKey
             | Flow::MerchantAccountList
             | Flow::EnablePlatformAccount => Self::MerchantAccount,
-            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
-                Self::Organization
-            }
+            Flow::OrganizationCreate
+            | Flow::OrganizationRetrieve
+            | Flow::OrganizationUpdate
+            | Flow::ConvertOrganizationToPlatform => Self::Organization,
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
@@ -379,6 +381,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::MerchantConnectorWebhookRegister => Self::MerchantConnectorWebhookManagement,
         }
     }
 }

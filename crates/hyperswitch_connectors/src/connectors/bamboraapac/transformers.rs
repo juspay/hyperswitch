@@ -306,6 +306,7 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -483,6 +484,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -622,6 +624,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -900,6 +903,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data

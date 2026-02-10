@@ -18,6 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
+use masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -243,6 +244,39 @@ impl AttemptStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
+
+    pub fn should_update_payment_method(self) -> bool {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired => false,
+        }
+    }
 }
 
 #[derive(
@@ -344,6 +378,14 @@ pub enum GsmDecision {
 }
 
 #[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum ApiKeyType {
+    Internal,
+    External,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -360,12 +402,19 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum RecommendedAction {
     DoNotRetry,
+    #[serde(rename = "retry_after_10_days")]
     RetryAfter10Days,
+    #[serde(rename = "retry_after_1_hour")]
     RetryAfter1Hour,
+    #[serde(rename = "retry_after_24_hours")]
     RetryAfter24Hours,
+    #[serde(rename = "retry_after_2_days")]
     RetryAfter2Days,
+    #[serde(rename = "retry_after_4_days")]
     RetryAfter4Days,
+    #[serde(rename = "retry_after_6_days")]
     RetryAfter6Days,
+    #[serde(rename = "retry_after_8_days")]
     RetryAfter8Days,
     RetryAfterInstrumentUpdate,
     RetryLater,
@@ -728,29 +777,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum DocumentKind {
-    Cnpj,
-    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2927,6 +2953,8 @@ pub enum RelayStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
     Refund,
+    Capture,
+    IncrementalAuthorization,
 }
 
 #[derive(
@@ -9616,6 +9644,51 @@ impl From<RelayStatus> for RefundStatus {
     }
 }
 
+impl From<AttemptStatus> for RelayStatus {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
+impl From<AuthorizationStatus> for RelayStatus {
+    fn from(authorization_status: AuthorizationStatus) -> Self {
+        match authorization_status {
+            AuthorizationStatus::Failure => Self::Failure,
+            AuthorizationStatus::Processing | AuthorizationStatus::Unresolved => Self::Pending,
+            AuthorizationStatus::Success => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -10486,10 +10559,177 @@ pub enum StorageType {
     Persistent,
 }
 
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    ManualRetry,
+    AutoRetry,
+}
+
 #[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]
 pub enum RoutingRegion {
     Region1,
     Region2,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoDocumentKind {
+    /// Commercial invoice for goods/products
+    CommercialInvoice,
+    /// Service invoice
+    ServiceInvoice,
+    /// Standard promissory note (promise to pay later)
+    PromissoryNote,
+    /// Promissory note for rural/agricultural operations
+    RuralPromissoryNote,
+    /// Payment receipt
+    Receipt,
+    /// Insurance policy payment
+    InsurancePolicy,
+    /// Credit card statement / invoice payment
+    CreditCardInvoice,
+    /// Commercial proposal / quotation acceptance
+    Proposal,
+    /// Deposit or account funding (e.g. wallet top-up)
+    DepositOrFunding,
+    /// Cheque-based payment
+    Cheque,
+    /// Direct promissory note between parties
+    DirectPromissoryNote,
+    /// Any other document type
+    Other,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoPaymentType {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed minimum–maximum range.
+    FlexibleAmount,
+    /// The payer may make up to 99 partial payments.
+    Installment,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpiryType {
+    Immediate,
+    Scheduled,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum PixKey {
+    #[schema(value_type = String)]
+    Cpf(Secret<String>),
+    #[schema(value_type = String)]
+    Cnpj(Secret<String>),
+    #[schema(value_type = String)]
+    Email(Secret<String>),
+    #[schema(value_type = String)]
+    Phone(Secret<String>),
+    #[schema(value_type = String)]
+    EvpToken(Secret<String>),
+}
+
+/// Helper extension for PixKey to extract the secret value regardless of variant
+impl PixKey {
+    pub fn get_inner_value(&self) -> Secret<String> {
+        match self {
+            Self::Cpf(val)
+            | Self::Cnpj(val)
+            | Self::Email(val)
+            | Self::Phone(val)
+            | Self::EvpToken(val) => val.clone(),
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorWebhookEventType {
+    AllEvents,
+    SpecificEvent(EventType),
+}
+
+/// The status of webhook registration
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookRegistrationStatus {
+    // Webhook registration is successful
+    #[default]
+    Success,
+    // Webhook registration has failed
+    Failure,
 }
