@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.09.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Omit ECI field in Network Token Passthrough when its None ([#11205](https://github.com/juspay/hyperswitch/pull/11205)) ([`63ca1f4`](https://github.com/juspay/hyperswitch/commit/63ca1f4aa4503395dd9eb6499dcf8d5139bf0235))
+
+**Full Changelog:** [`2026.02.09.0-hotfix1...2026.02.09.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.02.09.0-hotfix1...2026.02.09.0-hotfix2)
+
+- - -
+
 ## 2026.02.09.0-hotfix1
 
 ### Features
