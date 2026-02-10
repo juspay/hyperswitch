@@ -408,6 +408,9 @@ pub enum StripeNextAction {
     InvokeUpiQrFlow {
         sdk_uri: url::Url,
     },
+    InvokeDdc {
+        ddc_data: payments::DDCData,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -493,13 +496,8 @@ pub(crate) fn into_stripe_next_action(
                 sdk_uri: qr_code_url,
             }
         }
-        payments::NextActionData::InvokeHiddenIframeUrl { redirect_to_url } => {
-            StripeNextAction::RedirectToUrl {
-                redirect_to_url: RedirectUrl {
-                    return_url,
-                    url: Some(redirect_to_url),
-                },
-            }
+        payments::NextActionData::InvokeDdc { ddc_data } => {
+            StripeNextAction::InvokeDdc { ddc_data }
         }
     })
 }

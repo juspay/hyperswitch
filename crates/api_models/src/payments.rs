@@ -6686,9 +6686,9 @@ pub enum NextActionData {
         iframe_data: IframeData,
     },
     /// Contains url to be rendered in an iframe
-    InvokeHiddenIframeUrl {
-        #[smithy(value_type = "String")]
-        redirect_to_url: String,
+    InvokeDdc {
+        #[smithy(value_type = "DDCData")]
+        ddc_data: DDCData,
     },
 }
 
@@ -6717,6 +6717,15 @@ pub enum IframeData {
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
     },
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+pub struct DDCData {
+    pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
+    pub ddc_connector: Option<String>,
 }
 
 #[derive(
