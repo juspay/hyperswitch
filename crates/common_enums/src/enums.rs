@@ -180,7 +180,6 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
-            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -203,7 +202,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::VoidedPostCharge => false,
         }
     }
 
@@ -10567,7 +10567,7 @@ pub enum RoutingRegion {
     Region2,
 }
 
-/// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
+/// The status of a post-capture void operation
 #[derive(
     Clone,
     Copy,
@@ -10596,4 +10596,14 @@ pub enum PostCaptureVoidStatus {
     #[default]
     Pending,
     Failed,
+}
+
+impl PostCaptureVoidStatus {
+ pub fn is_post_capture_void_failure(self) -> bool {
+    match self {
+        Self::Failed => true,
+        Self::Pending
+        | Self::Succeeded => false,
+    }
+}
 }

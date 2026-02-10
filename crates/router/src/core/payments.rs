@@ -13762,41 +13762,4 @@ impl PaymentIntentStateMetadataExt {
         }
         Ok(())
     }
-    pub async fn update_intent_state_metadata_for_post_capture_void(
-        self,
-        state: &SessionState,
-        processor: &domain::Processor,
-        payment_intent: &payments::PaymentIntent,
-        post_capture_void_data: common_types::domain::PostCaptureVoidData,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let db = state.store.clone();
-        let key_store = processor.get_key_store().clone();
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(&key_store.merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-        let current_state = payment_intent
-            .state_metadata
-            .clone()
-            .unwrap_or_default()
-            .set_post_capture_void_data(post_capture_void_data);
-
-        let domain_update = payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
-            state_metadata: current_state.clone(),
-            updated_by: merchant_account.storage_scheme.to_string(),
-        };
-
-        db.update_payment_intent(
-            payment_intent.clone(),
-            domain_update,
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment intent with total_refunded_amount")?;
-
-        Ok(())
-    }
 }

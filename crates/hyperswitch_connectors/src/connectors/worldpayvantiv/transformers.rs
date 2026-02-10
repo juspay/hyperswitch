@@ -1715,7 +1715,7 @@ impl<F>
                 let post_capture_void_status =
                     get_post_capture_void_status(void_response.response)?;
                 let description =
-                    connector_utils::is_post_capture_void_failure(post_capture_void_status)
+                    post_capture_void_status.is_post_capture_void_failure()
                         .then_some(void_response.message.clone());
                 Ok(Self {
                     response: Ok(PaymentsResponseData::PostCaptureVoidResponse {

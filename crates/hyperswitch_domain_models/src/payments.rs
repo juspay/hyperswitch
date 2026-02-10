@@ -346,8 +346,7 @@ impl PaymentIntent {
             .state_metadata
             .as_ref()
             .map(|state_metadata| {
-                state_metadata.is_post_capture_void_applied()
-                    || state_metadata.is_post_capture_void_pending()
+                state_metadata.is_post_capture_void_issued()
             })
             .unwrap_or(false)
         {

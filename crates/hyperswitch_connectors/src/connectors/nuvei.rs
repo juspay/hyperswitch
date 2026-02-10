@@ -522,7 +522,7 @@ impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, Paymen
         _req: &PaymentsCancelPostCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
+        Ok(format!( 
             "{}ppp/api/v1/voidTransaction.do",
             ConnectorCommon::base_url(self, connectors)
         ))
