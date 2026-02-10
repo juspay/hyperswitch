@@ -656,7 +656,6 @@ pub struct WebhookProcessingResult<'a> {
     #[serde(skip)]
     pub shadow_ucs_data: Option<ShadowUcsData<'a>>,
     #[serde(skip)]
-    // From other PR - webhook context support for ACH returns/rejections
     pub webhook_resource_data: Option<WebhookResourceData>,
     pub object_reference_id: Option<api::ObjectReferenceId>,
     #[serde(skip)]
