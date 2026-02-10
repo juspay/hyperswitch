@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
+use router_env::env::{self, Env};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -62,7 +63,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePayme
         (item, amount): (&PaymentsAuthorizeRouterData, FloatMajorUnit),
     ) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
-        let url = item.request.get_router_return_url()?;
+        let url = match env::which() {
+            Env::Development => "https://example.com".to_string(),
+            _ => item.request.get_router_return_url()?,
+        };
         let mid = get_mid(
             &item.connector_auth_type,
             item.request.payment_method_type,
