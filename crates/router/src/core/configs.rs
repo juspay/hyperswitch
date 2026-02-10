@@ -7,6 +7,7 @@ use external_services::superposition::{self, ConfigContext};
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
+    db,
     routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{api, transformers::ForeignInto},
@@ -126,10 +127,7 @@ impl ConfigType for serde_json::Value {
 /// that database fallback is used when superposition fails. It uses the config's
 /// `db_key` method to construct the database key from dimensions.
 pub async fn fetch_db_with_dimensions<C, M, O, P>(
-    storage: &(dyn hyperswitch_domain_models::configs::ConfigInterface<
-        Error = storage_impl::errors::StorageError,
-    > + Send
-          + Sync),
+    storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
     targeting_context: &superposition::TargetingContext,
@@ -169,10 +167,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// This function is specifically for DatabaseBackedConfig types and enforces
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
-    storage: &(dyn hyperswitch_domain_models::configs::ConfigInterface<
-        Error = storage_impl::errors::StorageError,
-    > + Send
-          + Sync),
+    storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,
@@ -196,13 +191,7 @@ where
     };
 
     match superposition_result {
-        Ok(value) => {
-            metrics::CONFIG_SUPERPOSITION_FETCH.add(
-                1,
-                router_env::metric_attributes!(("config_type", config_type)),
-            );
-            value
-        }
+        Ok(value) => value,
         Err(_) => {
             router_env::logger::info!("Retrieving config from database for key '{}'", db_key);
 

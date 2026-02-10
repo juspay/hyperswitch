@@ -10,7 +10,7 @@ use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
-use common_enums::{Currency, RequestIncrementalAuthorization};
+use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -37,7 +37,9 @@ use diesel_models::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
+use hyperswitch_domain_models::{
+    payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types, RouterDataV2},
@@ -219,6 +221,7 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
     Ok(router_data)
 }
@@ -569,6 +572,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -915,6 +919,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1049,6 +1054,7 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1417,6 +1423,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1643,6 +1650,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
     };
 
     Ok(router_data)
@@ -1868,6 +1876,12 @@ where
         });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
+    let customer_document_details = payment_data
+        .payment_intent
+        .get_customer_document_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to extract customer document details from payment_intent")?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: processor.get_account().get_id().clone(),
@@ -1956,6 +1970,7 @@ where
         l2_l3_data,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details,
     };
 
     Ok(router_data)
@@ -2171,6 +2186,11 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
     };
 
     Ok(router_data)
@@ -3601,6 +3621,7 @@ where
 
     // If we have customer data in Payment Intent and if the customer is not deleted, We are populating the Retrieve response from the
     // same. If the customer is deleted then we use the customer table to populate customer details
+
     let customer_details_response = payment_intent
         .customer_details
         .clone()
@@ -3617,6 +3638,7 @@ where
             email: customer_details.email,
             phone: customer_details.phone,
             phone_country_code: customer_details.phone_country_code,
+            customer_document_details: customer_details.customer_document_details,
         });
 
     headers.extend(
@@ -3908,6 +3930,35 @@ where
             .map(api_payments::PaymentMethodTokenizationDetails::foreign_try_from)
             .transpose()?;
 
+        // Construct SDK authorization for client SDK
+        let sdk_auth_data = SdkAuthorization {
+            profile_id: payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")?,
+            publishable_key: processor.get_account().publishable_key.clone(),
+            platform_publishable_key: initiator.and_then(|init| match init {
+                domain::Initiator::Api {
+                    merchant_account_type,
+                    publishable_key,
+                    ..
+                } => match merchant_account_type {
+                    MerchantAccountType::Platform => Some(publishable_key.clone()),
+                    MerchantAccountType::Standard | MerchantAccountType::Connected => None,
+                },
+                domain::Initiator::Admin
+                | domain::Initiator::Jwt { .. }
+                | domain::Initiator::EmbeddedToken { .. } => None,
+            }),
+            client_secret: payment_intent.client_secret.clone(),
+            customer_id: payment_intent.customer_id.clone(),
+        };
+
+        let sdk_authorization = sdk_auth_data
+            .encode()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode SDK authorization")?;
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3918,6 +3969,7 @@ where
             amount_received: payment_intent.amount_captured,
             processor_merchant_id: processor.get_account().get_id().clone(),
             initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
+            sdk_authorization: Some(sdk_authorization),
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
@@ -4207,20 +4259,8 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
-impl
-    ForeignFrom<(
-        storage::PaymentIntent,
-        storage::PaymentAttempt,
-        Option<api_models::platform::Initiator>,
-    )> for api::PaymentsResponse
-{
-    fn foreign_from(
-        (pi, pa, api_initiator): (
-            storage::PaymentIntent,
-            storage::PaymentAttempt,
-            Option<api_models::platform::Initiator>,
-        ),
-    ) -> Self {
+impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+    fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
             payment_id: pi.payment_id,
@@ -4267,7 +4307,8 @@ impl
                             name: parsed_data.name,
                             phone: parsed_data.phone,
                             email: parsed_data.email,
-                            phone_country_code:parsed_data.phone_country_code
+                            phone_country_code:parsed_data.phone_country_code,
+                            customer_document_details: parsed_data.customer_document_details
                     }),
                     Err(e) => {
                         router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
@@ -4297,7 +4338,8 @@ impl
             net_amount: pa.net_amount.get_total_amount(),
             amount_received: None,
             processor_merchant_id: pi.processor_merchant_id,
-            initiator: api_initiator,
+            initiator: None,
+            sdk_authorization: None,
             refunds: None,
             disputes: None,
             attempts: None,
@@ -6313,12 +6355,13 @@ impl ForeignFrom<payments::FraudCheck> for FrmMessage {
 impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
     fn foreign_from(customer: CustomerDetails) -> Self {
         Self {
-            customer_id: Some(customer.id),
+            customer_id: customer.id,
             name: customer.name,
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            document_details: customer.document_details,
         }
     }
 }

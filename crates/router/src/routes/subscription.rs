@@ -214,11 +214,26 @@ pub async fn confirm_subscription(
 
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
-        };
+    let (auth_type, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+    };
 
     Box::pin(oss_api::server_wrap(
         flow,
@@ -261,11 +276,26 @@ pub async fn get_subscription_items(
         Err(response) => return response,
     };
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
-        };
+    let (auth_type, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+    };
     Box::pin(oss_api::server_wrap(
         flow,
         state,

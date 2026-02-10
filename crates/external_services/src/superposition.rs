@@ -10,6 +10,7 @@ use error_stack::report;
 use masking::ExposeInterface;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
+use crate::config_metrics;
 
 fn convert_open_feature_value(value: open_feature::Value) -> Result<serde_json::Value, String> {
     match value {
@@ -328,6 +329,10 @@ pub trait Config {
                         "Superposition config hit: key='{}', type='{}'",
                         Self::SUPERPOSITION_KEY,
                         std::any::type_name::<Self::Output>()
+                    );
+                    config_metrics::CONFIG_SUPERPOSITION_FETCH.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", Self::SUPERPOSITION_KEY)),
                     );
                     Ok(value)
                 }

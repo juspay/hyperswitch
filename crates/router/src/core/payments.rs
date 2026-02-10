@@ -106,8 +106,6 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
-use crate::core::blocklist::utils as blocklist_utils;
-#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -121,6 +119,11 @@ use crate::core::revenue_recovery::get_workflow_entries;
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
+#[cfg(feature = "v1")]
+use crate::core::{
+    blocklist::utils as blocklist_utils,
+    configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -130,7 +133,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -607,6 +610,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -640,7 +644,16 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
+    // Create feature_config
+    let feature_config = core_utils::get_feature_config(state, platform).await;
+
+    let payment_method_info = operation
+        .to_domain()?
+        .fetch_payment_method(state, &req, platform, &feature_config)
+        .await?;
+
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
+
     // get profile from headers
     let operations::GetTrackerResponse {
         operation,
@@ -657,6 +670,7 @@ where
             platform,
             auth_flow,
             &header_payload,
+            payment_method_info,
         )
         .await?;
 
@@ -670,6 +684,18 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
+
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
@@ -678,6 +704,7 @@ where
             &mut payment_data,
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
+            dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -755,7 +782,7 @@ where
         let mut should_continue_capture: bool = true;
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
-            Box::pin(frm_core::call_frm_before_connector_call(
+            match Box::pin(frm_core::call_frm_before_connector_call(
                 &operation,
                 platform,
                 &mut payment_data,
@@ -764,10 +791,34 @@ where
                 &mut should_continue_transaction,
                 &mut should_continue_capture,
             ))
-            .await?
+            .await
+            {
+                Ok(configs) => configs,
+                Err(e) => {
+                    // Log the error
+                    logger::info!(
+                        "FRM call before connector failed : payment_id={:?}, error={:?}",
+                        payment_data.get_payment_intent().payment_id,
+                        e
+                    );
+                    metrics::FRM_FAILURE.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "merchant_id",
+                                platform.get_processor().get_account().get_id().clone()
+                            ),
+                            ("error_type", e.current_context().to_string())
+                        ),
+                    );
+                    // Continue with default values
+                    None
+                }
+            }
         } else {
             None
         };
+
         #[cfg(feature = "frm")]
         logger::debug!(
             "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
@@ -778,6 +829,7 @@ where
 
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
             platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().get_org_id(),
             state,
         )
         .await?;
@@ -902,6 +954,7 @@ where
                             &business_profile,
                             false,
                             None,
+                            &feature_config,
                         )
                         .await?;
 
@@ -967,16 +1020,17 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            platform,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
+                    handle_pm_and_mandate_post_update(
+                        state,
+                        operation.as_ref(),
+                        &router_data,
+                        platform,
+                        &mut payment_data,
+                        &business_profile,
+                        req.get_payment_method_data(),
+                        &feature_config,
+                    )
+                    .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1001,6 +1055,7 @@ where
                             platform.get_provider(),
                             &payment_data,
                             &router_data_for_pm_mandate,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1070,6 +1125,7 @@ where
                             &business_profile,
                             false,
                             routing_decision,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1155,6 +1211,7 @@ where
                                 #[cfg(not(feature = "frm"))]
                                 None,
                                 &business_profile,
+                                &feature_config,
                             )
                             .await?;
                         };
@@ -1169,16 +1226,17 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            platform,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
+                    handle_pm_and_mandate_post_update(
+                        state,
+                        operation.as_ref(),
+                        &router_data,
+                        platform,
+                        &mut payment_data,
+                        &business_profile,
+                        req.get_payment_method_data(),
+                        &feature_config,
+                    )
+                    .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1203,6 +1261,7 @@ where
                             platform.get_provider(),
                             &payment_data,
                             &router_data_for_pm_mandate,
+                            &feature_config,
                         )
                         .await?;
 
@@ -1373,6 +1432,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1409,6 +1469,8 @@ where
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
+    let feature_config = core_utils::get_feature_config(state, &platform).await;
+
     let operations::GetTrackerResponse {
         operation,
         customer_details,
@@ -1424,6 +1486,7 @@ where
             &platform,
             auth_flow,
             &header_payload,
+            None,
         )
         .await?;
 
@@ -1489,6 +1552,7 @@ where
             &mut payment_data,
             customer_details,
             platform.get_provider(),
+            dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1548,6 +1612,7 @@ where
             platform.get_provider(),
             &payment_data,
             &router_data_for_pm_mandate,
+            &feature_config,
         )
         .await?;
 
@@ -2243,6 +2308,58 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
+async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
+    state: &SessionState,
+    operation: &Op,
+    router_data: &RouterData<F, R, router_types::PaymentsResponseData>,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    business_profile: &domain::Profile,
+    request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    feature_config: &core_utils::FeatureConfig,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone + Send + Sync,
+    R: Send,
+    D: OperationSessionGetters<F> + Send + Sync,
+    Op: Operation<F, R, Data = D> + Send + Sync,
+{
+    if feature_config.is_payment_method_modular_allowed {
+        logger::debug!(
+            payment_id = ?payment_data.get_payment_attempt().payment_id,
+            "Modular merchant detected; calling update_modular_pm_and_mandate"
+        );
+
+        let domain_payment_method_data =
+            request_payment_method_data.map(domain::PaymentMethodData::from);
+
+        operation
+            .to_post_update_tracker()?
+            .update_modular_pm_and_mandate(
+                state,
+                router_data,
+                platform,
+                payment_data,
+                business_profile,
+                domain_payment_method_data.as_ref(),
+            )
+            .await?;
+    } else {
+        logger::debug!(
+            payment_id = ?payment_data.get_payment_attempt().payment_id,
+            "Non-modular merchant; calling save_pm_and_mandate"
+        );
+        operation
+            .to_post_update_tracker()?
+            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)
+            .await?;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
@@ -2279,6 +2396,8 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2292,6 +2411,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
+            dimensions,
         )
         .await?;
 
@@ -2340,6 +2460,8 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2352,6 +2474,7 @@ where
             auth_flow,
             header_payload.clone(),
             return_raw_connector_response,
+            dimensions,
         )
         .await?;
 
@@ -4476,6 +4599,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4579,6 +4703,7 @@ where
         platform,
         business_profile,
         should_retry_with_pan,
+        feature_config,
     )
     .await?;
     *payment_data = pd;
@@ -5451,13 +5576,6 @@ where
             business_profile.get_id().clone(),
         );
 
-        // Extract merchant_order_reference_id from payment data for UCS audit trail
-        let merchant_order_reference_id = payment_data
-            .get_payment_intent()
-            .merchant_reference_id
-            .clone()
-            .map(|id| id.get_string_repr().to_string());
-
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
@@ -5467,7 +5585,6 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
                 ExecutionMode::Primary, //UCS is called in primary mode
-                merchant_order_reference_id,
             )
             .await?;
 
@@ -7698,6 +7815,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -7756,38 +7874,58 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    let (_operation, payment_method_data, pm_id) = operation
-                        .to_domain()?
-                        .make_pm_data(
-                            state,
-                            payment_data,
-                            validate_result.storage_scheme,
-                            platform,
-                            business_profile,
-                            should_retry_with_pan,
-                        )
-                        .await?;
-                    payment_data.set_payment_method_data(payment_method_data);
-                    payment_data.set_payment_method_id_in_attempt(pm_id);
+                    if !feature_config.is_payment_method_modular_allowed {
+                        let (_operation, payment_method_data, pm_id) = operation
+                            .to_domain()?
+                            .make_pm_data(
+                                state,
+                                payment_data,
+                                validate_result.storage_scheme,
+                                platform,
+                                business_profile,
+                                should_retry_with_pan,
+                            )
+                            .await?;
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                    } else {
+                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        //Merchant enabled for PM Modular service
+                        let pm_id = payment_data
+                            .get_payment_method_info()
+                            .map(|pm| pm.payment_method_id.clone());
+                        //Payment method data is already set in get trackers flow if modular pm service is enabled
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                    }
 
                     TokenizationAction::SkipConnectorTokenization
                 }
                 TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
                 TokenizationAction::TokenizeInConnectorAndRouter => {
-                    let (_operation, payment_method_data, pm_id) = operation
-                        .to_domain()?
-                        .make_pm_data(
-                            state,
-                            payment_data,
-                            validate_result.storage_scheme,
-                            platform,
-                            business_profile,
-                            should_retry_with_pan,
-                        )
-                        .await?;
+                    if !feature_config.is_payment_method_modular_allowed {
+                        let (_operation, payment_method_data, pm_id) = operation
+                            .to_domain()?
+                            .make_pm_data(
+                                state,
+                                payment_data,
+                                validate_result.storage_scheme,
+                                platform,
+                                business_profile,
+                                should_retry_with_pan,
+                            )
+                            .await?;
 
-                    payment_data.set_payment_method_data(payment_method_data);
-                    payment_data.set_payment_method_id_in_attempt(pm_id);
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                    } else {
+                        //Merchant enabled for PM Modular service
+                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        let pm_id = payment_data
+                            .get_payment_method_info()
+                            .map(|pm| pm.payment_method_id.clone());
+                        //Payment method data is already set in get trackers flow if modular pm service is enabled
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                    }
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
@@ -8242,15 +8380,11 @@ pub async fn list_payments(
             .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
     //Will collect responses in same order async, leading to sorted responses
 
-    let api_initiator = platform
-        .get_initiator()
-        .and_then(domain::Initiator::to_api_initiator);
-
     //Converting Intent-Attempt array to Response if no error
     let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .into_iter()
-        .map(|(pi, pa)| ForeignFrom::foreign_from((pi, pa, api_initiator)))
+        .map(ForeignFrom::foreign_from)
         .collect();
 
     Ok(services::ApplicationResponse::Json(
@@ -8501,15 +8635,8 @@ pub async fn apply_filters_on_payments(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let api_initiator = platform
-                .get_initiator()
-                .and_then(domain::Initiator::to_api_initiator);
-            let data: Vec<api::PaymentsResponse> = list
-                .into_iter()
-                .map(|(payment_intent, payment_attempt)| {
-                    ForeignFrom::foreign_from((payment_intent, payment_attempt, api_initiator))
-                })
-                .collect();
+            let data: Vec<api::PaymentsResponse> =
+                list.into_iter().map(ForeignFrom::foreign_from).collect();
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
@@ -10830,6 +10957,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let authentication_response = if helpers::is_merchant_eligible_authentication_service(
         platform.get_processor().get_account().get_id(),
+        platform.get_processor().get_account().get_org_id(),
         &state,
     )
     .await?
@@ -11552,6 +11680,7 @@ pub trait OperationSessionSetters<F> {
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>);
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>);
     fn set_email_if_not_present(&mut self, email: pii::Email);
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
@@ -11812,6 +11941,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>) {
         self.payment_method_token = payment_method_token;
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
+        self.payment_method_info = payment_method_info;
     }
 
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>) {
@@ -12153,6 +12286,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
+        todo!()
+    }
+
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
         todo!()
     }
@@ -12456,6 +12593,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 
     fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
+        todo!()
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 
@@ -12766,6 +12907,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
+        todo!()
+    }
+
     fn set_payment_method_id_in_attempt(&mut self, _payment_method_id: Option<String>) {
         todo!()
     }
@@ -13067,6 +13212,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
+        todo!()
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 
@@ -13527,6 +13676,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
+        todo!()
+    }
+
+    fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
         todo!()
     }
 

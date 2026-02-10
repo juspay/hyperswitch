@@ -10,6 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             helpers, operations, types as payment_types, CustomerDetails, PaymentAddress,
@@ -66,6 +67,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             PaymentStatusOperation<'a, F, api::PaymentsRequest>,
@@ -81,6 +83,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    dimensions,
                 )
                 .await
             }
@@ -228,6 +231,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -375,7 +379,7 @@ async fn get_tracker_for_sync<
         })?;
 
     let authorizations = db
-        .find_all_authorizations_by_merchant_id_payment_id(
+        .find_all_authorizations_by_processor_merchant_id_payment_id(
             platform.get_processor().get_account().get_id(),
             &payment_id,
         )

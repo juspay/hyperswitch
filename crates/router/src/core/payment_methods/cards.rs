@@ -143,6 +143,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
+        payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -204,6 +205,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                     created_by: None,
                     last_modified_by: None,
+                    customer_details: payment_method_customer_details_encrypted,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -512,6 +514,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
+            None,
         )
         .await
     }
@@ -1429,6 +1432,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
+                None,
             )
             .await?;
 
@@ -5270,14 +5274,21 @@ pub async fn execute_card_tokenization(
     let domain_card = optional_card
         .get_required_value("card")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
     let network_token_details = executor
-        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
     let builder = builder.set_token_details(&network_token_details);
 
     // Store card and token in locker
     let store_card_and_token_resp = executor
-        .store_card_and_token_in_locker(&network_token_details, &domain_card, &customer.id)
+        .store_card_and_token_in_locker(&network_token_details, &domain_card, customer_id)
         .await?;
     let builder = builder.set_stored_card_response(&store_card_and_token_resp);
     let builder = builder.set_stored_token_response(&store_card_and_token_resp);
@@ -5288,7 +5299,7 @@ pub async fn execute_card_tokenization(
             &store_card_and_token_resp,
             &network_token_details,
             &domain_card,
-            &customer.id,
+            customer_id,
         )
         .await?;
     let builder = builder.set_payment_method_response(&payment_method);
@@ -5314,10 +5325,18 @@ pub async fn execute_payment_method_tokenization(
         .await?;
     let builder = builder.set_validate_result(&customer);
 
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
+
     // Fetch card from locker
     let card_details = get_card_from_locker(
         executor.state,
-        &customer.id,
+        customer_id,
         executor.merchant_account.get_id(),
         &locker_id,
     )
@@ -5340,7 +5359,7 @@ pub async fn execute_payment_method_tokenization(
     let (optional_card, optional_cvc) = builder.get_optional_card_and_cvc();
     let domain_card = optional_card.get_required_value("card")?;
     let network_token_details = executor
-        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
     let builder = builder.set_token_details(&network_token_details);
 
@@ -5348,7 +5367,7 @@ pub async fn execute_payment_method_tokenization(
     let store_token_resp = executor
         .store_network_token_in_locker(
             &network_token_details,
-            &customer.id,
+            customer_id,
             card_details.name_on_card.clone(),
             card_details.nick_name.clone().map(Secret::new),
         )
