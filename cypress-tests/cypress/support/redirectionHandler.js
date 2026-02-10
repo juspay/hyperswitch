@@ -1509,6 +1509,7 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
 
   cy.url().then((url) => {
     cy.log(`Current URL for verification: ${url}`);
+    cy.wait(5000);
     cy.origin(
       new URL(url).origin,
       {
