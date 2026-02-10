@@ -15186,6 +15186,14 @@
               }
             ],
             "nullable": true
+          },
+          "peachpayments": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -33340,6 +33348,16 @@
         "properties": {
           "complete_response": {
             "type": "string"
+          }
+        }
+      },
+      "PeachpaymentsData": {
+        "type": "object",
+        "properties": {
+          "rrn": {
+            "type": "string",
+            "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
           }
         }
       },
