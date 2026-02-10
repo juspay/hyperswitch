@@ -757,6 +757,8 @@ pub struct UcsSetupMandateResponseData {
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
     pub connector_response: Option<ConnectorResponseData>,
+    pub amount_captured: Option<i64>,
+    pub minor_amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1315,6 +1317,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             metadata: None,
             request_extended_authorization: None,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             guest_customer: None,
@@ -1338,6 +1341,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
                 .request
                 .partner_merchant_identifier_details
                 .clone(),
+            feature_metadata: None,
         }
     }
 }
@@ -1406,6 +1410,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
+            customer_document_details: data.customer_document_details.clone(),
         }
     }
 }
@@ -1479,6 +1484,7 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }
