@@ -515,6 +515,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
             amount: relay_capture_data.amount_to_capture,
             connector_reference_id: None,
             setup_future_usage: None,
+            feature_metadata: None,
         },
 
         response: Err(ErrorResponse::default()),
