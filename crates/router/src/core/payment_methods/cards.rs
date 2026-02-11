@@ -2301,7 +2301,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 
@@ -2321,7 +2321,7 @@ pub async fn update_payment_method_and_last_used(
     };
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 
@@ -2341,7 +2341,7 @@ pub async fn update_payment_method_connector_mandate_details(
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 
@@ -2357,7 +2357,7 @@ pub async fn update_payment_method_connector_mandate_details(
         .map(|common_mandate| {
             common_mandate.get_mandate_details_value().map_err(|err| {
                 router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
-                errors::VaultError::UpdateInPaymentMethodDataTableFailed
+                errors::VaultError::UpdateInPaymentMethodTableFailed
             })
         })
         .transpose()?;
@@ -2369,7 +2369,7 @@ pub async fn update_payment_method_connector_mandate_details(
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 
@@ -2389,7 +2389,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
         .map(|common_mandate| {
             common_mandate.get_mandate_details_value().map_err(|err| {
                 router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
-                errors::VaultError::UpdateInPaymentMethodDataTableFailed
+                errors::VaultError::UpdateInPaymentMethodTableFailed
             })
         })
         .transpose()?;
@@ -2411,7 +2411,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 #[instrument(skip_all)]
