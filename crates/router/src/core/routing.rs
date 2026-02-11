@@ -52,7 +52,7 @@ use super::{
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
-use crate::{core::admin, utils::ValueExt};
+use crate::{core::admin, db::StorageInterface, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse},
@@ -2424,19 +2424,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
             payment_data.get_recurring_details(),
             payment_data.get_currency(),
         );
-        let routing_algorithm_id = {
-            let routing_algorithm = business_profile.routing_algorithm.clone();
-
-            let algorithm_ref = routing_algorithm
-                .map(|ra| {
-                    ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
-                })
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not decode merchant routing algorithm ref")?
-                .unwrap_or_default();
-            algorithm_ref.algorithm_id
-        };
+        let routing_algorithm_id = business_profile.get_payment_routing_algorithm_id()?;
 
         let (connectors, routing_approach) = payments_routing::perform_static_routing_v1(
             state,
