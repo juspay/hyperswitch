@@ -27,24 +27,27 @@ pub struct SearchFilters {
 
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
-        matches!(self, Self {
-            payment_method: None,
-            currency: None,
-            status: None,
-            customer_email: None,
-            search_tags: None,
-            connector: None,
-            payment_method_type: None,
-            card_network: None,
-            card_last_4: None,
-            payment_id: None,
-            amount: None,
-            amount_filter: None,
-            customer_id: None,
-            authentication_type: None,
-            card_discovery: None,
-            merchant_order_reference_id: None,
-        })
+        matches!(
+            self,
+            Self {
+                payment_method: None,
+                currency: None,
+                status: None,
+                customer_email: None,
+                search_tags: None,
+                connector: None,
+                payment_method_type: None,
+                card_network: None,
+                card_last_4: None,
+                payment_id: None,
+                amount: None,
+                amount_filter: None,
+                customer_id: None,
+                authentication_type: None,
+                card_discovery: None,
+                merchant_order_reference_id: None,
+            }
+        )
     }
 }
 
