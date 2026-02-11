@@ -201,6 +201,12 @@ impl PaymentMethodData {
                         card_with_limited_details.apply_additional_card_info(*additional_card_info),
                     )
                 }
+                Self::CardDetailsForNetworkTransactionId(card_with_network_transaction_id) => {
+                    Self::CardDetailsForNetworkTransactionId(
+                        card_with_network_transaction_id
+                            .apply_additional_card_info(*additional_card_info),
+                    )
+                }
                 _ => self.to_owned(),
             }
         } else {
@@ -363,6 +369,39 @@ pub struct CardDetailsForNetworkTransactionId {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+}
+
+impl CardDetailsForNetworkTransactionId {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
