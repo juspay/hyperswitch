@@ -1674,7 +1674,6 @@ pub fn build_redirection_form(
                             window.addEventListener("message", function(event) {{
                                 try {{
                                     var data = JSON.parse(event.data);
-                                    console.warn('Merchant received a message:', data);
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
                                         new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
