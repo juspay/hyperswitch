@@ -65,6 +65,7 @@ pub struct MerchantConnectorAccount {
     #[encrypt]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
+    pub connector_webhook_registration_details: Option<Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -116,6 +117,14 @@ impl MerchantConnectorAccount {
             })?;
 
         Ok(Some(provider))
+    }
+
+    pub fn should_construct_webhook_setup_capability(&self) -> bool {
+        matches!(self.connector_type, enums::ConnectorType::PaymentProcessor)
+    }
+
+    pub fn get_connector_webhook_registration_details(&self) -> Option<Value> {
+        self.connector_webhook_registration_details.clone()
     }
 }
 
@@ -186,13 +195,13 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
-    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
-                Some(merchant_connector_account.connector_name)
+                merchant_connector_account.connector_name
             }
             Self::MerchantConnectorDetails(merchant_connector_details) => {
-                Some(merchant_connector_details.connector_name)
+                merchant_connector_details.connector_name
             }
         }
     }
@@ -487,6 +496,9 @@ pub enum MerchantConnectorAccountUpdate {
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
     },
+    ConnectorWebhookRegisterationUpdate {
+        connector_webhook_registration_details: Option<Value>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -547,6 +559,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
+            connector_webhook_registration_details: self.connector_webhook_registration_details,
         })
     }
 
@@ -611,6 +624,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: decrypted_data.connector_wallets_details,
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
+            connector_webhook_registration_details: other.connector_webhook_registration_details,
         })
     }
 
@@ -676,6 +690,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
             feature_metadata: self.feature_metadata.map(From::from),
+            connector_webhook_registration_details: None,
         })
     }
 
@@ -805,6 +820,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
+                connector_webhook_registration_details: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -827,6 +843,30 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 pm_auth_config: None,
                 status: None,
                 additional_merchant_data: None,
+                connector_webhook_registration_details: None,
+            },
+            MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+                connector_webhook_registration_details,
+            } => Self {
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                connector_webhook_registration_details,
             },
         }
     }

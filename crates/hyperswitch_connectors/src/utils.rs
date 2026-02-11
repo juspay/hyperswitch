@@ -38,7 +38,10 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
+    consts::{
+        BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE,
+        BASE64_ENGINE_URL_SAFE_NO_PAD,
+    },
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -65,11 +68,11 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
         CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostAuthenticateData,
-        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -138,10 +141,22 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
-    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
-        .iter()
-        .find_map(|d| d.decode(&data).ok())
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
+    let mut error_stack = Vec::new();
+    [
+        &BASE64_ENGINE,
+        &BASE64_ENGINE_STD_NO_PAD,
+        &BASE64_ENGINE_URL_SAFE,
+        &BASE64_ENGINE_URL_SAFE_NO_PAD,
+    ]
+    .iter()
+    .find_map(|engine| engine.decode(&data).map_err(|e| error_stack.push(e)).ok())
+    .ok_or_else(|| {
+        logger::error!(
+            "Base64 decoding failed for all engines. Errors: {:?}",
+            error_stack
+        );
+        report!(errors::ConnectorError::ResponseDeserializationFailed)
+    })
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -553,6 +568,9 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error>;
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -1062,6 +1080,11 @@ impl<Flow, Request, Response> RouterData
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
+    }
+    fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error> {
+        Ok(self.customer_document_details.clone())
     }
     fn get_connector_customer_id(&self) -> Result<String, Error> {
         self.connector_customer
@@ -2900,6 +2923,46 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
+
+pub trait PaymentsAuthenticateRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        self.payment_method_data
+            .clone()
+            .ok_or_else(missing_field_err("payment_method_data"))
+    }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
 pub trait PaymentsPreProcessingRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
@@ -3125,6 +3188,47 @@ impl CryptoData for payment_method_data::CryptoData {
         self.pay_currency
             .clone()
             .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
+}
+
+pub trait OrderDetailsWithAmountData {
+    fn get_order_description(&self) -> Result<String, Error>;
+    fn get_order_quantity(&self) -> u16;
+    fn get_optional_order_quantity_unit(&self) -> Option<String>;
+    fn get_order_total_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit>;
+    fn get_optional_sku(&self) -> Option<String>;
+    fn get_optional_product_img_link(&self) -> Option<String>;
+    fn get_order_unit_price(&self) -> MinorUnit;
+}
+
+impl OrderDetailsWithAmountData for OrderDetailsWithAmount {
+    fn get_order_description(&self) -> Result<String, Error> {
+        self.description
+            .clone()
+            .ok_or_else(missing_field_err("order_details.description"))
+    }
+    fn get_order_quantity(&self) -> u16 {
+        self.quantity
+    }
+    fn get_optional_order_quantity_unit(&self) -> Option<String> {
+        self.unit_of_measure.clone()
+    }
+    fn get_order_unit_price(&self) -> MinorUnit {
+        self.amount
+    }
+    fn get_order_total_amount(&self) -> Result<MinorUnit, Error> {
+        self.total_amount
+            .ok_or_else(missing_field_err("order_details.total_amount"))
+    }
+    fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
+        self.unit_discount_amount
+    }
+    fn get_optional_sku(&self) -> Option<String> {
+        self.sku.clone()
+    }
+    fn get_optional_product_img_link(&self) -> Option<String> {
+        self.product_img_link.clone()
     }
 }
 
@@ -6236,7 +6340,7 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QrImage {
     pub data: String,
 }
@@ -7322,6 +7426,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,
+        ucs_authentication_data: None,
         customer_acceptance: data.request.customer_acceptance.clone(),
         split_payments: None, // TODO: allow charges on mandates?
         guest_customer: None,
@@ -7345,6 +7450,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .request
             .partner_merchant_identifier_details
             .clone(),
+        rrn: None,
+        feature_metadata: None,
     }
 }
 
@@ -7409,12 +7516,32 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
+        customer_document_details: data.customer_document_details.clone(),
     }
 }
 
 pub fn generate_12_digit_number() -> u64 {
     let mut rng = rand::thread_rng();
     rng.gen_range(100_000_000_000..=999_999_999_999)
+}
+
+pub fn generate_random_string_containing_digits(min_len: usize, max_len: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min_len..=max_len);
+
+    (0..len)
+        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
+        .collect()
+}
+
+pub fn generate_alphanumeric_code(min_len: usize, max_len: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min_len..=max_len);
+
+    rng.sample_iter(&rand::distributions::Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect()
 }
 
 /// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.

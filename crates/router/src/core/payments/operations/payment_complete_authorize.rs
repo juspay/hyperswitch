@@ -44,6 +44,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -133,6 +134,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
+            None,
         ))
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> =
@@ -306,6 +308,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     merchant_connector_details.creds_identifier.to_owned()
                 });
 
+        let customer_document_details = payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "failed while fetching customer_document_details from payment_intent",
+            )?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -372,6 +381,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             phone: request.phone.clone(),
             phone_country_code: request.phone_country_code.clone(),
             tax_registration_id: None,
+            document_details: customer_document_details,
         });
 
         let get_trackers_response = operations::GetTrackerResponse {

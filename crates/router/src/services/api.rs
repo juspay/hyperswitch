@@ -138,6 +138,14 @@ pub type BoxedGiftCardBalanceCheckIntegrationInterface<T, Req, Res> =
 pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
+pub type BoxedConnectorWebhookConfigurationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::ConnectorWebhookConfigurationFlowData,
+        Req,
+        Resp,
+    >;
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
@@ -689,6 +697,10 @@ pub trait Authenticate {
     fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
         false
     }
+
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        None
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -717,6 +729,12 @@ impl Authenticate for api_models::payments::PaymentsRequest {
 
     fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
         self.three_ds_data.is_some()
+    }
+
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.clone())
     }
 }
 

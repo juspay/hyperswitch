@@ -248,6 +248,7 @@ impl PaymentAttemptInterface for MockDb {
             tokenization: payment_attempt.tokenization,
             encrypted_payment_method_data: payment_attempt.encrypted_payment_method_data,
             error_details: payment_attempt.error_details,
+            retry_type: payment_attempt.retry_type,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
