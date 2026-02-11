@@ -71,6 +71,22 @@ pub trait DatabaseStore: Clone + Send + Sync {
 
     /// Gets the pool manager for the accounts replica database.
     fn get_accounts_replica_pool_manager(&self) -> &PgPoolManager;
+
+    /// Checks if an error indicates a database failover and triggers pool recreation if needed.
+    ///
+    /// This should be called when a database query fails. If the error indicates failover
+    /// (e.g., "read-only transaction"), this will trigger immediate pool recreation.
+    ///
+    /// Returns `true` if failover was detected and pool recreation was triggered.
+    fn check_query_error_for_failover(&self, error_message: &str) -> bool {
+        // Check master pool (most writes go here)
+        let master_triggered = self.get_master_pool_manager().check_and_handle_failover_error(error_message);
+        
+        // Also check accounts pool
+        let accounts_triggered = self.get_accounts_master_pool_manager().check_and_handle_failover_error(error_message);
+        
+        master_triggered || accounts_triggered
+    }
 }
 
 /// Store with a single database (master only, used for both reads and writes).

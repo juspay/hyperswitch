@@ -9,7 +9,7 @@ use error_stack::ResultExt;
 use redis_interface::SetnxReply;
 
 use crate::{
-    diesel_error_to_data_error,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
     errors::{self, RedisErrorExt},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
@@ -44,7 +44,8 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
-            let new_err = diesel_error_to_data_error(*er.current_context());
+            // Check for failover and trigger pool recreation if needed
+            let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
             er.change_context(new_err)
         })
     }

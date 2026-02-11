@@ -5,7 +5,7 @@ use common_utils::errors;
 use diesel::PgConnection;
 use error_stack::ResultExt;
 
-use crate::database::pool_manager::{is_retryable_error, PgPoolManager};
+use crate::database::pool_manager::{is_connection_error_retryable, PgPoolManager};
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
@@ -164,8 +164,15 @@ pub async fn get_connection_with_retry(
             config.max_retries + 1
         );
 
-        match pool.get_owned().await {
-            Ok(conn) => {
+        // Add a timeout around connection acquisition to avoid waiting too long
+        let connection_timeout = Duration::from_secs(config.connection_attempt_timeout_secs);
+        let connection_result = tokio::time::timeout(
+            connection_timeout,
+            pool.get_owned()
+        ).await;
+
+        match connection_result {
+            Ok(Ok(conn)) => {
                 router_env::logger::debug!(
                     operation_type = operation_type,
                     attempt = attempt + 1,
@@ -176,8 +183,9 @@ pub async fn get_connection_with_retry(
                 pool_manager.notify_connection_success();
                 return Ok(OwnedPooledConnection::new(pool, conn));
             }
-            Err(e) => {
-                let is_retryable = is_retryable_error(&e);
+            Ok(Err(e)) => {
+                // Pool returned an error (connection acquisition failed)
+                let is_retryable = is_connection_error_retryable(&e);
 
                 if attempt < config.max_retries && is_retryable {
                     router_env::logger::warn!(
@@ -212,6 +220,39 @@ pub async fn get_connection_with_retry(
                 return Err(e)
                     .change_context(crate::errors::StorageError::DatabaseConnectionError)
                     .attach_printable("Failed to get database connection");
+            }
+            Err(_timeout) => {
+                // Connection attempt timed out
+                router_env::logger::warn!(
+                    operation_type = operation_type,
+                    attempt = attempt + 1,
+                    max_retries = config.max_retries,
+                    timeout_secs = config.connection_attempt_timeout_secs,
+                    "[CONNECTION] TIMEOUT - attempt {} timed out after {}s, treating as retryable",
+                    attempt + 1,
+                    config.connection_attempt_timeout_secs
+                );
+
+                if attempt < config.max_retries {
+                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    delay_ms = (delay_ms * 2).min(config.max_retry_delay_ms);
+                    continue;
+                }
+
+                // All retries exhausted
+                router_env::logger::error!(
+                    operation_type = operation_type,
+                    attempt = attempt + 1,
+                    "[CONNECTION] FAILED - all retries exhausted due to timeouts, notifying pool manager"
+                );
+
+                // Notify pool manager - may trigger pool recreation
+                pool_manager.notify_connection_failure();
+
+                return Err(error_stack::report!(
+                    crate::errors::StorageError::DatabaseConnectionError
+                ))
+                .attach_printable("Connection attempt timed out after all retries");
             }
         }
     }

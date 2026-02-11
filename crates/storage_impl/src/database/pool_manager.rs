@@ -3,11 +3,25 @@
 //! This module provides a robust connection pool wrapper that handles database failovers
 //! (e.g., during blue-green deployments) using lock-free atomic pool swapping.
 //!
-//! ## How it works:
-//! 1. Requests that fail with retryable errors are retried with exponential backoff
-//! 2. After consecutive failures exceed a threshold, a new pool is created
-//! 3. The old pool is atomically swapped with the new one (lock-free)
-//! 4. The old pool is gracefully drained in the background
+//! ## How failover detection works:
+//!
+//! ### Layer 1: Connection Acquisition (handled by bb8)
+//! - Pool timeout, connection refused, etc.
+//! - Detected by `is_connection_error_retryable()` in connection.rs
+//! - Rarely triggers during failover since existing connections appear healthy
+//!
+//! ### Layer 2: Query Execution (the critical one for failover)
+//! - "cannot execute INSERT in a read-only transaction" errors
+//! - Detected by `is_failover_error()` in this module
+//! - Called from error handling in storage methods via `check_and_handle_failover_error()`
+//!
+//! ## Recovery Flow:
+//! 1. Query fails with "read-only transaction" error
+//! 2. Error handler calls `check_and_handle_failover_error(error_msg)`
+//! 3. If failover detected, immediately trigger pool recreation (no threshold)
+//! 4. New pool is created in background with fresh connections to the new primary
+//! 5. Old pool is atomically swapped out and drained
+//! 6. Subsequent requests get connections from the new pool
 
 use std::{
     sync::{
@@ -47,6 +61,8 @@ pub struct PoolRecoveryConfig {
     pub failure_threshold: u32,
     /// Timeout for draining old pool connections
     pub old_pool_drain_timeout_secs: u64,
+    /// Timeout for each connection attempt (should be much shorter than gateway timeout)
+    pub connection_attempt_timeout_secs: u64,
 }
 
 impl Default for PoolRecoveryConfig {
@@ -55,8 +71,9 @@ impl Default for PoolRecoveryConfig {
             max_retries: 3,
             initial_retry_delay_ms: 10,
             max_retry_delay_ms: 100,
-            failure_threshold: 5,
+            failure_threshold: 2,  // Reduced from 5 - trigger recreation faster
             old_pool_drain_timeout_secs: 5,
+            connection_attempt_timeout_secs: 5,  // 5 seconds per attempt, so 4 attempts = 20s max
         }
     }
 }
@@ -218,6 +235,43 @@ impl PgPoolManager {
                 "[POOL_MANAGER] notify_connection_success() - resetting failure counter from {} to 0",
                 prev_failures
             );
+        }
+    }
+
+    /// Checks if a query execution error indicates a database failover and triggers pool recreation if needed.
+    /// 
+    /// This is the main entry point for failover detection at the query execution layer.
+    /// It should be called when a query fails with an error. If the error indicates that
+    /// the database has failed over to a read-only replica, this will immediately trigger
+    /// pool recreation without waiting for any threshold.
+    ///
+    /// ## Example usage in storage methods:
+    /// ```ignore
+    /// .map_err(|error| {
+    ///     let error_msg = format!("{:?}", error);
+    ///     pool_manager.check_and_handle_failover_error(&error_msg);
+    ///     // continue with error conversion...
+    /// })
+    /// ```
+    ///
+    /// Returns `true` if the error was a failover indicator and pool recreation was triggered.
+    pub fn check_and_handle_failover_error(&self, error_message: &str) -> bool {
+        if is_failover_error(error_message) {
+            logger::error!(
+                schema = %self.schema,
+                error_snippet = &error_message[..error_message.len().min(200)],
+                "[FAILOVER] DATABASE FAILOVER DETECTED! Triggering immediate pool recreation. \
+                 Error indicates connection to read-only replica. Current request will fail, \
+                 subsequent requests will use fresh pool with connections to new primary."
+            );
+            
+            // Immediately trigger pool recreation - don't wait for any threshold
+            // This is critical for fast recovery after failover
+            self.trigger_pool_recreation();
+            
+            true
+        } else {
+            false
         }
     }
 
@@ -392,64 +446,148 @@ async fn drain_pool_connections(pool: Arc<PgPool>) {
     drop(pool);
 }
 
-/// Determines if an error is retryable (connection-related).
+/// Checks if an error message indicates a database failover condition.
 ///
-/// Retryable errors include:
-/// - Connection timeouts
-/// - Connection closed/reset
-/// - Read-only transaction errors (happens during failover)
+/// This is the primary function for detecting failover at the **query execution layer**.
+/// It should be called when a database query fails to determine if the error indicates
+/// that the database has failed over to a read-only replica or is otherwise unavailable.
+///
+/// ## Failover Indicators Detected:
+/// - "read-only transaction" / "readonly" - Connection went to a read replica
+/// - "cannot execute" with write operations - PostgreSQL write blocked on replica
+/// - "server closed" / "connection reset" - Server terminated the connection
+/// - "terminating connection" - PostgreSQL shutdown/failover in progress
+/// - "broken pipe" - Connection forcefully closed
+/// - "connection refused" - New primary not yet available at old address
+///
+/// ## Usage:
+/// This is called internally by `PgPoolManager::check_and_handle_failover_error()`.
+/// Storage methods should use `diesel_error_to_data_error_with_failover_check()`.
+pub fn is_failover_error(error_message: &str) -> bool {
+    let error_lower = error_message.to_lowercase();
+    
+    // Primary failover indicator: read-only transaction error
+    // This is the most common signal during blue-green deployment
+    if error_lower.contains("read-only") || error_lower.contains("readonly") {
+        logger::warn!(
+            matched_pattern = "read-only/readonly",
+            "[FAILOVER_DETECTION] MATCHED: read-only transaction error - primary failover indicator"
+        );
+        return true;
+    }
+    
+    // PostgreSQL-specific failover indicators
+    if error_lower.contains("cannot execute") && 
+       (error_lower.contains("insert") || error_lower.contains("update") || 
+        error_lower.contains("delete") || error_lower.contains("write")) {
+        logger::warn!(
+            matched_pattern = "cannot execute write operation",
+            "[FAILOVER_DETECTION] MATCHED: cannot execute write operation on replica"
+        );
+        return true;
+    }
+    
+    // Connection forcefully terminated (server-side failover)
+    if error_lower.contains("server closed") {
+        logger::warn!(
+            matched_pattern = "server closed",
+            "[FAILOVER_DETECTION] MATCHED: server closed the connection"
+        );
+        return true;
+    }
+    
+    if error_lower.contains("terminating connection") {
+        logger::warn!(
+            matched_pattern = "terminating connection",
+            "[FAILOVER_DETECTION] MATCHED: PostgreSQL terminating connection"
+        );
+        return true;
+    }
+    
+    if error_lower.contains("connection reset") {
+        logger::warn!(
+            matched_pattern = "connection reset",
+            "[FAILOVER_DETECTION] MATCHED: connection reset by peer"
+        );
+        return true;
+    }
+    
+    if error_lower.contains("broken pipe") {
+        logger::warn!(
+            matched_pattern = "broken pipe",
+            "[FAILOVER_DETECTION] MATCHED: broken pipe"
+        );
+        return true;
+    }
+    
+    // Connection refused (DNS/load balancer already pointed to new primary but pool has old connections)
+    if error_lower.contains("connection refused") {
+        logger::warn!(
+            matched_pattern = "connection refused",
+            "[FAILOVER_DETECTION] MATCHED: connection refused"
+        );
+        return true;
+    }
+    
+    // PostgreSQL standby/replica mode indicators
+    if error_lower.contains("hot standby") || error_lower.contains("recovery mode") {
+        logger::warn!(
+            matched_pattern = "hot standby/recovery mode",
+            "[FAILOVER_DETECTION] MATCHED: database in standby/recovery mode"
+        );
+        return true;
+    }
+    
+    // Not a failover error
+    logger::debug!(
+        error_snippet = %error_lower.chars().take(150).collect::<String>(),
+        "[FAILOVER_DETECTION] No failover pattern matched in error"
+    );
+    
+    false
+}
+
+/// Determines if a connection acquisition error is retryable.
+///
+/// **Note:** This only handles errors during `pool.get()` - connection acquisition.
+/// During typical failover, connections in the pool are still TCP-connected, so this
+/// rarely triggers. The main failover detection happens via `is_failover_error()`.
+///
+/// This function handles:
+/// - Pool timeout (all connections busy)
+/// - Connection errors during checkout
 /// - Network errors
-///
-/// This function can be used by callers to implement their own retry logic
-/// when getting connections from the pool.
-pub fn is_retryable_error<E: std::fmt::Debug>(error: &RunError<E>) -> bool {
+pub fn is_connection_error_retryable<E: std::fmt::Debug>(error: &RunError<E>) -> bool {
     let (is_retryable, reason) = match error {
-        RunError::TimedOut => (true, "pool timeout (TimedOut)"),
+        RunError::TimedOut => (true, "pool timeout"),
         RunError::User(e) => {
             let error_str = format!("{:?}", e).to_lowercase();
 
-            // Connection-related errors
-            if error_str.contains("connection") {
-                (true, "connection error")
-            } else if error_str.contains("closed") {
-                (true, "connection closed")
-            } else if error_str.contains("reset") {
-                (true, "connection reset")
-            } else if error_str.contains("broken pipe") {
-                (true, "broken pipe")
-            } else if error_str.contains("timed out") || error_str.contains("timeout") {
-                (true, "timeout")
-            // Read-only transaction error (happens during failover to replica)
-            } else if error_str.contains("read-only") || error_str.contains("readonly") {
-                (true, "read-only transaction (failover indicator)")
-            // Network errors
-            } else if error_str.contains("network") {
-                (true, "network error")
-            } else if error_str.contains("io error") {
-                (true, "I/O error")
-            } else if error_str.contains("eof") {
-                (true, "EOF")
-            // PostgreSQL specific
-            } else if error_str.contains("server closed") {
-                (true, "server closed connection")
-            } else if error_str.contains("terminating connection") {
-                (true, "terminating connection")
-            } else if error_str.contains("connection refused") {
-                (true, "connection refused")
+            if error_str.contains("connection") || 
+               error_str.contains("closed") || 
+               error_str.contains("reset") ||
+               error_str.contains("broken pipe") ||
+               error_str.contains("timed out") || 
+               error_str.contains("timeout") ||
+               error_str.contains("network") ||
+               error_str.contains("io error") ||
+               error_str.contains("eof") ||
+               error_str.contains("refused") {
+                (true, "connection/network error")
             } else {
-                (false, "non-retryable error")
+                (false, "non-retryable")
             }
         }
     };
 
-    logger::debug!(
-        is_retryable = is_retryable,
-        reason = reason,
-        error = ?error,
-        "[POOL_MANAGER] is_retryable_error() - {} ({})",
-        if is_retryable { "RETRYABLE" } else { "NOT RETRYABLE" },
-        reason
-    );
+    if is_retryable {
+        logger::debug!(
+            reason = reason,
+            error = ?error,
+            "[POOL_MANAGER] connection error is retryable: {}",
+            reason
+        );
+    }
 
     is_retryable
 }
@@ -459,27 +597,49 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_is_retryable_error_timeout() {
+    fn test_is_failover_error_read_only() {
+        assert!(is_failover_error("cannot execute INSERT in a read-only transaction"));
+        assert!(is_failover_error("ERROR: cannot execute UPDATE in a read-only transaction"));
+        assert!(is_failover_error("readonly mode"));
+    }
+
+    #[test]
+    fn test_is_failover_error_connection_terminated() {
+        assert!(is_failover_error("server closed the connection unexpectedly"));
+        assert!(is_failover_error("terminating connection due to administrator command"));
+        assert!(is_failover_error("connection reset by peer"));
+        assert!(is_failover_error("broken pipe"));
+    }
+
+    #[test]
+    fn test_is_failover_error_standby() {
+        assert!(is_failover_error("cannot execute in read-only hot standby mode"));
+        assert!(is_failover_error("database is in recovery mode"));
+    }
+
+    #[test]
+    fn test_is_failover_error_non_failover() {
+        assert!(!is_failover_error("unique violation"));
+        assert!(!is_failover_error("foreign key constraint"));
+        assert!(!is_failover_error("not found"));
+        assert!(!is_failover_error("syntax error"));
+    }
+
+    #[test]
+    fn test_is_connection_error_retryable_timeout() {
         let error: RunError<String> = RunError::TimedOut;
-        assert!(is_retryable_error(&error));
+        assert!(is_connection_error_retryable(&error));
     }
 
     #[test]
-    fn test_is_retryable_error_connection_closed() {
+    fn test_is_connection_error_retryable_connection() {
         let error: RunError<String> = RunError::User("connection closed".to_string());
-        assert!(is_retryable_error(&error));
+        assert!(is_connection_error_retryable(&error));
     }
 
     #[test]
-    fn test_is_retryable_error_read_only() {
-        let error: RunError<String> =
-            RunError::User("cannot execute INSERT in a read-only transaction".to_string());
-        assert!(is_retryable_error(&error));
-    }
-
-    #[test]
-    fn test_is_retryable_error_non_retryable() {
+    fn test_is_connection_error_retryable_non_retryable() {
         let error: RunError<String> = RunError::User("unique violation".to_string());
-        assert!(!is_retryable_error(&error));
+        assert!(!is_connection_error_retryable(&error));
     }
 }
