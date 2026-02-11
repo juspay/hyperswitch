@@ -408,6 +408,23 @@ impl PaymentIntent {
             .transpose()
             .map_err(|report| (*report.current_context()).clone())
     }
+    #[cfg(feature = "v1")]
+    pub fn get_optional_feature_metadata(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::FeatureMetadata>,
+        common_utils::errors::ParsingError,
+    > {
+        self.feature_metadata
+            .as_ref()
+            .map(|details| {
+                ValueExt::parse_value::<api_models::payments::FeatureMetadata>(
+                    details.clone(),
+                    "FeatureMetadata",
+                )
+            })
+            .transpose()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1387,6 +1404,12 @@ where
                 .as_ref()
                 .and_then(|data| data.apple_pay_recurring_details.clone()),
             payment_revenue_recovery_metadata,
+            pix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_additional_details.clone()),
+            boleto_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.boleto_additional_details.clone()),
         }))
     }
 }

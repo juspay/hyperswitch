@@ -23,7 +23,9 @@ use crate::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types,
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 
 /// RouterDataConversion trait
@@ -350,10 +352,11 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_webhook_event_type(request),
-            Self::New(connector) => connector.get_webhook_event_type(request),
+            Self::Old(connector) => connector.get_webhook_event_type(request, snapshot),
+            Self::New(connector) => connector.get_webhook_event_type(request, snapshot),
         }
     }
 
@@ -381,10 +384,11 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_dispute_details(request),
-            Self::New(connector) => connector.get_dispute_details(request),
+            Self::Old(connector) => connector.get_dispute_details(request, snapshot),
+            Self::New(connector) => connector.get_dispute_details(request, snapshot),
         }
     }
 

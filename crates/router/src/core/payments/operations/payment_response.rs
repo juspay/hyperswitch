@@ -1250,15 +1250,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                 if status.is_success() {
                     let m_db = db.clone().store;
                     let payment_intent = payment_data.payment_intent.clone();
-
                     let payment_intent_update =
                         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
                             metadata: payment_data
                                 .payment_intent
                                 .metadata
-                                .clone()
-                                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("payment_intent.metadata not found")?,
+                                .clone(),
+                            feature_metadata: payment_intent.feature_metadata.clone().map(masking::Secret::new),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 

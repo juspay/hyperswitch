@@ -714,7 +714,7 @@ where
         {
             if let Some(doc_details) = customer.clone().map(|doc| doc.document_details) {
                 payment_data
-                    .set_document_details_in_intent(doc_details, state, platform)
+                    .set_document_details_in_intent(doc_details, mandate_type, state, platform)
                     .await?;
             }
         }
@@ -3517,6 +3517,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }),
                 search_tags: None,
                 apple_pay_recurring_details: None,
+                pix_additional_details: None,
+                boleto_additional_details: None,
             }),
             ..Default::default()
         };
@@ -4024,6 +4026,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     }),
                     search_tags: None,
                     apple_pay_recurring_details: None,
+                    pix_additional_details: None,
+                    boleto_additional_details: None,
                 }),
                 ..Default::default()
             };
@@ -11710,6 +11714,7 @@ pub trait OperationSessionSetters<F> {
     async fn set_document_details_in_intent(
         &mut self,
         document_details: common_utils::crypto::OptionalEncryptableValue,
+        mandate_type: Option<api::MandateTransactionType>,
         state: &SessionState,
         platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse>;
@@ -12053,19 +12058,22 @@ where
     async fn set_document_details_in_intent(
         &mut self,
         document_details: common_utils::crypto::OptionalEncryptableValue,
+        mandate_type: Option<api::MandateTransactionType>,
         state: &SessionState,
         platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let mut existing_intent_customer_details = self
-            .payment_intent
-            .get_intent_customer_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse customer details from PaymentIntent")?;
+        match mandate_type {
+            Some(api::MandateTransactionType::NewMandateTransaction) | None => {
+                let mut existing_intent_customer_details = self
+                    .payment_intent
+                    .get_intent_customer_details()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse customer details from PaymentIntent")?;
 
-        let decrypted_document_details = document_details
-            .as_ref()
-            .map(|encryptable| {
-                encryptable
+                let decrypted_document_details = document_details
+                    .as_ref()
+                    .map(|encryptable| {
+                        encryptable
                     .clone()
                     .into_inner()
                     .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
@@ -12073,24 +12081,25 @@ where
                     .attach_printable(
                         "Failed to deserialize CustomerDocumentDetails from encrypted storage",
                     )
-            })
-            .transpose()?;
+                    })
+                    .transpose()?;
 
-        if let Some(ref mut details) = existing_intent_customer_details {
-            details.customer_document_details = decrypted_document_details;
-        }
+                if let Some(ref mut details) = existing_intent_customer_details {
+                    details.customer_document_details = decrypted_document_details;
+                }
 
-        let key_manager_state: common_utils::types::keymanager::KeyManagerState = state.into();
-        let encrypted_customer_details = existing_intent_customer_details
-            .async_map(|value| async move {
-                let encoded_value = value
-                    .encode_to_value()
-                    .map(Secret::<serde_json::Value, masking::WithType>::new)
-                    .change_context(common_utils::errors::CryptoError::EncodingFailed)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode customer details for encryption")?;
+                let key_manager_state: common_utils::types::keymanager::KeyManagerState =
+                    state.into();
+                let encrypted_customer_details = existing_intent_customer_details
+                    .async_map(|value| async move {
+                        let encoded_value = value
+                            .encode_to_value()
+                            .map(Secret::<serde_json::Value, masking::WithType>::new)
+                            .change_context(common_utils::errors::CryptoError::EncodingFailed)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to encode customer details for encryption")?;
 
-                hyperswitch_domain_models::type_encryption::crypto_operation(
+                        hyperswitch_domain_models::type_encryption::crypto_operation(
                     &key_manager_state,
                     common_utils::type_name!(payments::PaymentIntent),
                     hyperswitch_domain_models::type_encryption::CryptoOperation::EncryptOptional(
@@ -12105,11 +12114,14 @@ where
                 .and_then(|val| val.try_into_optionaloperation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Encryption operation failed")
-            })
-            .await
-            .transpose()?
-            .flatten();
-        self.payment_intent.customer_details = encrypted_customer_details;
+                    })
+                    .await
+                    .transpose()?
+                    .flatten();
+                self.payment_intent.customer_details = encrypted_customer_details;
+            }
+            Some(api::MandateTransactionType::RecurringMandateTransaction) => return Ok(()),
+        }
         Ok(())
     }
 
@@ -12434,6 +12446,7 @@ where
     async fn set_document_details_in_intent(
         &mut self,
         _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _mandate_type: Option<api::MandateTransactionType>,
         _state: &SessionState,
         _platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -12758,6 +12771,7 @@ where
     async fn set_document_details_in_intent(
         &mut self,
         _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _mandate_type: Option<api::MandateTransactionType>,
         _state: &SessionState,
         _platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -13078,6 +13092,7 @@ where
     async fn set_document_details_in_intent(
         &mut self,
         _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _mandate_type: Option<api::MandateTransactionType>,
         _state: &SessionState,
         _platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -13399,6 +13414,7 @@ where
     async fn set_document_details_in_intent(
         &mut self,
         _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _mandate_type: Option<api::MandateTransactionType>,
         _state: &SessionState,
         _platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -13875,6 +13891,7 @@ where
     async fn set_document_details_in_intent(
         &mut self,
         _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _mandate_type: Option<api::MandateTransactionType>,
         _state: &SessionState,
         _platform: &domain::Platform,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
