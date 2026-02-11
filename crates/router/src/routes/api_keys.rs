@@ -37,8 +37,8 @@ pub async fn api_key_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
@@ -188,8 +188,8 @@ pub async fn api_key_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyWrite,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
@@ -267,8 +267,8 @@ pub async fn api_key_revoke(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
@@ -342,8 +342,8 @@ pub async fn api_key_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyRead,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),

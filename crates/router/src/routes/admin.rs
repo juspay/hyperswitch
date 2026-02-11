@@ -310,8 +310,8 @@ pub async fn retrieve_merchant_account(
                 // this API call for profile level users.
                 // TODO: Convert this to MerchantAccountRead once FE changes are done.
                 required_permission: Permission::ProfileAccountRead,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
@@ -573,7 +573,7 @@ pub async fn connector_create(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -657,7 +657,7 @@ pub async fn connector_retrieve(
                 // sensitive data, keeping this as ProfileConnectorWrite
                 // TODO: Convert this to ProfileConnectorRead once data is masked.
                 permission: Some(Permission::ProfileConnectorWrite),
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -764,7 +764,7 @@ pub async fn connector_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -804,7 +804,7 @@ pub async fn connector_list_profile(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id),
                 permission: Some(Permission::ProfileConnectorRead),
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -850,7 +850,7 @@ pub async fn connector_update(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -928,7 +928,7 @@ pub async fn connector_delete(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorWrite,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),

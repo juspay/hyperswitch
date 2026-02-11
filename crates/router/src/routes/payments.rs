@@ -675,7 +675,7 @@ pub async fn payments_retrieve(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -1863,7 +1863,7 @@ pub async fn payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
-            allow_connected_operation: false,
+            allow_connected_operation: true,
             allow_platform_operation: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -2032,7 +2032,7 @@ pub async fn get_payments_aggregates(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
-            allow_connected_operation: false,
+            allow_connected_operation: true,
             allow_platform_operation: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -3010,7 +3010,7 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
-            allow_connected_operation: false,
+            allow_connected_operation: true,
             allow_platform_operation: false,
         },
         api_locking::LockAction::NotApplicable,

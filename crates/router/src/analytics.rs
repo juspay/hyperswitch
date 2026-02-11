@@ -1739,7 +1739,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1784,7 +1784,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1824,7 +1824,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -2752,7 +2752,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -2799,7 +2799,7 @@ pub mod routes {
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfileAnalyticsRead,
-                    allow_connected_operation: false,
+                    allow_connected_operation: true,
                     allow_platform_operation: false,
                 },
                 req.headers(),

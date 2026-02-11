@@ -57,7 +57,7 @@ pub async fn profile_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -160,8 +160,8 @@ pub async fn profile_retrieve(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(permissions::Permission::ProfileAccountRead),
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
@@ -278,7 +278,7 @@ pub async fn profile_update(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountWrite,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -397,7 +397,7 @@ pub async fn profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
-                allow_connected_operation: false,
+                allow_connected_operation: true,
                 allow_platform_operation: false,
             },
             req.headers(),
