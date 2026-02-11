@@ -1646,21 +1646,80 @@ pub fn build_redirection_form(
                     head {
                         meta name="viewport" content="width=device-width, initial-scale=1";
                     }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
-                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="{base_url}/V2/Cruise/Collect">
-                            <input type="hidden" name="BIN" value="{bin}">
-                            <input type="hidden" name="JWT" value="{jwt}">
-                        </form>"#)))
+                        h3 style="text-align: center;" { "Please wait while we perform Device Data Collection ..." }
+                        (PreEscaped(format!(r#"<iframe id="ddcFrame" height="1" width="1" style="display: none;"></iframe>"#)))
 
                         (PreEscaped(format!(r#"<script>
                             {logging_template}
                             window.onload = function() {{
-                                var challengeFormSetup = document.querySelector('#challengeForm');
-                                if (challengeFormSetup) {{
-                                        challengeFormSetup.submit();
-                                }}
+                                var iframe = document.getElementById('ddcFrame');
+                                var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                                var formHtml = '<form id="collectionForm" method="POST" action="{base_url}/V2/Cruise/Collect">' +
+                                    '<input type="hidden" name="Bin" value="{bin}" />' +
+                                    '<input type="hidden" name="JWT" value="{jwt}" />' +
+                                    '</form>';
+
+                                iframeDoc.open();
+                                iframeDoc.write(formHtml);
+                                iframeDoc.close();
+
+                                var form = iframeDoc.getElementById('collectionForm');
+                                form.submit();
                             }}
+
+                            window.addEventListener("message", function(event) {{
+                                try {{
+                                    var data = JSON.parse(event.data);
+                                    console.warn('Merchant received a message:', data);
+                                    var responseForm = document.createElement('form');
+                                    responseForm.action=window.location.pathname.replace(
+                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        "payments/$1/$2/redirect/complete/worldpayxml"
+                                    );
+                                    responseForm.method='POST';
+
+                                    var item1=document.createElement('input');
+                                    item1.type='hidden';
+                                    item1.name='SessionId';
+                                    item1.value=data.Payload.SessionId;
+                                    responseForm.appendChild(item1);
+
+                                    var item2=document.createElement('input');
+                                    item2.type='hidden';
+                                    item2.name='ActionCode';
+                                    item2.value=data.Payload.ActionCode;
+                                    responseForm.appendChild(item2);
+
+                                    document.body.appendChild(responseForm);
+                                    responseForm.submit();
+                                }} catch (e) {{
+                                    var responseForm = document.createElement('form');
+                                    responseForm.action=window.location.pathname.replace(
+                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        "payments/$1/$2/redirect/complete/worldpayxml"
+                                    );
+                                    responseForm.method='POST';
+
+                                    var item1=document.createElement('input');
+                                    item1.type='hidden';
+                                    item1.name='SessionId';
+                                    item1.value=null;
+                                    responseForm.appendChild(item1);
+
+                                    var item2=document.createElement('input');
+                                    item2.type='hidden';
+                                    item2.name='ActionCode';
+                                    item2.value="FAILURE";
+                                    responseForm.appendChild(item2);
+
+                                    document.body.appendChild(responseForm);
+                                    responseForm.submit();
+                                }}
+                            }}, false);
                         </script>"#)))
                     }
                 }
