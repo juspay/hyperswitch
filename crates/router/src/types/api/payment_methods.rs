@@ -74,12 +74,13 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
         )?;
 
         utils::when(
-            self.payment_method_subtype.is_some_and(|payment_method_subtype| {
-                !validate_payment_method_type_against_payment_method(
-                    self.payment_method_type,
-                    payment_method_subtype,
-                )
-            }),
+            self.payment_method_subtype
+                .is_some_and(|payment_method_subtype| {
+                    !validate_payment_method_type_against_payment_method(
+                        self.payment_method_type,
+                        payment_method_subtype,
+                    )
+                }),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()
@@ -132,6 +133,23 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
                 .attach_printable("Invalid payment method data"))
             },
         )?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodCreateExt for api_models::payment_methods::PaymentMethodSessionConfirmRequest {
+    fn validate(&self) -> RouterResult<()> {
+        utils::when(
+            self.payment_method_type != api_models::enums::PaymentMethod::Card
+                && self.payment_method_subtype.is_none(),
+            || {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_subtype"
+                }))
+            },
+        )?;
+
         Ok(())
     }
 }

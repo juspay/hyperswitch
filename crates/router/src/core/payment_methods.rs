@@ -4651,6 +4651,7 @@ pub async fn payment_methods_session_confirm(
     request: payment_methods::PaymentMethodSessionConfirmRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
+    request.validate()?;
 
     // Validate if the session still exists
     let payment_method_session = db
