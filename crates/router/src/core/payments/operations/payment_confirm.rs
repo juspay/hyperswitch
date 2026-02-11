@@ -1056,77 +1056,84 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     ) -> RouterResult<()> {
         match feature_config.is_payment_method_modular_allowed {
             true => {
-                logger::info!("Organization is eligible for PM Modular Service, proceeding to create payment method using PM Modular Service.");
-                //check for req.payment_method_data, if card, create payment method with pm service
-                let payment_method_info = match req
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|pmd| pmd.payment_method_data.as_ref())
-                {
-                    Some(api_models::payments::PaymentMethodData::Card(_)) => {
-                        let payment_method = req.payment_method.ok_or(
-                            errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "payment_method",
-                            },
-                        )?;
+                if req.customer_acceptance.is_some() {
+                    logger::info!("Organization is eligible for PM Modular Service, proceeding to create payment method using PM Modular Service.");
+                    //check for req.payment_method_data, if card, create payment method with pm service
+                    let payment_method_info = match req
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|pmd| pmd.payment_method_data.as_ref())
+                    {
+                        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+                            let payment_method = req.payment_method.ok_or(
+                                errors::ApiErrorResponse::MissingRequiredField {
+                                    field_name: "payment_method",
+                                },
+                            )?;
 
-                        let payment_method_type = req.payment_method_type.ok_or(
-                            errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "payment_method_type",
-                            },
-                        )?;
+                            let payment_method_type = req.payment_method_type.ok_or(
+                                errors::ApiErrorResponse::MissingRequiredField {
+                                    field_name: "payment_method_type",
+                                },
+                            )?;
 
-                        let payment_method_data = req
-                            .payment_method_data
-                            .as_ref()
-                            .and_then(|pmd| pmd.payment_method_data.clone())
-                            .map(Into::into)
-                            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "payment_method_data",
-                            })?;
+                            let payment_method_data = req
+                                .payment_method_data
+                                .as_ref()
+                                .and_then(|pmd| pmd.payment_method_data.clone())
+                                .map(Into::into)
+                                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                    field_name: "payment_method_data",
+                                })?;
 
-                        match pm_transformers::create_payment_method_in_modular_service(
-                            state,
-                            platform.get_provider().get_account().get_id(),
-                            business_profile.get_id(),
-                            payment_method,
-                            payment_method_type,
-                            payment_method_data,
-                            payment_data
-                                .address
-                                .get_request_payment_method_billing()
-                                .cloned(),
-                            payment_data
-                                .payment_intent
-                                .customer_id
-                                .clone()
-                                .get_required_value("customer_id")?,
-                        )
-                        .await
-                        {
-                            Ok(pm_info) => {
-                                logger::info!(
-                                    "Payment method created in PM Modular service successfully"
-                                );
-                                Some(pm_info)
-                            }
-                            Err(err) => {
-                                logger::error!(
-                                    "Error creating payment method in PM Modular service: {:?}",
-                                    err
-                                );
-                                None
+                            match pm_transformers::create_payment_method_in_modular_service(
+                                state,
+                                platform.get_provider().get_account().get_id(),
+                                business_profile.get_id(),
+                                payment_method,
+                                payment_method_type,
+                                payment_method_data,
+                                payment_data
+                                    .address
+                                    .get_request_payment_method_billing()
+                                    .cloned(),
+                                payment_data
+                                    .payment_intent
+                                    .customer_id
+                                    .clone()
+                                    .get_required_value("customer_id")?,
+                            )
+                            .await
+                            {
+                                Ok(pm_info) => {
+                                    logger::info!(
+                                        "Payment method created in PM Modular service successfully"
+                                    );
+                                    Some(pm_info)
+                                }
+                                Err(err) => {
+                                    logger::error!(
+                                        "Error creating payment method in PM Modular service: {:?}",
+                                        err
+                                    );
+                                    None
+                                }
                             }
                         }
-                    }
-                    _ => {
-                        logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
-                        None
-                    }
-                };
-                //set payment_data.payment_method_info
-                payment_data.set_payment_method_info(payment_method_info);
-                Ok(())
+                        _ => {
+                            logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
+                            None
+                        }
+                    };
+                    //set payment_data.payment_method_info
+                    payment_data.payment_attempt.payment_method_id = payment_method_info.as_ref().map(|pm_info| pm_info.get_id().clone()); 
+                    payment_data.set_payment_method_info(payment_method_info);
+                    
+                    Ok(())
+                } else {
+                    logger::info!("Skipping create payment method in PM Modular Service as customer acceptance is not present in the request.");
+                    Ok(())
+                }
             }
             false => {
                 logger::info!("Organization is not eligible for PM Modular Service, skipping create payment method.");
