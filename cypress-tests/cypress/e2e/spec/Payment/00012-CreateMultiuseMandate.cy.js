@@ -15,220 +15,53 @@ describe("Card - MultiUse Mandates flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context(
-    "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
-    () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("should complete NoThreeDS automatic CIT and MIT payment flow", () => {
+    // Confirm No 3DS CIT
+    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateMultiUseNo3DSAutoCapture"];
+    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "automatic", "new_mandate", globalState);
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    // Confirm No 3DS MIT (first)
+    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
+    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
 
-      it("Confirm No 3DS CIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MandateMultiUseNo3DSAutoCapture"];
+    // Confirm No 3DS MIT (second)
+    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+  });
 
-        cy.citForMandatesCallTest(
-          fixtures.citConfirmBody,
-          data,
-          6000,
-          true,
-          "automatic",
-          "new_mandate",
-          globalState
-        );
+  it("should complete NoThreeDS manual CIT and MIT payment flow", () => {
+    // Confirm No 3DS CIT
+    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateMultiUseNo3DSManualCapture"];
+    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "manual", "new_mandate", globalState);
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    // Capture CIT
+    const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-      it("Confirm No 3DS MIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITAutoCapture"];
+    // Confirm No 3DS MIT 1
+    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITManualCapture"];
+    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "manual", globalState);
 
-        cy.mitForMandatesCallTest(
-          fixtures.mitConfirmBody,
-          data,
-          6000,
-          true,
-          "automatic",
-          globalState
-        );
-      });
-      it("Confirm No 3DS MIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITAutoCapture"];
+    // Capture MIT 1
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-        cy.mitForMandatesCallTest(
-          fixtures.mitConfirmBody,
-          data,
-          6000,
-          true,
-          "automatic",
-          globalState
-        );
-      });
-    }
-  );
+    // Confirm No 3DS MIT 2
+    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "manual", globalState);
 
-  context(
-    "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
-    () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    // Capture MIT 2
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+  });
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+  it("should complete ThreeDS manual CIT with automatic MIT payment flow", () => {
+    // Confirm No 3DS CIT
+    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateMultiUseNo3DSManualCapture"];
+    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "manual", "new_mandate", globalState);
 
-      it("Confirm No 3DS CIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MandateMultiUseNo3DSManualCapture"];
+    // Capture CIT
+    const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-        cy.citForMandatesCallTest(
-          fixtures.citConfirmBody,
-          data,
-          6000,
-          true,
-          "manual",
-          "new_mandate",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("cit-capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("Confirm No 3DS MIT 1", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITManualCapture"];
-
-        cy.mitForMandatesCallTest(
-          fixtures.mitConfirmBody,
-          data,
-          6000,
-          true,
-          "manual",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("mit-capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("Confirm No 3DS MIT 2", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITManualCapture"];
-
-        cy.mitForMandatesCallTest(
-          fixtures.mitConfirmBody,
-          data,
-          6000,
-          true,
-          "manual",
-          globalState
-        );
-      });
-
-      it("mit-capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-    }
-  );
-
-  context(
-    "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow test",
-    () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
-
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
-
-      it("Confirm No 3DS CIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MandateMultiUseNo3DSManualCapture"];
-
-        cy.citForMandatesCallTest(
-          fixtures.citConfirmBody,
-          data,
-          6000,
-          true,
-          "manual",
-          "new_mandate",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("cit-capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("Confirm No 3DS MIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITAutoCapture"];
-
-        cy.mitForMandatesCallTest(
-          fixtures.mitConfirmBody,
-          data,
-          6000,
-          true,
-          "automatic",
-          globalState
-        );
-      });
-    }
-  );
+    // Confirm No 3DS MIT
+    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
+    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+  });
 });
