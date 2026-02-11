@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.09.0-hotfix3
+
+### Bug Fixes
+
+- **router:** Fix create modular payment method during v1 payments ([#11220](https://github.com/juspay/hyperswitch/pull/11220)) ([`af3966b`](https://github.com/juspay/hyperswitch/commit/af3966be363da69ae745c87e639196f3c03a077f))
+
+**Full Changelog:** [`2026.02.09.0-hotfix2...2026.02.09.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.02.09.0-hotfix2...2026.02.09.0-hotfix3)
+
+- - -
+
 ## 2026.02.09.0-hotfix2
 
 ### Bug Fixes
