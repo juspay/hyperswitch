@@ -622,7 +622,7 @@ jobs:
 
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: github.event_name == 'merge_group'
+    # if: github.event_name == 'merge_group'
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
