@@ -3,16 +3,19 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
+use external_services::superposition;
 use hyperswitch_domain_models::ext_traits::OptionExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
 };
-use external_services::superposition;
+
 use crate::{
     consts,
     core::{
-        configs, errors::{self, RouterResult, StorageErrorExt}, payments::{
+        configs,
+        errors::{self, RouterResult, StorageErrorExt},
+        payments::{
             self, complete_connector_service,
             flows::{ConstructFlowSpecificData, Feature},
             helpers as payments_helpers, operations,
@@ -22,7 +25,9 @@ use crate::{
     },
     db::StorageInterface,
     routes::{
-        self, SessionState, app::{self, ReqState}, metrics
+        self,
+        app::{self, ReqState},
+        metrics, SessionState,
     },
     services,
     types::{self, api, domain, storage, transformers::ForeignFrom},
@@ -866,13 +871,18 @@ pub fn make_new_payment_attempt(
 }
 
 pub async fn get_merchant_config_for_gsm(
-    state :&SessionState,
+    state: &SessionState,
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
-    dimension : &configs::dimension_state::DimensionsWithMerchantId,
+    dimension: &configs::dimension_state::DimensionsWithMerchantId,
 ) -> bool {
-
-    let should_call_gsm = dimension.get_should_call_gsm(state.store.as_ref(), state.superposition_service.as_deref(), None).await;
+    let should_call_gsm = dimension
+        .get_should_call_gsm(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
+        .await;
     // let config = db
     //     .find_config_by_key_unwrap_or(
     //         &merchant_id.get_should_call_gsm_key(),
@@ -887,7 +897,6 @@ pub async fn get_merchant_config_for_gsm(
     //     }
     // }
     should_call_gsm
-
 }
 
 #[cfg(feature = "v1")]
@@ -896,7 +905,7 @@ pub async fn config_should_call_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
     profile: &domain::Profile,
-    dimension : &configs::dimension_state::DimensionsWithMerchantId,
+    dimension: &configs::dimension_state::DimensionsWithMerchantId,
 ) -> bool {
     let merchant_config_gsm = get_merchant_config_for_gsm(state, db, merchant_id, dimension).await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
