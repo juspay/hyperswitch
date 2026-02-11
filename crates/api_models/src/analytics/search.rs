@@ -24,43 +24,27 @@ pub struct SearchFilters {
     pub card_discovery: Option<Vec<String>>,
     pub merchant_order_reference_id: Option<Vec<String>>,
 }
+
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
-        let Self {
-            payment_method,
-            currency,
-            status,
-            customer_email,
-            search_tags,
-            connector,
-            payment_method_type,
-            card_network,
-            card_last_4,
-            payment_id,
-            amount,
-            amount_filter,
-            customer_id,
-            authentication_type,
-            card_discovery,
-            merchant_order_reference_id,
-        } = self;
-
-        payment_method.is_none()
-            && currency.is_none()
-            && status.is_none()
-            && customer_email.is_none()
-            && search_tags.is_none()
-            && connector.is_none()
-            && payment_method_type.is_none()
-            && card_network.is_none()
-            && card_last_4.is_none()
-            && payment_id.is_none()
-            && amount.is_none()
-            && amount_filter.is_none()
-            && customer_id.is_none()
-            && authentication_type.is_none()
-            && card_discovery.is_none()
-            && merchant_order_reference_id.is_none()
+        matches!(self, Self {
+            payment_method: None,
+            currency: None,
+            status: None,
+            customer_email: None,
+            search_tags: None,
+            connector: None,
+            payment_method_type: None,
+            card_network: None,
+            card_last_4: None,
+            payment_id: None,
+            amount: None,
+            amount_filter: None,
+            customer_id: None,
+            authentication_type: None,
+            card_discovery: None,
+            merchant_order_reference_id: None,
+        })
     }
 }
 

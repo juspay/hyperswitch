@@ -7164,6 +7164,8 @@ pub fn convert_opensearch_hit_to_payments_response(
         errors::ApiErrorResponse::InternalServerError
     })?;
 
+    // Currently processor_merchant_id is not present in the OpenSearch hit, so we are using merchant_id as processor_merchant_id
+    // TODO: Once processor_merchant_id is available in the OpenSearch hit, remove the unwrap_or and throw error if processor_merchant_id is not present
     let processor_mid_raw = hit_str("processor_merchant_id")
         .unwrap_or(merchant_id_raw.as_str())
         .to_owned();
@@ -7209,11 +7211,31 @@ pub fn convert_opensearch_hit_to_payments_response(
 
     let net_amount = attempt_i64("net_amount")
         .map(MinorUnit::new)
-        .unwrap_or(amount);
+        .ok_or_else(|| {
+            logger::error!(
+                net_amount = hit
+                    .get("net_amount")
+                    .map(|net_amount| net_amount.to_string())
+                    .unwrap_or_default(),
+                payment_id = payment_id_raw.as_str(),
+                "Missing/invalid net_amount in OpenSearch hit"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
 
     let amount_capturable = attempt_i64("amount_capturable")
         .map(MinorUnit::new)
-        .unwrap_or_else(|| MinorUnit::new(0));
+        .ok_or_else(|| {
+            logger::error!(
+                amount_capturable = hit
+                    .get("amount_capturable")
+                    .map(|amount_capturable| amount_capturable.to_string())
+                    .unwrap_or_default(),
+                payment_id = payment_id_raw.as_str(),
+                "Missing/invalid amount_capturable in OpenSearch hit"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
 
     let currency = hit_str("currency").map(str::to_owned).ok_or_else(|| {
         logger::error!(
