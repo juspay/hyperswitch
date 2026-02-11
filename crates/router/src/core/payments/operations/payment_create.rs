@@ -1569,8 +1569,7 @@ impl PaymentCreate {
         // Extracting customer details from Payment Methods Table in case of MIT
         let customer_details_from_pm = payment_method_info
             .clone()
-            .map(|data| data.customer_details)
-            .flatten()
+            .and_then(|data| data.customer_details)
             .as_ref()
             .map(|encryptable| {
                 encryptable
