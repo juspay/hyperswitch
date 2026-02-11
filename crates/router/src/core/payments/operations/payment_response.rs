@@ -2821,6 +2821,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
+#[cfg(feature = "v1")]
 fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
     payment_data: PaymentData<F>,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
