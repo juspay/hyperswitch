@@ -805,6 +805,7 @@ pub fn build_unified_connector_service_grpc_headers(
         lineage_ids,
         external_vault_proxy_metadata,
         merchant_reference_id,
+        resource_id,
         shadow_mode,
         config_override,
     } = grpc_headers;
@@ -883,6 +884,16 @@ pub fn build_unified_connector_service_grpc_headers(
             parse(
                 consts::UCS_HEADER_REFERENCE_ID,
                 reference_id.get_string_repr(),
+            )?,
+        );
+    };
+
+    if let Some(resource_id) = resource_id {
+        metadata.append(
+            consts::UCS_HEADER_RESOURCE_ID,
+            parse(
+                consts::UCS_HEADER_RESOURCE_ID,
+                resource_id.get_string_repr(),
             )?,
         );
     };
