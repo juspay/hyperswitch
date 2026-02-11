@@ -27,6 +27,7 @@ pub struct CreatePaymentMethodV1Request {
     pub billing: Option<payments::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
+    pub modular_service_prefix: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -95,8 +96,8 @@ pub struct CreatePaymentMethodResponse {
     pub payment_method_id: String,
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
-    pub payment_method_type: Option<common_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    pub payment_method: Option<common_enums::PaymentMethod>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     pub created: Option<PrimitiveDateTime>,
     pub last_used_at: Option<PrimitiveDateTime>,
@@ -175,8 +176,8 @@ impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
             payment_method_id: response.id,
             merchant_id: response.merchant_id,
             customer_id: response.customer_id,
-            payment_method_type: response.payment_method_type,
-            payment_method_subtype: response.payment_method_subtype,
+            payment_method: response.payment_method_type,
+            payment_method_type: response.payment_method_subtype,
             recurring_enabled: response.recurring_enabled,
             created: response.created,
             last_used_at: response.last_used_at,
@@ -191,16 +192,24 @@ impl CreatePaymentMethod {
     fn build_body(&self, request: ModularPMCreateRequest) -> Option<RequestContent> {
         Some(RequestContent::Json(Box::new(request)))
     }
+
+    fn build_path_params(
+        &self,
+        request: &CreatePaymentMethodV1Request,
+    ) -> Vec<(&'static str, String)> {
+        vec![("prefix", request.modular_service_prefix.clone())]
+    }
 }
 
 hyperswitch_interfaces::impl_microservice_flow!(
     CreatePaymentMethod,
     method = Method::Post,
-    path = "/v2/payment-methods",
+    path = "/{prefix}/payment-methods",
     v1_request = CreatePaymentMethodV1Request,
     v2_request = ModularPMCreateRequest,
     v2_response = ModularPaymentMethodResponse,
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
-    body = CreatePaymentMethod::build_body
+    body = CreatePaymentMethod::build_body,
+    path_params = CreatePaymentMethod::build_path_params
 );

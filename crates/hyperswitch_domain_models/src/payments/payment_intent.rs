@@ -1,3 +1,4 @@
+use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
@@ -160,6 +161,7 @@ pub struct CustomerData {
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 impl CustomerData {
@@ -278,8 +280,9 @@ pub enum PaymentIntentUpdate {
         feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: Option<serde_json::Value>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
@@ -1014,10 +1017,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self {
-                metadata: Some(metadata),
+                metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1309,9 +1314,11 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,

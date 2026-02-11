@@ -1,13 +1,13 @@
 //! Retrieve payment method flow types and models.
 
-use api_models::payment_methods::{
-    PaymentMethodId, PaymentMethodResponse as RetrievePaymentMethodResponse,
-};
-use common_utils::request::Method;
+use api_models::payment_methods::{NetworkTokenResponse, PaymentMethodId};
+use common_utils::{id_type, request::Method};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
+use time::PrimitiveDateTime;
 
 use crate::types::{
-    ModularPMRetrieveResponse, ModularPMRetrieveResquest, PaymentMethodResponseData,
+    ConnectorTokenDetails, ModularPMRetrieveRequest, ModularPMRetrieveResponse,
+    PaymentMethodResponseData, RawPaymentMethodData,
 };
 /// V1-facing retrieve flow type.
 #[derive(Debug)]
@@ -17,9 +17,27 @@ pub struct RetrievePaymentMethod;
 #[derive(Debug)]
 pub struct RetrievePaymentMethodV1Request {
     pub payment_method_id: PaymentMethodId,
+    pub modular_service_prefix: String,
+    pub fetch_raw_detail: bool,
+}
+/// V1-facing retrieve response payload.
+#[derive(Clone, Debug)]
+pub struct RetrievePaymentMethodResponse {
+    pub payment_method_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub recurring_enabled: Option<bool>,
+    pub created: Option<PrimitiveDateTime>,
+    pub last_used_at: Option<PrimitiveDateTime>,
+    pub payment_method_data: Option<PaymentMethodResponseData>,
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+    pub network_token: Option<NetworkTokenResponse>,
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
-impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveResquest {
+impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveRequest {
     type Error = MicroserviceClientError;
 
     fn try_from(_value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
@@ -37,26 +55,19 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
         // Convert GlobalCustomerId to CustomerId
         let customer_id = v2_resp.customer_id;
 
-        // Convert card details from V2 to V1 format
-        let card = v2_resp.payment_method_data.map(|data| match data {
-            PaymentMethodResponseData::Card(card_detail) => card_detail,
-        });
-
         Ok(Self {
             payment_method_id,
             merchant_id: v2_resp.merchant_id,
             customer_id,
             payment_method: v2_resp.payment_method_type,
             payment_method_type: v2_resp.payment_method_subtype,
-            card,
             recurring_enabled: v2_resp.recurring_enabled,
             created: v2_resp.created,
             last_used_at: v2_resp.last_used_at,
-            installment_payment_enabled: None,
-            payment_experience: None,
-            metadata: None,
-            bank_transfer: None,
-            client_secret: None,
+            payment_method_data: v2_resp.payment_method_data,
+            connector_tokens: v2_resp.connector_tokens,
+            network_token: v2_resp.network_token,
+            raw_payment_method_data: v2_resp.raw_payment_method_data,
         })
     }
 }
@@ -86,19 +97,30 @@ impl RetrievePaymentMethod {
         &self,
         request: &RetrievePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![("id", request.payment_method_id.payment_method_id.clone())]
+        vec![
+            ("prefix", request.modular_service_prefix.clone()),
+            ("id", request.payment_method_id.payment_method_id.clone()),
+        ]
+    }
+
+    fn query_params(
+        &self,
+        request: &RetrievePaymentMethodV1Request,
+    ) -> Vec<(&'static str, String)> {
+        vec![("fetch_raw_detail", request.fetch_raw_detail.to_string())]
     }
 }
 
 hyperswitch_interfaces::impl_microservice_flow!(
     RetrievePaymentMethod,
     method = Method::Get,
-    path = "/v2/payment-methods/{id}",
+    path = "/{prefix}/payment-methods/{id}",
     v1_request = RetrievePaymentMethodV1Request,
-    v2_request = ModularPMRetrieveResquest,
+    v2_request = ModularPMRetrieveRequest,
     v2_response = ModularPMRetrieveResponse,
     v1_response = RetrievePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
     path_params = RetrievePaymentMethod::build_path_params,
+    query_params = RetrievePaymentMethod::query_params,
     validate = RetrievePaymentMethod::validate_request
 );
