@@ -189,14 +189,18 @@ impl PaymentMethodData {
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
     ) -> Self {
-        if let api_models::payments::AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
+        if let api_models::payments::AdditionalPaymentData::Card(additional_card_info) =
+            additional_payment_data
+        {
             match self {
-                Self::Card(card) => Self::Card(
-                    card.apply_additional_card_info(*additional_card_info),
-                ),
-                Self::CardWithLimitedDetails(card_with_limited_details) => Self::CardWithLimitedDetails(
-                    card_with_limited_details.apply_additional_card_info(*additional_card_info),
-                ),
+                Self::Card(card) => {
+                    Self::Card(card.apply_additional_card_info(*additional_card_info))
+                }
+                Self::CardWithLimitedDetails(card_with_limited_details) => {
+                    Self::CardWithLimitedDetails(
+                        card_with_limited_details.apply_additional_card_info(*additional_card_info),
+                    )
+                }
                 _ => self.to_owned(),
             }
         } else {
@@ -317,7 +321,7 @@ impl Card {
                 .or(additional_card_info.card_issuing_country_code),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
-            co_badged_card_data: self.co_badged_card_data.clone()
+            co_badged_card_data: self.co_badged_card_data.clone(),
         }
     }
 }
@@ -3460,7 +3464,7 @@ impl
 }
 
 impl From<mandates::RecurringDetails> for RecurringDetails {
-    fn from(value: mandates::RecurringDetails) ->Self {
+    fn from(value: mandates::RecurringDetails) -> Self {
         match value {
             mandates::RecurringDetails::MandateId(mandate_id) => Self::MandateId(mandate_id),
             mandates::RecurringDetails::PaymentMethodId(payment_method_id) => {
@@ -3482,8 +3486,9 @@ impl From<mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
                 (*network_transaction_id_and_network_token_details).into(),
             )),
-            mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => 
-                Self::CardWithLimitedData(Box::new((*card_with_limited_data).into())),
+            mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
+                Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
+            }
         }
     }
 }
@@ -3543,8 +3548,7 @@ impl From<mandates::CardWithLimitedData> for CardWithLimitedData {
 impl RecurringDetails {
     pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
-    ) -> Option<(api_models::payments::MandateReferenceId, PaymentMethodData)>
-    {
+    ) -> Option<(api_models::payments::MandateReferenceId, PaymentMethodData)> {
         match self.clone() {
             Self::NetworkTransactionIdAndCardDetails(network_transaction_id_and_card_details) => {
                 Some(CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(*network_transaction_id_and_card_details))

@@ -403,10 +403,18 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
-                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_ntid) => card_details_for_ntid.card_network.clone(),
-                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => card_with_limited_details.card_network.clone(),
-                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(network_token_details_for_ntid) => network_token_details_for_ntid.card_network.clone(),
-                domain::PaymentMethodData::NetworkToken(network_token_details) => network_token_details.card_network.clone(),
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    card_details_for_ntid,
+                ) => card_details_for_ntid.card_network.clone(),
+                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                    card_with_limited_details.card_network.clone()
+                }
+                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                    network_token_details_for_ntid,
+                ) => network_token_details_for_ntid.card_network.clone(),
+                domain::PaymentMethodData::NetworkToken(network_token_details) => {
+                    network_token_details.card_network.clone()
+                }
                 _ => None,
             }),
     };
@@ -417,10 +425,18 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
-                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_ntid) => card_details_for_ntid.card_issuer.clone(),
-                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => card_with_limited_details.card_issuer.clone(),
-                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(network_token_details_for_ntid) => network_token_details_for_ntid.card_issuer.clone(),
-                domain::PaymentMethodData::NetworkToken(network_token_details) => network_token_details.card_issuer.clone(),
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    card_details_for_ntid,
+                ) => card_details_for_ntid.card_issuer.clone(),
+                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                    card_with_limited_details.card_issuer.clone()
+                }
+                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                    network_token_details_for_ntid,
+                ) => network_token_details_for_ntid.card_issuer.clone(),
+                domain::PaymentMethodData::NetworkToken(network_token_details) => {
+                    network_token_details.card_issuer.clone()
+                }
                 _ => None,
             }),
         country: payments_dsl_input.payment_method_data.as_ref().and_then(
@@ -432,19 +448,25 @@ pub fn make_dsl_input(
                             .map(common_enums::Country::from_alpha2)
                     })
                 }
-                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_ntid) => {
-                    card_details_for_ntid.card_issuing_country_code.clone().and_then(|code| {
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    card_details_for_ntid,
+                ) => card_details_for_ntid
+                    .card_issuing_country_code
+                    .clone()
+                    .and_then(|code| {
                         CountryAlpha2::from_str(&code)
                             .ok()
                             .map(common_enums::Country::from_alpha2)
-                    })
-                },
+                    }),
                 domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
-                    card_with_limited_details.card_issuing_country_code.clone().and_then(|code| {
-                        CountryAlpha2::from_str(&code)
-                            .ok()
-                            .map(common_enums::Country::from_alpha2)
-                    })
+                    card_with_limited_details
+                        .card_issuing_country_code
+                        .clone()
+                        .and_then(|code| {
+                            CountryAlpha2::from_str(&code)
+                                .ok()
+                                .map(common_enums::Country::from_alpha2)
+                        })
                 }
                 _ => None,
             },
@@ -467,16 +489,30 @@ pub fn make_dsl_input(
 
                             (!bin.is_empty()).then_some(bin)
                         }
-                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_ntid) => {
-                            let bin = card_details_for_ntid.card_number.peek().chars().take(6).collect::<String>();
+                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                            card_details_for_ntid,
+                        ) => {
+                            let bin = card_details_for_ntid
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(6)
+                                .collect::<String>();
 
                             (!bin.is_empty()).then_some(bin)
-                        },
-                        domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
-                            let bin = card_with_limited_details.card_number.peek().chars().take(6).collect::<String>();
+                        }
+                        domain::PaymentMethodData::CardWithLimitedDetails(
+                            card_with_limited_details,
+                        ) => {
+                            let bin = card_with_limited_details
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(6)
+                                .collect::<String>();
 
                             (!bin.is_empty()).then_some(bin)
-                        },
+                        }
                         _ => None,
                     },
                 );
@@ -504,13 +540,27 @@ pub fn make_dsl_input(
 
                             (!bin.is_empty()).then_some(bin)
                         }
-                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_ntid) => {
-                            let bin = card_details_for_ntid.card_number.peek().chars().take(8).collect::<String>();
+                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                            card_details_for_ntid,
+                        ) => {
+                            let bin = card_details_for_ntid
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(8)
+                                .collect::<String>();
 
                             (!bin.is_empty()).then_some(bin)
                         }
-                        domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
-                            let bin = card_with_limited_details.card_number.peek().chars().take(8).collect::<String>();
+                        domain::PaymentMethodData::CardWithLimitedDetails(
+                            card_with_limited_details,
+                        ) => {
+                            let bin = card_with_limited_details
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(8)
+                                .collect::<String>();
 
                             (!bin.is_empty()).then_some(bin)
                         }
