@@ -277,6 +277,8 @@ describe("Card - Refund flow - 3DS", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(data)) return; 
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
