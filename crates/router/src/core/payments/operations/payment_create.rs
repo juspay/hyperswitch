@@ -176,7 +176,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details = helpers::get_customer_details_from_request(request, None);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             state,
@@ -309,6 +309,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_expiry,
             &business_profile,
             request.is_payment_id_from_merchant,
+            payment_method_info.clone(),
         )
         .await?;
 
@@ -514,7 +515,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pm| pm.raw_payment_method_data.clone())
             .or(payment_method_data_after_card_bin_call.map(Into::into));
 
-        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info.clone() {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
                 .clone()
@@ -1519,6 +1520,7 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
         is_payment_id_from_merchant: bool,
+        payment_method_info: Option<domain::PaymentMethod>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1564,9 +1566,28 @@ impl PaymentCreate {
 
         let split_payments = request.split_payments.clone();
 
+        // Extracting customer details from Payment Methods Table in case of MIT
+        let customer_details_from_pm = payment_method_info
+            .clone()
+            .map(|data| data.customer_details)
+            .flatten()
+            .as_ref()
+            .map(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<api_models::customers::CustomerDocumentDetails>(
+                        "CustomerDocumentDetails",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse CustomerDocumentDetails from Payment Method")
+            })
+            .transpose()?;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details =
-            helpers::get_customer_details_from_request(request).get_customer_data();
+            helpers::get_customer_details_from_request(request, customer_details_from_pm)
+                .get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

@@ -278,7 +278,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsStartRequest, Payme
 
 #[async_trait]
 impl<
-        F: Clone + Send,
+        F: Clone + Send + Sync,
         Op: Send + Sync + Operation<F, api::PaymentsStartRequest, Data = PaymentData<F>>,
     > Domain<F, api::PaymentsStartRequest, PaymentData<F>> for Op
 where

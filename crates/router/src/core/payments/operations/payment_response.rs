@@ -3559,12 +3559,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 }
 
 #[cfg(feature = "v1")]
-fn update_connector_mandate_details_for_the_flow<F: Clone>(
+fn update_connector_mandate_details_for_the_flow<F>(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<masking::Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
-) -> RouterResult<()> {
+) -> RouterResult<()>
+where
+    F: Clone + Send + Sync,
+{
     let mut original_connector_mandate_reference_id = payment_data
         .payment_attempt
         .connector_mandate_detail

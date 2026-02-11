@@ -154,7 +154,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details = helpers::get_customer_details_from_request(request, None);
 
         payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
             state,

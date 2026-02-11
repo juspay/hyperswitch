@@ -36,7 +36,9 @@ use api_models::admin::MerchantConnectorInfo;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::{
-    self, enums,
+    self,
+    customers::CustomerDocumentDetails,
+    enums,
     mandates::RecurringDetails,
     payments::{self as payments_api},
 };
@@ -698,12 +700,25 @@ where
         .get_or_create_customer_details(
             state,
             &mut payment_data,
-            customer_details, // TODO: Remove this field after implicit customer update is removed
+            customer_details.clone(), // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
+    if let Some(raw_customer_details_from_request) = customer_details.as_ref() {
+        if raw_customer_details_from_request.customer_id.is_some()
+            && raw_customer_details_from_request.document_details.is_none()
+        {
+            if let Some(doc_details) = customer.clone().map(|doc| doc.document_details) {
+                payment_data
+                    .set_document_details_in_intent(doc_details, state, platform)
+                    .await?;
+            }
+        }
+    }
 
     let connector_customer_map = customer
         .as_ref()
@@ -11659,6 +11674,7 @@ pub trait OperationSessionGetters<F> {
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
 }
 
+#[async_trait::async_trait]
 pub trait OperationSessionSetters<F> {
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
@@ -11691,6 +11707,12 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         authentication_type: Option<enums::AuthenticationType>,
     );
+    async fn set_document_details_in_intent(
+        &mut self,
+        document_details: common_utils::crypto::OptionalEncryptableValue,
+        state: &SessionState,
+        platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse>;
     fn set_recurring_mandate_payment_data(
         &mut self,
         recurring_mandate_payment_data:
@@ -11911,8 +11933,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     // }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v1")]
-impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
+impl<F> OperationSessionSetters<F> for PaymentData<F>
+where
+    F: Clone + Send + Sync,
+{
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
@@ -12022,6 +12048,69 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         authentication_type: Option<enums::AuthenticationType>,
     ) {
         self.payment_attempt.authentication_type = authentication_type;
+    }
+
+    async fn set_document_details_in_intent(
+        &mut self,
+        document_details: common_utils::crypto::OptionalEncryptableValue,
+        state: &SessionState,
+        platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let mut existing_intent_customer_details = self
+            .payment_intent
+            .get_intent_customer_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse customer details from PaymentIntent")?;
+
+        let decrypted_document_details = document_details
+            .as_ref()
+            .map(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to deserialize CustomerDocumentDetails from encrypted storage",
+                    )
+            })
+            .transpose()?;
+
+        if let Some(ref mut details) = existing_intent_customer_details {
+            details.customer_document_details = decrypted_document_details;
+        }
+
+        let key_manager_state: common_utils::types::keymanager::KeyManagerState = state.into();
+        let encrypted_customer_details = existing_intent_customer_details
+            .async_map(|value| async move {
+                let encoded_value = value
+                    .encode_to_value()
+                    .map(Secret::<serde_json::Value, masking::WithType>::new)
+                    .change_context(common_utils::errors::CryptoError::EncodingFailed)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode customer details for encryption")?;
+
+                hyperswitch_domain_models::type_encryption::crypto_operation(
+                    &key_manager_state,
+                    common_utils::type_name!(payments::PaymentIntent),
+                    hyperswitch_domain_models::type_encryption::CryptoOperation::EncryptOptional(
+                        Some(encoded_value),
+                    ),
+                    common_utils::types::keymanager::Identifier::Merchant(
+                        platform.get_processor().get_account().get_id().to_owned(),
+                    ),
+                    platform.get_processor().get_key_store().key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Encryption operation failed")
+            })
+            .await
+            .transpose()?
+            .flatten();
+        self.payment_intent.customer_details = encrypted_customer_details;
+        Ok(())
     }
 
     fn set_recurring_mandate_payment_data(
@@ -12250,8 +12339,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v2")]
-impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
+impl<F> OperationSessionSetters<F> for PaymentIntentData<F>
+where
+    F: Clone + Send + Sync,
+{
     fn set_prerouting_algorithm_in_payment_intent(
         &mut self,
         straight_through_algorithm: storage::PaymentRoutingInfo,
@@ -12335,6 +12428,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
     ) {
+        todo!()
+    }
+
+    async fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         todo!()
     }
 
@@ -12559,8 +12661,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v2")]
-impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
+impl<F> OperationSessionSetters<F> for PaymentConfirmData<F>
+where
+    F: Clone + Send + Sync,
+{
     #[cfg(feature = "v2")]
     fn set_prerouting_algorithm_in_payment_intent(
         &mut self,
@@ -12646,6 +12752,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
     ) {
+        todo!()
+    }
+
+    async fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         todo!()
     }
 
@@ -12867,8 +12982,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v2")]
-impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
+impl<F> OperationSessionSetters<F> for PaymentStatusData<F>
+where
+    F: Clone + Send + Sync,
+{
     #[cfg(feature = "v2")]
     fn set_prerouting_algorithm_in_payment_intent(
         &mut self,
@@ -12953,6 +13072,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
     ) {
+        todo!()
+    }
+
+    async fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         todo!()
     }
 
@@ -13175,8 +13303,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v2")]
-impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
+impl<F> OperationSessionSetters<F> for PaymentCaptureData<F>
+where
+    F: Clone + Send + Sync,
+{
     #[cfg(feature = "v2")]
     fn set_prerouting_algorithm_in_payment_intent(
         &mut self,
@@ -13261,6 +13393,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
     ) {
+        todo!()
+    }
+
+    async fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         todo!()
     }
 
@@ -13644,8 +13785,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "v2")]
-impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
+impl<F> OperationSessionSetters<F> for PaymentCancelData<F>
+where
+    F: Clone + Send + Sync,
+{
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
@@ -13724,6 +13869,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
     ) {
+        todo!()
+    }
+
+    async fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         todo!()
     }
 
