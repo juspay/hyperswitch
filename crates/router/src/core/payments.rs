@@ -9092,7 +9092,7 @@ where
             state,
             key_store,
             payment_data,
-            business_profile.get_id(),
+            business_profile,
         )
         .await
         .attach_printable("Failed to fetch eligible connector data")?;

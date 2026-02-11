@@ -56,9 +56,7 @@ use crate::{core::admin, db::StorageInterface, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse},
-        metrics,
-        payments::routing::get_active_mca_ids,
-        utils as core_utils,
+        metrics, utils as core_utils,
     },
     routes::SessionState,
     services::api as service_api,
@@ -2464,8 +2462,7 @@ impl RoutableConnectors {
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         payment_data: &D,
-
-        profile_id: &common_utils::id_type::ProfileId,
+        business_profile: &domain::Profile,
     ) -> RouterResult<Vec<api::ConnectorData>>
     where
         F: Send + Clone,
@@ -2483,22 +2480,13 @@ impl RoutableConnectors {
 
         let routable_connector_choice = self.0.clone();
 
-        let backend_input = payments_routing::make_dsl_input(&payments_dsl_input)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct dsl input")?;
-
-        let active_mca_ids = get_active_mca_ids(state, key_store)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let connectors = payments_routing::perform_cgraph_filtering(
-            state,
+        let connectors = payments_routing::perform_eligibility_analysis_with_fallback(
+            &state.clone(),
             key_store,
             routable_connector_choice,
-            backend_input,
+            &TransactionData::Payment(payments_dsl_input),
             None,
-            profile_id,
-            &common_enums::TransactionType::Payment,
-            &active_mca_ids,
+            business_profile,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
