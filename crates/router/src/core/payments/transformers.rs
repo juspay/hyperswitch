@@ -52,7 +52,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 use masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
 use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing, logger};
+use router_env::{instrument, logger, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -7097,7 +7097,9 @@ pub fn convert_opensearch_hit_to_payments_response(
             .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
     };
 
-    let attempts_list = hit.get("attempts_list").and_then(|attempt_list| attempt_list.as_array());
+    let attempts_list = hit
+        .get("attempts_list")
+        .and_then(|attempt_list| attempt_list.as_array());
     let active_attempt_id = hit_str("active_attempt_id");
 
     let active_attempt = match (attempts_list, active_attempt_id) {
@@ -7124,12 +7126,10 @@ pub fn convert_opensearch_hit_to_payments_response(
 
     let attempt_date_time_nano_sec = |key: &str| parse_nano_sec_i64(attempt_i64(key));
 
-    let payment_id_raw = hit_str("payment_id")
-        .map(str::to_owned)
-        .unwrap_or_else(|| {
-            logger::error!("Missing payment_id in OpenSearch hit");
-            String::new()
-        });
+    let payment_id_raw = hit_str("payment_id").map(str::to_owned).unwrap_or_else(|| {
+        logger::error!("Missing payment_id in OpenSearch hit");
+        String::new()
+    });
 
     let merchant_id_raw = hit_str("merchant_id")
         .map(str::to_owned)
@@ -7191,16 +7191,14 @@ pub fn convert_opensearch_hit_to_payments_response(
             enums::IntentStatus::Failed
         });
 
-    let amount = hit_i64("amount")
-        .map(MinorUnit::new)
-        .unwrap_or_else(|| {
-            logger::error!(
-                amount = hit.get("amount").map(|v| v.to_string()).unwrap_or_default(),
-                payment_id = payment_id_raw.as_str(),
-                "Missing/invalid amount in OpenSearch hit"
-            );
-            MinorUnit::new(0)
-        });
+    let amount = hit_i64("amount").map(MinorUnit::new).unwrap_or_else(|| {
+        logger::error!(
+            amount = hit.get("amount").map(|v| v.to_string()).unwrap_or_default(),
+            payment_id = payment_id_raw.as_str(),
+            "Missing/invalid amount in OpenSearch hit"
+        );
+        MinorUnit::new(0)
+    });
 
     let created = hit_date_time_nano_sec("created_at");
     let modified_at = hit_date_time_nano_sec("modified_at");
@@ -7223,15 +7221,13 @@ pub fn convert_opensearch_hit_to_payments_response(
             .map(MinorUnit::new)
             .unwrap_or_else(|| MinorUnit::new(0)),
 
-        currency: hit_str("currency")
-            .map(str::to_owned)
-            .unwrap_or_else(|| {
-                logger::error!(
-                    payment_id = payment_id_raw.as_str(),
-                    "Missing currency in OpenSearch hit"
-                );
-                String::new()
-            }),
+        currency: hit_str("currency").map(str::to_owned).unwrap_or_else(|| {
+            logger::error!(
+                payment_id = payment_id_raw.as_str(),
+                "Missing currency in OpenSearch hit"
+            );
+            String::new()
+        }),
 
         created,
         modified_at,
@@ -7254,25 +7250,29 @@ pub fn convert_opensearch_hit_to_payments_response(
         description: hit_str("description").map(str::to_owned),
 
         payment_method: hit_str("payment_method").and_then(|s| {
-            enums::PaymentMethod::from_str(s).map_err(|error| {
-                logger::error!(
-                    ?error,
-                    payment_method = s,
-                    payment_id = payment_id_raw.as_str(),
-                    "Failed to parse payment_method from OpenSearch hit"
-                );
-            }).ok()
+            enums::PaymentMethod::from_str(s)
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        payment_method = s,
+                        payment_id = payment_id_raw.as_str(),
+                        "Failed to parse payment_method from OpenSearch hit"
+                    );
+                })
+                .ok()
         }),
 
         payment_method_type: hit_str("payment_method_type").and_then(|s| {
-            enums::PaymentMethodType::from_str(s).map_err(|error| {
-                logger::error!(
-                    ?error,
-                    payment_method_type = s,
-                    payment_id = payment_id_raw.as_str(),
-                    "Failed to parse payment_method_type from OpenSearch hit"
-                );
-            }).ok()
+            enums::PaymentMethodType::from_str(s)
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        payment_method_type = s,
+                        payment_id = payment_id_raw.as_str(),
+                        "Failed to parse payment_method_type from OpenSearch hit"
+                    );
+                })
+                .ok()
         }),
 
         connector_transaction_id: attempt_str("connector_transaction_id").map(str::to_owned),
@@ -7307,7 +7307,10 @@ pub fn convert_opensearch_hit_to_payments_response(
             .and_then(|v| i16::try_from(v).ok())
             .unwrap_or_else(|| {
                 logger::error!(
-                    attempt_count = hit.get("attempt_count").map(|v| v.to_string()).unwrap_or_default(),
+                    attempt_count = hit
+                        .get("attempt_count")
+                        .map(|v| v.to_string())
+                        .unwrap_or_default(),
                     payment_id = payment_id_raw.as_str(),
                     "Missing/invalid attempt_count in OpenSearch hit"
                 );
@@ -7322,13 +7325,15 @@ pub fn convert_opensearch_hit_to_payments_response(
             .get("payment_method_data")
             .and_then(|v| v.as_str())
             .and_then(|s| {
-                serde_json::from_str(s).map_err(|error| {
-                    logger::error!(
-                        ?error,
-                        payment_id = payment_id_raw.as_str(),
-                        "Failed to parse payment_method_data from OpenSearch hit"
-                    );
-                }).ok()
+                serde_json::from_str(s)
+                    .map_err(|error| {
+                        logger::error!(
+                            ?error,
+                            payment_id = payment_id_raw.as_str(),
+                            "Failed to parse payment_method_data from OpenSearch hit"
+                        );
+                    })
+                    .ok()
             }),
 
         client_secret: hit_str("client_secret").map(|s| Secret::new(s.to_owned())),

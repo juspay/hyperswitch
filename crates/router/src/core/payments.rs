@@ -8617,16 +8617,13 @@ pub async fn apply_filters_on_payments(
             if state.search_provider.is_opensearch_enabled() {
                 logger::info!("Attempting to query OpenSearch for payment list with filters");
 
-                let (merchant_id_opt, profile_id_opt) =
-                    match profile_id_list.clone() {
-                        Some(profile_ids) => {
-                            match profile_ids.first() {
-                                Some(profile_id) => (Some(merchant_id.clone()), Some(profile_id.clone())),
-                                None => (Some(merchant_id.clone()), None),
-                            }
-                        }
+                let (merchant_id_opt, profile_id_opt) = match profile_id_list.clone() {
+                    Some(profile_ids) => match profile_ids.first() {
+                        Some(profile_id) => (Some(merchant_id.clone()), Some(profile_id.clone())),
                         None => (Some(merchant_id.clone()), None),
-                    };
+                    },
+                    None => (Some(merchant_id.clone()), None),
+                };
 
                 let org_id = platform.get_processor().get_account().get_org_id();
                 let auth_info = match (merchant_id_opt, profile_id_opt) {
