@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
+    payments::{Order, SortBy, SortOn},
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::{
@@ -498,10 +499,16 @@ pub struct OpenSearchQueryBuilder {
     pub amount_range: Option<OpensearchRange>,
     search_params: Vec<AuthInfo>,
     case_sensitive_fields: HashSet<&'static str>,
+    pub order: Option<Order>,
 }
 
 impl OpenSearchQueryBuilder {
-    pub fn new(query_type: OpenSearchQuery, query: String, search_params: Vec<AuthInfo>) -> Self {
+    pub fn new(
+        query_type: OpenSearchQuery,
+        query: String,
+        search_params: Vec<AuthInfo>,
+        order: Option<Order>,
+    ) -> Self {
         Self {
             query_type,
             query,
@@ -520,6 +527,7 @@ impl OpenSearchQueryBuilder {
                 "customer_id.keyword",
                 "merchant_order_reference_id.keyword",
             ]),
+            order,
         }
     }
 
@@ -774,13 +782,33 @@ impl OpenSearchQueryBuilder {
 
         query_obj.insert("bool".to_string(), Value::Object(bool_obj.clone()));
 
-        let mut sort_obj = Map::new();
-        sort_obj.insert(
-            "@timestamp".to_string(),
-            json!({
-                "order": "desc"
-            }),
-        );
+        let mut sort_list = Vec::new();
+        match &self.order {
+            Some(order) => {
+                let sort_on = match order.on {
+                    SortOn::Amount => self
+                        .get_amount_field(*indexes.first().unwrap_or(&SearchIndex::PaymentIntents))
+                        .to_string(),
+                    SortOn::Created => "@timestamp".to_string(),
+                };
+                let sort_by = match order.by {
+                    SortBy::Asc => "asc",
+                    SortBy::Desc => "desc",
+                };
+                sort_list.push(json!({
+                    sort_on: {
+                        "order": sort_by
+                    }
+                }));
+            }
+            None => {
+                sort_list.push(json!({
+                    "@timestamp": {
+                        "order": "desc"
+                    }
+                }));
+            }
+        }
 
         Ok(indexes
             .iter()
@@ -788,9 +816,7 @@ impl OpenSearchQueryBuilder {
                 let mut payload = json!({
                     "track_total_hits": true,
                     "query": query_obj.clone(),
-                    "sort": [
-                        Value::Object(sort_obj.clone())
-                    ]
+                    "sort": sort_list.clone()
                 });
                 let filter_array = self.build_filter_array(case_sensitive_filters.clone(), *index);
                 if !filter_array.is_empty() {

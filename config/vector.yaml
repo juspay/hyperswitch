@@ -88,8 +88,8 @@ transforms:
     inputs:
     - sessionized_kafka_tx_events
     source: |-
-      .timestamp = from_unix_timestamp(.created_at, unit: "nanoseconds") ?? now()
-      ."@timestamp" = from_unix_timestamp(.created_at, unit: "nanoseconds") ?? now()
+      .timestamp = from_unix_timestamp(.created_at, unit: "milliseconds") ?? now()
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "milliseconds") ?? now()
 
   sdk_transformed:
     type: throttle

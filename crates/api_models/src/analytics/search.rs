@@ -2,6 +2,9 @@ use common_utils::{hashing::HashedString, types::TimeRange};
 use masking::WithType;
 use serde_json::Value;
 
+#[cfg(feature = "v1")]
+use crate::payments::PaymentListFilterConstraints;
+
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
     pub payment_method: Option<Vec<String>>,
@@ -23,22 +26,41 @@ pub struct SearchFilters {
 }
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
-        self.payment_method.is_none()
-            && self.currency.is_none()
-            && self.status.is_none()
-            && self.customer_email.is_none()
-            && self.search_tags.is_none()
-            && self.connector.is_none()
-            && self.payment_method_type.is_none()
-            && self.card_network.is_none()
-            && self.card_last_4.is_none()
-            && self.payment_id.is_none()
-            && self.amount.is_none()
-            && self.amount_filter.is_none()
-            && self.customer_id.is_none()
-            && self.authentication_type.is_none()
-            && self.card_discovery.is_none()
-            && self.merchant_order_reference_id.is_none()
+        let Self {
+            payment_method,
+            currency,
+            status,
+            customer_email,
+            search_tags,
+            connector,
+            payment_method_type,
+            card_network,
+            card_last_4,
+            payment_id,
+            amount,
+            amount_filter,
+            customer_id,
+            authentication_type,
+            card_discovery,
+            merchant_order_reference_id,
+        } = self;
+
+        payment_method.is_none()
+            && currency.is_none()
+            && status.is_none()
+            && customer_email.is_none()
+            && search_tags.is_none()
+            && connector.is_none()
+            && payment_method_type.is_none()
+            && card_network.is_none()
+            && card_last_4.is_none()
+            && payment_id.is_none()
+            && amount.is_none()
+            && amount_filter.is_none()
+            && customer_id.is_none()
+            && authentication_type.is_none()
+            && card_discovery.is_none()
+            && merchant_order_reference_id.is_none()
     }
 }
 
@@ -62,6 +84,8 @@ pub struct GetSearchRequest {
     pub filters: Option<SearchFilters>,
     #[serde(default)]
     pub time_range: Option<TimeRange>,
+    #[serde(default)]
+    pub order: Option<crate::payments::Order>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -69,6 +93,27 @@ pub struct GetSearchRequest {
 pub struct GetSearchRequestWithIndex {
     pub index: SearchIndex,
     pub search_req: GetSearchRequest,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<(PaymentListFilterConstraints, String, SearchFilters)> for GetSearchRequestWithIndex {
+    type Error = String;
+
+    fn try_from(
+        (constraints, query, filters): (PaymentListFilterConstraints, String, SearchFilters),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            index: SearchIndex::SessionizerPaymentIntents,
+            search_req: GetSearchRequest {
+                offset: i64::from(constraints.offset.unwrap_or(0)),
+                count: i64::from(constraints.limit),
+                query,
+                filters: Some(filters),
+                time_range: constraints.time_range,
+                order: Some(constraints.order),
+            },
+        })
+    }
 }
 
 #[derive(

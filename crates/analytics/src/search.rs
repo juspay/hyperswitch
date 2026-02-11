@@ -37,6 +37,7 @@ pub async fn msearch_results(
         OpenSearchQuery::Msearch(indexes.clone()),
         req.query,
         search_params,
+        None,
     );
 
     if let Some(filters) = req.filters {
@@ -244,6 +245,7 @@ pub async fn search_results(
         OpenSearchQuery::Search(req.index),
         search_req.query,
         search_params,
+        search_req.order,
     );
 
     if let Some(filters) = search_req.filters {

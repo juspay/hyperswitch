@@ -8617,51 +8617,40 @@ pub async fn apply_filters_on_payments(
             if state.search_provider.is_opensearch_enabled() {
                 logger::info!("Attempting to query OpenSearch for payment list with filters");
 
-                let (merchant_id_opt, profile_id_opt) = match profile_id_list.clone() {
-                    Some(profile_ids) => match profile_ids.first() {
-                        Some(profile_id) => (Some(merchant_id.clone()), Some(profile_id.clone())),
-                        None => (Some(merchant_id.clone()), None),
-                    },
-                    None => (Some(merchant_id.clone()), None),
-                };
+                let profile_id_opt =
+                    profile_id_list
+                    .as_ref()
+                    .and_then(|ids| ids.first())
+                    .cloned();
 
                 let org_id = platform.get_processor().get_account().get_org_id();
-                let auth_info = match (merchant_id_opt, profile_id_opt) {
-                    (Some(mid), Some(pid)) => {
-                        vec![
+                let auth_info = match profile_id_opt {
+                    Some(profile_id) => vec![
                             common_utils::types::authentication::AuthInfo::ProfileLevel {
-                                org_id: org_id.clone(),
-                                merchant_id: mid,
-                                profile_ids: vec![pid],
-                            },
-                        ]
-                    }
-                    (Some(mid), None) => {
-                        vec![
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id],
+                    }],
+                    None => vec![
                             common_utils::types::authentication::AuthInfo::MerchantLevel {
-                                org_id: org_id.clone(),
-                                merchant_ids: vec![mid],
-                            },
-                        ]
-                    }
-                    _ => {
-                        return Err(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Invalid authentication info resolution");
-                    }
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    }],
                 };
 
                 let filters = helpers::get_search_filters(&constraints);
 
-                let search_req = api_models::analytics::search::GetSearchRequestWithIndex {
-                    index: api_models::analytics::search::SearchIndex::SessionizerPaymentIntents,
-                    search_req: api_models::analytics::search::GetSearchRequest {
-                        offset: i64::from(constraints.offset.unwrap_or(0)),
-                        count: i64::from(constraints.limit),
-                        query: String::new(),
-                        filters: Some(filters),
-                        time_range: constraints.time_range,
-                    },
-                };
+                let search_req =
+                    api_models::analytics::search::GetSearchRequestWithIndex::try_from((
+                        constraints.clone(),
+                        String::new(),
+                        filters,
+                    ))
+                    .map_err(|error| {
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to build OpenSearch request")
+                            .attach_printable(error)
+                    })?;
 
                 match state
                     .search_provider
@@ -8674,19 +8663,33 @@ pub async fn apply_filters_on_payments(
                             total = response.count,
                             "Successfully retrieved payments from OpenSearch"
                         );
-                        let payments_list: Vec<payments_api::PaymentsResponse> = response
+
+                        let payments_list_result: Result<
+                            Vec<payments_api::PaymentsResponse>,
+                            errors::ApiErrorResponse,
+                        > = response
                             .hits
                             .into_iter()
                             .map(transformers::convert_opensearch_hit_to_payments_response)
                             .collect();
 
-                        return Ok(services::ApplicationResponse::Json(
-                            payments_api::PaymentListResponseV2 {
-                                count: payments_list.len(),
-                                total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
-                                data: payments_list,
-                            },
-                        ));
+                        match payments_list_result {
+                            Ok(payments_list) => {
+                                return Ok(services::ApplicationResponse::Json(
+                                    payments_api::PaymentListResponseV2 {
+                                        count: payments_list.len(),
+                                        total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
+                                        data: payments_list,
+                                    },
+                                ));
+                            }
+                            Err(error) => {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to convert OpenSearch hits to PaymentsResponse, falling back to PostgreSQL"
+                                );
+                            }
+                        }
                     }
                     Err(error) => {
                         logger::error!(

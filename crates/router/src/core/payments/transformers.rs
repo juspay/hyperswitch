@@ -7079,13 +7079,15 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
 #[cfg(all(feature = "v1", feature = "olap"))]
 pub fn convert_opensearch_hit_to_payments_response(
     hit: serde_json::Value,
-) -> api_models::payments::PaymentsResponse {
-    let hit_str = |key: &str| hit.get(key).and_then(|v| v.as_str());
-    let hit_i64 = |key: &str| hit.get(key).and_then(|v| v.as_i64());
+) -> Result<api_models::payments::PaymentsResponse, errors::ApiErrorResponse> {
+    let hit_str = |key: &str| hit.get(key).and_then(|value| value.as_str());
+    let hit_i64 = |key: &str| hit.get(key).and_then(|value| value.as_i64());
 
     let parse_nano_sec_i64 = |nanos: Option<i64>| {
         nanos
-            .and_then(|n| time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(n)).ok())
+            .and_then(|nano_sec| {
+                time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nano_sec)).ok()
+            })
             .map(common_utils::date_time::convert_to_pdt)
     };
 
@@ -7093,8 +7095,8 @@ pub fn convert_opensearch_hit_to_payments_response(
 
     let parse_json_from_str = |key: &str| {
         hit.get(key)
-            .and_then(|v| v.as_str())
-            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+            .and_then(|value| value.as_str())
+            .and_then(|json_str| serde_json::from_str::<serde_json::Value>(json_str).ok())
     };
 
     let attempts_list = hit
@@ -7103,7 +7105,7 @@ pub fn convert_opensearch_hit_to_payments_response(
     let active_attempt_id = hit_str("active_attempt_id");
 
     let active_attempt = match (attempts_list, active_attempt_id) {
-        (Some(list), Some(active_id)) => list.iter().find(|attempt| {
+        (Some(attempt_list), Some(active_id)) => attempt_list.iter().find(|attempt| {
             attempt
                 .get("attempt_id")
                 .and_then(|attempt_id| attempt_id.as_str())
@@ -7126,42 +7128,41 @@ pub fn convert_opensearch_hit_to_payments_response(
 
     let attempt_date_time_nano_sec = |key: &str| parse_nano_sec_i64(attempt_i64(key));
 
-    let payment_id_raw = hit_str("payment_id").map(str::to_owned).unwrap_or_else(|| {
+    let payment_id_raw = hit_str("payment_id").map(str::to_owned).ok_or_else(|| {
         logger::error!("Missing payment_id in OpenSearch hit");
-        String::new()
-    });
+        errors::ApiErrorResponse::InternalServerError
+    })?;
 
-    let merchant_id_raw = hit_str("merchant_id")
-        .map(str::to_owned)
-        .unwrap_or_else(|| {
-            logger::error!(
-                payment_id = payment_id_raw.as_str(),
-                "Missing merchant_id in OpenSearch hit"
-            );
-            String::new()
-        });
+    let merchant_id_raw = hit_str("merchant_id").map(str::to_owned).ok_or_else(|| {
+        logger::error!(
+            payment_id = payment_id_raw.as_str(),
+            "Missing merchant_id in OpenSearch hit"
+        );
+        errors::ApiErrorResponse::InternalServerError
+    })?;
 
     let payment_id = common_utils::id_type::PaymentId::try_from(Cow::from(payment_id_raw.clone()))
-        .unwrap_or_else(|error| {
+        .map_err(|error| {
             logger::error!(
                 ?error,
                 payment_id = payment_id_raw.as_str(),
                 "Failed to parse payment_id from OpenSearch hit"
             );
-            common_utils::id_type::PaymentId::default()
-        });
+            errors::ApiErrorResponse::InternalServerError
+        })?;
 
-    let merchant_id =
-        common_utils::id_type::MerchantId::try_from(Cow::from(merchant_id_raw.clone()))
-            .unwrap_or_else(|error| {
-                logger::error!(
-                    ?error,
-                    merchant_id = merchant_id_raw.as_str(),
-                    payment_id = payment_id_raw.as_str(),
-                    "Failed to parse merchant_id from OpenSearch hit"
-                );
-                common_utils::id_type::MerchantId::default()
-            });
+    let merchant_id = common_utils::id_type::MerchantId::try_from(Cow::from(
+        merchant_id_raw.clone(),
+    ))
+    .map_err(|error| {
+        logger::error!(
+            ?error,
+            merchant_id = merchant_id_raw.as_str(),
+            payment_id = payment_id_raw.as_str(),
+            "Failed to parse merchant_id from OpenSearch hit"
+        );
+        errors::ApiErrorResponse::InternalServerError
+    })?;
 
     let processor_mid_raw = hit_str("processor_merchant_id")
         .unwrap_or(merchant_id_raw.as_str())
@@ -7181,163 +7182,185 @@ pub fn convert_opensearch_hit_to_payments_response(
             });
 
     let status = hit_str("status")
-        .and_then(|s| enums::IntentStatus::from_str(s).ok())
-        .unwrap_or_else(|| {
+        .and_then(|status_str| enums::IntentStatus::from_str(status_str).ok())
+        .ok_or_else(|| {
             logger::error!(
                 status = hit_str("status").unwrap_or(""),
                 payment_id = payment_id_raw.as_str(),
-                "Failed to parse status from OpenSearch hit"
+                "Missing/invalid status in OpenSearch hit"
             );
-            enums::IntentStatus::Failed
-        });
+            errors::ApiErrorResponse::InternalServerError
+        })?;
 
-    let amount = hit_i64("amount").map(MinorUnit::new).unwrap_or_else(|| {
+    let amount = hit_i64("amount").map(MinorUnit::new).ok_or_else(|| {
         logger::error!(
-            amount = hit.get("amount").map(|v| v.to_string()).unwrap_or_default(),
+            amount = hit
+                .get("amount")
+                .map(|amount| amount.to_string())
+                .unwrap_or_default(),
             payment_id = payment_id_raw.as_str(),
             "Missing/invalid amount in OpenSearch hit"
         );
-        MinorUnit::new(0)
-    });
+        errors::ApiErrorResponse::InternalServerError
+    })?;
 
     let created = hit_date_time_nano_sec("created_at");
     let modified_at = hit_date_time_nano_sec("modified_at");
 
-    api_models::payments::PaymentsResponse {
+    let net_amount = attempt_i64("net_amount")
+        .map(MinorUnit::new)
+        .unwrap_or(amount);
+
+    let amount_capturable = attempt_i64("amount_capturable")
+        .map(MinorUnit::new)
+        .unwrap_or_else(|| MinorUnit::new(0));
+
+    let currency = hit_str("currency").map(str::to_owned).ok_or_else(|| {
+        logger::error!(
+            payment_id = payment_id_raw.as_str(),
+            "Missing currency in OpenSearch hit"
+        );
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+
+    let customer_id = hit_str("customer_id").and_then(|customer_id| {
+        common_utils::id_type::CustomerId::try_from(Cow::from(customer_id.to_owned()))
+            .map_err(|error| {
+                logger::error!(
+                    ?error,
+                    customer_id = customer_id,
+                    payment_id = payment_id_raw.as_str(),
+                    "Failed to parse customer_id from OpenSearch hit"
+                );
+            })
+            .ok()
+    });
+
+    let payment_method = hit_str("payment_method").and_then(|payment_method| {
+        enums::PaymentMethod::from_str(payment_method)
+            .map_err(|error| {
+                logger::error!(
+                    ?error,
+                    payment_method = payment_method,
+                    payment_id = payment_id_raw.as_str(),
+                    "Failed to parse payment_method from OpenSearch hit"
+                );
+            })
+            .ok()
+    });
+
+    let payment_method_type = hit_str("payment_method_type").and_then(|payment_method_type| {
+        enums::PaymentMethodType::from_str(payment_method_type)
+            .map_err(|error| {
+                logger::error!(
+                    ?error,
+                    payment_method_type = payment_method_type,
+                    payment_id = payment_id_raw.as_str(),
+                    "Failed to parse payment_method_type from OpenSearch hit"
+                );
+            })
+            .ok()
+    });
+
+    let merchant_connector_id =
+        hit_str("merchant_connector_id").and_then(|merchant_connector_id| {
+            common_utils::id_type::MerchantConnectorAccountId::try_from(Cow::from(
+                merchant_connector_id.to_owned(),
+            ))
+            .map_err(|error| {
+                logger::error!(
+                    ?error,
+                    merchant_connector_id = merchant_connector_id,
+                    payment_id = payment_id_raw.as_str(),
+                    "Failed to parse merchant_connector_id from OpenSearch hit"
+                );
+            })
+            .ok()
+        });
+
+    let profile_id = hit_str("profile_id").and_then(|profile_id| {
+        common_utils::id_type::ProfileId::try_from(Cow::from(profile_id.to_owned()))
+            .map_err(|error| {
+                logger::error!(
+                    ?error,
+                    profile_id = profile_id,
+                    payment_id = payment_id_raw.as_str(),
+                    "Failed to parse profile_id from OpenSearch hit"
+                );
+            })
+            .ok()
+    });
+
+    let attempt_count = hit_i64("attempt_count")
+        .and_then(|attempt_count| i16::try_from(attempt_count).ok())
+        .ok_or_else(|| {
+            logger::error!(
+                attempt_count = hit
+                    .get("attempt_count")
+                    .map(|attempt_count| attempt_count.to_string())
+                    .unwrap_or_default(),
+                payment_id = payment_id_raw.as_str(),
+                "Missing/invalid attempt_count in OpenSearch hit"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+    let payment_method_data = hit
+        .get("payment_method_data")
+        .and_then(|payment_method_data| payment_method_data.as_str())
+        .and_then(|payment_method_data_str| {
+            serde_json::from_str(payment_method_data_str)
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        payment_id = payment_id_raw.as_str(),
+                        "Failed to parse payment_method_data from OpenSearch hit"
+                    );
+                })
+                .ok()
+        });
+
+    let setup_future_usage = hit_str("setup_future_usage")
+        .and_then(|setup_future_usage| enums::FutureUsage::from_str(setup_future_usage).ok());
+
+    let capture_method = attempt_str("capture_method")
+        .and_then(|capture_method| enums::CaptureMethod::from_str(capture_method).ok());
+
+    let authentication_type = hit_str("authentication_type").and_then(|authentication_type| {
+        enums::AuthenticationType::from_str(authentication_type).ok()
+    });
+
+    let mit_category = hit_str("mit_category")
+        .and_then(|mit_category| enums::MitCategory::from_str(mit_category).ok());
+
+    Ok(api_models::payments::PaymentsResponse {
         payment_id,
         merchant_id,
         processor_merchant_id,
-
         initiator: None,
         sdk_authorization: None,
         status,
         amount,
-
-        net_amount: attempt_i64("net_amount")
-            .map(MinorUnit::new)
-            .unwrap_or(amount),
-
-        amount_capturable: attempt_i64("amount_capturable")
-            .map(MinorUnit::new)
-            .unwrap_or_else(|| MinorUnit::new(0)),
-
-        currency: hit_str("currency").map(str::to_owned).unwrap_or_else(|| {
-            logger::error!(
-                payment_id = payment_id_raw.as_str(),
-                "Missing currency in OpenSearch hit"
-            );
-            String::new()
-        }),
-
+        net_amount,
+        amount_capturable,
+        currency,
         created,
         modified_at,
-
         connector: hit_str("connector").map(str::to_owned),
-
-        customer_id: hit_str("customer_id").and_then(|id| {
-            common_utils::id_type::CustomerId::try_from(Cow::from(id.to_owned()))
-                .map_err(|error| {
-                    logger::error!(
-                        ?error,
-                        customer_id = id,
-                        payment_id = payment_id_raw.as_str(),
-                        "Failed to parse customer_id from OpenSearch hit"
-                    );
-                })
-                .ok()
-        }),
-
+        customer_id,
         description: hit_str("description").map(str::to_owned),
-
-        payment_method: hit_str("payment_method").and_then(|s| {
-            enums::PaymentMethod::from_str(s)
-                .map_err(|error| {
-                    logger::error!(
-                        ?error,
-                        payment_method = s,
-                        payment_id = payment_id_raw.as_str(),
-                        "Failed to parse payment_method from OpenSearch hit"
-                    );
-                })
-                .ok()
-        }),
-
-        payment_method_type: hit_str("payment_method_type").and_then(|s| {
-            enums::PaymentMethodType::from_str(s)
-                .map_err(|error| {
-                    logger::error!(
-                        ?error,
-                        payment_method_type = s,
-                        payment_id = payment_id_raw.as_str(),
-                        "Failed to parse payment_method_type from OpenSearch hit"
-                    );
-                })
-                .ok()
-        }),
-
+        payment_method,
+        payment_method_type,
         connector_transaction_id: attempt_str("connector_transaction_id").map(str::to_owned),
-
-        merchant_connector_id: hit_str("merchant_connector_id").and_then(|id| {
-            common_utils::id_type::MerchantConnectorAccountId::try_from(Cow::from(id.to_owned()))
-                .map_err(|error| {
-                    logger::error!(
-                        ?error,
-                        merchant_connector_id = id,
-                        payment_id = payment_id_raw.as_str(),
-                        "Failed to parse merchant_connector_id from OpenSearch hit"
-                    );
-                })
-                .ok()
-        }),
-
-        profile_id: hit_str("profile_id").and_then(|id| {
-            common_utils::id_type::ProfileId::try_from(Cow::from(id.to_owned()))
-                .map_err(|error| {
-                    logger::error!(
-                        ?error,
-                        profile_id = id,
-                        payment_id = payment_id_raw.as_str(),
-                        "Failed to parse profile_id from OpenSearch hit"
-                    );
-                })
-                .ok()
-        }),
-
-        attempt_count: hit_i64("attempt_count")
-            .and_then(|v| i16::try_from(v).ok())
-            .unwrap_or_else(|| {
-                logger::error!(
-                    attempt_count = hit
-                        .get("attempt_count")
-                        .map(|v| v.to_string())
-                        .unwrap_or_default(),
-                    payment_id = payment_id_raw.as_str(),
-                    "Missing/invalid attempt_count in OpenSearch hit"
-                );
-                0
-            }),
-
+        merchant_connector_id,
+        profile_id,
+        attempt_count,
         customer: None,
         billing: None,
         shipping: None,
-
-        payment_method_data: hit
-            .get("payment_method_data")
-            .and_then(|v| v.as_str())
-            .and_then(|s| {
-                serde_json::from_str(s)
-                    .map_err(|error| {
-                        logger::error!(
-                            ?error,
-                            payment_id = payment_id_raw.as_str(),
-                            "Failed to parse payment_method_data from OpenSearch hit"
-                        );
-                    })
-                    .ok()
-            }),
-
-        client_secret: hit_str("client_secret").map(|s| Secret::new(s.to_owned())),
-
+        payment_method_data,
+        client_secret: hit_str("client_secret")
+            .map(|client_secret| Secret::new(client_secret.to_owned())),
         amount_received: attempt_i64("amount_received").map(MinorUnit::new),
         refunds: None,
         disputes: None,
@@ -7365,17 +7388,14 @@ pub fn convert_opensearch_hit_to_payments_response(
         connector_label: None,
         business_label: hit_str("business_label").map(str::to_owned),
         business_country: hit_str("business_country")
-            .and_then(|s| enums::CountryAlpha2::from_str(s).ok()),
+            .and_then(|business_country| enums::CountryAlpha2::from_str(business_country).ok()),
         business_sub_label: hit_str("business_sub_label").map(str::to_owned),
         allowed_payment_method_types: None,
         manual_retry_allowed: None,
         frm_message: None,
-        setup_future_usage: hit_str("setup_future_usage")
-            .and_then(|s| enums::FutureUsage::from_str(s).ok()),
-        capture_method: attempt_str("capture_method")
-            .and_then(|s| enums::CaptureMethod::from_str(s).ok()),
-        authentication_type: hit_str("authentication_type")
-            .and_then(|s| enums::AuthenticationType::from_str(s).ok()),
+        setup_future_usage,
+        capture_method,
+        authentication_type,
         connector_metadata: None,
         feature_metadata: None,
         reference_id: None,
@@ -7398,7 +7418,7 @@ pub fn convert_opensearch_hit_to_payments_response(
         merchant_order_reference_id: hit_str("merchant_order_reference_id").map(str::to_owned),
         order_tax_amount: None,
         connector_mandate_id: None,
-        mit_category: hit_str("mit_category").and_then(|s| enums::MitCategory::from_str(s).ok()),
+        mit_category,
         tokenization: None,
         shipping_cost: hit_i64("shipping_cost").map(MinorUnit::new),
         capture_before: None,
@@ -7424,5 +7444,5 @@ pub fn convert_opensearch_hit_to_payments_response(
         payment_method_tokenization_details: None,
         order_details: None,
         metadata: parse_json_from_str("metadata"),
-    }
+    })
 }
