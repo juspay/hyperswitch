@@ -1126,9 +1126,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         }
                     };
                     //set payment_data.payment_method_info
-                    payment_data.payment_attempt.payment_method_id = payment_method_info.as_ref().map(|pm_info| pm_info.get_id().clone()); 
+                    payment_data.payment_attempt.payment_method_id = payment_method_info
+                        .as_ref()
+                        .map(|pm_info| pm_info.get_id().clone());
                     payment_data.set_payment_method_info(payment_method_info);
-                    
+
                     Ok(())
                 } else {
                     logger::info!("Skipping create payment method in PM Modular Service as customer acceptance is not present in the request.");
