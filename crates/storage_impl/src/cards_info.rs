@@ -7,7 +7,7 @@ use crate::{
     errors::StorageError,
     kv_router_store::KVRouterStore,
     redis::kv_store::KvStorePartition,
-    utils::{pg_connection_read, pg_connection_write},
+    connection::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 

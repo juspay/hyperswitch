@@ -33,12 +33,13 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "v2")]
 use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::try_redis_get_else_try_database_get,
     DataModelExt, DatabaseStore, RouterStore,
 };
 

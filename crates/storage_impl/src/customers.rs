@@ -11,12 +11,12 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 

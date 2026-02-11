@@ -37,19 +37,18 @@ use redis_interface::HsetnxReply;
 use router_env::logger;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "olap")]
-use crate::connection;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::store::schema::{
     address::all_columns as addr_all_columns, customers::all_columns as cust_all_columns,
     payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
 };
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
     errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, pg_connection_read, pg_connection_write},
+    utils,
     DataModelExt, DatabaseStore,
 };
 
@@ -481,7 +480,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
@@ -591,7 +590,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )>,
         StorageError,
     > {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
             .inner_join(
@@ -821,7 +820,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<common_utils::id_type::PayoutId>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
             .inner_join(
@@ -916,7 +915,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         let mut query = <DieselPayouts as HasTable>::table()

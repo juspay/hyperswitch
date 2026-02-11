@@ -37,7 +37,7 @@ use bb8::{Pool, RunError};
 use common_utils::DbConnectionParams;
 use diesel::PgConnection;
 use error_stack::ResultExt;
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -275,23 +275,6 @@ impl PgPoolManager {
         }
     }
 
-    /// Triggers pool recreation in a background task.
-    ///
-    /// This is a non-blocking operation - the current pool continues serving
-    /// requests while the new pool is being created.
-    fn trigger_pool_recreation(&self) {
-        logger::info!(
-            schema = %self.schema,
-            "[POOL_MANAGER] trigger_pool_recreation() - spawning background task for pool recreation"
-        );
-        
-        let manager = self.clone();
-
-        tokio::spawn(async move {
-            manager.recreate_pool().await;
-        });
-    }
-
     /// Recreates the connection pool and atomically swaps it with the old one.
     ///
     /// This method:
@@ -311,72 +294,154 @@ impl PgPoolManager {
 
         logger::info!(
             schema = %self.schema,
-            "[POOL_MANAGER] recreate_pool() - acquired recreation lock, starting pool creation"
+            db_host = %self.db_config.host,
+            "[POOL_MANAGER] recreate_pool() - acquired recreation lock, waiting for DNS propagation before creating new pool"
         );
 
-        // Create new pool
-        let new_pool =
-            match create_pool(&self.db_config, &self.schema, self.test_transaction).await {
-                Ok(pool) => {
-                    logger::info!(
-                        schema = %self.schema,
-                        pool_state = ?pool.state(),
-                        "[POOL_MANAGER] recreate_pool() - new pool created successfully"
-                    );
-                    pool
-                }
+        // RDS cluster endpoint DNS TTL is typically 5 seconds, but local caches may hold longer
+        // Retry with increasing delays to ensure DNS has propagated to new primary
+        let dns_delays = [5, 10, 15]; // Total max wait: 30 seconds
+        
+        for (attempt, delay_secs) in dns_delays.iter().enumerate() {
+            logger::info!(
+                schema = %self.schema,
+                db_host = %self.db_config.host,
+                attempt = attempt + 1,
+                delay_secs = delay_secs,
+                "[POOL_MANAGER] recreate_pool() - waiting {}s for DNS propagation (attempt {}/{})",
+                delay_secs,
+                attempt + 1,
+                dns_delays.len()
+            );
+
+            tokio::time::sleep(Duration::from_secs(*delay_secs)).await;
+
+            // Create new pool and validate it's writable
+            let new_pool = match create_pool(&self.db_config, &self.schema, self.test_transaction).await {
+                Ok(pool) => pool,
                 Err(e) => {
                     logger::error!(
                         schema = %self.schema,
                         error = ?e,
-                        "[POOL_MANAGER] recreate_pool() - FAILED to create new pool"
+                        attempt = attempt + 1,
+                        "[POOL_MANAGER] recreate_pool() - FAILED to create new pool, will retry"
                     );
-                    return;
+                    continue;
                 }
             };
 
-        // Atomically swap the pools
-        let old_pool = self.pool.swap(Arc::new(new_pool));
+            // Validate the new pool connects to a writable primary
+            match validate_pool_is_writable(&new_pool).await {
+                Ok(true) => {
+                    logger::info!(
+                        schema = %self.schema,
+                        pool_state = ?new_pool.state(),
+                        attempt = attempt + 1,
+                        "[POOL_MANAGER] recreate_pool() - new pool VALIDATED as writable!"
+                    );
 
-        // Reset failure counter
-        self.consecutive_failures.store(0, Ordering::Relaxed);
+                    // Atomically swap the pools
+                    let old_pool = self.pool.swap(Arc::new(new_pool));
+                    self.consecutive_failures.store(0, Ordering::Relaxed);
 
+                    logger::info!(
+                        schema = %self.schema,
+                        old_pool_state = ?old_pool.state(),
+                        "[POOL_MANAGER] recreate_pool() - ATOMIC SWAP COMPLETE! New pool is now active"
+                    );
+
+                    // Drain old pool in background
+                    let drain_timeout = self.recovery_config.old_pool_drain_timeout_secs;
+                    let _schema_for_drain = self.schema.clone();
+                    tokio::spawn(async move {
+                        let _ = tokio::time::timeout(
+                            Duration::from_secs(drain_timeout),
+                            drain_pool_connections(old_pool),
+                        ).await;
+                    }.in_current_span());
+
+                    return; // Success!
+                }
+                Ok(false) => {
+                    logger::warn!(
+                        schema = %self.schema,
+                        attempt = attempt + 1,
+                        "[POOL_MANAGER] recreate_pool() - new pool still connecting to READ-ONLY replica, will retry"
+                    );
+                    // Drop this pool and retry
+                    continue;
+                }
+                Err(e) => {
+                    logger::warn!(
+                        schema = %self.schema,
+                        error = %e,
+                        attempt = attempt + 1,
+                        "[POOL_MANAGER] recreate_pool() - failed to validate pool, will retry"
+                    );
+                    continue;
+                }
+            }
+        }
+
+        logger::error!(
+            schema = %self.schema,
+            "[POOL_MANAGER] recreate_pool() - FAILED after all retries! DNS may not have propagated yet. \
+             Will retry on next failover error."
+        );
+    }
+
+    /// Triggers pool recreation in a background task.
+    ///
+    /// This is a non-blocking operation - the current pool continues serving
+    /// requests while the new pool is being created.
+    fn trigger_pool_recreation(&self) {
         logger::info!(
             schema = %self.schema,
-            old_pool_state = ?old_pool.state(),
-            "[POOL_MANAGER] recreate_pool() - ATOMIC SWAP COMPLETE! New pool is now active, failure counter reset"
+            "[POOL_MANAGER] trigger_pool_recreation() - spawning background task for pool recreation"
         );
+        
+        let manager = self.clone();
 
-        // Drain old pool in background with timeout
-        let drain_timeout = self.recovery_config.old_pool_drain_timeout_secs;
-        let schema_for_drain = self.schema.clone();
         tokio::spawn(async move {
-            logger::debug!(
-                schema = %schema_for_drain,
-                old_pool_state = ?old_pool.state(),
-                "[POOL_MANAGER] drain_old_pool - starting drain of old pool"
-            );
+            manager.recreate_pool().await;
+        }.in_current_span());
+    }
+}
 
-            // Wait for old pool connections to be returned and closed
-            // The pool will be dropped when all references are gone
-            let drain_result = tokio::time::timeout(
-                Duration::from_secs(drain_timeout),
-                drain_pool_connections(old_pool),
-            )
+/// Validates that a pool connects to a writable (primary) database.
+/// Returns Ok(true) if writable, Ok(false) if read-only, Err on connection failure.
+#[allow(unused_qualifications)]
+async fn validate_pool_is_writable(pool: &PgPool) -> Result<bool, String> {
+    use async_bb8_diesel::AsyncRunQueryDsl;
+    use diesel::prelude::*;
+    use diesel::sql_query;
+    use diesel::sql_types::Bool;
+    
+    #[derive(QueryableByName, Debug)]
+    struct ReadOnlyCheck {
+        #[diesel(sql_type = Bool)]
+        is_read_only: bool,
+    }
+
+    let conn = pool.get().await.map_err(|e| format!("Failed to get connection: {:?}", e))?;
+    
+    // Check PostgreSQL's transaction_read_only setting
+    let result: Result<ReadOnlyCheck, _> = 
+        sql_query("SELECT current_setting('transaction_read_only')::boolean AS is_read_only")
+            .get_result_async(&*conn)
             .await;
 
-            match drain_result {
-                Ok(()) => logger::debug!(
-                    schema = %schema_for_drain,
-                    "[POOL_MANAGER] drain_old_pool - old pool drained successfully"
-                ),
-                Err(_) => logger::warn!(
-                    schema = %schema_for_drain,
-                    timeout_secs = drain_timeout,
-                    "[POOL_MANAGER] drain_old_pool - old pool drain timed out, connections may be forcefully closed"
-                ),
+    match result {
+        Ok(check) => {
+            if check.is_read_only {
+                logger::debug!("[POOL_VALIDATE] Database is in READ-ONLY mode");
+                Ok(false)
+            } else {
+                logger::debug!("[POOL_VALIDATE] Database is WRITABLE");
+                Ok(true)
             }
-        });
+        }
+        Err(e) => Err(format!("Query error: {:?}", e)),
     }
 }
 

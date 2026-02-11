@@ -26,7 +26,7 @@ use super::MockDb;
 use crate::{
     diesel_error_to_data_error, errors,
     kv_router_store::{FindResourceBy, KVRouterStore},
-    utils::{pg_connection_read, pg_connection_write},
+    connection::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,
 };
 #[cfg(feature = "v1")]
