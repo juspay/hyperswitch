@@ -261,10 +261,6 @@ describe("Card - Refund flow - 3DS", () => {
     });
   });
 
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   it("should fully refund 3DS payment", () => {
     // Create payment intent
     const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
@@ -277,7 +273,7 @@ describe("Card - Refund flow - 3DS", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if (!utils.should_continue_further(data)) return; 
+    if (!utils.should_continue_further(confirmData)) return; 
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -307,6 +303,8 @@ describe("Card - Refund flow - 3DS", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return; 
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
@@ -329,6 +327,8 @@ describe("Card - Refund flow - 3DS", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
     cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "three_ds", "automatic", globalState);
 
+    if (!utils.should_continue_further(confirmData)) return; 
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
@@ -349,6 +349,8 @@ describe("Card - Refund flow - 3DS", () => {
     // Create and confirm payment
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
     cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "three_ds", "automatic", globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -378,6 +380,8 @@ describe("Card - Refund flow - 3DS", () => {
     // Confirm 3DS
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return; 
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -413,6 +417,8 @@ describe("Card - Refund flow - 3DS", () => {
     // Confirm 3DS
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;     
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -450,6 +456,8 @@ describe("Card - Refund flow - 3DS", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return; 
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
@@ -484,6 +492,8 @@ describe("Card - Refund flow - 3DS", () => {
     // Confirm 3DS
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return; 
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];

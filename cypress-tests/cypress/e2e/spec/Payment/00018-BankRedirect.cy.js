@@ -40,6 +40,8 @@ describe("Bank Redirect tests", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["Eps"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -57,6 +59,8 @@ describe("Bank Redirect tests", () => {
     // Confirm bank redirect
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["Ideal"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -76,6 +80,8 @@ describe("Bank Redirect tests", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["Sofort"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -94,6 +100,8 @@ describe("Bank Redirect tests", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["Przelewy24"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -111,6 +119,8 @@ describe("Bank Redirect tests", () => {
     // Confirm bank redirect
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["OpenBankingUk"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -133,6 +143,8 @@ describe("Bank Redirect tests", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["OnlineBankingFpx"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -153,6 +165,8 @@ describe("Bank Redirect tests", () => {
     // Confirm bank redirect
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["Interac"];
     cy.confirmBankRedirectCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];

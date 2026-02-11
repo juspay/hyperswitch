@@ -27,6 +27,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
@@ -46,6 +48,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     // Create and confirm payment
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "three_ds", "manual", globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.createConfirmPaymentBody["return_url"];
@@ -74,6 +78,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
@@ -94,6 +100,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "three_ds", "manual", globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+    
     // Handle redirection
     const expected_redirection = fixtures.createConfirmPaymentBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);

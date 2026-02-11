@@ -27,6 +27,8 @@ describe("Bank Transfers", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["Pix"];
     cy.confirmBankTransferCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -44,6 +46,8 @@ describe("Bank Transfers", () => {
     // Confirm bank transfer
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["InstantBankTransferFinland"];
     cy.confirmBankTransferCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
@@ -63,6 +67,8 @@ describe("Bank Transfers", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["InstantBankTransferPoland"];
     cy.confirmBankTransferCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -80,6 +86,8 @@ describe("Bank Transfers", () => {
     // Confirm bank transfer
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["Ach"];
     cy.confirmBankTransferCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle redirection (skip for checkbook connector)
     const expected_redirection = fixtures.confirmBody["return_url"];
