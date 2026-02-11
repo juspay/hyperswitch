@@ -64,7 +64,8 @@
                       "v2/payment-methods/payment-method--retrieve-v1",
                       "v2/payment-methods/payment-method--update-v1",
                       "v2/payment-methods/payment-method--delete-v1",
-                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1"
+                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
+                      "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1"
                     ]
                   },
                   {
@@ -75,6 +76,12 @@
                       "v2/customers/customers--update-v1",
                       "v2/customers/customers--delete-v1",
                       "v2/customers/customers--list-v1"
+                    ]
+                  },
+                  {
+                    "group": "Proxy",
+                    "pages": [
+                      "v2/proxy/proxy-v1"
                     ]
                   },
                   {
