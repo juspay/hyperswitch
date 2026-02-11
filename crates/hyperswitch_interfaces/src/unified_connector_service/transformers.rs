@@ -404,7 +404,6 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 domestic_network: card_data.domestic_network,
                 auth_code: card_data.auth_code,
             }),
-            }
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 let upi_mode = upi_data
                     .upi_mode
