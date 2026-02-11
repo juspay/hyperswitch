@@ -33,6 +33,36 @@ env:
   RUST_MIN_STACK: 11534336
 
 jobs:
+  resolve-s-test-ready:
+    name: Resolve S-test-ready label
+    runs-on: ubuntu-latest
+    outputs:
+      s_test_ready: ${{ steps.check-s-test-ready.outputs.s_test_ready || steps.set-s-test-ready-for-skipped-tests.outputs.s_test_ready }}
+    steps:
+      - name: Check S-test-ready label
+        id: check-s-test-ready
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh pr view ${{ github.event.pull_request.number }} \
+              --repo ${{ github.repository }} \
+              --json labels \
+              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
+            echo "S-test-ready label found"
+            echo "s_test_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+            exit 1
+          fi
+
+      - name: Set S-test-ready output for skipped tests
+        id: set-s-test-ready-for-skipped-tests
+        if: ${{ env.RUN_TESTS == 'false' }}
+        shell: bash
+        run: echo "s_test_ready=false" >> "$GITHUB_OUTPUT"
+
   formatter:
     name: Run formatter on Cypress tests and address lints
     if: ${{ github.event_name == 'pull_request' }}
@@ -94,6 +124,7 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
+    needs: resolve-s-test-ready
     runs-on: ubuntu-latest
 
     env:
@@ -104,22 +135,6 @@ jobs:
         shell: bash
         if: ${{ env.RUN_TESTS == 'false' }}
         run: echo 'Skipping tests for PRs from forks'
-        
-      - name: Check S-test-ready label
-        if: ${{ env.RUN_TESTS == 'true' }}  
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          if gh pr view ${{ github.event.pull_request.number }} \
-              --repo ${{ github.repository }} \
-              --json labels \
-              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
-            echo "S-test-ready label found"
-          else
-            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-            exit 1
-          fi
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -166,9 +181,7 @@ jobs:
   
   build-hyperswitch-runners:
     name: Build hyperswitch server(hyperswitch-runners)
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: resolve-s-test-ready
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -224,7 +237,7 @@ jobs:
   
   runner:
     name: Run mandatory Cypress tests
-    needs: build-hyperswitch
+    needs: [resolve-s-test-ready, build-hyperswitch]
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
@@ -261,22 +274,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
-
-      - name: Check S-test-ready label
-        if: ${{ env.RUN_TESTS == 'true' }}  
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          if gh pr view ${{ github.event.pull_request.number }} \
-              --repo ${{ github.repository }} \
-              --json labels \
-              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
-            echo "S-test-ready label found"
-          else
-            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-            exit 1
-          fi
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -437,10 +434,7 @@ jobs:
 
   runner-hyperswitch-runners:
     name: Run mandatory Cypress tests (hyperswitch-runners)
-    needs: build-hyperswitch-runners
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: [resolve-s-test-ready, build-hyperswitch-runners]
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -886,9 +880,7 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
-    needs: build-hyperswitch-runners
-    if: |
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    needs: [resolve-s-test-ready, build-hyperswitch-runners]
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -922,22 +914,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
-
-      - name: Check S-test-ready label
-        if: ${{ env.RUN_TESTS == 'true' }}  
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          if gh pr view ${{ github.event.pull_request.number }} \
-              --repo ${{ github.repository }} \
-              --json labels \
-              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
-            echo "S-test-ready label found"
-          else
-            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-            exit 1
-          fi
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1110,7 +1086,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: github.event_name == 'merge_group' || github.event_name == 'pull_request'
+    needs: resolve-s-test-ready
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
@@ -1149,22 +1125,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
-        
-      - name: Check S-test-ready label
-        if: ${{ env.RUN_TESTS == 'true' }}  
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          if gh pr view ${{ github.event.pull_request.number }} \
-              --repo ${{ github.repository }} \
-              --json labels \
-              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
-            echo "S-test-ready label found"
-          else
-            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
-            exit 1
-          fi
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
