@@ -27,6 +27,7 @@ pub enum RelayData {
     Refund(RelayRefundRequestData),
     Capture(RelayCaptureRequestData),
     IncrementalAuthorization(RelayIncrementalAuthorizationRequestData),
+    Void(RelayVoidRequestData),
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -66,6 +67,19 @@ pub struct RelayIncrementalAuthorizationRequestData {
     /// The currency in which the amount is being captured
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayVoidRequestData {
+    /// The amount of the transaction that is being voided
+    #[schema(value_type = i64 , example = 6540)]
+    pub amount: Option<MinorUnit>,
+    /// The currency in which the amount is being voided
+    #[schema(value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
+    /// The cancellation reason for voiding the transaction
+    #[schema(example = "Requested by merchant")]
+    pub cancellation_reason: Option<String>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
