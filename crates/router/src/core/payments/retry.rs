@@ -16,7 +16,9 @@ use crate::{
             self, complete_connector_service,
             flows::{ConstructFlowSpecificData, Feature},
             helpers as payments_helpers, operations,
-        }, routing::helpers as routing_helpers
+        },
+        routing::helpers as routing_helpers,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{
@@ -43,6 +45,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -112,6 +115,7 @@ where
             false, //should_retry_with_pan is not applicable for step-up
             None,
             initial_gsm.clone(),
+            feature_config,
         )
         .await?;
     }
@@ -218,6 +222,7 @@ where
                         should_retry_with_pan,
                         routing_decision,
                         gsm.clone(),
+                        feature_config,
                     )
                     .await?;
 
@@ -366,6 +371,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -405,6 +411,7 @@ where
             business_profile,
             should_retry_with_pan,
             routing_decision,
+            feature_config,
         )
         .await?;
 
@@ -502,7 +509,7 @@ where
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
-    let new_payment_attempt = make_new_payment_attempt(
+    let new_payment_attempt = make_new_auto_retry_payment_attempt(
         connector,
         payment_data.get_payment_attempt().clone(),
         new_attempt_count,
@@ -749,7 +756,7 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub fn make_new_payment_attempt(
+pub fn make_new_auto_retry_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
@@ -843,6 +850,7 @@ pub fn make_new_payment_attempt(
         debit_routing_savings: Default::default(),
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
+        retry_type: Some(storage_enums::RetryType::AutoRetry),
     }
 }
 

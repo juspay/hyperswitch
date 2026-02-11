@@ -24,7 +24,10 @@ use hyperswitch_interfaces::micro_service::MicroserviceClient;
 pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
 #[cfg(feature = "v1")]
-pub use update::{UpdatePaymentMethod, UpdatePaymentMethodV1Request};
+pub use update::{
+    CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
+    UpdatePaymentMethodV1Request,
+};
 
 use crate::configs::ModularPaymentMethodServiceUrl;
 
@@ -54,7 +57,7 @@ impl<'a> PaymentMethodClient<'a> {
     }
 }
 
-impl<'a> MicroserviceClient for PaymentMethodClient<'a> {
+impl MicroserviceClient for PaymentMethodClient<'_> {
     fn base_url(&self) -> &url::Url {
         self.base_url.as_ref()
     }

@@ -7,6 +7,7 @@ use external_services::superposition::{self, ConfigContext};
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
+    db,
     routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{api, transformers::ForeignInto},
@@ -126,13 +127,10 @@ impl ConfigType for serde_json::Value {
 /// that database fallback is used when superposition fails. It uses the config's
 /// `db_key` method to construct the database key from dimensions.
 pub async fn fetch_db_with_dimensions<C, M, O, P>(
-    storage: &(dyn hyperswitch_domain_models::configs::ConfigInterface<
-        Error = storage_impl::errors::StorageError,
-    > + Send
-          + Sync),
+    storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
-    targeting_context: &superposition::TargetingContext,
+    targeting_key: Option<&String>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -145,7 +143,14 @@ where
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
     let context = dimensions.to_superposition_context();
 
-    fetch_db_config::<C>(storage, superposition_client, &db_key, context, targeting_context).await
+    fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        &db_key,
+        context,
+        targeting_key,
+    )
+    .await
 }
 
 /// This trait extends external_services::superposition::Config with database-specific metadata
@@ -162,14 +167,11 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// This function is specifically for DatabaseBackedConfig types and enforces
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
-    storage: &(dyn hyperswitch_domain_models::configs::ConfigInterface<
-        Error = storage_impl::errors::StorageError,
-    > + Send
-          + Sync),
+    storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,
-    targeting_context: &superposition::TargetingContext,
+    targeting_key: Option<&String>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -181,28 +183,16 @@ where
 
     router_env::logger::info!("here in fetch_db_config ");
     let superposition_result = match superposition_client {
-        Some(client) => {
-            router_env::logger::info!("here in client super fetch call");
-            C::fetch(client, context, targeting_context).await
-        }
-        None => {
-            router_env::logger::info!("here in client super fetch call failed");
-            Err(error_stack::report!(
-                superposition::SuperpositionError::ClientError(
-                    "No superposition client available".to_string()
-                )
-            ))
-        }
+        Some(client) => C::fetch(client, context, targeting_key).await,
+        None => Err(error_stack::report!(
+            superposition::SuperpositionError::ClientError(
+                "No superposition client available".to_string()
+            )
+        )),
     };
     
     match superposition_result {
-        Ok(value) => {
-            metrics::CONFIG_SUPERPOSITION_FETCH.add(
-                1,
-                router_env::metric_attributes!(("config_type", config_type)),
-            );
-            value
-        }
+        Ok(value) => value,
         Err(_) => {
             router_env::logger::info!("Retrieving config from database for key '{}'", db_key);
 

@@ -143,6 +143,7 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }

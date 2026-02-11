@@ -5,14 +5,12 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use common_utils::{
-    errors::CustomResult,
-    id_type
-};
+use common_utils::errors::CustomResult;
 use error_stack::report;
 use masking::ExposeInterface;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
+use crate::config_metrics;
 
 fn convert_open_feature_value(value: open_feature::Value) -> Result<serde_json::Value, String> {
     match value {
@@ -95,98 +93,6 @@ impl GetValue<serde_json::Value> for open_feature::Client {
     }
 }
 
-/// Holds all optional identifiers that can be used to build
-/// targeting keys for  experiment resolution.
-/// Each field is optional because targeting may be performed
-/// at different levels (merchant-level, customer-level, payment-level, etc.).
-
-#[derive(Debug, Clone, Default)]
-pub struct TargetingContext {
-    /// Unique identifier of the merchant.
-    ///
-    /// Used for merchant-level targeting.
-    pub merchant_id: Option<id_type::MerchantId>,
-
-    /// Unique identifier of the customer.
-    ///
-    /// Used for customer-specific targeting.
-    pub customer_id: Option<id_type::CustomerId>,
-
-    /// Unique identifier of the payment.
-    ///
-    /// Useful for payment-level targeting.
-    pub payment_id: Option<id_type::PaymentId>,
-
-    /// Unique identifier of the business profile.
-    ///
-    /// Allows profile-scoped configuration and routing logic.
-    pub profile_id: Option<id_type::ProfileId>,
-}
-impl TargetingContext {
-    // ---------------------------------------------------------------------
-    // Constructors
-    // ---------------------------------------------------------------------
-
-    /// Creates an empty `TargetingContext` with no identifiers set.
-    ///
-    /// Equivalent to calling `TargetingContext::default()`.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    // ---------------------------------------------------------------------
-    // Builder-style setters (consume self, return updated self)
-    // ---------------------------------------------------------------------
-
-    /// Returns a new `TargetingContext` with the given merchant ID set.
-    pub fn with_merchant_id(mut self, merchant_id: id_type::MerchantId) -> Self {
-        self.merchant_id = Some(merchant_id);
-        self
-    }
-
-    /// Returns a new `TargetingContext` with the given customer ID set.
-    pub fn with_customer_id(mut self, customer_id: id_type::CustomerId) -> Self {
-        self.customer_id = Some(customer_id);
-        self
-    }
-
-    /// Returns a new `TargetingContext` with the given payment ID set.
-    pub fn with_payment_id(mut self, payment_id: id_type::PaymentId) -> Self {
-        self.payment_id = Some(payment_id);
-        self
-    }
-
-    /// Returns a new `TargetingContext` with the given profile ID set.
-    pub fn with_profile_id(mut self, profile_id: id_type::ProfileId) -> Self {
-        self.profile_id = Some(profile_id);
-        self
-    }
-
-    // ---------------------------------------------------------------------
-    // Getters
-    // ---------------------------------------------------------------------
-
-    /// Returns a reference to the merchant ID, if present.
-    pub fn merchant_id(&self) -> Option<String> {
-        self.merchant_id.as_ref().map(|m_id|m_id.get_string_repr().to_owned())
-    }
-
-    /// Returns a reference to the customer ID, if present.
-    pub fn customer_id(&self) -> Option<String> {
-        self.customer_id.as_ref().map(|c_id|c_id.get_string_repr().to_owned())
-    }
-
-    /// Returns a reference to the payment ID, if present.
-    pub fn payment_id(&self) -> Option<String> {
-        self.payment_id.as_ref().map(|pa_id|pa_id.get_string_repr().to_owned())
-    }
-
-    /// Returns a reference to the profile ID, if present.
-    pub fn profile_id(&self) -> Option<String> {
-        self.profile_id.as_ref().map(|p_id|p_id.get_string_repr().to_owned())
-    }
-}
-
 /// Superposition client wrapper
 // Debug trait cannot be derived because open_feature::Client doesn't implement Debug
 #[allow(missing_debug_implementations)]
@@ -210,7 +116,16 @@ impl SuperpositionClient {
                     timeout: config.request_timeout,
                 },
             ),
-            experimentation_options: None,
+            experimentation_options: Some(superposition_provider::types::ExperimentationOptions {
+                refresh_strategy: superposition_provider::RefreshStrategy::Polling(
+                    superposition_provider::PollingStrategy {
+                        interval: config.polling_interval,
+                        timeout: config.request_timeout,
+                    },
+                ),
+                evaluation_cache: None,
+                default_toss: None,
+            }),
         };
 
         // Create provider and set up OpenFeature
@@ -232,7 +147,7 @@ impl SuperpositionClient {
     fn build_evaluation_context(
         &self,
         context: Option<&ConfigContext>,
-        targeting_key: Option<&String>
+        targeting_key: Option<&String>,
     ) -> open_feature::EvaluationContext {
         open_feature::EvaluationContext {
             custom_fields: context.map_or(HashMap::new(), |ctx| {
@@ -265,7 +180,7 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&ConfigContext>,
-        targeting_key : Option<&String>, 
+        targeting_key: Option<&String>,
     ) -> CustomResult<T, SuperpositionError>
     where
         open_feature::Client: GetValue<T>,
@@ -296,25 +211,24 @@ pub trait Config {
 
     /// Get the default value for this config
     const DEFAULT_VALUE: Self::Output;
-    /// Define what targeting key this feature flag uses
-    /// Each config implements this to specify its targeting strategy
-    fn build_targeting_key(targeting_ctx: &TargetingContext) -> Option<String>;
 
     /// Fetch config value from Superposition.
     fn fetch(
         superposition_client: &SuperpositionClient,
         context: Option<ConfigContext>,
-        targeting_context: &TargetingContext,
+        targeting_key: Option<&String>,
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
     {
         router_env::logger::info!("in superposition client");
         async move {
-            let targeting_key = Self::build_targeting_key(targeting_context);
-            router_env::logger::info!("targeting key {:?}",targeting_key);
             match superposition_client
-                .get_config_value::<Self::Output>(Self::SUPERPOSITION_KEY, context.as_ref(), targeting_key.as_ref())
+                .get_config_value::<Self::Output>(
+                    Self::SUPERPOSITION_KEY,
+                    context.as_ref(),
+                    targeting_key,
+                )
                 .await
             {
                 Ok(value) => {
@@ -322,6 +236,10 @@ pub trait Config {
                         "Superposition config hit: key='{}', type='{}'",
                         Self::SUPERPOSITION_KEY,
                         std::any::type_name::<Self::Output>()
+                    );
+                    config_metrics::CONFIG_SUPERPOSITION_FETCH.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", Self::SUPERPOSITION_KEY)),
                     );
                     Ok(value)
                 }

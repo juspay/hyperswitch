@@ -1,7 +1,7 @@
 use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::client::create::CardDetail;
@@ -75,7 +75,7 @@ pub enum RawPaymentMethodData {
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConnectorTokenDetails {
     pub connector_id: id_type::MerchantConnectorAccountId,
     pub token_type: common_enums::TokenizationType,
