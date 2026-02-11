@@ -1353,3 +1353,123 @@ impl TrustpaymentsPaymentResponseData {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test that TrustpaymentsPaymentsResponse correctly deserializes amount and currency fields
+    /// needed for integrity checks.
+    #[test]
+    fn test_response_deserialization_with_integrity_fields() {
+        let json_response = r#"{
+            "response": [{
+                "errorcode": "0",
+                "errormessage": "Ok",
+                "authcode": "AUTH123",
+                "baseamount": "1000",
+                "currencyiso3a": "USD",
+                "transactionreference": "1-2-345678",
+                "settlestatus": "0",
+                "requesttypedescription": "AUTH"
+            }]
+        }"#;
+
+        let response: TrustpaymentsPaymentsResponse =
+            serde_json::from_str(json_response).expect("Failed to deserialize response");
+
+        assert_eq!(response.responses.len(), 1);
+
+        let response_data = response.responses.first().unwrap();
+
+        // Verify integrity-related fields are correctly parsed
+        assert!(response_data.baseamount.is_some());
+        assert!(response_data.currencyiso3a.is_some());
+        assert_eq!(
+            response_data.currencyiso3a.as_ref().unwrap(),
+            &"USD".to_string()
+        );
+    }
+
+    /// Test response deserialization when integrity fields are missing (optional fields)
+    #[test]
+    fn test_response_deserialization_without_integrity_fields() {
+        let json_response = r#"{
+            "response": [{
+                "errorcode": "0",
+                "errormessage": "Ok",
+                "transactionreference": "1-2-345678",
+                "requesttypedescription": "AUTH"
+            }]
+        }"#;
+
+        let response: TrustpaymentsPaymentsResponse =
+            serde_json::from_str(json_response).expect("Failed to deserialize response");
+
+        assert_eq!(response.responses.len(), 1);
+
+        let response_data = response.responses.first().unwrap();
+
+        // Integrity fields should be None when not present
+        assert!(response_data.baseamount.is_none());
+        assert!(response_data.currencyiso3a.is_none());
+    }
+
+    /// Test that error responses are correctly handled
+    #[test]
+    fn test_error_response_deserialization() {
+        let json_response = r#"{
+            "response": [{
+                "errorcode": "30000",
+                "errormessage": "Invalid credentials",
+                "requesttypedescription": "ERROR"
+            }]
+        }"#;
+
+        let response: TrustpaymentsPaymentsResponse =
+            serde_json::from_str(json_response).expect("Failed to deserialize response");
+
+        let response_data = response.responses.first().unwrap();
+
+        assert_eq!(
+            response_data.errorcode,
+            TrustpaymentsErrorCode::InvalidCredentials
+        );
+        assert!(response_data.baseamount.is_none());
+        assert!(response_data.currencyiso3a.is_none());
+    }
+
+    /// Test payment status mapping for successful authorization
+    #[test]
+    fn test_payment_status_with_authorization() {
+        let json_response = r#"{
+            "response": [{
+                "errorcode": "0",
+                "errormessage": "Ok",
+                "authcode": "AUTH123",
+                "baseamount": "5000",
+                "currencyiso3a": "EUR",
+                "transactionreference": "ref-123",
+                "settlestatus": "0",
+                "requesttypedescription": "AUTH"
+            }]
+        }"#;
+
+        let response: TrustpaymentsPaymentsResponse =
+            serde_json::from_str(json_response).expect("Failed to deserialize response");
+
+        let response_data = response.responses.first().unwrap();
+
+        // Verify payment status is correctly determined
+        let status = response_data.get_payment_status();
+        assert_eq!(status, common_enums::AttemptStatus::Charged);
+
+        // Verify integrity fields are present for integrity check
+        assert!(response_data.baseamount.is_some());
+        assert!(response_data.currencyiso3a.is_some());
+        assert_eq!(
+            response_data.currencyiso3a.as_ref().unwrap(),
+            &"EUR".to_string()
+        );
+    }
+}
