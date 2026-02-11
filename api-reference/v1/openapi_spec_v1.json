@@ -2792,6 +2792,80 @@
         ]
       }
     },
+    "/account/{account_id}/connectors/webhooks/{merchant_connector_id}": {
+      "post": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Configure Connector Webhook - Register",
+        "description": "Setup webhook configuration for an existing Merchant at the connector.",
+        "operationId": "Register a Connector Webhook",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant_connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorWebhookRegisterRequest"
+              },
+              "examples": {
+                "Register  webhook for a specific event": {
+                  "value": {
+                    "event_type": {
+                      "specific_event": "payment_succeeded"
+                    }
+                  }
+                },
+                "Register a standard webhook": {
+                  "value": {
+                    "event_type": "standard"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Connector Webhook Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterConnectorWebhookResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/gsm": {
       "post": {
         "tags": [
@@ -3344,7 +3418,7 @@
                   "value": {
                     "card": {
                       "card_exp_month": "11",
-                      "card_exp_year": "25",
+                      "card_exp_year": "30",
                       "card_holder_name": "John Doe",
                       "card_number": "4242424242424242"
                     },
@@ -12209,7 +12283,7 @@
             ],
             "properties": {
               "sepa": {
-                "type": "object"
+                "$ref": "#/components/schemas/SepaBankTransferPaymentAdditionalData"
               }
             }
           },
@@ -13057,6 +13131,71 @@
           }
         }
       },
+      "BoletoAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "due_date": {
+            "type": "string",
+            "description": "Due Date for the Boleto",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "document_kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoDocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentType"
+              }
+            ],
+            "nullable": true
+          },
+          "covenant_code": {
+            "type": "string",
+            "example": "3568253",
+            "nullable": true
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "BoletoDocumentKind": {
+        "type": "string",
+        "enum": [
+          "commercial_invoice",
+          "service_invoice",
+          "promissory_note",
+          "rural_promissory_note",
+          "receipt",
+          "insurance_policy",
+          "credit_card_invoice",
+          "proposal",
+          "deposit_or_funding",
+          "cheque",
+          "direct_promissory_note",
+          "other"
+        ]
+      },
+      "BoletoPaymentType": {
+        "type": "string",
+        "enum": [
+          "fixed_amount",
+          "flexible_amount",
+          "installment"
+        ]
+      },
       "BoletoVoucherData": {
         "type": "object",
         "properties": {
@@ -13076,7 +13215,6 @@
                 "$ref": "#/components/schemas/DocumentKind"
               }
             ],
-            "default": "cnpj",
             "nullable": true
           },
           "fine_percentage": {
@@ -15048,6 +15186,14 @@
               }
             ],
             "nullable": true
+          },
+          "peachpayments": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15174,6 +15320,42 @@
           "google_pay": {
             "type": "object",
             "description": "This field contains the Google Pay certificates and credentials",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectorWebhookEventType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "all_events"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "specific_event"
+            ],
+            "properties": {
+              "specific_event": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ConnectorWebhookRegisterRequest": {
+        "type": "object",
+        "description": "Register a webhook at the connector",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
             "nullable": true
           }
         },
@@ -17805,6 +17987,27 @@
           "dispute_lost"
         ]
       },
+      "DocumentDetails": {
+        "type": "object",
+        "required": [
+          "document_number"
+        ],
+        "properties": {
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "nullable": true
+          },
+          "document_number": {
+            "type": "string",
+            "description": "Cpf or Cnpj number",
+            "example": "20201210000155"
+          }
+        }
+      },
       "DocumentKind": {
         "type": "string",
         "description": "Represents the type of identification document used for validation.",
@@ -18644,6 +18847,22 @@
               }
             ],
             "nullable": true
+          },
+          "pix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "boleto_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18874,6 +19093,28 @@
             ],
             "properties": {
               "user_shipping_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_document_type"
+            ],
+            "properties": {
+              "user_document_type": {
                 "type": "object",
                 "required": [
                   "options"
@@ -20452,6 +20693,28 @@
         ],
         "discriminator": {
           "propertyName": "method_key"
+        }
+      },
+      "ImmediateExpirationTime": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Expiration time in seconds",
+            "minimum": 0
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "IncrementalAuthorizationResponse": {
@@ -30752,6 +31015,14 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object."
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30759,7 +31030,8 @@
       "PaymentsUpdateMetadataResponse": {
         "type": "object",
         "required": [
-          "payment_id"
+          "payment_id",
+          "status"
         ],
         "properties": {
           "payment_id": {
@@ -30769,6 +31041,22 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }
@@ -33063,6 +33351,16 @@
           }
         }
       },
+      "PeachpaymentsData": {
+        "type": "object",
+        "properties": {
+          "rrn": {
+            "type": "string",
+            "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
+          }
+        }
+      },
       "PeriodUnit": {
         "type": "string",
         "enum": [
@@ -33088,6 +33386,32 @@
             "nullable": true
           }
         }
+      },
+      "PixAdditionalDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "immediate"
+            ],
+            "properties": {
+              "immediate": {
+                "$ref": "#/components/schemas/ImmediateExpirationTime"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "scheduled"
+            ],
+            "properties": {
+              "scheduled": {
+                "$ref": "#/components/schemas/ScheduledExpirationTime"
+              }
+            }
+          }
+        ]
       },
       "PixBankTransfer": {
         "type": "object",
@@ -33166,6 +33490,103 @@
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
+        }
+      },
+      "PixKey": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cpf"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cnpj"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "evp_token"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PlatformAccountCreateRequest": {
@@ -34868,6 +35289,40 @@
           "schedule_refund"
         ]
       },
+      "RegisterConnectorWebhookResponse": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_registration_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RelayCaptureRequestData": {
         "type": "object",
         "required": [
@@ -34925,6 +35380,17 @@
             "properties": {
               "incremental_authorization": {
                 "$ref": "#/components/schemas/RelayIncrementalAuthorizationRequestData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "void"
+            ],
+            "properties": {
+              "void": {
+                "$ref": "#/components/schemas/RelayVoidRequestData"
               }
             }
           }
@@ -35103,8 +35569,37 @@
         "enum": [
           "refund",
           "capture",
-          "incremental_authorization"
+          "incremental_authorization",
+          "void"
         ]
+      },
+      "RelayVoidRequestData": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the transaction that is being voided",
+            "example": 6540
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The cancellation reason for voiding the transaction",
+            "example": "Requested by merchant",
+            "nullable": true
+          }
+        }
       },
       "RequestPaymentMethodTypes": {
         "type": "object",
@@ -36266,6 +36761,35 @@
           "transaction_risk_analysis"
         ]
       },
+      "ScheduledExpirationTime": {
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Expiration time in terms of date, format: YYYY-MM-DD",
+            "example": "2026-07-08"
+          },
+          "validity_after_expiration": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days after expiration date for which the QR code remains valid",
+            "example": 10,
+            "nullable": true,
+            "minimum": 0
+          },
+          "pix_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "SdkDisplayMode": {
         "type": "string",
         "description": "Display mode options for controlling how messages are shown.",
@@ -36529,6 +37053,35 @@
           "reference": {
             "type": "string",
             "example": "U2PVVSEV4V9Y"
+          }
+        }
+      },
+      "SepaBankTransferPaymentAdditionalData": {
+        "type": "object",
+        "properties": {
+          "debitor_iban": {
+            "type": "string",
+            "description": "debitor IBAN",
+            "example": "DE89370400440532013000",
+            "nullable": true
+          },
+          "debitor_bic": {
+            "type": "string",
+            "description": "debitor BIC",
+            "example": "MARKDEF1100",
+            "nullable": true
+          },
+          "debitor_name": {
+            "type": "string",
+            "description": "debitor name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "debitor_email": {
+            "type": "string",
+            "description": "debitor email",
+            "example": "johndoe@example.com",
+            "nullable": true
           }
         }
       },
@@ -39375,7 +39928,7 @@
             "type": "string",
             "description": "Standard webhook configuration supporting all events hyperswitch provides",
             "enum": [
-              "Standard"
+              "AllEvents"
             ]
           },
           {
@@ -39495,6 +40048,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
       },
       "WebhookSetupCapabilities": {
         "type": "object",

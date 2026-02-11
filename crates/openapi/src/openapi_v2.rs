@@ -152,6 +152,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::list_customer_payment_method_api,
         routes::payment_method::list_customer_payment_method_api_v1,
         routes::payment_method::payment_method_get_token_details_api,
+        routes::payment_method::payment_method_get_token_details_api_v1,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,
@@ -178,12 +179,17 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for proxy
         routes::proxy::proxy_core,
+        routes::proxy::proxy_core_v1,
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
         routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
+        api_models::payments::DocumentDetails,
+        api_models::enums::PixKey,
+        api_models::enums::BoletoDocumentKind,
+        api_models::enums::BoletoPaymentType,
         common_utils::types::MinorUnit,
         common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,
@@ -465,6 +471,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkType,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
+        api_models::payments::PixAdditionalDetails,
+        api_models::payments::ImmediateExpirationTime,
+        api_models::payments::ScheduledExpirationTime,
+        api_models::payments::BoletoAdditionalDetails,
         api_models::payments::PaymentProcessingDetailsAt,
         api_models::payments::ApplepayInitiative,
         api_models::payments::PaymentProcessingDetails,
@@ -478,6 +488,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
+        api_models::payments::PeachpaymentsData,
         api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::WalletData,
@@ -849,6 +860,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
         api_models::payments::additional_info::WalletAdditionalDataForCard,
+        api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData,
         api_models::payments::WalletResponse,
         api_models::payments::WalletResponseData,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
