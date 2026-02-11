@@ -987,6 +987,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
                 .password
                 .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
             lineage_context: None,
+            is_active: true,
         })
     }
 }
@@ -1305,6 +1306,10 @@ impl UserFromStorage {
 
     pub fn get_recovery_codes(&self) -> Option<Vec<Secret<String>>> {
         self.0.totp_recovery_codes.clone()
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.0.is_active
     }
 
     pub async fn decrypt_and_get_totp_secret(

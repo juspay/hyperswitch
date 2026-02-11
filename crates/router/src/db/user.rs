@@ -164,6 +164,7 @@ impl UserInterface for MockDb {
             totp_recovery_codes: user_data.totp_recovery_codes,
             last_password_modified_at: user_data.last_password_modified_at,
             lineage_context: user_data.lineage_context,
+            is_active: user_data.is_active
         };
         users.push(user.clone());
         Ok(user)
