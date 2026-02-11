@@ -16,8 +16,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "trustpay mollie"
-  PARALLEL_PAYMENTS_CONNECTORS : "trustpay mollie"
+  PAYMENTS_CONNECTORS: "braintree mollie"
+  PARALLEL_PAYMENTS_CONNECTORS : "braintree mollie"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu redsys zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
