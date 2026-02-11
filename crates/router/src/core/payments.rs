@@ -47,7 +47,6 @@ use common_utils::{
     id_type, pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
-use crate::core::configs;
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
@@ -6517,9 +6516,8 @@ where
     let dimensions = configs::dimension_state::Dimensions::new()
         .with_merchant_id(merchant_id.clone());
 
-    let targeting_context = superposition::TargetingContext::new();
     let blocklist_guard_enabled = dimensions
-        .get_blocklist_guard_enabled(state.store.as_ref(), state.superposition_service.as_deref(), &targeting_context).await;
+        .get_blocklist_guard_enabled(state.store.as_ref(), state.superposition_service.as_deref(), None).await;
     logger::info!("blocklist_guard_enabled {:?}", blocklist_guard_enabled);
     if blocklist_guard_enabled {
         Ok(operation
@@ -9503,6 +9501,9 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
     // with the connector have to be made using the same connector account.
@@ -9594,9 +9595,11 @@ where
 
             #[cfg(feature = "retry")]
             let should_do_retry = retry::config_should_call_gsm(
+                &state,
                 &*state.store,
-                platform.get_processor().get_account().get_id(),
+                &merchant_id,
                 business_profile,
+                &dimensions,
             )
             .await;
 

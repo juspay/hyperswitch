@@ -98,19 +98,14 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
 }
 
 
-
-// Define BlocklistGuardEnabled struct and superposition::Config using the macro
 config! {
-    BlocklistGuardEnabled => bool,
-    superposition_key = superposition_consts::BLOCKLIST_GUARD_ENABLED,
+    superposition_key = BLOCKLIST_GUARD_ENABLED,
+    output = bool,
     default = false,
     requires = HasMerchantId,
-    method = get_blocklist_guard_enabled,
-    targeting_key = customer_id
+    targeting_key = id_type::CustomerId
 }
 
-// Manual implementation of DatabaseBackedConfig for BlocklistGuardEnabled
-// This is REQUIRED by the trait and enforces db_key implementation
 impl DatabaseBackedConfig for BlocklistGuardEnabled {
     const KEY: &'static str = "blocklist_guard_enabled";
 
@@ -124,18 +119,14 @@ impl DatabaseBackedConfig for BlocklistGuardEnabled {
 }
 
 
-// Define BlocklistGuardEnabled struct and superposition::Config using the macro
 config! {
-    ShouldCallGsm => bool,
-    superposition_key = superposition_consts::SHOULD_CALL_GSM,
+    superposition_key = SHOULD_CALL_GSM,
+    output = bool,
     default = false,
     requires = HasMerchantId,
-    method = get_should_call_gsm,
-    targeting_key = customer_id
+    targeting_key = None
 }
 
-// Manual implementation of DatabaseBackedConfig for BlocklistGuardEnabled
-// This is REQUIRED by the trait and enforces db_key implementation
 impl DatabaseBackedConfig for ShouldCallGsm {
     const KEY: &'static str = "should_call_gsm_";
 

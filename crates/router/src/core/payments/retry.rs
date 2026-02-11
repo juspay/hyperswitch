@@ -871,8 +871,8 @@ pub async fn get_merchant_config_for_gsm(
     merchant_id: &common_utils::id_type::MerchantId,
     dimension : &configs::dimension_state::DimensionsWithMerchantId,
 ) -> bool {
-    let targeting_context = superposition::TargetingContext::new();
-    let should_call_gsm = dimension.get_should_call_gsm(state.store.as_ref(), state.superposition_service.as_deref(), &targeting_context).await;
+
+    let should_call_gsm = dimension.get_should_call_gsm(state.store.as_ref(), state.superposition_service.as_deref(), None).await;
     // let config = db
     //     .find_config_by_key_unwrap_or(
     //         &merchant_id.get_should_call_gsm_key(),
