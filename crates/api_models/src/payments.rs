@@ -9850,6 +9850,8 @@ pub struct ConnectorMetadata {
     pub braintree: Option<BraintreeData>,
     #[smithy(value_type = "Option<AdyenConnectorMetadata>")]
     pub adyen: Option<AdyenConnectorMetadata>,
+    #[smithy(value_type = "Option<PeachpaymentsData>")]
+    pub peachpayments: Option<PeachpaymentsData>,
 }
 
 impl ConnectorMetadata {
@@ -9984,6 +9986,13 @@ pub enum ApplePayCombinedMetadata {
         payment_request_data: PaymentRequestMetadata,
         session_token_data: SessionTokenInfo,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PeachpaymentsData {
+    /// A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
