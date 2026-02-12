@@ -2777,7 +2777,7 @@ pub(crate) async fn update_intent_customer_documents(
     state: &SessionState,
     platform: &domain::Platform,
 ) -> CustomResult<common_utils::crypto::OptionalEncryptableValue, errors::ApiErrorResponse> {
-    let encrypted_customer_details = match mandate_type {
+    match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) | None => {
             let mut existing_intent_customer_details = payment_intent
                 .get_intent_customer_details()
@@ -2835,6 +2835,5 @@ pub(crate) async fn update_intent_customer_documents(
             Ok(encrypted_customer_details)
         }
         Some(api::MandateTransactionType::RecurringMandateTransaction) => Ok(None),
-    };
-    return encrypted_customer_details;
+    }
 }
