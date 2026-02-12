@@ -39,6 +39,7 @@ impl OwnedPooledConnection {
 impl Deref for OwnedPooledConnection {
     type Target = PooledConnection<'static, async_bb8_diesel::ConnectionManager<PgConnection>>;
 
+    #[allow(clippy::unwrap_used)]
     fn deref(&self) -> &Self::Target {
         // SAFETY: conn is always Some until drop
         self.conn.as_ref().unwrap()
@@ -46,6 +47,7 @@ impl Deref for OwnedPooledConnection {
 }
 
 impl std::ops::DerefMut for OwnedPooledConnection {
+    #[allow(clippy::unwrap_used)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: conn is always Some until drop
         self.conn.as_mut().unwrap()

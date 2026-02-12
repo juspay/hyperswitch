@@ -482,10 +482,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .await;
 
         let database_call = || async {
-            let conn: bb8::PooledConnection<
-                '_,
-                async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
-            > = pg_connection_read(self).await?;
+            let conn = pg_connection_read(self).await?;
 
             DieselPaymentIntent::find_by_global_id(&conn, id)
                 .await
@@ -1331,7 +1328,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         use diesel::NullableExpressionMethods as _;
         use futures::{future::try_join_all, FutureExt};
 
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -1537,7 +1534,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
