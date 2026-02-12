@@ -2798,40 +2798,6 @@ impl GetAddressFromPaymentMethodData for Card {
     }
 }
 
-impl Card {
-    fn apply_additional_card_info(
-        &self,
-        additional_card_info: AdditionalCardInfo,
-    ) -> Result<Self, error_stack::Report<ValidationError>> {
-        Ok(Self {
-            card_number: self.card_number.clone(),
-            card_exp_month: self.card_exp_month.clone(),
-            card_exp_year: self.card_exp_year.clone(),
-            card_holder_name: self.card_holder_name.clone(),
-            card_cvc: self.card_cvc.clone(),
-            card_issuer: self
-                .card_issuer
-                .clone()
-                .or(additional_card_info.card_issuer),
-            card_network: self
-                .card_network
-                .clone()
-                .or(additional_card_info.card_network.clone()),
-            card_type: self.card_type.clone().or(additional_card_info.card_type),
-            card_issuing_country: self
-                .card_issuing_country
-                .clone()
-                .or(additional_card_info.card_issuing_country),
-            card_issuing_country_code: self
-                .card_issuing_country_code
-                .clone()
-                .or(additional_card_info.card_issuing_country_code),
-            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
-            nick_name: self.nick_name.clone(),
-        })
-    }
-}
-
 #[derive(
     Eq,
     PartialEq,
@@ -3641,22 +3607,6 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
 }
 
 impl PaymentMethodData {
-    pub fn apply_additional_payment_data(
-        &self,
-        additional_payment_data: AdditionalPaymentData,
-    ) -> Result<Self, error_stack::Report<ValidationError>> {
-        if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
-            match self {
-                Self::Card(card) => Ok(Self::Card(
-                    card.apply_additional_card_info(*additional_card_info)?,
-                )),
-                _ => Ok(self.to_owned()),
-            }
-        } else {
-            Ok(self.to_owned())
-        }
-    }
-
     pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
             Self::Card(_) => Some(api_enums::PaymentMethod::Card),

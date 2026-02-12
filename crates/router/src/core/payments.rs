@@ -65,7 +65,6 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use hyperswitch_domain_models::{
-    payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
@@ -9081,14 +9080,10 @@ where
 async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &D,
+    payment_data: &mut D,
     connector_choice: T,
     business_profile: &domain::Profile,
-) -> RouterResult<(
-    api_models::payments::MandateReferenceId,
-    hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    api::ConnectorData,
-)>
+) -> RouterResult<api::ConnectorData>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9102,14 +9097,14 @@ where
     let proxy_connector_filters = get_proxy_connector_filters(state, recurring_payment_details)?;
 
     let eligible_connector_data_list = connector_choice
-        .get_routable_connectors(&*state.store, business_profile)
+        .get_routable_connectors(state, business_profile, payment_data)
         .await?
         .filter_proxy_flow_supported_connectors(proxy_connector_filters)
         .construct_dsl_and_perform_eligibility_analysis(
             state,
             key_store,
             payment_data,
-            business_profile.get_id(),
+            business_profile,
         )
         .await
         .attach_printable("Failed to fetch eligible connector data")?;
@@ -9121,14 +9116,7 @@ where
             "No eligible connector found for the network transaction id based mit flow",
         )?;
 
-    let recurring_details = domain_recurring_details::try_from(recurring_payment_details.clone())?;
-    let (mandate_reference_id, payment_method_details_for_network_transaction_id) =
-        recurring_details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()?;
-    Ok((
-        mandate_reference_id,
-        payment_method_details_for_network_transaction_id,
-        eligible_connector_data.clone(),
-    ))
+    Ok(eligible_connector_data.clone())
 }
 
 pub fn get_proxy_connector_filters(
@@ -9173,47 +9161,37 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let (mandate_reference_id, payment_method_details, eligible_connector_data) =
-        match connector_choice {
-            api::ConnectorChoice::StraightThrough(straight_through) => {
-                get_eligible_connector_for_proxy(
-                    state,
-                    key_store,
-                    payment_data,
-                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                    business_profile,
-                )
-                .await?
-            }
-            api::ConnectorChoice::Decide => {
-                get_eligible_connector_for_proxy(
-                    state,
-                    key_store,
-                    payment_data,
-                    core_routing::DecideConnector,
-                    business_profile,
-                )
-                .await?
-            }
-            api::ConnectorChoice::SessionMultiple(_) => {
-                Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                    "Invalid routing rule configured for nti and card details based mit flow",
-                )?
-            }
-        };
+    let eligible_connector_data = match connector_choice {
+        api::ConnectorChoice::StraightThrough(straight_through) => {
+            get_eligible_connector_for_proxy(
+                state,
+                key_store,
+                payment_data,
+                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                business_profile,
+            )
+            .await?
+        }
+        api::ConnectorChoice::Decide => {
+            get_eligible_connector_for_proxy(
+                state,
+                key_store,
+                payment_data,
+                core_routing::DecideConnector,
+                business_profile,
+            )
+            .await?
+        }
+        api::ConnectorChoice::SessionMultiple(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Invalid routing rule configured for nti and card details based mit flow",
+            )?
+        }
+    };
 
     // Set the eligible connector in the attempt
     payment_data
         .set_connector_in_payment_attempt(Some(eligible_connector_data.connector_name.to_string()));
-
-    // Set `NetworkMandateId` as the MandateId
-    payment_data.set_mandate_id(payments_api::MandateIds {
-        mandate_id: None,
-        mandate_reference_id: Some(mandate_reference_id),
-    });
-
-    // Set the card details received in the recurring details within the payment method data.
-    payment_data.set_payment_method_data(Some(payment_method_details));
 
     Ok(eligible_connector_data)
 }
