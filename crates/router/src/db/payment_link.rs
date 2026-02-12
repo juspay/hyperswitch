@@ -1,5 +1,6 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use crate::{
     connection,
@@ -47,10 +48,11 @@ impl PaymentLinkInterface for Store {
         payment_link_config: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        payment_link_config
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        payment_link_config.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]

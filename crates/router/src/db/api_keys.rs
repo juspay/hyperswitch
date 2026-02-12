@@ -1,5 +1,6 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
@@ -57,10 +58,11 @@ impl ApiKeyInterface for Store {
         api_key: storage::ApiKeyNew,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        api_key
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        api_key.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -76,7 +78,11 @@ impl ApiKeyInterface for Store {
         let update_call = || async {
             storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
         };
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -122,7 +128,11 @@ impl ApiKeyInterface for Store {
         let delete_call = || async {
             storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
         };
         #[cfg(not(feature = "accounts_cache"))]
         {

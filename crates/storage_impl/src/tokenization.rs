@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::{connection, errors};
+use crate::{connection, diesel_error_to_data_error_with_failover_check, errors};
 use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
@@ -58,7 +58,11 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .map_err(|error| {
+                let new_err =
+                    diesel_error_to_data_error_with_failover_check(&self.db_store, &error);
+                error.change_context(new_err)
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,

@@ -1,6 +1,7 @@
 use error_stack::report;
 use hyperswitch_domain_models::callback_mapper as domain;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 use storage_impl::{DataModelExt, MockDb};
 
 use super::Store;
@@ -35,7 +36,11 @@ impl CallbackMapperInterface for Store {
             .to_storage_model()
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
             .map(domain::CallbackMapper::from_storage_model)
     }
 

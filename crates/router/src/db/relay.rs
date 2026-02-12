@@ -1,7 +1,7 @@
 use diesel_models;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
-use storage_impl::MockDb;
+use storage_impl::{database::store::DatabaseStore, MockDb};
 
 use super::domain;
 use crate::{
@@ -53,7 +53,11 @@ impl RelayInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -79,7 +83,11 @@ impl RelayInterface for Store {
                 diesel_models::relay::RelayUpdateInternal::from(relay_update),
             )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,

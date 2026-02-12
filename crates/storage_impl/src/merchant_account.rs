@@ -162,7 +162,11 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .change_context(StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -235,7 +239,11 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .change_context(StorageError::EncryptionError)?
             .update(&conn, merchant_account.into())
             .await
-            .map_err(|error| report!(StorageError::from(error)))?;
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })?;
 
         #[cfg(feature = "accounts_cache")]
         {
@@ -266,7 +274,11 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             merchant_account.into(),
         )
         .await
-        .map_err(|error| report!(StorageError::from(error)))?;
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(StorageError::from(error))
+        })?;
 
         #[cfg(feature = "accounts_cache")]
         {
@@ -385,7 +397,11 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         let is_deleted_func = || async {
             storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
                 .await
-                .map_err(|error| report!(StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(StorageError::from(error))
+                })
         };
 
         let is_deleted;
@@ -400,7 +416,11 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             let merchant_account =
                 storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
                     .await
-                    .map_err(|error| report!(StorageError::from(error)))?;
+                    .map_err(|error| {
+                        let error_msg = format!("{:?}", error);
+                        self.handle_query_error(&error_msg);
+                        report!(StorageError::from(error))
+                    })?;
 
             is_deleted = is_deleted_func().await?;
 

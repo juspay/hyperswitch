@@ -2,6 +2,7 @@ use common_utils::id_type;
 use diesel_models::{enums, user::dashboard_metadata as storage};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 use storage_impl::MockDb;
 
 use crate::{
@@ -63,10 +64,11 @@ impl DashboardMetadataInterface for Store {
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let conn = connection::pg_accounts_connection_write(self).await?;
-        metadata
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        metadata.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -88,7 +90,11 @@ impl DashboardMetadataInterface for Store {
             dashboard_metadata_update,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -142,7 +148,11 @@ impl DashboardMetadataInterface for Store {
             merchant_id.to_owned(),
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -160,7 +170,11 @@ impl DashboardMetadataInterface for Store {
             data_key,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 }
 

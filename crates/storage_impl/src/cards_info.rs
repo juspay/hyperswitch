@@ -4,10 +4,10 @@ use hyperswitch_domain_models::cards_info::CardsInfoInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     errors::StorageError,
     kv_router_store::KVRouterStore,
     redis::kv_store::KvStorePartition,
-    utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 

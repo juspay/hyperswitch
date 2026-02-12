@@ -20,7 +20,7 @@ pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
     database::store::PgPool,
-    diesel_error_to_data_error,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
     errors::{self, RedisErrorExt, StorageResult},
     lookup::ReverseLookupInterface,
     metrics,
@@ -144,6 +144,22 @@ where
 
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.router_store.get_accounts_replica_pool()
+    }
+
+    fn get_master_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_master_pool_manager()
+    }
+
+    fn get_replica_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_replica_pool_manager()
+    }
+
+    fn get_accounts_master_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_accounts_master_pool_manager()
+    }
+
+    fn get_accounts_replica_pool_manager(&self) -> &crate::database::pool_manager::PgPoolManager {
+        self.router_store.get_accounts_replica_pool_manager()
     }
 }
 
@@ -385,7 +401,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => create_resource_fut.await.map_err(|error| {
-                let new_err = diesel_error_to_data_error(*error.current_context());
+                let new_err = diesel_error_to_data_error_with_failover_check(
+                    &self.router_store.db_store,
+                    &error,
+                );
                 error.change_context(new_err)
             }),
             MerchantStorageScheme::RedisKv => {
@@ -464,7 +483,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => {
                         update_resource_fut.await.map_err(|error| {
-                            let new_err = diesel_error_to_data_error(*error.current_context());
+                            let new_err = diesel_error_to_data_error_with_failover_check(
+                                &self.router_store.db_store,
+                                &error,
+                            );
                             error.change_context(new_err)
                         })
                     }

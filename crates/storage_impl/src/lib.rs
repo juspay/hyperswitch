@@ -128,6 +128,22 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.db_store.get_accounts_replica_pool()
     }
+
+    fn get_master_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_master_pool_manager()
+    }
+
+    fn get_replica_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_replica_pool_manager()
+    }
+
+    fn get_accounts_master_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_accounts_master_pool_manager()
+    }
+
+    fn get_accounts_replica_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_accounts_replica_pool_manager()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
@@ -199,6 +215,11 @@ impl<T: DatabaseStore> RouterStore<T> {
         execute_query
             .await
             .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.db_store
+                    .get_master_pool_manager()
+                    .check_and_handle_failover_error(&error_msg);
+
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })?
@@ -225,6 +246,11 @@ impl<T: DatabaseStore> RouterStore<T> {
         M: ReverseConversion<D>,
     {
         match execute_query_fut.await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.db_store
+                .get_master_pool_manager()
+                .check_and_handle_failover_error(&error_msg);
+
             let new_err = diesel_error_to_data_error(*error.current_context());
             error.change_context(new_err)
         })? {
@@ -258,6 +284,11 @@ impl<T: DatabaseStore> RouterStore<T> {
         let resource_futures = execute_query
             .await
             .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.db_store
+                    .get_master_pool_manager()
+                    .check_and_handle_failover_error(&error_msg);
+
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })?
@@ -330,6 +361,42 @@ pub(crate) fn diesel_error_to_data_error(
         },
         _ => StorageError::DatabaseError(error_stack::report!(diesel_error)),
     }
+}
+
+/// Converts a diesel error to a storage error and checks for database failover.
+///
+/// This function should be used instead of `diesel_error_to_data_error` when you have
+/// access to a store that implements `DatabaseStore`. It will:
+/// 1. Convert the diesel error to a StorageError
+/// 2. Check if the error indicates a database failover (e.g., "read-only transaction")
+/// 3. If failover is detected, trigger immediate pool recreation
+///
+/// This ensures that subsequent requests will get connections from a fresh pool
+/// pointing to the new primary database.
+pub fn diesel_error_to_data_error_with_failover_check<T: DatabaseStore>(
+    store: &T,
+    error: &error_stack::Report<diesel_models::errors::DatabaseError>,
+) -> StorageError {
+    // Check for failover indicators in the error message
+    let error_msg = format!("{:?}", error);
+
+    // Log the error for debugging - this helps trace failover detection
+    router_env::logger::debug!(
+        error_message = %error_msg.chars().take(300).collect::<String>(),
+        "[FAILOVER_CHECK] Checking database error for failover indicators"
+    );
+
+    let is_failover = store.handle_query_error(&error_msg);
+
+    if is_failover {
+        router_env::logger::error!(
+            "[FAILOVER_CHECK] Failover detected! Pool recreation triggered. This request will fail, \
+             but subsequent requests should succeed with the new pool."
+        );
+    }
+
+    // Return the converted error
+    diesel_error_to_data_error(*error.current_context())
 }
 
 #[async_trait::async_trait]

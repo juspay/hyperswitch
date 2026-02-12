@@ -6,6 +6,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::MockDb;
 use crate::{
@@ -111,10 +112,11 @@ impl UserRoleInterface for Store {
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        user_role
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        user_role.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -188,7 +190,11 @@ impl UserRoleInterface for Store {
             version,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -212,7 +218,11 @@ impl UserRoleInterface for Store {
             version,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     async fn list_user_roles_by_user_id<'a>(

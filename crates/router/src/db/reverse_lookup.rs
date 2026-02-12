@@ -25,6 +25,7 @@ pub trait ReverseLookupInterface {
 mod storage {
     use error_stack::report;
     use router_env::{instrument, tracing};
+    use storage_impl::database::store::DatabaseStore;
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -45,9 +46,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            new.insert(&conn).await.map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
         }
 
         #[instrument(skip_all)]
@@ -69,8 +72,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::SetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        database::store::DatabaseStore,
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     };
 
     use super::{ReverseLookupInterface, Store};
@@ -102,9 +106,11 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn)
-                        .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    new.insert(&conn).await.map_err(|error| {
+                        let error_msg = format!("{:?}", error);
+                        self.handle_query_error(&error_msg);
+                        report!(errors::StorageError::from(error))
+                    })
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let created_rev_lookup = ReverseLookup {

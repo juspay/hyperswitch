@@ -9,11 +9,11 @@ use error_stack::ResultExt;
 use redis_interface::SetnxReply;
 
 use crate::{
-    diesel_error_to_data_error,
+    connection, diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
     errors::{self, RedisErrorExt},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, try_redis_get_else_try_database_get},
+    utils::try_redis_get_else_try_database_get,
     DatabaseStore, RouterStore,
 };
 
@@ -38,13 +38,9 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         new: DieselReverseLookupNew,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = self
-            .get_master_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_write(self).await?;
         new.insert(&conn).await.map_err(|er| {
-            let new_err = diesel_error_to_data_error(*er.current_context());
+            let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
             er.change_context(new_err)
         })
     }
@@ -54,7 +50,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = utils::pg_connection_read(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         DieselReverseLookup::find_by_lookup_id(id, &conn)
             .await
             .map_err(|er| {

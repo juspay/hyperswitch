@@ -1,6 +1,7 @@
 use common_utils::types::user::ThemeLineage;
 use diesel_models::user::theme::{self as storage, ThemeUpdate};
 use error_stack::report;
+use storage_impl::database::store::DatabaseStore;
 
 use super::MockDb;
 use crate::{
@@ -55,10 +56,11 @@ impl ThemeInterface for Store {
         theme: storage::ThemeNew,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        theme
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        theme.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     async fn find_theme_by_theme_id(
@@ -99,7 +101,11 @@ impl ThemeInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Theme::update_by_theme_id(&conn, theme_id, theme_update)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     async fn delete_theme_by_theme_id(
@@ -109,7 +115,11 @@ impl ThemeInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Theme::delete_by_theme_id(&conn, theme_id)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
     async fn list_themes_at_and_under_lineage(
         &self,

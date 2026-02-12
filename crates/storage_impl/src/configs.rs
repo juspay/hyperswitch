@@ -90,10 +90,11 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let inserted = config
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?;
+        let inserted = config.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(StorageError::from(error))
+        })?;
 
         cache::redact_from_redis_and_publish(self, [CacheKind::Config((&inserted.key).into())])
             .await?;
@@ -110,7 +111,11 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Config::update_by_key(&conn, key, config_update)
             .await
-            .map_err(|error| report!(StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })
     }
 
     //update in DB and remove in redis and cache
@@ -189,7 +194,11 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         let conn = connection::pg_connection_write(self).await?;
         let deleted = storage::Config::delete_by_key(&conn, key)
             .await
-            .map_err(|error| report!(StorageError::from(error)))?;
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })?;
 
         cache::redact_from_redis_and_publish(self, [CacheKind::Config((&deleted.key).into())])
             .await?;
