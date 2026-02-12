@@ -631,8 +631,7 @@ pub struct StaticRoutingInput<'a> {
     // pub platform: &'a domain::Platform,
     // pub business_profile: &'a domain::Profile,
     // pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
-    // pub transaction_data: &'a routing::PaymentsDslInput<'a>,
-    pub transaction_data: &'a routing::TransactionData<'a>,
+    pub backend_input: &'a backend::BackendInput,
 }
 
 #[derive(Clone)]
@@ -649,7 +648,7 @@ impl RoutingStage for StaticRoutingStage {
         Box::pin(async move {
             let connectors = static_routing_v1(
                 &self.ctx.routing_algorithm,
-                &input.transaction_data,
+                input.backend_input.clone(),
                 // &routing::TransactionData::Payment(input.transaction_data.clone()),
             )
             .await
@@ -854,12 +853,12 @@ impl RoutingStage for SessionRoutingStage {
             //         None,
             //     )
             // };
-            let cached_algorithm = algorithm_id
-                .async_and_then(|routing_algorithm_id| async move {
+            let cached_algorithm = algorithm_id.clone()
+                .async_and_then(|algorithm_id| async move {
                     try_ensure_algorithm_cached_v1(
                         input.state,
                         &input.business_profile.merchant_id,
-                        &algorithm_id.unwrap(),
+                        &algorithm_id,
                         input.business_profile.get_id(),
                         input.transaction_type,
                     )
@@ -867,9 +866,9 @@ impl RoutingStage for SessionRoutingStage {
                 })
                 .await;
 
-            let transaction_data = &routing::TransactionData::Payment(payment_input);
+            // let transaction_data = &routing::TransactionData::Payment(payment_input);
             let static_input = StaticRoutingInput {
-                transaction_data,
+                backend_input: &backend_input,
             };
 
             let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
@@ -1347,15 +1346,9 @@ impl RoutingStage for DynamicRoutingStage {
 
 pub async fn static_routing_v1(
     routing_algorithm: &CachedAlgorithm,
-    transaction_data: &routing::TransactionData<'_>,
+    backend_input: backend::BackendInput,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     logger::debug!("euclid_routing: performing routing for connector selection");
-    let backend_input = match transaction_data {
-        routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
-        #[cfg(feature = "payouts")]
-        routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
-    };
-
     let routable_connectors = match routing_algorithm {
         CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
         CachedAlgorithm::Priority(plist) => plist.clone(),

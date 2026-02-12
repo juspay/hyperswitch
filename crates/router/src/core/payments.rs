@@ -10456,11 +10456,11 @@ pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
-    transaction_data: core_routing::PaymentsDslInput<'_>,
+    payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let txn_type = transaction_type_from_payments_dsl(&transaction_data);
+    let txn_type = transaction_type_from_payments_dsl(&payment_dsl_input);
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
         let algorithm_ref = routing_algorithm
@@ -10486,12 +10486,17 @@ pub async fn static_dynamic_routing_v1_for_payments(
         })
         .await;
 
-    let static_input = routing::StaticRoutingInput {
-        // platform,
-        // business_profile,
-        // eligible_connectors: eligible_connectors.as_ref(),
-        transaction_data: &transaction_data,
+    let transaction_data = &TransactionData::Payment(payment_dsl_input);
+    let backend_input = match transaction_data {
+        TransactionData::Payment(payment_data) => routing::make_dsl_input(payment_data).unwrap(),
+        #[cfg(feature = "payouts")]
+        TransactionData::Payout(payout_data) => routing::make_dsl_input_for_payouts(payout_data).unwrap(),
     };
+
+    let static_input = routing::StaticRoutingInput {
+        backend_input: &backend_input,
+    };
+
 
     let static_stage = cached_algorithm.map(|cached_algorithm| routing::StaticRoutingStage {
         ctx: routing::RoutingContext {
@@ -10531,7 +10536,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let (connectors, routing_approach) = {
         let static_connectors_ref = &static_connectors;
-        let transaction_data_ref = &transaction_data;
+        let transaction_data_ref = &payment_dsl_input;
 
         business_profile
             .dynamic_routing_algorithm
