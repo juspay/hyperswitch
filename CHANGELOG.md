@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.12.0
+
+### Bug Fixes
+
+- **connector:** Add missing COF parameters for ACI recurring payments ([#10150](https://github.com/juspay/hyperswitch/pull/10150)) ([`5e2611b`](https://github.com/juspay/hyperswitch/commit/5e2611b7544611dc303867705c4ba4f8cd8f600d))
+- **payouts:** Change payout_action to retrieve for webhooks ([#11206](https://github.com/juspay/hyperswitch/pull/11206)) ([`235c2d9`](https://github.com/juspay/hyperswitch/commit/235c2d982a025750934cd1027082ad378f100980))
+
+**Full Changelog:** [`2026.02.11.0...2026.02.12.0`](https://github.com/juspay/hyperswitch/compare/2026.02.11.0...2026.02.12.0)
+
+- - -
+
 ## 2026.02.11.0
 
 ### Features
