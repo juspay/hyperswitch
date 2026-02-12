@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix4
+
+### Features
+
+- HS <> UCS dependencies for adyen auth_code and test_mode ([#11214](https://github.com/juspay/hyperswitch/pull/11214)) ([`fe83fb2`](https://github.com/juspay/hyperswitch/commit/fe83fb2d0b1635f472dfa65eecadd784468808be))
+
+### Bug Fixes
+
+- **payouts:** Change payout_action to retrieve for webhooks ([#11221](https://github.com/juspay/hyperswitch/pull/11221)) ([`6706ac5`](https://github.com/juspay/hyperswitch/commit/6706ac5f6262453f80de78c910e0b348586dd9a8))
+
+**Full Changelog:** [`2026.02.04.1-hotfix3...2026.02.04.1-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix3...2026.02.04.1-hotfix4)
+
+- - -
+
 ## 2026.02.04.1-hotfix3
 
 ### Features
