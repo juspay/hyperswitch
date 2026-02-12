@@ -786,7 +786,7 @@ pub async fn retrieve_payment_method_with_token(
 pub(crate) fn get_payment_method_create_request(
     payment_method_data: &api_models::payments::PaymentMethodData,
     payment_method_type: storage_enums::PaymentMethod,
-    payment_method_subtype: storage_enums::PaymentMethodType,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     customer_id: Option<id_type::GlobalCustomerId>,
     billing_address: Option<&api_models::payments::Address>,
     payment_method_session: Option<&domain::payment_methods::PaymentMethodSession>,
@@ -1238,21 +1238,10 @@ async fn payment_method_resolver(
     platform: &domain::Platform,
     customer_id: &id_type::GlobalCustomerId,
     req: &api::PaymentMethodCreate,
+    fingerprint_id: String,
+    payment_method_data: domain::PaymentMethodVaultingData,
 ) -> RouterResult<PaymentMethodResolver> {
     let db = &*state.store;
-    let payment_method_data =
-        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
-            .populate_bin_details_for_payment_method(state)
-            .await;
-
-    let fingerprint_id = vault::get_fingerprint_id_from_vault(
-        state,
-        &payment_method_data,
-        customer_id.get_string_repr().to_owned(),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get fingerprint_id from vault")?;
 
     match db
         .find_payment_method_by_fingerprint_id(
@@ -1311,7 +1300,27 @@ async fn create_or_fetch_payment_method_core(
     payment_method_id: id_type::GlobalPaymentMethodId,
     billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    let resolver = payment_method_resolver(state, platform, customer_id, &req).await?;
+    let bin_enriched_payment_method_data =
+        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
+            .populate_bin_details_for_payment_method(state)
+            .await;
+
+    let payment_method_subtype = bin_enriched_payment_method_data
+        .payment_method_subtype
+        .or(req.payment_method_subtype);
+
+    let payment_method_data = bin_enriched_payment_method_data.data;
+
+    let fingerprint_id = vault::get_fingerprint_id_from_vault(
+        state,
+        &payment_method_data,
+        customer_id.get_string_repr().to_owned(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get fingerprint_id from vault")?;
+
+    let resolver = payment_method_resolver(state, platform, customer_id, &req, fingerprint_id, payment_method_data).await?;
 
     resolver
         .execute(
@@ -1322,6 +1331,7 @@ async fn create_or_fetch_payment_method_core(
             merchant_id,
             customer_id,
             payment_method_id,
+            payment_method_subtype,
             billing_address,
         )
         .await
@@ -1340,6 +1350,7 @@ impl PaymentMethodResolver {
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::GlobalCustomerId,
         payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method_subtype: Option<storage_enums::PaymentMethodType>,
         billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
     ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
         let db = &*state.store;
@@ -1379,6 +1390,7 @@ impl PaymentMethodResolver {
                     profile,
                     customer_id,
                     payment_method,
+                    payment_method_subtype,
                     payment_method_data,
                     fingerprint_id,
                     billing_address,
@@ -1399,12 +1411,24 @@ async fn execute_payment_method_create(
     profile: &domain::Profile,
     customer_id: &id_type::GlobalCustomerId,
     payment_method: domain::PaymentMethod,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     payment_method_data: domain::PaymentMethodVaultingData,
     fingerprint_id_from_vault: String,
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    match &req.payment_method_data {
+        api::PaymentMethodCreateData::Card(card_data) => {
+            payments_core::helpers::validate_card_expiry(
+                &card_data.card_exp_month,
+                &card_data.card_exp_year,
+            )?;
+        }
+        _ => {
+            logger::debug!("Payment method data is not CardDetail");
+        }
+    }
     let db = &*state.store;
 
     let vaulting_result = vault_payment_method(
@@ -1448,7 +1472,7 @@ async fn execute_payment_method_create(
                 None,
                 network_tokenization_resp,
                 Some(req.payment_method_type),
-                Some(req.payment_method_subtype),
+                payment_method_subtype,
                 external_vault_source,
                 Some(enums::PaymentMethodStatus::Active),
             )
@@ -1539,10 +1563,14 @@ pub async fn create_volatile_payment_method_card_core(
     let keymanager_state = &(state).into();
     let merchant_key_store = platform.get_provider().get_key_store();
 
-    let payment_method_data =
+    let bin_enriched_payment_method_data =
         domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
             .populate_bin_details_for_payment_method(state)
             .await;
+    let payment_method_subtype = bin_enriched_payment_method_data
+        .payment_method_subtype
+        .or(req.payment_method_subtype);
+    let payment_method_data = bin_enriched_payment_method_data.data;
 
     let vaulting_result = vault_payment_method_in_volatile_storage(
         state,
@@ -1574,7 +1602,7 @@ pub async fn create_volatile_payment_method_card_core(
                 platform.get_provider().get_key_store(),
                 Some(&payment_method_data),
                 Some(req.payment_method_type),
-                Some(req.payment_method_subtype),
+                payment_method_subtype,
                 locker_id,
                 fingerprint_id,
                 external_vault_source,
@@ -1680,10 +1708,16 @@ pub async fn create_payment_method_proxy_card_core(
         .clone()
         .map(|details| details.vault_connector_id);
 
+    let bin_enriched_payment_method_data = req
+        .payment_method_data
+        .populate_bin_details_for_payment_method(state)
+        .await;
+    let payment_method_subtype = bin_enriched_payment_method_data
+        .payment_method_subtype
+        .or(req.payment_method_subtype);
     let additional_payment_method_data = Some(
-        req.payment_method_data
-            .populate_bin_details_for_payment_method(state)
-            .await
+        bin_enriched_payment_method_data
+            .data
             .convert_to_additional_payment_method_data()?,
     );
 
@@ -1741,7 +1775,7 @@ pub async fn create_payment_method_proxy_card_core(
         platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
         req.payment_method_type,
-        req.payment_method_subtype,
+        payment_method_subtype,
         payment_method_billing_address,
         encrypted_payment_method_data,
         encrypted_external_vault_token_data,
@@ -1767,6 +1801,13 @@ pub struct NetworkTokenPaymentMethodDetails {
     network_token_requestor_reference_id: String,
     network_token_locker_id: String,
     network_token_pmd: Encryptable<Secret<serde_json::Value>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct BinEnriched<T> {
+    pub data: T,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
 }
 
 #[cfg(feature = "v2")]
@@ -1843,64 +1884,14 @@ pub async fn network_tokenize_and_vault_the_pmd(
 }
 
 #[cfg(feature = "v2")]
-pub async fn populate_bin_details_for_payment_method(
-    state: &SessionState,
-    payment_method_data: &domain::PaymentMethodVaultingData,
-) -> domain::PaymentMethodVaultingData {
-    match payment_method_data {
-        domain::PaymentMethodVaultingData::Card(card) => {
-            let card_isin = card.card_number.get_card_isin();
-
-            if card.card_issuer.is_some()
-                && card.card_network.is_some()
-                && card.card_type.is_some()
-                && card.card_issuing_country.is_some()
-            {
-                domain::PaymentMethodVaultingData::Card(card.clone())
-            } else {
-                let card_info = state
-                    .store
-                    .get_card_info(&card_isin)
-                    .await
-                    .map_err(|error| services::logger::error!(card_info_error=?error))
-                    .ok()
-                    .flatten();
-
-                domain::PaymentMethodVaultingData::Card(payment_methods::CardDetail {
-                    card_number: card.card_number.clone(),
-                    card_exp_month: card.card_exp_month.clone(),
-                    card_exp_year: card.card_exp_year.clone(),
-                    card_holder_name: card.card_holder_name.clone(),
-                    nick_name: card.nick_name.clone(),
-                    card_issuing_country: card_info.as_ref().and_then(|val| {
-                        val.card_issuing_country
-                            .as_ref()
-                            .map(|c| api_enums::CountryAlpha2::from_str(c))
-                            .transpose()
-                            .ok()
-                            .flatten()
-                    }),
-                    card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
-                    card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
-                    card_type: card_info.as_ref().and_then(|val| {
-                        val.card_type
-                            .as_ref()
-                            .map(|c| payment_methods::CardType::from_str(c))
-                            .transpose()
-                            .ok()
-                            .flatten()
-                    }),
-                    card_cvc: card.card_cvc.clone(),
-                })
-            }
-        }
-        _ => payment_method_data.clone(),
-    }
-}
-#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 pub trait PaymentMethodExt {
-    async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self;
+    async fn populate_bin_details_for_payment_method(
+        &self,
+        state: &SessionState,
+    ) -> BinEnriched<Self>
+    where
+        Self: Sized;
 
     // convert to data format compatible to save in payment method table
     fn convert_to_additional_payment_method_data(
@@ -1914,55 +1905,85 @@ pub trait PaymentMethodExt {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl PaymentMethodExt for domain::PaymentMethodVaultingData {
-    async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self {
+    async fn populate_bin_details_for_payment_method(
+        &self,
+        state: &SessionState,
+    ) -> BinEnriched<Self> {
         match self {
             Self::Card(card) => {
                 let card_isin = card.card_number.get_card_isin();
+
+                let card_info = state
+                    .store
+                    .get_card_info(&card_isin)
+                    .await
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
+                    .ok()
+                    .flatten();
+
+                let additional_payment_data_from_bin_lookup = card_info.as_ref().map(|val| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_type: val.card_type.clone(),
+                            ..Default::default()
+                        },
+                    ))
+                });
+
+                let payment_method_subtype =
+                    Option::<storage_enums::PaymentMethodType>::foreign_from((
+                        None,
+                        additional_payment_data_from_bin_lookup.as_ref(),
+                        Some(storage_enums::PaymentMethod::Card),
+                    ));
 
                 if card.card_issuer.is_some()
                     && card.card_network.is_some()
                     && card.card_type.is_some()
                     && card.card_issuing_country.is_some()
                 {
-                    Self::Card(card.clone())
+                    BinEnriched {
+                        data: Self::Card(card.clone()),
+                        payment_method_subtype,
+                    }
                 } else {
-                    let card_info = state
-                        .store
-                        .get_card_info(&card_isin)
-                        .await
-                        .map_err(|error| services::logger::error!(card_info_error=?error))
-                        .ok()
-                        .flatten();
-
-                    Self::Card(payment_methods::CardDetail {
-                        card_number: card.card_number.clone(),
-                        card_exp_month: card.card_exp_month.clone(),
-                        card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: card.card_holder_name.clone(),
-                        nick_name: card.nick_name.clone(),
-                        card_issuing_country: card_info.as_ref().and_then(|val| {
-                            val.card_issuing_country
+                    BinEnriched {
+                        data: Self::Card(payment_methods::CardDetail {
+                            card_number: card.card_number.clone(),
+                            card_exp_month: card.card_exp_month.clone(),
+                            card_exp_year: card.card_exp_year.clone(),
+                            card_holder_name: card.card_holder_name.clone(),
+                            nick_name: card.nick_name.clone(),
+                            card_issuing_country: card_info.as_ref().and_then(|val| {
+                                val.card_issuing_country
+                                    .as_ref()
+                                    .map(|c| api_enums::CountryAlpha2::from_str(c))
+                                    .transpose()
+                                    .ok()
+                                    .flatten()
+                            }),
+                            card_network: card_info
                                 .as_ref()
-                                .map(|c| api_enums::CountryAlpha2::from_str(c))
-                                .transpose()
-                                .ok()
-                                .flatten()
+                                .and_then(|val| val.card_network.clone()),
+                            card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
+                            card_type: card_info.as_ref().and_then(|val| {
+                                val.card_type
+                                    .as_ref()
+                                    .map(|c| payment_methods::CardType::from_str(c))
+                                    .transpose()
+                                    .ok()
+                                    .flatten()
+                            }),
+                            card_cvc: card.card_cvc.clone(),
                         }),
-                        card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
-                        card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
-                        card_type: card_info.as_ref().and_then(|val| {
-                            val.card_type
-                                .as_ref()
-                                .map(|c| payment_methods::CardType::from_str(c))
-                                .transpose()
-                                .ok()
-                                .flatten()
-                        }),
-                        card_cvc: card.card_cvc.clone(),
-                    })
+                        payment_method_subtype,
+                    }
                 }
             }
-            _ => self.clone(),
+            _ => BinEnriched {
+                data: self.clone(),
+                payment_method_subtype: None,
+            },
         }
     }
 
@@ -1984,47 +2005,83 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
-    async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self {
+    async fn populate_bin_details_for_payment_method(
+        &self,
+        state: &SessionState,
+    ) -> BinEnriched<Self> {
         match self {
             Self::ProxyCard(card) => {
                 let card_isin = card.bin_number.clone();
+                let card_info = if let Some(card_isin) = card_isin.as_ref() {
+                    state
+                        .store
+                        .get_card_info(card_isin)
+                        .await
+                        .map_err(|error| services::logger::error!(card_info_error=?error))
+                        .ok()
+                        .flatten()
+                } else {
+                    None
+                };
+
+                let additional_payment_data_from_bin_lookup = card_info.as_ref().map(|val| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_type: val.card_type.clone(),
+                            ..Default::default()
+                        },
+                    ))
+                });
+
+                let payment_method_subtype =
+                    Option::<storage_enums::PaymentMethodType>::foreign_from((
+                        None,
+                        additional_payment_data_from_bin_lookup.as_ref(),
+                        Some(storage_enums::PaymentMethod::Card),
+                    ));
 
                 if card.card_issuer.is_some()
                     && card.card_network.is_some()
                     && card.card_type.is_some()
                     && card.card_issuing_country.is_some()
                 {
-                    Self::ProxyCard(card.clone())
-                } else if let Some(card_isin) = card_isin {
-                    let card_info = state
-                        .store
-                        .get_card_info(&card_isin)
-                        .await
-                        .map_err(|error| services::logger::error!(card_info_error=?error))
-                        .ok()
-                        .flatten();
-
-                    Self::ProxyCard(payment_methods::ProxyCardDetails {
-                        card_number: card.card_number.clone(),
-                        card_exp_month: card.card_exp_month.clone(),
-                        card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: card.card_holder_name.clone(),
-                        bin_number: card.bin_number.clone(),
-                        last_four: card.last_four.clone(),
-                        nick_name: card.nick_name.clone(),
-                        card_issuing_country: card_info
-                            .as_ref()
-                            .and_then(|val| val.card_issuing_country.clone()),
-                        card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
-                        card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
-                        card_type: card_info.as_ref().and_then(|val| val.card_type.clone()),
-                        card_cvc: card.card_cvc.clone(),
-                    })
+                    BinEnriched {
+                        data: Self::ProxyCard(card.clone()),
+                        payment_method_subtype,
+                    }
+                } else if card_isin.is_some() {
+                    BinEnriched {
+                        data: Self::ProxyCard(payment_methods::ProxyCardDetails {
+                            card_number: card.card_number.clone(),
+                            card_exp_month: card.card_exp_month.clone(),
+                            card_exp_year: card.card_exp_year.clone(),
+                            card_holder_name: card.card_holder_name.clone(),
+                            bin_number: card.bin_number.clone(),
+                            last_four: card.last_four.clone(),
+                            nick_name: card.nick_name.clone(),
+                            card_issuing_country: card_info
+                                .as_ref()
+                                .and_then(|val| val.card_issuing_country.clone()),
+                            card_network: card_info
+                                .as_ref()
+                                .and_then(|val| val.card_network.clone()),
+                            card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
+                            card_type: card_info.as_ref().and_then(|val| val.card_type.clone()),
+                            card_cvc: card.card_cvc.clone(),
+                        }),
+                        payment_method_subtype,
+                    }
                 } else {
-                    Self::ProxyCard(card.clone())
+                    BinEnriched {
+                        data: Self::ProxyCard(card.clone()),
+                        payment_method_subtype,
+                    }
                 }
             }
-            _ => self.clone(),
+            _ => BinEnriched {
+                data: self.clone(),
+                payment_method_subtype: None,
+            },
         }
     }
 
@@ -2654,7 +2711,7 @@ pub async fn create_payment_method_for_confirm(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     payment_method_type: storage_enums::PaymentMethod,
-    payment_method_subtype: storage_enums::PaymentMethodType,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     encrypted_payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
@@ -2676,7 +2733,7 @@ pub async fn create_payment_method_for_confirm(
                 id: payment_method_id,
                 locker_id: None,
                 payment_method_type: Some(payment_method_type),
-                payment_method_subtype: Some(payment_method_subtype),
+                payment_method_subtype,
                 payment_method_data: encrypted_payment_method_data,
                 connector_mandate_details: None,
                 customer_acceptance: None,
@@ -4663,6 +4720,7 @@ fn construct_zero_auth_payments_request(
     confirm_request: &payment_methods::PaymentMethodSessionConfirmRequest,
     payment_method_session: &hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     payment_method: &payment_methods::PaymentMethodResponse,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
 ) -> RouterResult<api_models::payments::PaymentsRequest> {
     use api_models::payments;
 
@@ -4672,7 +4730,8 @@ fn construct_zero_auth_payments_request(
         ),
         payment_method_data: confirm_request.payment_method_data.clone(),
         payment_method_type: confirm_request.payment_method_type,
-        payment_method_subtype: confirm_request.payment_method_subtype,
+        payment_method_subtype: payment_method_subtype
+            .get_required_value("payment_method_subtype")?,
         customer_id: payment_method_session.customer_id.clone(),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),
@@ -4746,6 +4805,7 @@ pub async fn payment_methods_session_confirm(
     request: payment_methods::PaymentMethodSessionConfirmRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
+    request.validate()?;
 
     // Validate if the session still exists
     let payment_method_session = db
@@ -4847,6 +4907,7 @@ pub async fn payment_methods_session_confirm(
                 &request,
                 &payment_method_session,
                 &payment_method_response,
+                payment_method.get_payment_method_subtype(),
             )?;
             let payments_response = Box::pin(create_zero_auth_payment(
                 state.clone(),
