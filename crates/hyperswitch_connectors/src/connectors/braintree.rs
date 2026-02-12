@@ -1067,9 +1067,14 @@ impl IncomingWebhook for Braintree {
             hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY,
             sha1_hash_key.as_slice(),
         );
-        let signed_messaged = hmac::sign(&signing_key, &message);
-        let payload_sign: String = hex::encode(signed_messaged);
-        Ok(payload_sign.as_bytes().eq(&signature))
+        
+        // Use constant-time comparison to prevent timing attacks
+        // Decode the hex signature for comparison
+        let signature_bytes = hex::decode(&signature)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        
+        // hmac::verify performs constant-time comparison internally
+        Ok(hmac::verify(&signing_key, &message, &signature_bytes).is_ok())
     }
 
     fn get_webhook_object_reference_id(
