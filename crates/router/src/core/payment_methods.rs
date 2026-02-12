@@ -1320,7 +1320,15 @@ async fn create_or_fetch_payment_method_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get fingerprint_id from vault")?;
 
-    let resolver = payment_method_resolver(state, platform, customer_id, &req, fingerprint_id, payment_method_data).await?;
+    let resolver = payment_method_resolver(
+        state,
+        platform,
+        customer_id,
+        &req,
+        fingerprint_id,
+        payment_method_data,
+    )
+    .await?;
 
     resolver
         .execute(
