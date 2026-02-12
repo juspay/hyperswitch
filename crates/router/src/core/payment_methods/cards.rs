@@ -4280,7 +4280,7 @@ pub async fn list_customer_payment_method(
         .get_requires_cvv(
             state.store.as_ref(),
             state.superposition_service.as_deref(),
-            Some(&customer_id),
+            Some(customer_id),
         )
         .await;
 
