@@ -212,20 +212,22 @@ pub trait Config {
     const DEFAULT_VALUE: Self::Output;
 
     /// Fetch config value from Superposition.
-    fn fetch(
+    fn fetch<T>(
         superposition_client: &SuperpositionClient,
         context: Option<ConfigContext>,
-        targeting_key: Option<&String>,
+        targeting_key: Option<&T>,
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
+        T: common_utils::id_type::TargetingKey
     {
+        let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
             match superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
                     context.as_ref(),
-                    targeting_key,
+                    targeting_key_str.as_ref(),
                 )
                 .await
             {
