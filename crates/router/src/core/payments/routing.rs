@@ -677,7 +677,8 @@ pub struct SessionRoutingInput<'a> {
     pub payment_attempt: &'a oss_storage::PaymentAttempt,
     pub payment_intent: &'a oss_storage::PaymentIntent,
     pub chosen: &'a api::SessionConnectorDatas,
-    pub active_mca_ids: &'a std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    pub active_mca_ids:
+        &'a std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     pub default_config: &'a Vec<routing_types::RoutableConnectorChoice>,
 }
 
@@ -693,8 +694,10 @@ impl RoutingStage for SessionRoutingStage {
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
-                FxHashMap::default();
+            let mut pm_type_map: FxHashMap<
+                api_enums::PaymentMethodType,
+                FxHashMap<String, api::GetToken>,
+            > = FxHashMap::default();
 
             let profile_id = input
                 .payment_intent
@@ -744,9 +747,7 @@ impl RoutingStage for SessionRoutingStage {
                     .payment_intent
                     .business_country
                     .map(api_enums::Country::from_alpha2),
-                billing_country: input
-                    .country
-                    .map(storage_enums::Country::from_alpha2),
+                billing_country: input.country.map(storage_enums::Country::from_alpha2),
                 business_label: input.payment_intent.business_label.clone(),
                 setup_future_usage: input.payment_intent.setup_future_usage,
             };
@@ -755,7 +756,9 @@ impl RoutingStage for SessionRoutingStage {
                 .payment_intent
                 .parse_and_get_metadata("routing_parameters")
                 .change_context(errors::RoutingError::MetadataParsingError)
-                .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
+                .attach_printable(
+                    "Unable to parse routing_parameters from metadata of payment_intent",
+                )
                 .unwrap_or(None);
 
             let mut backend_input = dsl_inputs::BackendInput {
@@ -805,125 +808,110 @@ impl RoutingStage for SessionRoutingStage {
                     profile_id: &profile_id,
                 };
 
+                let merchant_id = &session_pm_input.key_store.merchant_id;
 
+                let algorithm_id = match session_pm_input.routing_algorithm {
+                    MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => {
+                        &algorithm_ref.algorithm_id
+                    }
+                };
 
-            let merchant_id = &session_pm_input.key_store.merchant_id;
-
-            let algorithm_id = match session_pm_input.routing_algorithm {
-                MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
-            };
-
-            // let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
-            //     let cached_algorithm = ensure_algorithm_cached_v1(
-            //         &session_pm_input.state.clone(),
-            //         merchant_id,
-            //         algorithm_id,
-            //         session_pm_input.profile_id,
-            //         input.transaction_type,
-            //     )
-            //     .await?;
-            //
-            //     match cached_algorithm.as_ref() {
-            //         CachedAlgorithm::Single(conn) => (
-            //             vec![(**conn).clone()],
-            //             Some(common_enums::RoutingApproach::StraightThroughRouting),
-            //         ),
-            //         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
-            //         CachedAlgorithm::VolumeSplit(splits) => (
-            //             perform_volume_split(splits.to_vec())
-            //                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
-            //             Some(common_enums::RoutingApproach::VolumeBasedRouting),
-            //         ),
-            //         CachedAlgorithm::Advanced(interpreter) => (
-            //             execute_dsl_and_get_connector_v1(
-            //                 session_pm_input.backend_input.clone(),
-            //                 interpreter,
-            //             )?,
-            //             Some(common_enums::RoutingApproach::RuleBasedRouting),
-            //         ),
-            //     }
-            // } else {
-            //     (
-            //         routing::helpers::get_merchant_default_config(
-            //             &*session_pm_input.state.clone().store,
-            //             session_pm_input.profile_id.get_string_repr(),
-            //             input.transaction_type,
-            //         )
-            //         .await
-            //         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
-            //         None,
-            //     )
-            // };
-            let cached_algorithm = algorithm_id
-                .async_and_then(|routing_algorithm_id| async move {
-                    try_ensure_algorithm_cached_v1(
-                        input.state,
-                        &input.business_profile.merchant_id,
-                        &algorithm_id.unwrap(),
-                        input.business_profile.get_id(),
-                        input.transaction_type,
-                    )
-                    .await
-                })
-                .await;
-
-            let transaction_data = &routing::TransactionData::Payment(payment_input);
-            let static_input = StaticRoutingInput {
-                transaction_data,
-            };
-
-            let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
-                ctx: RoutingContext {
-                    routing_algorithm: cached_algorithm,
-                },
-            });
-
-            let (chosen_connectors, static_approach) =  static_stage
-                .clone()
-                .async_and_then(|static_stage| async move {
-                    static_stage
-                        .route(static_input)
+                // let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
+                //     let cached_algorithm = ensure_algorithm_cached_v1(
+                //         &session_pm_input.state.clone(),
+                //         merchant_id,
+                //         algorithm_id,
+                //         session_pm_input.profile_id,
+                //         input.transaction_type,
+                //     )
+                //     .await?;
+                //
+                //     match cached_algorithm.as_ref() {
+                //         CachedAlgorithm::Single(conn) => (
+                //             vec![(**conn).clone()],
+                //             Some(common_enums::RoutingApproach::StraightThroughRouting),
+                //         ),
+                //         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
+                //         CachedAlgorithm::VolumeSplit(splits) => (
+                //             perform_volume_split(splits.to_vec())
+                //                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+                //             Some(common_enums::RoutingApproach::VolumeBasedRouting),
+                //         ),
+                //         CachedAlgorithm::Advanced(interpreter) => (
+                //             execute_dsl_and_get_connector_v1(
+                //                 session_pm_input.backend_input.clone(),
+                //                 interpreter,
+                //             )?,
+                //             Some(common_enums::RoutingApproach::RuleBasedRouting),
+                //         ),
+                //     }
+                // } else {
+                //     (
+                //         routing::helpers::get_merchant_default_config(
+                //             &*session_pm_input.state.clone().store,
+                //             session_pm_input.profile_id.get_string_repr(),
+                //             input.transaction_type,
+                //         )
+                //         .await
+                //         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
+                //         None,
+                //     )
+                // };
+                let cached_algorithm = algorithm_id
+                    .async_and_then(|routing_algorithm_id| async move {
+                        try_ensure_algorithm_cached_v1(
+                            input.state,
+                            &input.business_profile.merchant_id,
+                            &algorithm_id.unwrap(),
+                            input.business_profile.get_id(),
+                            input.transaction_type,
+                        )
                         .await
-                        .inspect_err(|err| {
-                            logger::error!(
-                                error=?err,
-                                "euclid: static routing failed"
-                            );
-                        })
-                        .ok()
-                        .map(|outcome| RoutingConnectorOutcome {
-                            connectors: outcome.connectors,
-                        })
-                })
-                .await
-                .unwrap_or_else(RoutingConnectorOutcome::empty)
-                .resolve_or_fallback_with_approach(
-                    "static-routing",
-                    input.default_config,
-                    static_stage
-                        .as_ref()
-                        .map(|s| s.routing_approach())
-                        .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
-                    common_enums::RoutingApproach::DefaultFallback,
-                );
+                    })
+                    .await;
 
-            let mut final_selection = perform_cgraph_filtering(
-                &session_pm_input.state.clone(),
-                session_pm_input.key_store,
-                chosen_connectors,
-                session_pm_input.backend_input.clone(),
-                None,
-                session_pm_input.profile_id,
-                input.transaction_type,
-                input.active_mca_ids,
-            )
-            .await?;
+                let transaction_data = &routing::TransactionData::Payment(payment_input);
+                let static_input = StaticRoutingInput { transaction_data };
 
-            if final_selection.is_empty() {
-                final_selection = perform_cgraph_filtering(
+                let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
+                    ctx: RoutingContext {
+                        routing_algorithm: cached_algorithm,
+                    },
+                });
+
+                let (chosen_connectors, static_approach) = static_stage
+                    .clone()
+                    .async_and_then(|static_stage| async move {
+                        static_stage
+                            .route(static_input)
+                            .await
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    error=?err,
+                                    "euclid: static routing failed"
+                                );
+                            })
+                            .ok()
+                            .map(|outcome| RoutingConnectorOutcome {
+                                connectors: outcome.connectors,
+                            })
+                    })
+                    .await
+                    .unwrap_or_else(RoutingConnectorOutcome::empty)
+                    .resolve_or_fallback_with_approach(
+                        "static-routing",
+                        input.default_config,
+                        static_stage
+                            .as_ref()
+                            .map(|s| s.routing_approach())
+                            .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
+                        common_enums::RoutingApproach::DefaultFallback,
+                    );
+
+                let mut final_selection = perform_cgraph_filtering(
                     &session_pm_input.state.clone(),
                     session_pm_input.key_store,
-                    input.default_config.to_vec(),
+                    chosen_connectors,
                     session_pm_input.backend_input.clone(),
                     None,
                     session_pm_input.profile_id,
@@ -931,13 +919,26 @@ impl RoutingStage for SessionRoutingStage {
                     input.active_mca_ids,
                 )
                 .await?;
-            }
 
-            let routable_connector_choice_option = if final_selection.is_empty() {
-                (None, static_approach)
-            } else {
-                (Some(final_selection), static_approach)
-            };
+                if final_selection.is_empty() {
+                    final_selection = perform_cgraph_filtering(
+                        &session_pm_input.state.clone(),
+                        session_pm_input.key_store,
+                        input.default_config.to_vec(),
+                        session_pm_input.backend_input.clone(),
+                        None,
+                        session_pm_input.profile_id,
+                        input.transaction_type,
+                        input.active_mca_ids,
+                    )
+                    .await?;
+                }
+
+                let routable_connector_choice_option = if final_selection.is_empty() {
+                    (None, static_approach)
+                } else {
+                    (Some(final_selection), static_approach)
+                };
 
                 // let (routable_connector_choice_option, routing_approach) =
                 //     perform_session_routing_for_pm_type(
@@ -951,18 +952,23 @@ impl RoutingStage for SessionRoutingStage {
                 // final_routing_approach = routing_approach;
 
                 if let Some(routable_connector_choice) = routable_connector_choice_option.0 {
-                    let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> = Vec::new();
+                    let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> =
+                        Vec::new();
 
                     for selection in routable_connector_choice {
                         let connector_name = selection.connector.to_string();
-                        if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                        if let Some(get_token) =
+                            session_pm_input.allowed_connectors.get(&connector_name)
+                        {
                             let connector_data = api::ConnectorData::get_connector_by_name(
                                 &session_pm_input.state.clone().conf.connectors,
                                 &connector_name,
                                 get_token.clone(),
                                 selection.merchant_connector_id,
                             )
-                            .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
+                            .change_context(
+                                errors::RoutingError::InvalidConnectorName(connector_name),
+                            )?;
 
                             session_routing_choice.push(routing_types::SessionRoutingChoice {
                                 connector: connector_data,
@@ -975,7 +981,10 @@ impl RoutingStage for SessionRoutingStage {
                     }
                 }
             }
-            Ok(RoutingConnectorOutcomeForSessionRouting { session_output: result, routing_approach: final_routing_approach.unwrap()})
+            Ok(RoutingConnectorOutcomeForSessionRouting {
+                session_output: result,
+                routing_approach: final_routing_approach.unwrap(),
+            })
         })
     }
 
@@ -1221,7 +1230,8 @@ where
 pub struct DynamicRoutingStage;
 
 pub struct RoutingConnectorOutcomeForSessionRouting {
-    pub session_output: FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
+    pub session_output:
+        FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
     pub routing_approach: common_enums::RoutingApproach,
 }
 pub struct RoutingConnectorOutcomeWithApproach {
