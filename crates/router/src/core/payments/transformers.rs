@@ -2503,14 +2503,12 @@ where
             Self {
                 session_token: payment_data.get_sessions_token(),
                 payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                client_secret: Some(
-                    payment_data
-                        .get_payment_intent()
-                        .client_secret
-                        .clone()
-                        .get_required_value("client_secret")?
-                        .into(),
-                ),
+                client_secret: payment_data
+                    .get_payment_intent()
+                    .client_secret
+                    .clone()
+                    .get_required_value("client_secret")?
+                    .into(),
             },
             vec![],
         )))

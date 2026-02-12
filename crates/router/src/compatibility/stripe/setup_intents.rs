@@ -137,11 +137,8 @@ pub async fn setup_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut payload,
-         req_state| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut payload, req_state| {
+            if let Some(cs) = auth.client_secret {
                 payload.client_secret = Some(cs);
             }
 
@@ -225,11 +222,8 @@ pub async fn setup_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut req, req_state| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -314,11 +308,8 @@ pub async fn setup_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut req, req_state| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 

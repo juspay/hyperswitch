@@ -637,12 +637,9 @@ pub async fn payments_retrieve(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
+        |state, auth, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -720,7 +717,7 @@ pub async fn payments_retrieve_with_gateway_creds(
         state,
         &req,
         payload,
-        |state, (auth, _): auth::AuthenticationDataWithClientSecret, req, req_state| {
+        |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -794,11 +791,8 @@ pub async fn payments_update(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, req_state| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -845,7 +839,7 @@ pub async fn payments_post_session_tokens(
     let locking_action = payload.get_locking_input(flow.clone());
 
     // Determine auth type based on Authorization header presence
-    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
         match req.headers().get(actix_web::http::header::AUTHORIZATION) {
             // If Authorization header is present, use SdkAuthorizationAuth
             Some(_) => Box::new(auth::SdkAuthorizationAuth {
@@ -879,12 +873,9 @@ pub async fn payments_post_session_tokens(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
+        |state, auth: auth::AuthenticationData, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
 
@@ -1035,12 +1026,9 @@ pub async fn payments_confirm(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
+        |state, auth: auth::AuthenticationData, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -1144,7 +1132,7 @@ pub async fn payments_dynamic_tax_calculation(
     let locking_action = payload.get_locking_input(flow.clone());
 
     // Determine auth type based on Authorization header presence
-    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
         match req.headers().get(actix_web::http::header::AUTHORIZATION) {
             // If Authorization header is present, use SdkAuthorizationAuth
             Some(_) => Box::new(auth::SdkAuthorizationAuth {
@@ -1178,12 +1166,9 @@ pub async fn payments_dynamic_tax_calculation(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut payload,
-         req_state| {
+        |state, auth, mut payload, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 payload.client_secret = Some(Secret::new(cs));
             }
 
@@ -1304,7 +1289,7 @@ pub async fn payments_connector_session(
     let locking_action = payload.get_locking_input(flow.clone());
 
     // Determine auth type based on Authorization header presence
-    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
         match req.headers().get(actix_web::http::header::AUTHORIZATION) {
             // If Authorization header is present, use SdkAuthorizationAuth
             Some(_) => Box::new(auth::SdkAuthorizationAuth {
@@ -1336,12 +1321,9 @@ pub async fn payments_connector_session(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut payload,
-         req_state| {
+        |state, auth: auth::AuthenticationData, mut payload, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 payload.client_secret = Some(cs);
             }
             payments::payments_core::<
@@ -1610,12 +1592,9 @@ pub async fn payments_complete_authorize(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         req_state| {
+        |state, auth: auth::AuthenticationData, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
             payments::payments_core::<
@@ -2510,7 +2489,7 @@ pub async fn payments_external_authentication(
     let locking_action = payload.get_locking_input(flow.clone());
 
     // Determine auth type based on Authorization header presence
-    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
         match req.headers().get(actix_web::http::header::AUTHORIZATION) {
             // If Authorization header is present, use SdkAuthorizationAuth
             Some(_) => Box::new(auth::SdkAuthorizationAuth {
@@ -2544,12 +2523,9 @@ pub async fn payments_external_authentication(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
+        |state, auth: auth::AuthenticationData, mut req, _| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
 
@@ -2706,12 +2682,9 @@ pub async fn payments_submit_eligibility(
         state,
         &http_req,
         payment_id,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         payment_id,
-         _| {
+        |state, auth: auth::AuthenticationData, payment_id, _| {
             let mut payload = payload.clone();
-            if let Some(cs) = client_secret_from_auth {
+            if let Some(cs) = auth.client_secret {
                 payload.client_secret = Some(Secret::new(cs));
             }
             payments::payments_submit_eligibility(state, auth.platform, payload.clone(), payment_id)

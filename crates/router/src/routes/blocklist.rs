@@ -129,11 +129,8 @@ pub async fn list_blocked_payment_methods(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut query,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut query, _| {
+            if let Some(cs) = auth.client_secret {
                 query.client_secret = Some(cs);
             }
 

@@ -633,11 +633,8 @@ pub async fn save_payment_method_api(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -678,11 +675,8 @@ pub async fn list_payment_method_api(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -714,28 +708,24 @@ pub async fn list_customer_payment_method_api(
         allow_platform_self_operation: true,
     };
 
-    let auth_type: Box<
-        dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>,
-    > = match req.headers().get(actix_web::http::header::AUTHORIZATION) {
-        Some(_) => Box::new(auth::SdkAuthorizationAuth {
-            allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
-            allow_platform_self_operation: api_auth.allow_platform_self_operation,
-        }),
-        None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        },
-    };
+    let auth_type: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(err),
+            },
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -778,12 +768,11 @@ pub async fn list_customer_payment_method_api_client(
     {
         Some(_) => {
             // If Authorization header is present, use SdkAuthorizationAuth
-            let auth: Box<
-                dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>,
-            > = Box::new(auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
-                allow_platform_self_operation: api_auth.allow_platform_self_operation,
-            });
+            let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+                Box::new(auth::SdkAuthorizationAuth {
+                    allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                    allow_platform_self_operation: api_auth.allow_platform_self_operation,
+                });
             (auth, api::AuthFlow::Client, false)
         }
         None => {
@@ -802,11 +791,8 @@ pub async fn list_customer_payment_method_api_client(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -1061,11 +1047,8 @@ pub async fn payment_method_update_api(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }
 
@@ -1109,7 +1092,7 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         pm,
-        |state, (auth, _): auth::AuthenticationDataWithClientSecret, req, _| async move {
+        |state, auth: auth::AuthenticationData, req, _| async move {
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),
@@ -1221,24 +1204,23 @@ pub async fn default_payment_method_set_api(
         allow_platform_self_operation: true,
     };
 
-    let auth_type: Box<
-        dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>,
-    > = match req.headers().get(actix_web::http::header::AUTHORIZATION) {
-        Some(_) => Box::new(auth::SdkAuthorizationAuth {
-            allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
-            allow_platform_self_operation: api_auth.allow_platform_self_operation,
-        }),
-        None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        },
-    };
+    let auth_type: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(err),
+            },
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, (auth, _): auth::AuthenticationDataWithClientSecret, default_payment_method, _| async move {
+        |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),

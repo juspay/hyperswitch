@@ -65,11 +65,8 @@ pub async fn authentication_eligibility(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
 
@@ -113,11 +110,8 @@ pub async fn authentication_authenticate(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
 
@@ -161,11 +155,8 @@ pub async fn authentication_eligibility_check(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
 
@@ -243,11 +234,8 @@ pub async fn authentication_sync(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
 
@@ -320,11 +308,8 @@ pub async fn authentication_session_token(
         state,
         &req,
         payload,
-        |state,
-         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
-         mut req,
-         _| {
-            if let Some(cs) = client_secret_from_auth {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(Secret::new(cs));
             }
             unified_authentication_service::authentication_session_core(state, auth.platform, req)

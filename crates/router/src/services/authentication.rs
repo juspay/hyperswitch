@@ -68,6 +68,7 @@ mod detached;
 pub struct AuthenticationData {
     pub platform: domain::Platform,
     pub profile: Option<domain::Profile>,
+    pub client_secret: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -86,6 +87,7 @@ impl AuthenticationData {
         Self {
             platform,
             profile: Some(profile),
+            client_secret: None,
         }
     }
 }
@@ -666,7 +668,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
@@ -674,37 +680,6 @@ where
                 key_id: stored_api_key.key_id,
             },
         ))
-    }
-}
-
-// Additional implementation for ApiKeyAuth that returns AuthenticationDataWithClientSecret
-// This delegates to the original implementation and wraps the result
-#[cfg(feature = "v2")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for ApiKeyAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
-        // Create a temporary instance to call the original implementation
-        let api_auth = Self {
-            allow_connected_scope_operation: self.allow_connected_scope_operation,
-            allow_platform_self_operation: self.allow_platform_self_operation,
-        };
-
-        // Call the existing AuthenticationData implementation
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
-
-        // API key auth does not extract client_secret at authentication layer
-        let client_secret = None;
-
-        Ok(((auth_data, client_secret), auth_type))
     }
 }
 
@@ -816,7 +791,11 @@ where
             None => None,
         };
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
@@ -824,37 +803,6 @@ where
                 key_id: stored_api_key.key_id,
             },
         ))
-    }
-}
-
-// Additional implementation for ApiKeyAuth that returns AuthenticationDataWithClientSecret
-// This delegates to the original implementation and wraps the result
-#[cfg(feature = "v1")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for ApiKeyAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
-        // Create a temporary instance to call the original implementation
-        let api_auth = Self {
-            allow_connected_scope_operation: self.allow_connected_scope_operation,
-            allow_platform_self_operation: self.allow_platform_self_operation,
-        };
-
-        // Call the existing AuthenticationData implementation
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
-
-        // API key auth does not extract client_secret at authentication layer
-        let client_secret = None;
-
-        Ok(((auth_data, client_secret), auth_type))
     }
 }
 
@@ -1100,6 +1048,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
         Ok((
@@ -1239,6 +1188,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
         Ok((
@@ -1421,23 +1371,6 @@ where
     }
 }
 
-// Additional implementation for HeaderAuth that returns AuthenticationDataWithClientSecret
-// This delegates to the inner auth type and wraps the result
-#[async_trait]
-impl<A, I> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for HeaderAuth<I>
-where
-    A: SessionStateInfo + Send + Sync,
-    I: AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> + Sync + Send,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
-        self.0.authenticate_and_fetch(request_headers, state).await
-    }
-}
-
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
 async fn construct_authentication_data<A>(
     state: &A,
@@ -1505,7 +1438,11 @@ where
         None => None,
     };
 
-    let auth = AuthenticationData { platform, profile };
+    let auth = AuthenticationData {
+        platform,
+        profile,
+        client_secret: None,
+    };
 
     Ok(auth)
 }
@@ -1799,6 +1736,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
         Ok((
@@ -2084,6 +2022,7 @@ where
             let auth = AuthenticationData {
                 platform,
                 profile: None,
+                client_secret: None,
             };
             return Ok((
                 auth,
@@ -2148,6 +2087,7 @@ where
                 let auth = AuthenticationData {
                     platform,
                     profile: None,
+                    client_secret: None,
                 };
                 return Ok((
                     auth,
@@ -2319,6 +2259,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
         Ok((
             auth,
@@ -2443,7 +2384,7 @@ pub struct EphemeralKeyAuth;
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for EphemeralKeyAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
     A: SessionStateInfo + Sync,
 {
@@ -2451,7 +2392,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let ephemeral_key = state
@@ -2460,15 +2401,9 @@ where
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Call MerchantIdAuth which returns (AuthenticationData, AuthenticationType)
-        let (auth_data, auth_type) = MerchantIdAuth(ephemeral_key.merchant_id)
+        MerchantIdAuth(ephemeral_key.merchant_id)
             .authenticate_and_fetch(request_headers, state)
-            .await?;
-
-        // Ephemeral key auth does not extract client_secret at authentication layer
-        let client_secret = None;
-
-        Ok(((auth_data, client_secret), auth_type))
+            .await
     }
 }
 
@@ -2518,6 +2453,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -2700,103 +2636,6 @@ where
 
             Ok((
                 auth.clone(),
-                AuthenticationType::InternalMerchantIdProfileId {
-                    merchant_id: merchant_id.clone(),
-                    profile_id: Some(profile_id),
-                },
-            ))
-        } else {
-            Ok(self
-                .0
-                .authenticate_and_fetch(request_headers, state)
-                .await?)
-        }
-    }
-}
-
-#[async_trait]
-impl<A, F> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A>
-    for InternalMerchantIdProfileIdAuth<F>
-where
-    A: SessionStateInfo + Sync + Send,
-    F: AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> + Sync + Send,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
-        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
-            return self.0.authenticate_and_fetch(request_headers, state).await;
-        }
-        let merchant_id = HeaderMapStruct::new(request_headers)
-            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
-            .ok();
-        let internal_api_key = HeaderMapStruct::new(request_headers)
-            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
-            .map(|s| s.to_string());
-        let profile_id = HeaderMapStruct::new(request_headers)
-            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
-            .ok();
-        if let (Some(internal_api_key), Some(merchant_id), Some(profile_id)) =
-            (internal_api_key, merchant_id, profile_id)
-        {
-            let config = state.conf();
-            if internal_api_key
-                != *config
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
-            {
-                return Err(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Internal API key authentication failed");
-            }
-            let key_store = state
-                .store()
-                .get_merchant_key_store_by_merchant_id(
-                    &merchant_id,
-                    &state.store().get_master_key().to_vec().into(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-            let profile = state
-                .store()
-                .find_business_profile_by_merchant_id_profile_id(
-                    &key_store,
-                    &merchant_id,
-                    &profile_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-            let merchant = state
-                .store()
-                .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-            let initiator = Some(domain::Initiator::Api {
-                merchant_id: merchant.get_id().clone(),
-                merchant_account_type: merchant.merchant_account_type,
-                publishable_key: merchant.publishable_key.clone(),
-            });
-
-            let platform = domain::Platform::new(
-                merchant.clone(),
-                key_store.clone(),
-                merchant,
-                key_store,
-                initiator,
-            );
-
-            let auth = AuthenticationData::construct_authentication_data_for_internal_merchant_id_profile_id_auth(platform, profile);
-
-            // Internal merchant ID/profile ID auth does not extract client_secret at authentication layer
-            let client_secret = None;
-
-            Ok((
-                (auth.clone(), client_secret),
                 AuthenticationType::InternalMerchantIdProfileId {
                     merchant_id: merchant_id.clone(),
                     profile_id: Some(profile_id),
@@ -3244,7 +3083,7 @@ impl GetMerchantAccessFlags for PublishableKeyAuth {
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for PublishableKeyAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for PublishableKeyAuth
 where
     A: SessionStateInfo + Sync,
 {
@@ -3252,7 +3091,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -3287,16 +3126,14 @@ where
         )
         .await?;
 
-        let auth_data = AuthenticationData {
+        let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
-        // Publishable key auth does not extract client_secret at authentication layer
-        let client_secret = None;
-
         Ok((
-            (auth_data, client_secret),
+            auth,
             AuthenticationType::PublishableKey {
                 merchant_id: initiator_merchant.get_id().clone(),
             },
@@ -3373,37 +3210,6 @@ where
     }
 }
 
-// Additional implementation for PublishableKeyAuth that returns AuthenticationDataWithClientSecret
-// This delegates to the original implementation and wraps the result
-#[cfg(feature = "v2")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for PublishableKeyAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
-        // Create a temporary instance to call the original implementation
-        let pk_auth = Self {
-            allow_connected_scope_operation: self.allow_connected_scope_operation,
-            allow_platform_self_operation: self.allow_platform_self_operation,
-        };
-
-        // Call the existing AuthenticationData implementation
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = pk_auth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
-
-        // Publishable key auth does not extract client_secret at authentication layer
-        let client_secret = None;
-
-        Ok(((auth_data, client_secret), auth_type))
-    }
-}
-
 /// SDK Authorization authentication using Authorization header
 #[derive(Debug, Default)]
 pub struct SdkAuthorizationAuth {
@@ -3413,7 +3219,7 @@ pub struct SdkAuthorizationAuth {
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for SdkAuthorizationAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for SdkAuthorizationAuth
 where
     A: SessionStateInfo + Sync,
 {
@@ -3421,7 +3227,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         // Get Authorization header
         let sdk_auth_header =
             get_header_value_by_key(headers::AUTHORIZATION.into(), request_headers)?
@@ -3482,9 +3288,10 @@ where
         let auth_data = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret,
         };
         Ok((
-            (auth_data, client_secret),
+            auth_data,
             AuthenticationType::SdkAuthorization {
                 merchant_id: initiator_merchant.get_id().clone(),
             },
@@ -3959,6 +3766,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
 
         Ok((
@@ -4261,6 +4069,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -4482,6 +4291,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -4571,6 +4381,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -4749,6 +4560,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth,
@@ -4838,7 +4650,6 @@ where
 }
 
 pub type AuthenticationDataWithUserId = (AuthenticationData, String);
-pub type AuthenticationDataWithClientSecret = (AuthenticationData, Option<String>);
 
 #[cfg(feature = "v1")]
 #[async_trait]
@@ -4904,6 +4715,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             (auth.clone(), payload.user_id.clone()),
@@ -4912,33 +4724,6 @@ where
                 user_id: None,
             },
         ))
-    }
-}
-
-// JWT authentication implementation that returns client_secret tuple
-// JWT auth does not extract client_secret, so it always returns None
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithClientSecret, A> for JWTAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithClientSecret, AuthenticationType)> {
-        // Call the existing AuthenticationData implementation
-        let jwt_auth = Self {
-            permission: self.permission,
-        };
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = jwt_auth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
-
-        // JWT auth does not extract client_secret at authentication layer
-        let client_secret = None;
-
-        Ok(((auth_data, client_secret), auth_type))
     }
 }
 
@@ -5086,6 +4871,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth,
@@ -5187,6 +4973,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         let auth_type = match payload {
             AuthOrEmbeddedClaims::AuthToken(auth_payload) => AuthenticationType::MerchantJwt {
@@ -5373,7 +5160,7 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, A>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
     api::AuthFlow,
 )> {
     let api_key = get_api_key(headers)?;
@@ -5396,7 +5183,7 @@ pub fn check_authorization_header_or_get_auth<A: SessionStateInfo + Sync + Send>
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, A>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
     api::AuthFlow,
 )> {
     match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
@@ -5418,13 +5205,13 @@ pub fn check_client_secret_and_get_auth<T>(
     payload: &impl ClientSecretFetch,
     api_auth: ApiKeyAuth,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
 )>
 where
     T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
     if api_key.starts_with("pk_") {
@@ -5459,14 +5246,14 @@ pub fn check_sdk_auth_and_get_auth<T>(
     payload: &impl ClientSecretFetch,
     api_auth: ApiKeyAuth,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
 )>
 where
     T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
-    SdkAuthorizationAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    SdkAuthorizationAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     // Check Authorization header first
     match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
@@ -5491,15 +5278,15 @@ pub async fn get_ephemeral_or_other_auth<T>(
     payload: Option<&impl ClientSecretFetch>,
     api_auth: ApiKeyAuth,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
     bool,
 )>
 where
     T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
-    EphemeralKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    EphemeralKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
 
@@ -5522,7 +5309,7 @@ where
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, A>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
@@ -5559,12 +5346,12 @@ pub fn check_internal_api_key_auth<T>(
     api_auth: ApiKeyAuth,
     internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
 )>
 where
     T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
         Ok((
@@ -5583,12 +5370,12 @@ pub fn check_internal_api_key_auth_no_client_secret<T>(
     api_auth: ApiKeyAuth,
     internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
 )>
 where
     T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationDataWithClientSecret, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
         Ok((
