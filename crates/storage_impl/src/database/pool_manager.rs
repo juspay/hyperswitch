@@ -536,7 +536,7 @@ async fn drain_pool_connections(pool: Arc<PgPool>) {
 ///
 /// ## Usage:
 /// This is called internally by `PgPoolManager::check_and_handle_failover_error()`.
-/// Storage methods should use `diesel_error_to_data_error_with_failover_check()`.
+/// Storage methods should use `diesel_error_to_data_error_with_error_handling()`.
 pub fn is_failover_error(error_message: &str) -> bool {
     let error_lower = error_message.to_lowercase();
 

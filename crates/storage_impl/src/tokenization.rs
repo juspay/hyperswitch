@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::{connection, diesel_error_to_data_error_with_failover_check, errors};
+use crate::{connection, diesel_error_to_data_error_with_error_handling, errors};
 use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
@@ -60,7 +60,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
             .await
             .map_err(|error| {
                 let new_err =
-                    diesel_error_to_data_error_with_failover_check(&self.db_store, &error);
+                    diesel_error_to_data_error_with_error_handling(&self.db_store, &error);
                 error.change_context(new_err)
             })?
             .convert(

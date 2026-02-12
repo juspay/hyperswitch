@@ -34,7 +34,7 @@ use router_env::{instrument, tracing};
 use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
 use crate::{
     connection::{pg_connection_read, pg_connection_write},
-    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check, errors,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_error_handling, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
@@ -66,7 +66,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
+                let new_err = diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
                 er.change_context(new_err)
             })
             .async_map(|diesel_payment_attempt| async {
@@ -99,7 +99,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .await
             .map_err(|error| {
                 let new_error =
-                    diesel_error_to_data_error_with_failover_check(&self.db_store, &error);
+                    diesel_error_to_data_error_with_error_handling(&self.db_store, &error);
                 error.change_context(new_error)
             })?
             .convert(

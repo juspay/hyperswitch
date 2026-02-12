@@ -20,7 +20,7 @@ pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
     database::store::PgPool,
-    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_error_handling,
     errors::{self, RedisErrorExt, StorageResult},
     lookup::ReverseLookupInterface,
     metrics,
@@ -401,7 +401,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => create_resource_fut.await.map_err(|error| {
-                let new_err = diesel_error_to_data_error_with_failover_check(
+                let new_err = diesel_error_to_data_error_with_error_handling(
                     &self.router_store.db_store,
                     &error,
                 );
@@ -483,7 +483,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => {
                         update_resource_fut.await.map_err(|error| {
-                            let new_err = diesel_error_to_data_error_with_failover_check(
+                            let new_err = diesel_error_to_data_error_with_error_handling(
                                 &self.router_store.db_store,
                                 &error,
                             );

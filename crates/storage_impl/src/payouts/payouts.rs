@@ -44,7 +44,7 @@ use crate::store::schema::{
 };
 use crate::{
     connection::{pg_connection_read, pg_connection_write},
-    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_error_handling,
     errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
@@ -409,7 +409,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
+                let new_err = diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
                 er.change_context(new_err)
             })
             .map(Payouts::from_storage_model)
@@ -429,7 +429,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .update(&conn, payout.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
+                let new_err = diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
                 er.change_context(new_err)
             })
             .map(Payouts::from_storage_model)

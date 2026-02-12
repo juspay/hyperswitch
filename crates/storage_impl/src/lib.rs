@@ -373,7 +373,7 @@ pub(crate) fn diesel_error_to_data_error(
 ///
 /// This ensures that subsequent requests will get connections from a fresh pool
 /// pointing to the new primary database.
-pub fn diesel_error_to_data_error_with_failover_check<T: DatabaseStore>(
+pub fn diesel_error_to_data_error_with_error_handling<T: DatabaseStore>(
     store: &T,
     error: &error_stack::Report<diesel_models::errors::DatabaseError>,
 ) -> StorageError {

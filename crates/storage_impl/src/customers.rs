@@ -12,7 +12,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     connection::{pg_connection_read, pg_connection_write},
-    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_error_handling,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
@@ -713,7 +713,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .await
             .map_err(|error| {
                 let new_err =
-                    diesel_error_to_data_error_with_failover_check(&self.db_store, &error);
+                    diesel_error_to_data_error_with_error_handling(&self.db_store, &error);
                 error.change_context(new_err)
             })
     }

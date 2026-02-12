@@ -25,7 +25,7 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     connection::{pg_connection_read, pg_connection_write},
-    diesel_error_to_data_error, diesel_error_to_data_error_with_failover_check, errors,
+    diesel_error_to_data_error, diesel_error_to_data_error_with_error_handling, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
@@ -415,7 +415,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
+                let new_err = diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
                 er.change_context(new_err)
             })
             .map(PayoutAttempt::from_storage_model)
@@ -435,7 +435,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .update_with_attempt_id(&conn, payout.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error_with_failover_check(&self.db_store, &er);
+                let new_err = diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
                 er.change_context(new_err)
             })
             .map(PayoutAttempt::from_storage_model)
