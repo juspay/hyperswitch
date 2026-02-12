@@ -219,7 +219,7 @@ pub trait Config {
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
-        T: common_utils::id_type::TargetingKey
+        T: common_utils::id_type::TargetingKey,
     {
         let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
