@@ -273,7 +273,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: hyperswitch-server
+          name: hyperswitch-server-hyperswitch-runners
           path: target/debug
 
       - name: Make server executable
