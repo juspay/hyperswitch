@@ -322,8 +322,16 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
         // Extract additional_payment_method_data
         let additional_payment_method_data = value
             .additional_payment_method_data
-            .map(AdditionalPaymentMethodConnectorResponse::foreign_try_from)
-            .transpose()?;
+            .and_then(|apmd| {
+                AdditionalPaymentMethodConnectorResponse::foreign_try_from(apmd)
+                    .inspect_err(|e| {
+                        router_env::logger::warn!(
+                            error=?e,
+                            "Failed to deserialize additional_payment_method_data from UCS - setting to None"
+                        );
+                    })
+                    .ok()
+            });
 
         let extended_authorization_response_data =
             value.extended_authorization_response_data.map(|data| {
@@ -363,34 +371,66 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     fn foreign_try_from(
         value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
     ) -> Result<Self, Self::Error> {
-        let card_data = value.card.unwrap_or_default();
-
-        Ok(Self::Card {
-            authentication_data: card_data.authentication_data.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize authentication_data from UCS connector response"
-                        );
-                    })
-                    .ok()
+        match value.payment_method_data {
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(
+                    card_data,
+                ),
+            ) => Ok(Self::Card {
+                authentication_data: card_data.authentication_data.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize authentication_data from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
+                payment_checks: card_data.payment_checks.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize payment_checks from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
+                card_network: card_data.card_network,
+                domestic_network: card_data.domestic_network,
+                auth_code: card_data.auth_code,
             }),
-            payment_checks: card_data.payment_checks.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize payment_checks from UCS connector response"
-                        );
-                    })
-                    .ok()
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(
+                    _,
+                ),
+            ) => {
+                // Upi variant to be updated during #11019 PR merge
+                Err(UnifiedConnectorServiceError::NotImplemented(
+                    "UPI payment method data deserialization".to_string(),
+                )
+                .into())
+            }
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::GooglePay(
+                    google_pay_data,
+                ),
+            ) => Ok(Self::GooglePay {
+                auth_code: google_pay_data.auth_code,
             }),
-            card_network: card_data.card_network,
-            domestic_network: card_data.domestic_network,
-            // needs to be updated
-            auth_code: None,
-        })
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
+                    apple_pay_data,
+                ),
+            ) => Ok(Self::ApplePay {
+                auth_code: apple_pay_data.auth_code,
+            }),
+            None => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("Unexpected error: payment_method_data is None in UCS connector response")),
+        }
     }
 }
 
