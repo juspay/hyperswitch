@@ -1269,7 +1269,7 @@ pub async fn create_payment_method_card_core(
         merchant_id,
         platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
-        payment_method_billing_address,
+        payment_method_billing_address.clone(),
     )
     .await
     .attach_printable("failed to add payment method to db")?;
@@ -1364,7 +1364,7 @@ pub async fn create_payment_method_card_core(
                 cvc_expiry_details,
                 req.customer_id,
                 None,
-                None,
+                payment_method_billing_address.map(|add| add.get_inner().clone().into()),
             )?;
 
             Ok((resp, payment_method))
@@ -3887,6 +3887,8 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert encrypted cvc in redis")?;
 
+    let payment_method_billing_address = payment_method.payment_method_billing_address.clone();
+
     // Stage 2: Update payment method if required
     let updated_payment_method = if request.is_payment_method_update_required() {
         let (vault_request_data, vault_id, fingerprint_id) = if request
@@ -3992,7 +3994,7 @@ pub async fn update_payment_method_core(
         card_cvc_token_details,
         updated_payment_method.customer_id.clone(),
         None,
-        None,
+        payment_method_billing_address.map(|billing| billing.get_inner().clone().into()),
     )?;
 
     // Add a PT task to handle payment_method delete from vault

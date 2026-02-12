@@ -1040,9 +1040,6 @@ pub struct PaymentMethodResponse {
 
     /// For Client based calls
     pub client_secret: Option<String>,
-
-    /// Billing details of the payment method
-    pub billing: Option<payments::Address>,
 }
 
 #[cfg(feature = "v1")]
@@ -1206,6 +1203,9 @@ pub struct PaymentMethodResponse {
     /// The raw data associated with the payment method
     #[schema(value_type = RawPaymentMethodData)]
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
+
+    /// Billing details of the payment method
+    pub billing: Option<payments::Address>,
 }
 
 #[cfg(feature = "v2")]
