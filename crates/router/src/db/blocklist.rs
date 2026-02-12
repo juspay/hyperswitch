@@ -1,7 +1,6 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::database::store::DatabaseStore;
-use storage_impl::MockDb;
+use storage_impl::{database::store::DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{

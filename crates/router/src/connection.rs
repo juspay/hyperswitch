@@ -1,6 +1,5 @@
 use diesel::PgConnection;
-use storage_impl::connection::OwnedPooledConnection;
-use storage_impl::errors as storage_errors;
+use storage_impl::{connection::OwnedPooledConnection, errors as storage_errors};
 
 use crate::errors;
 

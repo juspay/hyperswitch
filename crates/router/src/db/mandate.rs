@@ -64,9 +64,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::database::store::DatabaseStore;
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        database::store::DatabaseStore,
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     };
 
     use super::MandateInterface;

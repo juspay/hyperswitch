@@ -421,9 +421,7 @@ impl PgPoolManager {
 #[allow(unused_qualifications)]
 async fn validate_pool_is_writable(pool: &PgPool) -> Result<bool, String> {
     use async_bb8_diesel::AsyncRunQueryDsl;
-    use diesel::prelude::*;
-    use diesel::sql_query;
-    use diesel::sql_types::Bool;
+    use diesel::{prelude::*, sql_query, sql_types::Bool};
 
     #[derive(QueryableByName, Debug)]
     struct ReadOnlyCheck {

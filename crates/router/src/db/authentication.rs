@@ -5,8 +5,7 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use router_env::{instrument, tracing};
-use storage_impl::database::store::DatabaseStore;
-use storage_impl::StorageError;
+use storage_impl::{database::store::DatabaseStore, StorageError};
 
 use super::{MockDb, Store};
 use crate::{connection, core::errors::CustomResult, types::storage};
