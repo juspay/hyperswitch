@@ -16,6 +16,7 @@ use api_models::{
     routing::ConnectorSelection,
 };
 use common_types::payments as common_payments_types;
+use common_utils::ext_traits::AsyncExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::enums as storage_enums;
@@ -627,10 +628,11 @@ impl RoutingStage for StraightThroughRoutingStage {
 
 #[derive(Clone)]
 pub struct StaticRoutingInput<'a> {
-    pub platform: &'a domain::Platform,
-    pub business_profile: &'a domain::Profile,
-    pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
-    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+    // pub platform: &'a domain::Platform,
+    // pub business_profile: &'a domain::Profile,
+    // pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
+    // pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+    pub transaction_data: &'a routing::TransactionData<'a>,
 }
 
 #[derive(Clone)]
@@ -647,7 +649,8 @@ impl RoutingStage for StaticRoutingStage {
         Box::pin(async move {
             let connectors = static_routing_v1(
                 &self.ctx.routing_algorithm,
-                &routing::TransactionData::Payment(input.transaction_data.clone()),
+                &input.transaction_data,
+                // &routing::TransactionData::Payment(input.transaction_data.clone()),
             )
             .await
             .change_context(errors::RoutingError::DslExecutionError)
@@ -659,6 +662,325 @@ impl RoutingStage for StaticRoutingStage {
 
     fn routing_approach(&self) -> common_enums::RoutingApproach {
         common_enums::RoutingApproach::RuleBasedRouting
+    }
+}
+
+#[derive(Clone)]
+pub struct SessionRoutingInput<'a> {
+    pub state: &'a SessionState,
+    pub platform: &'a domain::Platform,
+    pub business_profile: &'a domain::Profile,
+    pub country: Option<CountryAlpha2>,
+    pub key_store: &'a domain::MerchantKeyStore,
+    pub merchant_account: &'a domain::MerchantAccount,
+    pub transaction_type: &'a api_enums::TransactionType,
+    pub payment_attempt: &'a oss_storage::PaymentAttempt,
+    pub payment_intent: &'a oss_storage::PaymentIntent,
+    pub chosen: &'a api::SessionConnectorDatas,
+    pub active_mca_ids: &'a std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    pub default_config: &'a Vec<routing_types::RoutableConnectorChoice>,
+}
+
+#[derive(Clone)]
+pub struct SessionRoutingStage {
+    pub ctx: RoutingContext,
+}
+
+impl RoutingStage for SessionRoutingStage {
+    type Input<'a> = SessionRoutingInput<'a>;
+    type Output = RoutingConnectorOutcomeForSessionRouting;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
+                FxHashMap::default();
+
+            let profile_id = input
+                .payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::RoutingError::ProfileIdMissing)?;
+
+            let routing_algorithm: MerchantAccountRoutingAlgorithm = {
+                input
+                    .business_profile
+                    .routing_algorithm
+                    .clone()
+                    .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
+                    .transpose()
+                    .change_context(errors::RoutingError::InvalidRoutingAlgorithmStructure)?
+                    .unwrap_or_default()
+            };
+
+            let payment_method_input = dsl_inputs::PaymentMethodInput {
+                payment_method: None,
+                payment_method_type: None,
+                card_network: None,
+            };
+
+            let payment_input = dsl_inputs::PaymentInput {
+                amount: input.payment_attempt.get_total_amount(),
+                transaction_initiator: match input.payment_intent.off_session {
+                    Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+                    _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+                },
+                currency: input
+                    .payment_intent
+                    .currency
+                    .get_required_value("Currency")
+                    .change_context(errors::RoutingError::DslMissingRequiredField {
+                        field_name: "currency".to_string(),
+                    })?,
+                authentication_type: input.payment_attempt.authentication_type,
+                card_bin: None,
+                extended_card_bin: None,
+                capture_method: input
+                    .payment_attempt
+                    .capture_method
+                    .and_then(Option::<euclid_enums::CaptureMethod>::foreign_from),
+                business_country: input
+                    .payment_intent
+                    .business_country
+                    .map(api_enums::Country::from_alpha2),
+                billing_country: input
+                    .country
+                    .map(storage_enums::Country::from_alpha2),
+                business_label: input.payment_intent.business_label.clone(),
+                setup_future_usage: input.payment_intent.setup_future_usage,
+            };
+
+            let metadata = input
+                .payment_intent
+                .parse_and_get_metadata("routing_parameters")
+                .change_context(errors::RoutingError::MetadataParsingError)
+                .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
+                .unwrap_or(None);
+
+            let mut backend_input = dsl_inputs::BackendInput {
+                metadata,
+                payment: payment_input,
+                payment_method: payment_method_input,
+                mandate: dsl_inputs::MandateData {
+                    mandate_acceptance_type: None,
+                    mandate_type: None,
+                    payment_type: None,
+                },
+                acquirer_data: None,
+                customer_device_data: None,
+                issuer_data: None,
+            };
+
+            for connector_data in input.chosen.iter() {
+                pm_type_map
+                    .entry(connector_data.payment_method_sub_type)
+                    .or_default()
+                    .insert(
+                        connector_data.connector.connector_name.to_string(),
+                        connector_data.connector.get_token.clone(),
+                    );
+            }
+
+            let mut result: FxHashMap<
+                api_enums::PaymentMethodType,
+                Vec<routing_types::SessionRoutingChoice>,
+            > = FxHashMap::default();
+            let mut final_routing_approach = None;
+
+            for (pm_type, allowed_connectors) in pm_type_map {
+                let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
+                let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
+
+                backend_input.payment_method.payment_method = Some(euclid_pm);
+                backend_input.payment_method.payment_method_type = Some(euclid_pmt);
+
+                let session_pm_input = SessionRoutingPmTypeInput {
+                    state: input.state,
+                    key_store: input.key_store,
+                    attempt_id: input.payment_attempt.get_id(),
+                    routing_algorithm: &routing_algorithm,
+                    backend_input: backend_input.clone(),
+                    allowed_connectors,
+                    profile_id: &profile_id,
+                };
+
+
+
+            let merchant_id = &session_pm_input.key_store.merchant_id;
+
+            let algorithm_id = match session_pm_input.routing_algorithm {
+                MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
+            };
+
+            // let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
+            //     let cached_algorithm = ensure_algorithm_cached_v1(
+            //         &session_pm_input.state.clone(),
+            //         merchant_id,
+            //         algorithm_id,
+            //         session_pm_input.profile_id,
+            //         input.transaction_type,
+            //     )
+            //     .await?;
+            //
+            //     match cached_algorithm.as_ref() {
+            //         CachedAlgorithm::Single(conn) => (
+            //             vec![(**conn).clone()],
+            //             Some(common_enums::RoutingApproach::StraightThroughRouting),
+            //         ),
+            //         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
+            //         CachedAlgorithm::VolumeSplit(splits) => (
+            //             perform_volume_split(splits.to_vec())
+            //                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+            //             Some(common_enums::RoutingApproach::VolumeBasedRouting),
+            //         ),
+            //         CachedAlgorithm::Advanced(interpreter) => (
+            //             execute_dsl_and_get_connector_v1(
+            //                 session_pm_input.backend_input.clone(),
+            //                 interpreter,
+            //             )?,
+            //             Some(common_enums::RoutingApproach::RuleBasedRouting),
+            //         ),
+            //     }
+            // } else {
+            //     (
+            //         routing::helpers::get_merchant_default_config(
+            //             &*session_pm_input.state.clone().store,
+            //             session_pm_input.profile_id.get_string_repr(),
+            //             input.transaction_type,
+            //         )
+            //         .await
+            //         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
+            //         None,
+            //     )
+            // };
+            let cached_algorithm = algorithm_id
+                .async_and_then(|routing_algorithm_id| async move {
+                    try_ensure_algorithm_cached_v1(
+                        input.state,
+                        &input.business_profile.merchant_id,
+                        &algorithm_id.unwrap(),
+                        input.business_profile.get_id(),
+                        input.transaction_type,
+                    )
+                    .await
+                })
+                .await;
+
+            let transaction_data = &routing::TransactionData::Payment(payment_input);
+            let static_input = StaticRoutingInput {
+                transaction_data,
+            };
+
+            let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
+                ctx: RoutingContext {
+                    routing_algorithm: cached_algorithm,
+                },
+            });
+
+            let (chosen_connectors, static_approach) =  static_stage
+                .clone()
+                .async_and_then(|static_stage| async move {
+                    static_stage
+                        .route(static_input)
+                        .await
+                        .inspect_err(|err| {
+                            logger::error!(
+                                error=?err,
+                                "euclid: static routing failed"
+                            );
+                        })
+                        .ok()
+                        .map(|outcome| RoutingConnectorOutcome {
+                            connectors: outcome.connectors,
+                        })
+                })
+                .await
+                .unwrap_or_else(RoutingConnectorOutcome::empty)
+                .resolve_or_fallback_with_approach(
+                    "static-routing",
+                    input.default_config,
+                    static_stage
+                        .as_ref()
+                        .map(|s| s.routing_approach())
+                        .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
+                    common_enums::RoutingApproach::DefaultFallback,
+                );
+
+            let mut final_selection = perform_cgraph_filtering(
+                &session_pm_input.state.clone(),
+                session_pm_input.key_store,
+                chosen_connectors,
+                session_pm_input.backend_input.clone(),
+                None,
+                session_pm_input.profile_id,
+                input.transaction_type,
+                input.active_mca_ids,
+            )
+            .await?;
+
+            if final_selection.is_empty() {
+                final_selection = perform_cgraph_filtering(
+                    &session_pm_input.state.clone(),
+                    session_pm_input.key_store,
+                    input.default_config.to_vec(),
+                    session_pm_input.backend_input.clone(),
+                    None,
+                    session_pm_input.profile_id,
+                    input.transaction_type,
+                    input.active_mca_ids,
+                )
+                .await?;
+            }
+
+            let routable_connector_choice_option = if final_selection.is_empty() {
+                (None, static_approach)
+            } else {
+                (Some(final_selection), static_approach)
+            };
+
+                // let (routable_connector_choice_option, routing_approach) =
+                //     perform_session_routing_for_pm_type(
+                //         &session_pm_input,
+                //         input.transaction_type,
+                //         input.business_profile,
+                //         input.active_mca_ids,
+                //     )
+                //     .await?;
+                //
+                // final_routing_approach = routing_approach;
+
+                if let Some(routable_connector_choice) = routable_connector_choice_option.0 {
+                    let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> = Vec::new();
+
+                    for selection in routable_connector_choice {
+                        let connector_name = selection.connector.to_string();
+                        if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                            let connector_data = api::ConnectorData::get_connector_by_name(
+                                &session_pm_input.state.clone().conf.connectors,
+                                &connector_name,
+                                get_token.clone(),
+                                selection.merchant_connector_id,
+                            )
+                            .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
+
+                            session_routing_choice.push(routing_types::SessionRoutingChoice {
+                                connector: connector_data,
+                                payment_method_type: pm_type,
+                            });
+                        }
+                    }
+                    if !session_routing_choice.is_empty() {
+                        result.insert(pm_type, session_routing_choice);
+                    }
+                }
+            }
+            Ok(RoutingConnectorOutcomeForSessionRouting { session_output: result, routing_approach: final_routing_approach.unwrap()})
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::Other("SessionFlowRouting".to_string())
     }
 }
 
@@ -898,6 +1220,10 @@ where
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub struct DynamicRoutingStage;
 
+pub struct RoutingConnectorOutcomeForSessionRouting {
+    pub session_output: FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
+    pub routing_approach: common_enums::RoutingApproach,
+}
 pub struct RoutingConnectorOutcomeWithApproach {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
     pub routing_approach: common_enums::RoutingApproach,

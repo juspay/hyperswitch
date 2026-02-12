@@ -10487,9 +10487,9 @@ pub async fn static_dynamic_routing_v1_for_payments(
         .await;
 
     let static_input = routing::StaticRoutingInput {
-        platform,
-        business_profile,
-        eligible_connectors: eligible_connectors.as_ref(),
+        // platform,
+        // business_profile,
+        // eligible_connectors: eligible_connectors.as_ref(),
         transaction_data: &transaction_data,
     };
 
