@@ -3498,6 +3498,10 @@ pub struct PaymentMethodSessionRequest {
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<pii::SecretSerdeValue>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
