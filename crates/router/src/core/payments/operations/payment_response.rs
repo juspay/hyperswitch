@@ -2847,7 +2847,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             description,
         }) => {
             let post_capture_void_response = common_types::domain::PostCaptureVoidData {
-                status: *post_capture_void_status.clone(),
+                status: *post_capture_void_status,
                 connector_reference_id: connector_reference_id.clone(),
                 description: description.clone(),
             };
