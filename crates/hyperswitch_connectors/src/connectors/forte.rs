@@ -44,7 +44,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use transformers as forte;
@@ -710,6 +710,7 @@ impl IncomingWebhook for Forte {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }
