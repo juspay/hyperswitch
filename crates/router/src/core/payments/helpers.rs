@@ -3172,7 +3172,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn make_pm_data<'a, F, R, D>(
+pub async fn make_pm_data<'a, F: Clone, R, D>(
     operation: BoxedOperation<'a, F, R, D>,
     state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
@@ -3184,10 +3184,7 @@ pub async fn make_pm_data<'a, F, R, D>(
     BoxedOperation<'a, F, R, D>,
     Option<domain::PaymentMethodData>,
     Option<String>,
-)>
-where
-    F: Clone + Send + Sync,
-{
+)> {
     use super::OperationSessionSetters;
     use crate::core::payments::OperationSessionGetters;
 

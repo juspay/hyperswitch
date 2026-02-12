@@ -3,15 +3,18 @@ pub mod refunds_validator;
 
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    customers::CustomerDocumentDetails,
+    enums::{Connector, DisputeStage, DisputeStatus},
+};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, Encode},
     types::{ConnectorTransactionIdTrait, MinorUnit},
 };
 use diesel_models::refund as diesel_refund;
@@ -2765,4 +2768,73 @@ pub fn should_proceed_with_accept_dispute(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
     )
+}
+
+pub(crate) async fn update_intent_customer_documents(
+    payment_intent: &storage::PaymentIntent,
+    document_details: common_utils::crypto::OptionalEncryptableValue,
+    mandate_type: Option<api::MandateTransactionType>,
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> CustomResult<common_utils::crypto::OptionalEncryptableValue, errors::ApiErrorResponse> {
+    let encrypted_customer_details = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) | None => {
+            let mut existing_intent_customer_details = payment_intent
+                .get_intent_customer_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse customer details from PaymentIntent")?;
+
+            let decrypted_document_details = document_details
+                .as_ref()
+                .map(|encryptable| {
+                    encryptable
+                        .clone()
+                        .into_inner()
+                        .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to deserialize CustomerDocumentDetails from encrypted storage",
+                        )
+                })
+                .transpose()?;
+
+            if let Some(ref mut details) = existing_intent_customer_details {
+                details.customer_document_details = decrypted_document_details;
+            }
+
+            let key_manager_state: common_utils::types::keymanager::KeyManagerState = state.into();
+            let encrypted_customer_details = existing_intent_customer_details
+                .async_map(|value| async move {
+                    let encoded_value = value
+                        .encode_to_value()
+                        .map(Secret::<serde_json::Value, masking::WithType>::new)
+                        .change_context(common_utils::errors::CryptoError::EncodingFailed)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to encode customer details for encryption")?;
+
+                    hyperswitch_domain_models::type_encryption::crypto_operation(
+                    &key_manager_state,
+                    common_utils::type_name!(diesel_models::PaymentIntent),
+                    hyperswitch_domain_models::type_encryption::CryptoOperation::EncryptOptional(
+                        Some(encoded_value),
+                    ),
+                    common_utils::types::keymanager::Identifier::Merchant(
+                        platform.get_processor().get_account().get_id().to_owned(),
+                    ),
+                    platform.get_processor().get_key_store().key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Encryption operation failed")
+                })
+                .await
+                .transpose()?
+                .flatten();
+
+            Ok(encrypted_customer_details)
+        }
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => Ok(None),
+    };
+    return encrypted_customer_details;
 }
