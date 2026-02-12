@@ -23,7 +23,7 @@ env:
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml cashtocode authorizedotnet"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "loonio nmi gigadat"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "worldpay"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "nuvei worldpay"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
