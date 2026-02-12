@@ -20152,7 +20152,6 @@
         "type": "object",
         "required": [
           "payment_method_type",
-          "payment_method_subtype",
           "customer_id",
           "payment_method_data"
         ],
@@ -20161,7 +20160,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "metadata": {
             "type": "object",
@@ -21132,7 +21136,6 @@
         "type": "object",
         "required": [
           "payment_method_type",
-          "payment_method_subtype",
           "payment_method_data"
         ],
         "properties": {
@@ -21140,7 +21143,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
