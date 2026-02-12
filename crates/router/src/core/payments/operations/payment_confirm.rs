@@ -866,7 +866,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt,
             currency,
             amount,
-            email: request.email.clone(),
             mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
@@ -1000,10 +999,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))
                         .map_or(Ok(()), Err)?;
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
                     Ok(cust)
                 })
                 .transpose()
@@ -1849,7 +1844,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .parse_value("BrowserInfo")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse browser_info")?;
-            let email = payment_data.email.clone();
+
+            let email  = payment_data.payment_intent.customer_details
+                .clone()
+                .map(|customer_details_encrypted| {
+                    customer_details_encrypted
+                        .into_inner()
+                        .expose()
+                        .parse_value::<hyperswitch_domain_models::payments::payment_intent::CustomerData>("CustomerData")
+                })
+                .transpose()
+                .change_context(errors::StorageError::DeserializationFailed)
+                .attach_printable("Failed to parse customer data from payment intent")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);
+
+
             let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
                 state,
                 payment_data.payment_attempt.merchant_id.clone(),
