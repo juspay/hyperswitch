@@ -1263,9 +1263,9 @@ async fn payment_method_resolver(
     {
         Ok(existing_pm) => {
             logger::info!("Payment method is duplicated, returning existing payment method");
-            return Ok(PaymentMethodResolver {
-                resolution: PaymentMethodResolution::Get(Box::new(existing_pm)),
-            });
+            Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
+                Box::new(existing_pm),
+            )))
         }
         Err(err) => {
             if !err.current_context().is_db_not_found() {
@@ -1278,15 +1278,12 @@ async fn payment_method_resolver(
                     .attach_printable("Failed to check for existing payment method in db");
             }
             logger::debug!("Payment method not found, falling back to creation");
+            Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                fingerprint_id,
+                payment_method_data,
+            }))
         }
     }
-
-    Ok(PaymentMethodResolver {
-        resolution: PaymentMethodResolution::Create {
-            fingerprint_id,
-            payment_method_data,
-        },
-    })
 }
 
 #[cfg(feature = "v2")]
@@ -1299,9 +1296,7 @@ pub enum PaymentMethodResolution {
 }
 
 #[cfg(feature = "v2")]
-pub struct PaymentMethodResolver {
-    resolution: PaymentMethodResolution,
-}
+pub struct PaymentMethodResolver(PaymentMethodResolution);
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
@@ -1348,7 +1343,7 @@ impl PaymentMethodResolver {
         billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
     ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
         let db = &*state.store;
-        match self.resolution {
+        match self.0 {
             PaymentMethodResolution::Get(existing_pm) => {
                 let resp = pm_transforms::generate_payment_method_response(
                     &existing_pm,
