@@ -72,7 +72,6 @@ impl api::Refund for Truelayer {}
 impl api::RefundExecute for Truelayer {}
 impl api::RefundSync for Truelayer {}
 impl api::PaymentToken for Truelayer {}
-impl api::ConnectorAccessTokenSuffix for Truelayer {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Truelayer
