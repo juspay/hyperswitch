@@ -2267,7 +2267,15 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
     fn from(value: BankTransferData) -> Self {
         match value {
             BankTransferData::AchBankTransfer {} => Self::Ach {},
-            BankTransferData::SepaBankTransfer {} => Self::Sepa {},
+
+            BankTransferData::SepaBankTransfer {} => Self::Sepa(Box::new(
+                api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData {
+                    debitor_iban: None,
+                    debitor_bic: None,
+                    debitor_name: None,
+                    debitor_email: None,
+                },
+            )),
             BankTransferData::BacsBankTransfer {} => Self::Bacs {},
             BankTransferData::MultibancoBankTransfer {} => Self::Multibanco {},
             BankTransferData::PermataBankTransfer {} => Self::Permata {},

@@ -7450,6 +7450,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .request
             .partner_merchant_identifier_details
             .clone(),
+        rrn: None,
         feature_metadata: None,
     }
 }
