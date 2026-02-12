@@ -10490,13 +10490,14 @@ pub async fn static_dynamic_routing_v1_for_payments(
     let backend_input = match transaction_data {
         TransactionData::Payment(payment_data) => routing::make_dsl_input(payment_data).unwrap(),
         #[cfg(feature = "payouts")]
-        TransactionData::Payout(payout_data) => routing::make_dsl_input_for_payouts(payout_data).unwrap(),
+        TransactionData::Payout(payout_data) => {
+            routing::make_dsl_input_for_payouts(payout_data).unwrap()
+        }
     };
 
     let static_input = routing::StaticRoutingInput {
         backend_input: &backend_input,
     };
-
 
     let static_stage = cached_algorithm.map(|cached_algorithm| routing::StaticRoutingStage {
         ctx: routing::RoutingContext {

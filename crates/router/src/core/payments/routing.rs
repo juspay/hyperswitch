@@ -815,86 +815,88 @@ impl RoutingStage for SessionRoutingStage {
                     }
                 };
 
-            let merchant_id = &session_pm_input.key_store.merchant_id;
+                let merchant_id = &session_pm_input.key_store.merchant_id;
 
-            let algorithm_id = match session_pm_input.routing_algorithm {
-                MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
-            };
+                let algorithm_id = match session_pm_input.routing_algorithm {
+                    MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => {
+                        &algorithm_ref.algorithm_id
+                    }
+                };
 
-            // let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
-            //     let cached_algorithm = ensure_algorithm_cached_v1(
-            //         &session_pm_input.state.clone(),
-            //         merchant_id,
-            //         algorithm_id,
-            //         session_pm_input.profile_id,
-            //         input.transaction_type,
-            //     )
-            //     .await?;
-            //
-            //     match cached_algorithm.as_ref() {
-            //         CachedAlgorithm::Single(conn) => (
-            //             vec![(**conn).clone()],
-            //             Some(common_enums::RoutingApproach::StraightThroughRouting),
-            //         ),
-            //         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
-            //         CachedAlgorithm::VolumeSplit(splits) => (
-            //             perform_volume_split(splits.to_vec())
-            //                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
-            //             Some(common_enums::RoutingApproach::VolumeBasedRouting),
-            //         ),
-            //         CachedAlgorithm::Advanced(interpreter) => (
-            //             execute_dsl_and_get_connector_v1(
-            //                 session_pm_input.backend_input.clone(),
-            //                 interpreter,
-            //             )?,
-            //             Some(common_enums::RoutingApproach::RuleBasedRouting),
-            //         ),
-            //     }
-            // } else {
-            //     (
-            //         routing::helpers::get_merchant_default_config(
-            //             &*session_pm_input.state.clone().store,
-            //             session_pm_input.profile_id.get_string_repr(),
-            //             input.transaction_type,
-            //         )
-            //         .await
-            //         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
-            //         None,
-            //     )
-            // };
-            let cached_algorithm = algorithm_id.clone()
-                .async_and_then(|algorithm_id| async move {
-                    try_ensure_algorithm_cached_v1(
-                        input.state,
-                        &input.business_profile.merchant_id,
-                        &algorithm_id,
-                        input.business_profile.get_id(),
-                        input.transaction_type,
-                    )
-                    .await
-                })
-                .await;
+                // let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
+                //     let cached_algorithm = ensure_algorithm_cached_v1(
+                //         &session_pm_input.state.clone(),
+                //         merchant_id,
+                //         algorithm_id,
+                //         session_pm_input.profile_id,
+                //         input.transaction_type,
+                //     )
+                //     .await?;
+                //
+                //     match cached_algorithm.as_ref() {
+                //         CachedAlgorithm::Single(conn) => (
+                //             vec![(**conn).clone()],
+                //             Some(common_enums::RoutingApproach::StraightThroughRouting),
+                //         ),
+                //         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
+                //         CachedAlgorithm::VolumeSplit(splits) => (
+                //             perform_volume_split(splits.to_vec())
+                //                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+                //             Some(common_enums::RoutingApproach::VolumeBasedRouting),
+                //         ),
+                //         CachedAlgorithm::Advanced(interpreter) => (
+                //             execute_dsl_and_get_connector_v1(
+                //                 session_pm_input.backend_input.clone(),
+                //                 interpreter,
+                //             )?,
+                //             Some(common_enums::RoutingApproach::RuleBasedRouting),
+                //         ),
+                //     }
+                // } else {
+                //     (
+                //         routing::helpers::get_merchant_default_config(
+                //             &*session_pm_input.state.clone().store,
+                //             session_pm_input.profile_id.get_string_repr(),
+                //             input.transaction_type,
+                //         )
+                //         .await
+                //         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
+                //         None,
+                //     )
+                // };
+                let cached_algorithm = algorithm_id
+                    .clone()
+                    .async_and_then(|algorithm_id| async move {
+                        try_ensure_algorithm_cached_v1(
+                            input.state,
+                            &input.business_profile.merchant_id,
+                            &algorithm_id,
+                            input.business_profile.get_id(),
+                            input.transaction_type,
+                        )
+                        .await
+                    })
+                    .await;
 
-            // let transaction_data = &routing::TransactionData::Payment(payment_input);
-            let static_input = StaticRoutingInput {
-                backend_input: &backend_input,
-            };
+                // let transaction_data = &routing::TransactionData::Payment(payment_input);
+                let static_input = StaticRoutingInput {
+                    backend_input: &backend_input,
+                };
 
-            let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
-                ctx: RoutingContext {
-                    routing_algorithm: cached_algorithm,
-                },
-            });
+                let static_stage = cached_algorithm.map(|cached_algorithm| StaticRoutingStage {
+                    ctx: RoutingContext {
+                        routing_algorithm: cached_algorithm,
+                    },
+                });
 
-            // let (chosen_connectors, static_approach) =  static_stage
-            //     .clone()
-            //     .async_and_then(|static_stage| async move {
-            //         static_stage
-            //             .route(static_input)
-            //             .await
-            //         })
-            //         .await;
-
+                // let (chosen_connectors, static_approach) =  static_stage
+                //     .clone()
+                //     .async_and_then(|static_stage| async move {
+                //         static_stage
+                //             .route(static_input)
+                //             .await
+                //         })
+                //         .await;
 
                 let (chosen_connectors, static_approach) = static_stage
                     .clone()
