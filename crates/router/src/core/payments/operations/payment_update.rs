@@ -508,7 +508,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt,
             currency,
             amount,
-            email: request.email.clone(),
             mandate_id,
             mandate_connector,
             token,
@@ -613,10 +612,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))
                         .map_or(Ok(()), Err)?;
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
                     Ok(cust)
                 })
                 .transpose()

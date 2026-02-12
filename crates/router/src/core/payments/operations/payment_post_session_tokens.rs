@@ -128,7 +128,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
