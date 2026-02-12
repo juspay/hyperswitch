@@ -52,8 +52,8 @@ pub async fn card_iin_info(
         &req,
         payload,
         |state, auth, mut req, _| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             cards_info::retrieve_card_info(state, auth.platform, req)

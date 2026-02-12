@@ -138,8 +138,8 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, mut payload, req_state| {
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
             }
 
             payments::payments_core::<
@@ -223,8 +223,8 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, mut req, req_state| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             payments::payments_core::<
@@ -309,8 +309,8 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, mut req, req_state| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             payments::payments_core::<

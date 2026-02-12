@@ -634,8 +634,8 @@ pub async fn save_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             Box::pin(cards::add_payment_method_data(
@@ -676,8 +676,8 @@ pub async fn list_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
@@ -725,8 +725,8 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
@@ -792,8 +792,8 @@ pub async fn list_customer_payment_method_api_client(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
@@ -1048,8 +1048,8 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             cards::update_customer_payment_method(

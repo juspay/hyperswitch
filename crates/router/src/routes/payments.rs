@@ -639,8 +639,8 @@ pub async fn payments_retrieve(
         payload,
         |state, auth, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             payments::payments_core::<
@@ -792,8 +792,8 @@ pub async fn payments_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, req_state| {
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             authorize_verify_select::<_>(
@@ -852,7 +852,7 @@ pub async fn payments_post_session_tokens(
                 match payload
                     .client_secret
                     .as_ref()
-                    .map(|cs| cs.peek())
+                    .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "client_secret",
@@ -875,8 +875,8 @@ pub async fn payments_post_session_tokens(
         payload,
         |state, auth: auth::AuthenticationData, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(Secret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
             }
 
             payments::payments_core::<
@@ -1028,8 +1028,8 @@ pub async fn payments_confirm(
         payload,
         |state, auth: auth::AuthenticationData, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             authorize_verify_select::<_>(
@@ -1145,7 +1145,7 @@ pub async fn payments_dynamic_tax_calculation(
                 match payload
                     .client_secret
                     .as_ref()
-                    .map(|cs| cs.peek())
+                    .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "client_secret",
@@ -1168,8 +1168,8 @@ pub async fn payments_dynamic_tax_calculation(
         payload,
         |state, auth, mut payload, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(Secret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(Secret::new(client_secret));
             }
 
             payments::payments_core::<
@@ -1323,8 +1323,8 @@ pub async fn payments_connector_session(
         payload,
         |state, auth: auth::AuthenticationData, mut payload, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
             }
             payments::payments_core::<
                 api_types::Session,
@@ -1594,8 +1594,8 @@ pub async fn payments_complete_authorize(
         payload,
         |state, auth: auth::AuthenticationData, mut req, req_state| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(Secret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
             }
             payments::payments_core::<
                 api_types::CompleteAuthorize,
@@ -2502,7 +2502,7 @@ pub async fn payments_external_authentication(
                 match payload
                     .client_secret
                     .as_ref()
-                    .map(|cs| cs.peek())
+                    .map(|client_secret| client_secret.peek())
                     .check_value_present("client_secret")
                     .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "client_secret",
@@ -2525,8 +2525,8 @@ pub async fn payments_external_authentication(
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
             // If client_secret is provided via SDK authorization header, use it
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(Secret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
             }
 
             payments::payment_external_authentication::<
@@ -2684,8 +2684,8 @@ pub async fn payments_submit_eligibility(
         payment_id,
         |state, auth: auth::AuthenticationData, payment_id, _| {
             let mut payload = payload.clone();
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(Secret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(Secret::new(client_secret));
             }
             payments::payments_submit_eligibility(state, auth.platform, payload.clone(), payment_id)
         },

@@ -59,8 +59,8 @@ pub async fn link_token_create(
         payload,
         |state, auth, mut payload, _| {
             #[cfg(feature = "v1")]
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
             }
             crate::core::pm_auth::create_link_token(
                 state,
@@ -116,8 +116,8 @@ pub async fn exchange_token(
         payload,
         |state, auth, mut payload, _| {
             #[cfg(feature = "v1")]
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
             }
             crate::core::pm_auth::exchange_token_core(state, auth.platform, payload)
         },

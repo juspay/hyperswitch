@@ -190,8 +190,8 @@ pub async fn payouts_confirm(
         payload,
         |state, auth, mut req, _| {
             #[cfg(feature = "v1")]
-            if let Some(cs) = auth.client_secret {
-                req.client_secret = Some(cs);
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
             }
 
             payouts_confirm_core(state, auth.platform, req)

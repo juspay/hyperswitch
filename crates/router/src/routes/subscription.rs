@@ -241,8 +241,8 @@ pub async fn confirm_subscription(
         &req,
         payload,
         |state, auth, mut payload, _| {
-            if let Some(cs) = auth.client_secret {
-                payload.client_secret = Some(subscription_types::ClientSecret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
             }
 
             subscriptions::confirm_subscription(
@@ -306,8 +306,8 @@ pub async fn get_subscription_items(
         &req,
         payload,
         |state, auth, mut query, _| {
-            if let Some(cs) = auth.client_secret {
-                query.client_secret = Some(subscription_types::ClientSecret::new(cs));
+            if let Some(client_secret) = auth.client_secret {
+                query.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
             }
 
             subscriptions::get_subscription_items(
