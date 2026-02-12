@@ -8031,7 +8031,6 @@ where
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
-    pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
@@ -11672,7 +11671,6 @@ pub trait OperationSessionSetters<F> {
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>);
     fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>);
-    fn set_email_if_not_present(&mut self, email: pii::Email);
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
     fn set_connector_customer_id(&mut self, customer_id: Option<String>);
@@ -11940,10 +11938,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>) {
         self.payment_attempt.payment_method_id = payment_method_id;
-    }
-
-    fn set_email_if_not_present(&mut self, email: pii::Email) {
-        self.email = self.email.clone().or(Some(email));
     }
 
     fn set_pm_token(&mut self, token: String) {
@@ -12300,10 +12294,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_email_if_not_present(&mut self, _email: pii::Email) {
-        todo!()
-    }
-
     fn set_pm_token(&mut self, _token: String) {
         todo!()
     }
@@ -12596,10 +12586,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 
     fn set_payment_method_id_in_attempt(&mut self, _payment_method_id: Option<String>) {
-        todo!()
-    }
-
-    fn set_email_if_not_present(&mut self, _email: pii::Email) {
         todo!()
     }
 
@@ -12903,10 +12889,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_payment_method_id_in_attempt(&mut self, _payment_method_id: Option<String>) {
-        todo!()
-    }
-
-    fn set_email_if_not_present(&mut self, _email: pii::Email) {
         todo!()
     }
 
@@ -13222,10 +13204,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         &mut self,
         debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
-        todo!()
-    }
-
-    fn set_email_if_not_present(&mut self, _email: pii::Email) {
         todo!()
     }
 
@@ -13671,10 +13649,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
     }
 
     fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>) {
-        todo!()
-    }
-
-    fn set_email_if_not_present(&mut self, _email: pii::Email) {
         todo!()
     }
 

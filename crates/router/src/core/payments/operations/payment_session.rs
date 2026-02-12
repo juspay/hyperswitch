@@ -179,7 +179,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
@@ -350,14 +349,7 @@ where
                     payment_data.payment_intent.customer_id.as_ref(),
                     provider,
                 )
-                .await?
-                .inspect(|cust| {
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
-                });
-
+                .await?;
                 Ok((Box::new(self), customer))
             }
             common_enums::MerchantAccountType::Connected => {
