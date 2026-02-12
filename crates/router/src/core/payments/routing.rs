@@ -415,7 +415,22 @@ pub fn make_dsl_input(
                 domain::PaymentMethodData::NetworkToken(network_token_details) => {
                     network_token_details.card_network.clone()
                 }
-                _ => None,
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
     };
 
@@ -437,7 +452,22 @@ pub fn make_dsl_input(
                 domain::PaymentMethodData::NetworkToken(network_token_details) => {
                     network_token_details.card_issuer.clone()
                 }
-                _ => None,
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
         country: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
