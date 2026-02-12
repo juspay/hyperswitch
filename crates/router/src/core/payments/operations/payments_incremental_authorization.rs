@@ -10,6 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
@@ -325,6 +326,7 @@ impl<F: Clone + Send + Sync>
         payment_data: &mut payments::PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<

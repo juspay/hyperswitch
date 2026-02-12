@@ -106,8 +106,6 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
-use crate::core::blocklist::utils as blocklist_utils;
-#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -121,6 +119,11 @@ use crate::core::revenue_recovery::get_workflow_entries;
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
+#[cfg(feature = "v1")]
+use crate::core::{
+    blocklist::utils as blocklist_utils,
+    configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -607,6 +610,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -700,6 +704,7 @@ where
             &mut payment_data,
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
+            dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1427,6 +1432,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1546,6 +1552,7 @@ where
             &mut payment_data,
             customer_details,
             platform.get_provider(),
+            dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -2389,6 +2396,8 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2402,6 +2411,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
+            dimensions,
         )
         .await?;
 
@@ -2450,6 +2460,8 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2462,6 +2474,7 @@ where
             auth_flow,
             header_payload.clone(),
             return_raw_connector_response,
+            dimensions,
         )
         .await?;
 
