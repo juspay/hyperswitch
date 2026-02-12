@@ -188,7 +188,16 @@ pub async fn payouts_confirm(
         state,
         &req,
         payload,
-        |state, auth, req, _| payouts_confirm_core(state, auth.platform, req),
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(cs);
+            }
+
+            payouts_confirm_core(state, auth.platform, req)
+        },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))

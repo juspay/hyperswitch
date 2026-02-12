@@ -39,7 +39,9 @@ pub async fn retrieve_poll_status(
         state,
         &req,
         poll_id,
-        |state, auth, req, _| poll::retrieve_poll_status(state, req, auth.platform),
+        |state, (auth, _): auth::AuthenticationDataWithClientSecret, req, _| {
+            poll::retrieve_poll_status(state, req, auth.platform)
+        },
         &auth::HeaderAuth(auth::PublishableKeyAuth {
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,

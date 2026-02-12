@@ -6,6 +6,7 @@ use api_models::authentication::{
     AuthenticationRetrieveEligibilityCheckRequest, AuthenticationSessionTokenRequest,
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
+use masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -64,7 +65,14 @@ pub async fn authentication_eligibility(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
+
             unified_authentication_service::authentication_eligibility_core(
                 state,
                 auth.platform,
@@ -105,7 +113,14 @@ pub async fn authentication_authenticate(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
+
             unified_authentication_service::authentication_authenticate_core(
                 state,
                 auth.platform,
@@ -146,7 +161,14 @@ pub async fn authentication_eligibility_check(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
+
             unified_authentication_service::authentication_eligibility_check_core(
                 state,
                 auth.platform,
@@ -221,7 +243,14 @@ pub async fn authentication_sync(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
+
             unified_authentication_service::authentication_sync_core(
                 state,
                 auth.platform,
@@ -291,7 +320,13 @@ pub async fn authentication_session_token(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
             unified_authentication_service::authentication_session_core(state, auth.platform, req)
         },
         &*auth,

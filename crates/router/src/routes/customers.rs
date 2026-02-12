@@ -100,7 +100,7 @@ pub async fn customers_retrieve(
         state,
         &req,
         customer_id,
-        |state, auth: auth::AuthenticationData, customer_id, _| {
+        |state, (auth, _): auth::AuthenticationDataWithClientSecret, customer_id, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             retrieve_customer(
                 state,

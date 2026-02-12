@@ -5,8 +5,8 @@ use crate::{
 pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;
-use hyperswitch_domain_models::payments::HeaderPayload;
-use masking::PeekInterface;
+use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
+use masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
@@ -637,7 +637,15 @@ pub async fn payments_retrieve(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         req_state| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(cs);
+            }
+
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -712,7 +720,7 @@ pub async fn payments_retrieve_with_gateway_creds(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
+        |state, (auth, _): auth::AuthenticationDataWithClientSecret, req, req_state| {
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -786,7 +794,14 @@ pub async fn payments_update(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         req_state| {
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(cs);
+            }
+
             authorize_verify_select::<_>(
                 payments::PaymentUpdate,
                 state,
@@ -829,12 +844,50 @@ pub async fn payments_post_session_tokens(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
+    // Determine auth type based on Authorization header presence
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            // If Authorization header is present, use SdkAuthorizationAuth
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            // If Authorization header is not present, use PublishableKeyAuth
+            None => {
+                // For PublishableKeyAuth, client_secret is mandatory
+                match payload
+                    .client_secret
+                    .as_ref()
+                    .map(|cs| cs.peek())
+                    .check_value_present("client_secret")
+                    .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "client_secret",
+                    }) {
+                    Ok(_) => {}
+                    Err(err) => return api::log_and_return_error_response(report!(err)),
+                }
+
+                Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                }))
+            }
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         req_state| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
+
             payments::payments_core::<
                 api_types::PostSessionTokens,
                 payment_types::PaymentsPostSessionTokensResponse,
@@ -856,10 +909,7 @@ pub async fn payments_post_session_tokens(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        },
+        &*auth,
         locking_action,
     ))
     .await
@@ -895,7 +945,7 @@ pub async fn payments_update_metadata(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::UpdateMetadata,
                 payment_types::PaymentsUpdateMetadataResponse,
@@ -985,7 +1035,15 @@ pub async fn payments_confirm(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         req_state| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(cs);
+            }
+
             authorize_verify_select::<_>(
                 payments::PaymentConfirm,
                 state,
@@ -1084,12 +1142,51 @@ pub async fn payments_dynamic_tax_calculation(
     };
     tracing::Span::current().record("payment_id", payload.payment_id.get_string_repr());
     let locking_action = payload.get_locking_input(flow.clone());
+
+    // Determine auth type based on Authorization header presence
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            // If Authorization header is present, use SdkAuthorizationAuth
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            // If Authorization header is not present, use PublishableKeyAuth
+            None => {
+                // For PublishableKeyAuth, client_secret is mandatory
+                match payload
+                    .client_secret
+                    .as_ref()
+                    .map(|cs| cs.peek())
+                    .check_value_present("client_secret")
+                    .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "client_secret",
+                    }) {
+                    Ok(_) => {}
+                    Err(err) => return api::log_and_return_error_response(report!(err)),
+                }
+
+                Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                }))
+            }
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, payload, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut payload,
+         req_state| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                payload.client_secret = Some(Secret::new(cs));
+            }
+
             payments::payments_core::<
                 api_types::SdkSessionUpdate,
                 payment_types::PaymentsDynamicTaxCalculationResponse,
@@ -1111,10 +1208,7 @@ pub async fn payments_dynamic_tax_calculation(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        },
+        &*auth,
         locking_action,
     ))
     .await
@@ -1210,7 +1304,7 @@ pub async fn payments_connector_session(
     let locking_action = payload.get_locking_input(flow.clone());
 
     // Determine auth type based on Authorization header presence
-    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
         match req.headers().get(actix_web::http::header::AUTHORIZATION) {
             // If Authorization header is present, use SdkAuthorizationAuth
             Some(_) => Box::new(auth::SdkAuthorizationAuth {
@@ -1218,10 +1312,23 @@ pub async fn payments_connector_session(
                 allow_platform_self_operation: false,
             }),
             // If Authorization header is not present, use PublishableKeyAuth
-            None => Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: false,
-            })),
+            None => {
+                // For PublishableKeyAuth, client_secret is mandatory
+                match payload
+                    .client_secret
+                    .check_value_present("client_secret")
+                    .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "client_secret",
+                    }) {
+                    Ok(_) => {}
+                    Err(err) => return api::log_and_return_error_response(report!(err)),
+                }
+
+                Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                }))
+            }
         };
 
     Box::pin(api::server_wrap(
@@ -1229,7 +1336,14 @@ pub async fn payments_connector_session(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, payload, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut payload,
+         req_state| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                payload.client_secret = Some(cs);
+            }
             payments::payments_core::<
                 api_types::Session,
                 payment_types::PaymentsSessionResponse,
@@ -1471,7 +1585,10 @@ pub async fn payments_complete_authorize(
             payment_id.clone(),
         )),
         shipping: payload.shipping.clone(),
-        client_secret: Some(payload.client_secret.peek().clone()),
+        client_secret: payload
+            .client_secret
+            .clone()
+            .map(|client_secret| client_secret.peek().clone()),
         threeds_method_comp_ind: payload.threeds_method_comp_ind.clone(),
         ..Default::default()
     };
@@ -1493,7 +1610,14 @@ pub async fn payments_complete_authorize(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, _req, req_state| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         req_state| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
             payments::payments_core::<
                 api_types::CompleteAuthorize,
                 payment_types::PaymentsResponse,
@@ -2384,20 +2508,56 @@ pub async fn payments_external_authentication(
 
     payload.payment_id = payment_id;
     let locking_action = payload.get_locking_input(flow.clone());
+
+    // Determine auth type based on Authorization header presence
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationDataWithClientSecret, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            // If Authorization header is present, use SdkAuthorizationAuth
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            // If Authorization header is not present, use PublishableKeyAuth
+            None => {
+                // For PublishableKeyAuth, client_secret is mandatory
+                match payload
+                    .client_secret
+                    .as_ref()
+                    .map(|cs| cs.peek())
+                    .check_value_present("client_secret")
+                    .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "client_secret",
+                    }) {
+                    Ok(_) => {}
+                    Err(err) => return api::log_and_return_error_response(report!(err)),
+                }
+
+                Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                }))
+            }
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         mut req,
+         _| {
+            // If client_secret is provided via SDK authorization header, use it
+            if let Some(cs) = client_secret_from_auth {
+                req.client_secret = Some(Secret::new(cs));
+            }
+
             payments::payment_external_authentication::<
                 hyperswitch_domain_models::router_flow_types::Authenticate,
             >(state, auth.platform, req)
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        &*auth,
         locking_action,
     ))
     .await
@@ -2546,7 +2706,14 @@ pub async fn payments_submit_eligibility(
         state,
         &http_req,
         payment_id,
-        |state, auth: auth::AuthenticationData, payment_id, _| {
+        |state,
+         (auth, client_secret_from_auth): auth::AuthenticationDataWithClientSecret,
+         payment_id,
+         _| {
+            let mut payload = payload.clone();
+            if let Some(cs) = client_secret_from_auth {
+                payload.client_secret = Some(Secret::new(cs));
+            }
             payments::payments_submit_eligibility(state, auth.platform, payload.clone(), payment_id)
         },
         &*auth_type,
