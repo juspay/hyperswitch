@@ -238,9 +238,9 @@ pub struct RefundManualUpdateRequest {
     /// The status for refund
     pub status: Option<RefundStatus>,
     /// The code for the error
-    pub error_code: enums::SetOrUnset<String>,
+    pub error_code: Option<enums::SetOrUnset<String>>,
     /// The error message
-    pub error_message: enums::SetOrUnset<String>,
+    pub error_message: Option<enums::SetOrUnset<String>>,
 }
 
 #[cfg(feature = "v1")]
