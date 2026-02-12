@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix5
+
+### Bug Fixes
+
+- **authorization:** Add backward compatibility for incremental authorization ([#11242](https://github.com/juspay/hyperswitch/pull/11242)) ([`4c3ca10`](https://github.com/juspay/hyperswitch/commit/4c3ca109ed922f8de28a26ee99b88ce10f1eca58))
+- **router:** Made payment account reference optional for visa click to pay ([#11225](https://github.com/juspay/hyperswitch/pull/11225)) ([`5577458`](https://github.com/juspay/hyperswitch/commit/5577458854c461217bf9658f8992a3af0ed5da2a))
+
+**Full Changelog:** [`2026.02.04.1-hotfix4...2026.02.04.1-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix4...2026.02.04.1-hotfix5)
+
+- - -
+
 ## 2026.02.04.1-hotfix4
 
 ### Features
