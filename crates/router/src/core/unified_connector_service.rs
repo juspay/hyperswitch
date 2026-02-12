@@ -79,10 +79,11 @@ pub async fn get_access_token_from_ucs_response(
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
     ucs_state: Option<&unified_connector_service_client::payments::ConnectorState>,
-) -> Option<AccessToken> {
+) -> CustomResult<Option<AccessToken>, UnifiedConnectorServiceError> {
     let ucs_access_token = ucs_state
         .and_then(|state| state.access_token.as_ref())
-        .map(AccessToken::foreign_from)?;
+        .map(AccessToken::foreign_try_from)
+        .transpose()?;
 
     let merchant_id = processor.get_account().get_id();
 
@@ -97,12 +98,14 @@ pub async fn get_access_token_from_ucs_response(
     );
 
     if let Ok(Some(cached_token)) = session_state.store.get_access_token(key).await {
-        if cached_token.token.peek() == ucs_access_token.token.peek() {
-            return None;
+        if let Some(ref ucs_token) = ucs_access_token {
+            if cached_token.token.peek() == ucs_token.token.peek() {
+                return Ok(None);
+            }
         }
     }
 
-    Some(ucs_access_token)
+    Ok(ucs_access_token)
 }
 
 pub async fn set_access_token_for_ucs(
