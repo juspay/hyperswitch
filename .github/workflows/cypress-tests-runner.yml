@@ -1122,8 +1122,8 @@ jobs:
 
     steps:
       - name: Skip tests for PRs from forks
-        if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
+        if: ${{ env.RUN_TESTS == 'false' }}
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
