@@ -6,6 +6,8 @@ pub use ::payment_methods::helpers::{
 };
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
+#[cfg(feature = "v2")]
+use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
@@ -7621,6 +7623,39 @@ pub fn add_connector_response_to_additional_payment_data(
             }),
             samsung_pay: samsung_pay.clone(),
         },
+        #[cfg(feature = "v2")]
+        (
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(details),
+            },
+            AdditionalPaymentMethodConnectorResponse::Upi {
+                upi_mode: Some(upi_mode),
+            },
+        ) => {
+            let upi_source = Some(UpiSource::from(upi_mode));
+            let updated_details = match details {
+                UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
+                    api_models::payments::additional_info::UpiCollectAdditionalData {
+                        vpa_id: None,
+                        upi_source,
+                    },
+                )),
+                UpiAdditionalData::UpiIntent(_) => {
+                    UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                        upi_source,
+                        app_name: None,
+                    }))
+                }
+                UpiAdditionalData::UpiQr(_) => {
+                    UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData {
+                        upi_source,
+                    }))
+                }
+            };
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(updated_details),
+            }
+        }
 
         _ => additional_payment_data,
     }
