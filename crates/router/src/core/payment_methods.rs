@@ -4567,7 +4567,7 @@ fn construct_zero_auth_payments_request(
     confirm_request: &payment_methods::PaymentMethodSessionConfirmRequest,
     payment_method_session: &hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     payment_method: &payment_methods::PaymentMethodResponse,
-    payment_method_subtype: storage_enums::PaymentMethodType,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
 ) -> RouterResult<api_models::payments::PaymentsRequest> {
     use api_models::payments;
 
@@ -4577,7 +4577,8 @@ fn construct_zero_auth_payments_request(
         ),
         payment_method_data: confirm_request.payment_method_data.clone(),
         payment_method_type: confirm_request.payment_method_type,
-        payment_method_subtype,
+        payment_method_subtype: payment_method_subtype
+            .get_required_value("payment_method_subtype")?,
         customer_id: payment_method_session.customer_id.clone(),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),
@@ -4705,10 +4706,6 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
-    let payment_method_subtype = payment_method
-        .get_payment_method_subtype()
-        .get_required_value("payment_method_subtype")?;
-
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
     let token_data = get_pm_list_token_data(
@@ -4757,7 +4754,7 @@ pub async fn payment_methods_session_confirm(
                 &request,
                 &payment_method_session,
                 &payment_method_response,
-                payment_method_subtype,
+                payment_method.get_payment_method_subtype(),
             )?;
             let payments_response = Box::pin(create_zero_auth_payment(
                 state.clone(),
