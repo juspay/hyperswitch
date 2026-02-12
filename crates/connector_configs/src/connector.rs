@@ -150,6 +150,7 @@ pub struct ConfigMetadata {
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
+    pub paypal_sdk: Option<Vec<InputData>>,
     pub pix: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
