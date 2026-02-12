@@ -27,6 +27,8 @@ describe("UPI Payments - Hyperswitch", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["upi_pm"]["UpiCollect"];
     cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
 
+    if (!utils.should_continue_further(confirmData)) return;
+    
     // Handle UPI redirection
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
@@ -52,6 +54,8 @@ describe("UPI Payments - Hyperswitch", () => {
     // Confirm payment
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["upi_pm"]["UpiIntent"];
     cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
 
     // Handle UPI redirection
     const expected_redirection = fixtures.confirmBody["return_url"];

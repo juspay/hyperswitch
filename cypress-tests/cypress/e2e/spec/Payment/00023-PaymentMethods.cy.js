@@ -83,6 +83,8 @@ describe("Payment Methods Tests", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUse3DSAutoCaptureOffSession"];
       cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, data, "three_ds", "automatic", globalState);
 
+      if(!utils.should_continue_further(data)) return;
+
       // Handle redirection
       const expectedRedirection = fixtures.confirmBody["return_url"];
       cy.handleRedirection(globalState, expectedRedirection);
@@ -111,6 +113,8 @@ describe("Payment Methods Tests", () => {
         },
       };
       cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
+
+      if(!utils.should_continue_further(createData)) return;
 
       // Handle redirection
       const expectedRedirection = fixtures.confirmBody["return_url"];

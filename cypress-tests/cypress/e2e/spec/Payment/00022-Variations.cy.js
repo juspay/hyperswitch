@@ -173,6 +173,8 @@ describe("Corner cases", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
     cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "three_ds", "manual", globalState);
 
+    if(!utils.should_continue_further(confirmData)) return;
+
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 

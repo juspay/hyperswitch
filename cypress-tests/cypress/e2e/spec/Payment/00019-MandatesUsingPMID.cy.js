@@ -135,6 +135,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentMethodIdMandate3DSAutoCapture"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "automatic", "new_mandate", globalState);
 
+    if (!utils.should_continue_further(citData)) return;
+
     // Handle redirection
     const expected_redirection = fixtures.citConfirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
@@ -154,6 +156,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     // Confirm 3DS CIT
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentMethodIdMandate3DSManualCapture"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "manual", "new_mandate", globalState);
+
+    if (!utils.should_continue_further(citData)) return;
 
     // Handle redirection
     const expected_redirection = fixtures.citConfirmBody["return_url"];
