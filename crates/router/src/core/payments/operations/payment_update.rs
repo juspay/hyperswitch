@@ -19,6 +19,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs,
         configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
@@ -68,9 +69,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let db = &*state.store;
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(processor_merchant_id.clone());
+
         helpers::allow_payment_update_enabled_for_client_auth(
-            processor_merchant_id,
+            &dimensions,
             state,
+            &payment_id,
             auth_flow,
         )
         .await?;
@@ -854,7 +859,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     payment_method_data,
-                    state,
                     &*state.store,
                     profile_id,
                     payment_data.payment_method_token.as_ref(),

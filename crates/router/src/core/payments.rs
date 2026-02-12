@@ -704,7 +704,7 @@ where
             &mut payment_data,
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
-            dimensions,
+            dimensions.clone(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -828,11 +828,10 @@ where
         );
 
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_account().get_org_id(),
+            &dimensions,
             state,
         )
-        .await?;
+        .await;
 
         if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
             let maybe_connector_enum = match &connector_details {
@@ -10954,12 +10953,14 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
 
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
     let authentication_response = if helpers::is_merchant_eligible_authentication_service(
-        platform.get_processor().get_account().get_id(),
-        platform.get_processor().get_account().get_org_id(),
+        &dimensions,
         &state,
     )
-    .await?
+    .await
     {
         let routing_region = uas_utils::fetch_routing_region_for_uas(
             &state,

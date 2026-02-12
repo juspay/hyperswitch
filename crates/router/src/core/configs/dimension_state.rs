@@ -14,21 +14,28 @@ pub enum DimensionError {
 }
 
 /// Marker for state WITHOUT merchant_id
+#[derive(Clone)]
 pub struct NoMerchantId;
 
 /// Marker for state WITH merchant_id
+
+#[derive(Clone)]
 pub struct HasMerchantId;
 
 /// Marker for state WITHOUT organization_id
+#[derive(Clone)]
 pub struct NoOrgId;
 
 /// Marker for state WITH organization_id
+#[derive(Clone)]
 pub struct HasOrgId;
 
 /// Marker for state WITHOUT profile_id
+#[derive(Clone)]
 pub struct NoProfileId;
 
 /// Marker for state WITH profile_id
+#[derive(Clone)]
 pub struct HasProfileId;
 
 // Dimensional State with type parameters
@@ -41,6 +48,7 @@ pub struct HasProfileId;
 /// * `M` - Merchant ID type: `HasMerchantId` (present) or `NoMerchantId` (absent)
 /// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
 /// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
+#[derive(Clone)]
 pub struct Dimensions<M, O, P> {
     merchant_id: Option<id_type::MerchantId>,
     organization_id: Option<id_type::OrganizationId>,

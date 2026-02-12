@@ -2336,27 +2336,17 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
-    let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+pub async fn is_ucs_enabled(
+    dimensions: &DimensionsWithMerchantId,
+    state: &SessionState,
+) -> bool {
+    dimensions
+        .get_ucs_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
         .await
-        .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to fetch `{config_key}` UCS enabled config from DB"
-            );
-        })
-        .ok()
-        .and_then(|config| {
-            config
-                .config
-                .parse::<bool>()
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
-                })
-                .ok()
-        })
-        .unwrap_or(false)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -5336,7 +5326,6 @@ mod test {
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
-    state: &SessionState,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
     payment_method_token: Option<&PaymentMethodToken>,
@@ -8399,46 +8388,22 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
-/// Returns `true` if either the org or merchant config is set to "true"
+/// Check if a merchant is eligible for the Authentication Service
 ///
-/// Priority logic:
-/// 1. If org-level config exists (either "true" or "false"), that decision is final
-///    - Org = "true" → returns true (authentication enabled)
-///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
-/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
-///    - Merchant = "true" → returns true
-///    - Merchant = "false" or missing → returns false
-///
-/// This ensures parent (org) rules take precedence over child (merchant) configurations
+/// Uses Superposition with merchant_id and org_id as context dimensions.
+/// Superposition handles org → merchant priority resolution.
+/// DB fallback uses merchant-level key.
 pub async fn is_merchant_eligible_authentication_service(
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
+    dimensions: &DimensionsWithMerchantId,
     state: &SessionState,
-) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = org_id.get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
+) -> bool {
+    dimensions
+        .get_authentication_service_eligible(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
         .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
-
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = merchant_id.get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
-        .await)
 }
 
 #[cfg(feature = "v1")]
@@ -8531,30 +8496,28 @@ pub async fn validate_allowed_payment_method_types_request(
 }
 
 async fn get_payment_update_enabled_for_client_auth(
-    merchant_id: &id_type::MerchantId,
+    dimensions: &DimensionsWithMerchantId,
     state: &SessionState,
+    payment_id: &id_type::PaymentId,
 ) -> bool {
-    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
-    let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
-
-    match update_enabled {
-        Ok(conf) => conf.config.to_lowercase() == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    dimensions
+        .get_payment_update_enabled_for_client_auth(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            Some(payment_id),
+        )
+        .await
 }
 
 pub async fn allow_payment_update_enabled_for_client_auth(
-    merchant_id: &id_type::MerchantId,
+    dimensions: &DimensionsWithMerchantId,
     state: &SessionState,
+    payment_id: &id_type::PaymentId,
     auth_flow: services::AuthFlow,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     match auth_flow {
         services::AuthFlow::Client => {
-            if get_payment_update_enabled_for_client_auth(merchant_id, state).await {
+            if get_payment_update_enabled_for_client_auth(dimensions, state, payment_id).await {
                 Ok(())
             } else {
                 Err(errors::ApiErrorResponse::InternalServerError)

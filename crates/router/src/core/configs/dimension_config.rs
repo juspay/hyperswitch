@@ -124,11 +124,11 @@ config! {
     output = bool,
     default = false,
     requires = HasMerchantId,
-    targeting_key = None
+    targeting_key = id_type::MerchantId
 }
 
 impl DatabaseBackedConfig for ShouldCallGsm {
-    const KEY: &'static str = "should_call_gsm_";
+    const KEY: &'static str = "should_call_gsm";
 
     fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
         let merchant_id = dimensions
@@ -136,5 +136,61 @@ impl DatabaseBackedConfig for ShouldCallGsm {
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         format!("{}_{}", merchant_id, Self::KEY)
+    }
+}
+
+config! {
+    superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
+    output = bool,
+    default = false,
+    requires = HasMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PaymentUpdateEnabledForClientAuth {
+    const KEY: &'static str = "payment_update_enabled_for_client_auth";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
+    }
+}
+
+config! {
+    superposition_key = UCS_ENABLED,
+    output = bool,
+    default = false,
+    requires = HasMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UcsEnabled {
+    const KEY: &'static str = "ucs_enabled";
+
+    fn db_key<M, O, P>(_dimensions: &Dimensions<M, O, P>) -> String {
+        Self::KEY.to_string()
+    }
+}
+
+config! {
+    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
+    output = bool,
+    default = false,
+    requires = HasMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for AuthenticationServiceEligible {
+    const KEY: &'static str = "authentication_service_eligible";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", Self::KEY, merchant_id)
     }
 }

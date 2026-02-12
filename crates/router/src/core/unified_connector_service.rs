@@ -51,6 +51,7 @@ use crate::types::api::enums as api_enums;
 use crate::{
     consts,
     core::{
+        configs,
         errors::{self, RouterResult},
         payments::{
             helpers::{
@@ -170,10 +171,13 @@ type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
-async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
+async fn check_ucs_availability(
+    state: &SessionState,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantId,
+) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let is_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
+    let is_enabled = is_ucs_enabled(dimensions, state).await;
 
     match (is_client_available, is_enabled) {
         (true, true) => {
@@ -243,6 +247,9 @@ where
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(processor.get_account().get_id().clone());
+
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
@@ -251,7 +258,7 @@ where
     let flow_name = get_flow_name::<F>()?;
 
     // Check UCS availability using idiomatic helper
-    let ucs_availability = check_ucs_availability(state).await;
+    let ucs_availability = check_ucs_availability(state, &dimensions).await;
 
     let rollout_key = build_rollout_keys(
         merchant_id,
@@ -556,6 +563,9 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(processor.get_account().get_id().clone());
+
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
         .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
@@ -563,7 +573,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let flow_name = "Webhooks";
 
     // Check UCS availability using idiomatic helper
-    let ucs_availability = check_ucs_availability(state).await;
+    let ucs_availability = check_ucs_availability(state, &dimensions).await;
 
     // Build rollout keys - webhooks don't use payment method, so use a simplified key format
     let rollout_key = format!(

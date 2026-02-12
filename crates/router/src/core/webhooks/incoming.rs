@@ -38,7 +38,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::{
     consts,
     core::{
-        api_locking,
+        api_locking, configs,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
@@ -500,13 +500,15 @@ async fn fetch_three_ds_execution_path(
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
     let is_merchant_eligible_for_uas =
         payments::helpers::is_merchant_eligible_authentication_service(
-            &platform.get_processor().get_account().get_id().clone(),
-            &platform.get_processor().get_account().get_org_id().clone(),
+            &dimensions,
             state,
         )
-        .await?;
+        .await;
 
     if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(

@@ -4284,6 +4284,10 @@ pub async fn list_customer_payment_method(
         )
         .await;
 
+    router_env::logger::info!("cusotmer_Id and require_cvv {} {:?}",requires_cvv,customer_id.get_string_repr());
+
+
+
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
             platform.get_provider().get_key_store(),

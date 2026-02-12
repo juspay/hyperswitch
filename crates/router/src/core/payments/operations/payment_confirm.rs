@@ -506,7 +506,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
                             &payment_method_data.into(),
-                            state,
                             store.as_ref(),
                             &profile_id,
                             None,
@@ -2235,7 +2234,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     payment_method_data,
-                    state,
                     &*state.store,
                     profile_id,
                     payment_data.payment_method_token.as_ref(),
