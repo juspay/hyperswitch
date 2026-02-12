@@ -351,6 +351,9 @@ pub struct RefundResponse {
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
     pub raw_connector_response: Option<masking::Secret<String>>,
+    /// A unique identifier for a payment provided by the connector
+    #[smithy(value_type = "Option<String>")]
+    pub connector_refund_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
