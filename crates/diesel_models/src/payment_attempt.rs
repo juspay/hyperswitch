@@ -770,7 +770,7 @@ pub enum PaymentAttemptUpdate {
     PostSessionTokensUpdate {
         updated_by: String,
         connector_metadata: Option<serde_json::Value>,
-    }
+    },
 }
 
 #[cfg(feature = "v2")]

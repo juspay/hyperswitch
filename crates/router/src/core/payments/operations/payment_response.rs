@@ -1932,169 +1932,168 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             } else {
                 None
             };
-            let (capture_update, attempt_update, gsm_error_category) = match payment_data
-                .multiple_capture_data
-            {
-                Some(multiple_capture_data) => {
-                    let capture_update = storage::CaptureUpdate::ErrorUpdate {
-                        status: match err.status_code {
-                            500..=511 => enums::CaptureStatus::Pending,
-                            _ => enums::CaptureStatus::Failed,
-                        },
-                        error_code: Some(err.code),
-                        error_message: Some(err.message),
-                        error_reason: err.reason,
-                    };
-                    let capture_update_list = vec![(
-                        multiple_capture_data.get_latest_capture().clone(),
-                        capture_update,
-                    )];
-                    (
-                        Some((multiple_capture_data, capture_update_list)),
-                        auth_update.map(|auth_type| {
-                            storage::PaymentAttemptUpdate::AuthenticationTypeUpdate {
-                                authentication_type: auth_type,
-                                updated_by: processor.get_account().storage_scheme.to_string(),
-                            }
-                        }),
-                        None,
-                    )
-                }
-                None => {
-                    let sub_flow = core_utils::get_flow_name::<F>()?;
-
-                    let card_network = payment_data.payment_attempt.extract_card_network();
-
-                    // GSM lookup for error object construction
-                    let option_gsm = payments_helpers::get_gsm_record(
-                        state,
-                        router_data.connector.to_string(),
-                        consts::PAYMENT_FLOW_STR,
-                        &sub_flow,
-                        Some(err.code.clone()),
-                        Some(err.message.clone()),
-                        err.network_decline_code.clone(),
-                        card_network.clone(),
-                    )
-                    .await;
-
-                    let gsm_unified_code =
-                        option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
-                    let gsm_unified_message = option_gsm
-                        .as_ref()
-                        .and_then(|gsm| gsm.unified_message.clone());
-                    let gsm_standardised_code =
-                        option_gsm.as_ref().and_then(|gsm| gsm.standardised_code);
-                    let gsm_description =
-                        option_gsm.as_ref().and_then(|gsm| gsm.description.clone());
-                    let gsm_user_guidance_message = option_gsm
-                        .as_ref()
-                        .and_then(|gsm| gsm.user_guidance_message.clone());
-
-                    // For MIT transactions, lookup recommended action from merchant_advice_codes config
-                    let recommended_action =
-                        payments_helpers::get_merchant_advice_code_recommended_action(
-                            &state.conf.merchant_advice_codes,
-                            payment_data.payment_intent.off_session,
-                            card_network.as_ref(),
-                            err.network_advice_code.as_deref(),
-                        );
-
-                    let (unified_code, unified_message) = if let Some((code, message)) =
-                        gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
-                    {
-                        (code.to_owned(), message.to_owned())
-                    } else {
+            let (capture_update, attempt_update, gsm_error_category) =
+                match payment_data.multiple_capture_data {
+                    Some(multiple_capture_data) => {
+                        let capture_update = storage::CaptureUpdate::ErrorUpdate {
+                            status: match err.status_code {
+                                500..=511 => enums::CaptureStatus::Pending,
+                                _ => enums::CaptureStatus::Failed,
+                            },
+                            error_code: Some(err.code),
+                            error_message: Some(err.message),
+                            error_reason: err.reason,
+                        };
+                        let capture_update_list = vec![(
+                            multiple_capture_data.get_latest_capture().clone(),
+                            capture_update,
+                        )];
                         (
-                            consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
-                            consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                            Some((multiple_capture_data, capture_update_list)),
+                            auth_update.map(|auth_type| {
+                                storage::PaymentAttemptUpdate::AuthenticationTypeUpdate {
+                                    authentication_type: auth_type,
+                                    updated_by: processor.get_account().storage_scheme.to_string(),
+                                }
+                            }),
+                            None,
                         )
-                    };
-                    let unified_translated_message = locale
-                        .as_ref()
-                        .async_and_then(|locale_str| async {
-                            payments_helpers::get_unified_translation(
-                                state,
-                                unified_code.to_owned(),
-                                unified_message.to_owned(),
-                                locale_str.to_owned(),
-                            )
-                            .await
-                        })
-                        .await
-                        .or(Some(unified_message));
+                    }
+                    None => {
+                        let sub_flow = core_utils::get_flow_name::<F>()?;
 
-                    let status = match err.attempt_status {
-                        // Use the status sent by connector in error_response if it's present
-                        Some(status) => status,
-                        None =>
-                        // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
+                        let card_network = payment_data.payment_attempt.extract_card_network();
+
+                        // GSM lookup for error object construction
+                        let option_gsm = payments_helpers::get_gsm_record(
+                            state,
+                            router_data.connector.to_string(),
+                            consts::PAYMENT_FLOW_STR,
+                            &sub_flow,
+                            Some(err.code.clone()),
+                            Some(err.message.clone()),
+                            err.network_decline_code.clone(),
+                            card_network.clone(),
+                        )
+                        .await;
+
+                        let gsm_unified_code =
+                            option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+                        let gsm_unified_message = option_gsm
+                            .as_ref()
+                            .and_then(|gsm| gsm.unified_message.clone());
+                        let gsm_standardised_code =
+                            option_gsm.as_ref().and_then(|gsm| gsm.standardised_code);
+                        let gsm_description =
+                            option_gsm.as_ref().and_then(|gsm| gsm.description.clone());
+                        let gsm_user_guidance_message = option_gsm
+                            .as_ref()
+                            .and_then(|gsm| gsm.user_guidance_message.clone());
+
+                        // For MIT transactions, lookup recommended action from merchant_advice_codes config
+                        let recommended_action =
+                            payments_helpers::get_merchant_advice_code_recommended_action(
+                                &state.conf.merchant_advice_codes,
+                                payment_data.payment_intent.off_session,
+                                card_network.as_ref(),
+                                err.network_advice_code.as_deref(),
+                            );
+
+                        let (unified_code, unified_message) = if let Some((code, message)) =
+                            gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
                         {
-                            if sub_flow == "PSync" || sub_flow == "ExtendAuthorization" {
-                                match err.status_code {
-                                    // marking failure for 2xx because this is genuine payment failure
-                                    200..=299 => enums::AttemptStatus::Failure,
-                                    _ => router_data.status,
-                                }
-                            } else if sub_flow == "Capture" {
-                                match err.status_code {
-                                    500..=511 => enums::AttemptStatus::Pending,
-                                    // don't update the status for 429 error status
-                                    429 => router_data.status,
-                                    _ => enums::AttemptStatus::Failure,
-                                }
-                            } else if sub_flow == "CancelPostCapture" {
-                                router_data.status
-                            } else {
-                                match err.status_code {
-                                    500..=511 => enums::AttemptStatus::Pending,
-                                    _ => enums::AttemptStatus::Failure,
+                            (code.to_owned(), message.to_owned())
+                        } else {
+                            (
+                                consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                                consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                            )
+                        };
+                        let unified_translated_message = locale
+                            .as_ref()
+                            .async_and_then(|locale_str| async {
+                                payments_helpers::get_unified_translation(
+                                    state,
+                                    unified_code.to_owned(),
+                                    unified_message.to_owned(),
+                                    locale_str.to_owned(),
+                                )
+                                .await
+                            })
+                            .await
+                            .or(Some(unified_message));
+
+                        let status = match err.attempt_status {
+                            // Use the status sent by connector in error_response if it's present
+                            Some(status) => status,
+                            None =>
+                            // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
+                            {
+                                if sub_flow == "PSync" || sub_flow == "ExtendAuthorization" {
+                                    match err.status_code {
+                                        // marking failure for 2xx because this is genuine payment failure
+                                        200..=299 => enums::AttemptStatus::Failure,
+                                        _ => router_data.status,
+                                    }
+                                } else if sub_flow == "Capture" {
+                                    match err.status_code {
+                                        500..=511 => enums::AttemptStatus::Pending,
+                                        // don't update the status for 429 error status
+                                        429 => router_data.status,
+                                        _ => enums::AttemptStatus::Failure,
+                                    }
+                                } else if sub_flow == "CancelPostCapture" {
+                                    router_data.status
+                                } else {
+                                    match err.status_code {
+                                        500..=511 => enums::AttemptStatus::Pending,
+                                        _ => enums::AttemptStatus::Failure,
+                                    }
                                 }
                             }
-                        }
-                    };
-                    (
-                        None,
-                        Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                            connector: None,
-                            status,
-                            error_message: Some(Some(err.message.clone())),
-                            error_code: Some(Some(err.code.clone())),
-                            error_reason: Some(err.reason.clone()),
-                            amount_capturable: router_data
-                                .request
-                                .get_amount_capturable(
-                                    &payment_data,
-                                    router_data
-                                        .minor_amount_capturable
-                                        .map(MinorUnit::get_amount_as_i64),
-                                    status,
-                                )
-                                .map(MinorUnit::new),
-                            updated_by: processor.get_account().storage_scheme.to_string(),
-                            unified_code: Some(Some(unified_code)),
-                            unified_message: Some(unified_translated_message),
-                            standardised_code: Some(gsm_standardised_code),
-                            description: Some(gsm_description),
-                            user_guidance_message: Some(gsm_user_guidance_message),
-                            connector_transaction_id: err.connector_transaction_id.clone(),
-                            payment_method_data: additional_payment_method_data,
-                            encrypted_payment_method_data,
-                            authentication_type: auth_update,
-                            issuer_error_code: Some(err.network_decline_code.clone()),
-                            issuer_error_message: Some(err.network_error_message.clone()),
-                            network_details: Some(Some(ForeignFrom::foreign_from(&err))),
-                            network_error_message: Some(err.network_error_message.clone()),
-                            connector_response_reference_id: err
-                                .connector_response_reference_id
-                                .clone(),
-                            recommended_action: Some(recommended_action),
-                            card_network: payment_data.payment_attempt.extract_card_network(),
-                        }),
-                        option_gsm.and_then(|option_gsm| option_gsm.error_category),
-                    )
-                }
-            };
+                        };
+                        (
+                            None,
+                            Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                                connector: None,
+                                status,
+                                error_message: Some(Some(err.message.clone())),
+                                error_code: Some(Some(err.code.clone())),
+                                error_reason: Some(err.reason.clone()),
+                                amount_capturable: router_data
+                                    .request
+                                    .get_amount_capturable(
+                                        &payment_data,
+                                        router_data
+                                            .minor_amount_capturable
+                                            .map(MinorUnit::get_amount_as_i64),
+                                        status,
+                                    )
+                                    .map(MinorUnit::new),
+                                updated_by: processor.get_account().storage_scheme.to_string(),
+                                unified_code: Some(Some(unified_code)),
+                                unified_message: Some(unified_translated_message),
+                                standardised_code: Some(gsm_standardised_code),
+                                description: Some(gsm_description),
+                                user_guidance_message: Some(gsm_user_guidance_message),
+                                connector_transaction_id: err.connector_transaction_id.clone(),
+                                payment_method_data: additional_payment_method_data,
+                                encrypted_payment_method_data,
+                                authentication_type: auth_update,
+                                issuer_error_code: Some(err.network_decline_code.clone()),
+                                issuer_error_message: Some(err.network_error_message.clone()),
+                                network_details: Some(Some(ForeignFrom::foreign_from(&err))),
+                                network_error_message: Some(err.network_error_message.clone()),
+                                connector_response_reference_id: err
+                                    .connector_response_reference_id
+                                    .clone(),
+                                recommended_action: Some(recommended_action),
+                                card_network: payment_data.payment_attempt.extract_card_network(),
+                            }),
+                            option_gsm.and_then(|option_gsm| option_gsm.error_category),
+                        )
+                    }
+                };
             (capture_update, attempt_update, gsm_error_category)
         }
 
@@ -2502,9 +2501,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
                             (None, None, None)
                         }
-                        types::PaymentsResponseData::PostCaptureVoidResponse {
-                            ..
-                        } => (None, None, None)
+                        types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                            (None, None, None)
+                        }
                     }
                 }
             }

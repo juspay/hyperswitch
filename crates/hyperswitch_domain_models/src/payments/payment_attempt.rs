@@ -2019,7 +2019,7 @@ pub enum PaymentAttemptUpdate {
     PostSessionTokensUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
-    }
+    },
 }
 
 #[cfg(feature = "v1")]
