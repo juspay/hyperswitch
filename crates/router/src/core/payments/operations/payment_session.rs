@@ -10,6 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -179,7 +180,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
@@ -328,6 +328,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
+        dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -340,6 +341,7 @@ where
                     payment_data,
                     request,
                     provider,
+                    dimensions,
                 )
                 .await
             }
@@ -350,14 +352,7 @@ where
                     payment_data.payment_intent.customer_id.as_ref(),
                     provider,
                 )
-                .await?
-                .inspect(|cust| {
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
-                });
-
+                .await?;
                 Ok((Box::new(self), customer))
             }
             common_enums::MerchantAccountType::Connected => {

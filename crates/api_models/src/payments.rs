@@ -4676,6 +4676,10 @@ pub enum UpiSource {
     UpiAccount,
     /// UPI payment using a combination of credit card and credit line
     UpiCcCl,
+    /// UPI payment using a prepaid payment instrument
+    UpiPpi,
+    /// UPI payment using a voucher
+    UpiVoucher,
 }
 
 #[derive(
@@ -4714,6 +4718,8 @@ pub struct UpiIntentData {
     #[schema(value_type = Option<UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
+    /// App name for UPI intent payment
+    pub app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

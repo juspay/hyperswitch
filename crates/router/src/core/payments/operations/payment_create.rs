@@ -30,6 +30,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -605,7 +606,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt,
             currency,
             amount,
-            email: request.email.clone(),
             mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
@@ -671,6 +671,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -681,6 +682,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    dimensions,
                 )
                 .await
             }
@@ -694,10 +696,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .await?
                 .inspect(|cust| {
                     payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
                 });
 
                 Ok((Box::new(self), customer))

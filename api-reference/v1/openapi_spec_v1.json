@@ -35382,6 +35382,17 @@
                 "$ref": "#/components/schemas/RelayIncrementalAuthorizationRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "void"
+            ],
+            "properties": {
+              "void": {
+                "$ref": "#/components/schemas/RelayVoidRequestData"
+              }
+            }
           }
         ]
       },
@@ -35558,8 +35569,37 @@
         "enum": [
           "refund",
           "capture",
-          "incremental_authorization"
+          "incremental_authorization",
+          "void"
         ]
+      },
+      "RelayVoidRequestData": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the transaction that is being voided",
+            "example": 6540
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The cancellation reason for voiding the transaction",
+            "example": "Requested by merchant",
+            "nullable": true
+          }
+        }
       },
       "RequestPaymentMethodTypes": {
         "type": "object",
@@ -38870,6 +38910,11 @@
               }
             ],
             "nullable": true
+          },
+          "app_name": {
+            "type": "string",
+            "description": "App name for UPI intent payment",
+            "nullable": true
           }
         }
       },
@@ -38908,7 +38953,9 @@
           "UPI_CC",
           "UPI_CL",
           "UPI_ACCOUNT",
-          "UPI_CC_CL"
+          "UPI_CC_CL",
+          "UPI_PPI",
+          "UPI_VOUCHER"
         ]
       },
       "ValueType": {
