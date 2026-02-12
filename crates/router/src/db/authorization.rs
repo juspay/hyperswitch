@@ -199,12 +199,14 @@ impl AuthorizationInterface for MockDb {
             });
 
         index
-            .map(|idx| {
-                let authorization_updated =
-                    AuthorizationUpdateInternal::from(authorization_update)
-                        .create_authorization(authorizations[idx].clone());
-                authorizations[idx] = authorization_updated.clone();
-                authorization_updated
+            .and_then(|idx| {
+                authorizations.get_mut(idx).map(|auth| {
+                    let authorization_updated =
+                        AuthorizationUpdateInternal::from(authorization_update)
+                            .create_authorization(auth.clone());
+                    *auth = authorization_updated.clone();
+                    authorization_updated
+                })
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
