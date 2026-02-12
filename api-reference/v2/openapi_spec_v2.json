@@ -8122,7 +8122,7 @@
             ],
             "properties": {
               "sepa": {
-                "type": "object"
+                "$ref": "#/components/schemas/SepaBankTransferPaymentAdditionalData"
               }
             }
           },
@@ -10758,6 +10758,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AdyenConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "peachpayments": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsData"
               }
             ],
             "nullable": true
@@ -20346,7 +20354,6 @@
         "type": "object",
         "required": [
           "payment_method_type",
-          "payment_method_subtype",
           "customer_id",
           "payment_method_data"
         ],
@@ -20355,7 +20362,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "metadata": {
             "type": "object",
@@ -21318,7 +21330,6 @@
         "type": "object",
         "required": [
           "payment_method_type",
-          "payment_method_subtype",
           "payment_method_data"
         ],
         "properties": {
@@ -21326,7 +21337,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
@@ -22009,9 +22025,6 @@
       },
       "PaymentsCompleteAuthorizeRequest": {
         "type": "object",
-        "required": [
-          "client_secret"
-        ],
         "properties": {
           "shipping": {
             "allOf": [
@@ -22023,7 +22036,8 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "nullable": true
           },
           "threeds_method_comp_ind": {
             "allOf": [
@@ -22338,7 +22352,6 @@
         "type": "object",
         "required": [
           "shipping",
-          "client_secret",
           "payment_method_type"
         ],
         "properties": {
@@ -22347,7 +22360,8 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "nullable": true
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -22398,14 +22412,14 @@
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
-          "client_secret",
           "device_channel",
           "threeds_method_comp_ind"
         ],
         "properties": {
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "nullable": true
           },
           "sdk_information": {
             "allOf": [
@@ -24979,6 +24993,16 @@
         "properties": {
           "complete_response": {
             "type": "string"
+          }
+        }
+      },
+      "PeachpaymentsData": {
+        "type": "object",
+        "properties": {
+          "rrn": {
+            "type": "string",
+            "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
           }
         }
       },
@@ -28135,6 +28159,35 @@
           }
         }
       },
+      "SepaBankTransferPaymentAdditionalData": {
+        "type": "object",
+        "properties": {
+          "debitor_iban": {
+            "type": "string",
+            "description": "debitor IBAN",
+            "example": "DE89370400440532013000",
+            "nullable": true
+          },
+          "debitor_bic": {
+            "type": "string",
+            "description": "debitor BIC",
+            "example": "MARKDEF1100",
+            "nullable": true
+          },
+          "debitor_name": {
+            "type": "string",
+            "description": "debitor name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "debitor_email": {
+            "type": "string",
+            "description": "debitor email",
+            "example": "johndoe@example.com",
+            "nullable": true
+          }
+        }
+      },
       "SessionToken": {
         "oneOf": [
           {
@@ -29729,6 +29782,11 @@
               }
             ],
             "nullable": true
+          },
+          "app_name": {
+            "type": "string",
+            "description": "App name for UPI intent payment",
+            "nullable": true
           }
         }
       },
@@ -29767,7 +29825,9 @@
           "UPI_CC",
           "UPI_CL",
           "UPI_ACCOUNT",
-          "UPI_CC_CL"
+          "UPI_CC_CL",
+          "UPI_PPI",
+          "UPI_VOUCHER"
         ]
       },
       "ValueType": {

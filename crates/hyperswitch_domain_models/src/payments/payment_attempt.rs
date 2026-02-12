@@ -1,5 +1,7 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
+#[cfg(feature = "v2")]
+use api_models::payments::{additional_info::UpiAdditionalData, AdditionalPaymentData};
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use common_types::payments as common_payments_types;
@@ -34,6 +36,8 @@ use diesel_models::{
     PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
@@ -48,7 +52,9 @@ use url::Url;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
-use crate::{address::Address, consts, router_response_types};
+use crate::{
+    address::Address, consts, payment_method_data::PaymentMethodData, router_response_types,
+};
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
@@ -866,6 +872,32 @@ impl PaymentAttempt {
         self.connector_payment_id.as_deref()
     }
 
+    /// Extract and encode additional_payment_method_data (only non-sensitive data like upi_source, masked vpa_id)
+    /// We should NOT store raw payment_method_data as it may contain sensitive info
+    #[cfg(feature = "v2")]
+    fn get_additional_payment_method_data(
+        payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::api_error_response::ApiErrorResponse>
+    {
+        let additional_data: Option<AdditionalPaymentData> =
+            payment_method_data.and_then(|api_pmd| {
+                let domain_pmd = PaymentMethodData::from(api_pmd);
+                match domain_pmd {
+                    PaymentMethodData::Upi(upi) => Some(AdditionalPaymentData::Upi {
+                        details: Some(UpiAdditionalData::from(upi)),
+                    }),
+                    _ => None,
+                }
+            });
+
+        Ok(additional_data
+            .map(|data| data.encode_to_value())
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional payment method data")?
+            .map(pii::SecretSerdeValue::new))
+    }
+
     /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
     #[cfg(feature = "v2")]
     pub async fn create_domain_model(
@@ -902,6 +934,10 @@ impl PaymentAttempt {
 
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
+        let payment_method_data = Self::get_additional_payment_method_data(
+            request.payment_method_data.payment_method_data.clone(),
+        )?;
+
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -920,7 +956,7 @@ impl PaymentAttempt {
             payment_token: request.payment_token.clone(),
             connector_metadata: None,
             payment_experience: None,
-            payment_method_data: None,
+            payment_method_data,
             routing_result: None,
             preprocessing_step_id: None,
             multiple_capture_count: None,
@@ -1554,6 +1590,25 @@ impl PaymentAttempt {
         self.connector_metadata
             .as_ref()
             .map(|metadata| metadata.peek())
+    }
+
+    /// Get the additional payment method data from the payment attempt
+    pub fn get_payment_method_data(
+        &self,
+    ) -> CustomResult<Option<AdditionalPaymentData>, errors::api_error_response::ApiErrorResponse>
+    {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|data| {
+                let value = data.clone().expose();
+                match value {
+                    Value::Null => None,
+                    _ => Some(value.parse_value("AdditionalPaymentData")),
+                }
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse AdditionalPaymentData from payment_method_data")
     }
 
     pub fn get_upi_next_action(
@@ -2616,6 +2671,7 @@ pub struct ConfirmIntentResponseUpdate {
     pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
     pub connector_response_reference_id: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2649,6 +2705,7 @@ pub enum PaymentAttemptUpdate {
         amount_capturable: Option<MinorUnit>,
         updated_by: String,
         amount_captured: Option<MinorUnit>,
+        payment_method_data: Option<Value>,
     },
     PreCaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -2664,10 +2721,11 @@ pub enum PaymentAttemptUpdate {
     ErrorUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: Option<MinorUnit>,
-        error: ErrorDetails,
+        error: Box<ErrorDetails>,
         updated_by: String,
         connector_payment_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        payment_method_data: Option<pii::SecretSerdeValue>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -3548,6 +3606,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id,
                 cancellation_reason: None,
                 amount_captured: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -3556,6 +3615,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                payment_method_data,
             } => {
                 // Apply automatic hashing for long connector payment IDs
                 let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -3592,6 +3652,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_response_reference_id,
                     cancellation_reason: None,
                     amount_captured: None,
+                    payment_method_data,
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -3605,6 +3666,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_token_details,
                     connector_response_reference_id,
                     amount_captured,
+                    payment_method_data,
                 } = *confirm_intent_response_update;
 
                 // Apply automatic hashing for long connector payment IDs
@@ -3642,6 +3704,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_response_reference_id,
                     cancellation_reason: None,
                     amount_captured: None,
+                    payment_method_data,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -3649,6 +3712,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_capturable,
                 updated_by,
                 amount_captured,
+                payment_method_data,
             } => Self {
                 status: Some(status),
                 payment_method_id: None,
@@ -3678,6 +3742,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id: None,
                 cancellation_reason: None,
                 amount_captured,
+                payment_method_data: payment_method_data.map(pii::SecretSerdeValue::new),
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -3712,6 +3777,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id: None,
                 cancellation_reason: None,
                 amount_captured: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3745,6 +3811,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id: None,
                 cancellation_reason: None,
                 amount_captured: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3783,6 +3850,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id: None,
                 cancellation_reason: None,
                 amount_captured: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3817,6 +3885,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_response_reference_id: None,
                 payment_method_id: None,
                 amount_captured: None,
+                payment_method_data: None,
             },
         }
     }
