@@ -75,8 +75,8 @@ common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
-host = "http://127.0.0.1:3000"
-mock_locker = true
+host = "http://127.0.0.1:3001"
+mock_locker = false
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 
@@ -88,8 +88,47 @@ redis_lock_timeout_in_seconds = 100
 redis_ttl_in_seconds = 172800
 
 [jwekey]
-vault_encryption_key = ""
-vault_private_key = ""
+vault_encryption_key = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApHqf9mGiBX8AuQvWr9za
+nBoBXCw7Uzy1DNU5RqBNdlW0ZmLXFUG2SCOYYj414ZPqyek3w/44SuMrUoUunCwN
+6P4PqCVttS79mdLtbPFN0G4L6AurZ2RYU4u13OUzYdW2PtGoiT/EGX3+Y04a66DW
+87+7gJ+Lh+zlFwsoMW0VhLbicPwxRE9pEWmxqdV6qDg5CbfBjvOqSKb5K+Lrf86S
+9LVoPIbl2zOntAVXWiqMeH/4uDPMc/wFJir7pRTiBouyuwLMfmrRQSSHlIlJG2d4
+fOw7eWlX354mEaA8h5dPe8iLDf/nXnsI4/j5dsuxf0utqeuJEMz+JtW/NXxMrBY9
+VwIDAQAB
+-----END PUBLIC KEY-----
+"""
+vault_private_key = """
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDTPON4BkRlLlJZ
+gYZ26oysNNjnai4kmNWjLSD/ZVCcwa23VkDpLyi4FvyFVGWcrKEbsS8FDVZv0Cpo
+x9BhxMF3/tGFV/2cKrsJUA8j0LlwpfZZMsZNShOQ7YxUGSEZuVfZwVKglGNpBG/a
+sZdSrvt9qmfcJ+DwjfPxh+8CAlnntubn9/1VXzVU9qf3OLUVDX/fgnrFv81Hf7cz
+rfuQlq/P4ImBHbatjSCw476SsTb4AwaAW5efhyYaZWuH8F+L431kWL5pHGoOfWLV
+41lEQkNod+k4nIhGeseGCBJ81VCixZcMS9CMT8v3rx11D6Nz7jxiV3cz6nJTp6UI
+a+6kAkilAgMBAAECggEAIwSujvi3APEPbNAoqvESNgAizyZOlPmTPRRfqocwuHPx
+KPoPE7kiLnZ9EVte5vzFTpJugY9m+21OgoVRecvE6PAg6tKd8/Qvgok3oU/aVh7l
+On9M2YZEvRtsTorF7n5H3o0Kdh1zZ3b5Vg9nzyi7/2avBhPEWgymWq2WxUX/goaG
+CkxmuwtvdP3BHvg/UGXY9yf54qQUc9gPW2buZVCCoM7OgjQoGDgTigxa/fHt3luj
+fLG1FsaxyXB5Yyw+51yBqBJO8AJ1HquRCj9kW3avVAb3zAKkm0dMSzXQUaOgSnMh
+rIdCx7EC+jPXDi/z45VCqekJyLAB0VbIgliP2ton1wKBgQD0Mj3nmMSgGOrhbRmK
+yrRjlhLcN85tzoIaGE1YpbEovN2j1rzc/LaglnVcR0uRTSpS9MvBy4DFsL4+6tG/
+Yg3E24NkPAbrLpRZwTdaqA5/uxEPxCcbYQpc2ADYWt5+S9ofQvZuuXaSnhSt0JU+
+AecuWt7g663BemI8jUxiYeM9EwKBgQDdcs81XAnxCaPKGqL4RkqcVvxxSYdQUst3
+iWLhMFC6kEwWi/RiB3ONqSqapmw2vOVDmfRKE5pZw8l8bgyoNSiyjDQoXkYveebZ
+12LaRIX7ApAr1+hc4xXHrsSXHQFkK0Vtr5qyeBO6F9TdwGxx9+Kk6SQG1lOnHu7F
+R9w8SZ0yZwKBgHscGTl5Oye7aC7d4dKm/up17mw3dkrFobGmLthSME5paRQAXpbK
+kQfE0sYC64YFcSEBaPf6sKD5ye/OUpA5ztdAE62k1Zgbk47sagu6ThT3KlLYgR68
+fYzxGPv6U9E4TG8WQ0bvGWgxaht23Ma2Dua/yT17k83G9V+xnKC82OMhAoGBALFE
+rJZ8XQD0xIaOmBLCwgswnthZEda80F+aPOsi8BzIUgBifHjUmi22U4KE4m9W+vgI
+j8OUuaRN1EalGcC0/SUgksgV3301yhRsFJfA7remr55JMZrZtZ+pSXnmICz9bpCF
+WAKxmKkJVr9EwArjciys7MgEXeaUHnMSOTyReSLVAoGBAIvzH6N7By7E7GHSPVfn
+QZ3hjkkbLZB1NXPUkzUQXgHUqABuTxujGHLuPKIjLOMRXeVYKGoLua/R/Dk/uNGd
+kAhELZcGlEIZCDGesMLEMclcf6iGVL1eN6T+dnZUHokxT4lXX/jrWgUufhykyZzX
+WxikKpkdRtF3dS0DIKtubAAj
+-----END PRIVATE KEY-----
+"""
 tunnel_private_key = ""
 
 [connectors.supported]

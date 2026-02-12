@@ -111,8 +111,6 @@ use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
-use crate::core::payment_methods::vault;
-#[cfg(feature = "v2")]
 use crate::core::revenue_recovery::get_workflow_entries;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
@@ -132,7 +130,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
+        payment_methods::{cards, network_tokenization, vault},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -6470,7 +6468,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
             let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_str))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to convert to CustomerId")?;
-            let locker_resp = cards::get_encrypted_data_from_vault(
+            let locker_resp = vault::get_encrypted_data_from_vault(
                 state,
                 processor.get_key_store(),
                 &cust_id,

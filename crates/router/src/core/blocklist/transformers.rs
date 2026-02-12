@@ -4,10 +4,7 @@ use masking::StrongSecret;
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::{
-        errors::{self, CustomResult},
-        payment_methods::transformers as payment_methods,
-    },
+    core::errors::{self, CustomResult},
     routes,
     types::{storage, transformers::ForeignFrom},
 };
@@ -48,7 +45,7 @@ async fn call_to_vault_for_fingerprint(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
     let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload =
-        payment_methods::call_vault_api(
+        crate::core::payment_methods::vault::call_vault_api(
             state,
             jwekey,
             locker,

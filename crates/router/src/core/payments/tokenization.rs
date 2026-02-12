@@ -236,6 +236,7 @@ where
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
                 let payment_method_create_request =
+                // Look here
                     payment_methods::get_payment_method_create_request(
                         Some(&payment_method_data),
                         Some(save_payment_method_data.payment_method),
@@ -1121,7 +1122,7 @@ async fn skip_saving_card_in_locker(
 pub async fn save_in_locker_internal(
     state: &SessionState,
     platform: &domain::Platform,
-    payment_method_request: api::PaymentMethodCreate,
+    mut payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
@@ -1132,65 +1133,43 @@ pub async fn save_in_locker_internal(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    match (
-        payment_method_request.card.clone(),
-        card_detail,
-        payment_method_request.payment_method_data.clone(),
-    ) {
-        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
+
+    if let Some(card) = card_detail {
+        payment_method_request.card = Some(card);
+    }
+
+    if payment_method_request.card.is_some() || payment_method_request.payment_method_data.is_some()
+    {
+        Box::pin(
             PmCards {
                 state,
                 provider: platform.get_provider(),
             }
-            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
+            .add_payment_method_to_locker(payment_method_request, &customer_id),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
-
-        (
-            None,
-            None,
-            Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
-                bank_debit_create_data,
-            )),
-        ) => Box::pin(
-            PmCards {
-                state,
-                provider: platform.get_provider(),
-            }
-            .add_bank_debit_to_locker(
-                payment_method_request,
-                bank_debit_create_data,
-                platform.get_provider().get_key_store(),
-                &customer_id,
-            ),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Bank Debit Failed"),
-
-        _ => {
-            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: platform.get_provider().get_account().get_id().clone(),
-                customer_id: Some(customer_id),
-                payment_method_id: pm_id,
-                payment_method: payment_method_request.payment_method,
-                payment_method_type: payment_method_request.payment_method_type,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                card: None,
-                metadata: None,
-                created: Some(common_utils::date_time::now()),
-                recurring_enabled: Some(false),
-                installment_payment_enabled: Some(false),
-                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
-                last_used_at: Some(common_utils::date_time::now()),
-                client_secret: None,
-            };
-            Ok((payment_method_response, None))
-        }
+        .attach_printable("Add Payment Method Failed")
+    } else {
+        let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+        let payment_method_response = api::PaymentMethodResponse {
+            merchant_id: platform.get_provider().get_account().get_id().clone(),
+            customer_id: Some(customer_id),
+            payment_method_id: pm_id,
+            payment_method: payment_method_request.payment_method,
+            payment_method_type: payment_method_request.payment_method_type,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            card: None,
+            metadata: None,
+            created: Some(common_utils::date_time::now()),
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+            last_used_at: Some(common_utils::date_time::now()),
+            client_secret: None,
+        };
+        Ok((payment_method_response, None))
     }
 }
 

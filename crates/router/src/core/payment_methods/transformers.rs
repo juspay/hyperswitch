@@ -6,7 +6,7 @@ use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
 use common_utils::request::Headers;
 use common_utils::{
-    ext_traits::{Encode, StringExt},
+    ext_traits::Encode,
     id_type,
     pii::{Email, SecretSerdeValue},
     request::RequestContent,
@@ -14,40 +14,20 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
-use josekit::jwe;
-#[cfg(feature = "v1")]
-use masking::Mask;
-use masking::{ExposeInterface, PeekInterface};
-#[cfg(feature = "v1")]
-use payment_methods::client::{
-    self as pm_client,
-    create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
-    retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
-    UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
-};
+#[cfg(feature = "v2")]
 use router_env::RequestId;
-#[cfg(feature = "v1")]
-use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        payment_methods::cards::call_vault_service,
-    },
-    headers,
-    pii::Secret,
-    routes,
-    services::{api as services, encryption, EncryptionAlgorithm},
+    core::errors::{self, CustomResult},
+    pii::{prelude::*, Secret},
+    services::api as services,
     types::{api, domain},
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
-use crate::{
-    consts,
-    types::{payment_methods as pm_types, transformers},
-};
+use crate::{consts, routes, types::transformers};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -203,227 +183,6 @@ pub struct DeleteCardResponse {
 #[serde(transparent)]
 pub struct PaymentMethodMetadata {
     pub payment_method_tokenization: std::collections::HashMap<String, String>,
-}
-
-pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
-    let header = jwe.header;
-    let encryption_key = jwe.encrypted_key;
-    let iv = jwe.iv;
-    let encryption_payload = jwe.encrypted_payload;
-    let tag = jwe.tag;
-    format!("{header}.{encryption_key}.{iv}.{encryption_payload}.{tag}")
-}
-
-pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
-    let header = jws.header;
-    let payload = jws.payload;
-    let signature = jws.signature;
-    format!("{header}.{payload}.{signature}")
-}
-
-pub async fn get_decrypted_response_payload(
-    jwekey: &settings::Jwekey,
-    jwe_body: encryption::JweBody,
-    decryption_scheme: settings::DecryptionScheme,
-) -> CustomResult<String, errors::VaultError> {
-    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jwt = get_dotted_jwe(jwe_body);
-    let alg = match decryption_scheme {
-        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
-        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
-    };
-
-    let jwe_decrypted = encryption::decrypt_jwe(
-        &jwt,
-        encryption::KeyIdCheck::SkipKeyIdCheck,
-        private_key,
-        alg,
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Jwe Decryption failed for JweBody for vault")?;
-
-    let jws = jwe_decrypted
-        .parse_struct("JwsBody")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)?;
-    let jws_body = get_dotted_jws(jws);
-
-    encryption::verify_sign(jws_body, public_key)
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Jws Decryption failed for JwsBody for vault")
-}
-
-pub async fn get_decrypted_vault_response_payload(
-    jwekey: &settings::Jwekey,
-    jwe_body: encryption::JweBody,
-    decryption_scheme: settings::DecryptionScheme,
-) -> CustomResult<String, errors::VaultError> {
-    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jwt = get_dotted_jwe(jwe_body);
-    let alg = match decryption_scheme {
-        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
-        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
-    };
-
-    let jwe_decrypted = encryption::decrypt_jwe(
-        &jwt,
-        encryption::KeyIdCheck::SkipKeyIdCheck,
-        private_key,
-        alg,
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Jwe Decryption failed for JweBody for vault")?;
-
-    let jws = jwe_decrypted
-        .parse_struct("JwsBody")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)?;
-    let jws_body = get_dotted_jws(jws);
-
-    encryption::verify_sign(jws_body, public_key)
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Jws Decryption failed for JwsBody for vault")
-}
-
-#[cfg(feature = "v2")]
-pub async fn create_jwe_body_for_vault(
-    jwekey: &settings::Jwekey,
-    jws: &str,
-) -> CustomResult<encryption::JweBody, errors::VaultError> {
-    let jws_payload: Vec<&str> = jws.split('.').collect();
-
-    let generate_jws_body = |payload: Vec<&str>| -> Option<encryption::JwsBody> {
-        Some(encryption::JwsBody {
-            header: payload.first()?.to_string(),
-            payload: payload.get(1)?.to_string(),
-            signature: payload.get(2)?.to_string(),
-        })
-    };
-
-    let jws_body =
-        generate_jws_body(jws_payload).ok_or(errors::VaultError::RequestEncryptionFailed)?;
-
-    let payload = jws_body
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
-
-    let jwe_encrypted =
-        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
-            .await
-            .change_context(errors::VaultError::SaveCardFailed)
-            .attach_printable("Error on jwe encrypt")?;
-    let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
-
-    let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
-        Some(encryption::JweBody {
-            header: payload.first()?.to_string(),
-            iv: payload.get(2)?.to_string(),
-            encrypted_payload: payload.get(3)?.to_string(),
-            tag: payload.get(4)?.to_string(),
-            encrypted_key: payload.get(1)?.to_string(),
-        })
-    };
-
-    let jwe_body =
-        generate_jwe_body(jwe_payload).ok_or(errors::VaultError::RequestEncodingFailed)?;
-
-    Ok(jwe_body)
-}
-
-pub async fn mk_vault_req(
-    jwekey: &settings::Jwekey,
-    jws: &str,
-) -> CustomResult<encryption::JweBody, errors::VaultError> {
-    let jws_payload: Vec<&str> = jws.split('.').collect();
-
-    let generate_jws_body = |payload: Vec<&str>| -> Option<encryption::JwsBody> {
-        Some(encryption::JwsBody {
-            header: payload.first()?.to_string(),
-            payload: payload.get(1)?.to_string(),
-            signature: payload.get(2)?.to_string(),
-        })
-    };
-
-    let jws_body = generate_jws_body(jws_payload).ok_or(errors::VaultError::SaveCardFailed)?;
-
-    let payload = jws_body
-        .encode_to_vec()
-        .change_context(errors::VaultError::SaveCardFailed)?;
-
-    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
-
-    let jwe_encrypted =
-        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
-            .await
-            .change_context(errors::VaultError::SaveCardFailed)
-            .attach_printable("Error on jwe encrypt")?;
-    let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
-
-    let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
-        Some(encryption::JweBody {
-            header: payload.first()?.to_string(),
-            iv: payload.get(2)?.to_string(),
-            encrypted_payload: payload.get(3)?.to_string(),
-            tag: payload.get(4)?.to_string(),
-            encrypted_key: payload.get(1)?.to_string(),
-        })
-    };
-
-    let jwe_body = generate_jwe_body(jwe_payload).ok_or(errors::VaultError::SaveCardFailed)?;
-
-    Ok(jwe_body)
-}
-
-pub async fn call_vault_api<'a, Req, Res>(
-    state: &routes::SessionState,
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
-    payload: &'a Req,
-    endpoint_path: &str,
-    tenant_id: id_type::TenantId,
-    request_id: Option<RequestId>,
-) -> CustomResult<Res, errors::VaultError>
-where
-    Req: Encode<'a> + Serialize,
-    Res: serde::de::DeserializeOwned,
-{
-    let encoded_payload = payload
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-    let jws =
-        encryption::jws_sign_payload(&encoded_payload, &locker.locker_signing_key_id, private_key)
-            .await
-            .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let jwe_payload = mk_vault_req(jwekey, &jws).await?;
-
-    let url = locker.get_host(endpoint_path);
-
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(headers::X_TENANT_ID, tenant_id.get_string_repr().into());
-
-    if let Some(req_id) = request_id {
-        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
-    }
-
-    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-
-    let response = call_vault_service::<Res>(state, request, endpoint_path)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)?;
-
-    Ok(response)
 }
 
 #[cfg(all(feature = "v1", feature = "payouts"))]
@@ -708,7 +467,7 @@ pub async fn mk_delete_card_request_hs_by_id(
         card_reference: card_reference.to_owned(),
     };
 
-    call_vault_api(
+    super::vault::call_vault_api(
         state,
         jwekey,
         locker,

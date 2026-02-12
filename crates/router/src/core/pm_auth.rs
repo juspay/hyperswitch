@@ -531,6 +531,7 @@ async fn store_bank_details_in_payment_methods(
                 created_by: None,
                 last_modified_by: None,
                 customer_details: None,
+                locker_fingerprint_id: None,
             };
 
             new_entries.push(pm_new);

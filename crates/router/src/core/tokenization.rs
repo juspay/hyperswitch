@@ -131,7 +131,6 @@ pub async fn delete_tokenized_data_core(
     //delete card from vault
     pm_vault::delete_payment_method_data_from_vault_internal(
         &state,
-        &platform,
         vault_id,
         &tokenization_record.customer_id,
     )
@@ -189,7 +188,7 @@ pub async fn get_token_vault_core(
         ),
     };
 
-    let vault_data = pm_vault::retrieve_value_from_vault(&state, vault_request)
+    let vault_data = pm_vault::retrieve_value_from_internal_vault(&state, vault_request)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to retrieve vault data")?;
