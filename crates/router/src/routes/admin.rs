@@ -482,8 +482,8 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected_operation: true,
+                allow_platform_operation: true,
             },
             req.headers(),
         ),
@@ -928,7 +928,7 @@ pub async fn connector_delete(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorWrite,
-                allow_connected_operation: true,
+                allow_connected_operation: false,
                 allow_platform_operation: false,
             },
             req.headers(),
@@ -1153,6 +1153,8 @@ pub async fn connector_webhook_register(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
+                allow_connected_operation: false,
+                allow_platform_operation: false,
             },
             req.headers(),
         ),
