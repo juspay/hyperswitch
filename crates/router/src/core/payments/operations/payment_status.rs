@@ -91,13 +91,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_intent.customer_id.as_ref(),
                     provider,
                 )
-                .await?
-                .inspect(|cust| {
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
-                });
+                .await?;
 
                 Ok((Box::new(self), customer))
             }
@@ -509,7 +503,6 @@ async fn get_tracker_for_sync<
         payment_intent,
         currency,
         amount,
-        email: None,
         mandate_id: payment_attempt
             .mandate_id
             .clone()

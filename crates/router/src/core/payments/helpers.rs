@@ -2128,12 +2128,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 );
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-                payment_data.email = payment_data.email.clone().or_else(|| {
-                    customer
-                        .email
-                        .clone()
-                        .map(|encrypted_value| encrypted_value.into())
-                });
 
                 Some(customer)
             }
