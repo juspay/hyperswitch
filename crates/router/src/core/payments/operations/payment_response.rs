@@ -2026,14 +2026,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
-                        Some(status) => {
-                            if matches!(status, common_enums::AttemptStatus::VoidedPostCharge) {
-                                Err(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("void_post_charge is not a valid status")?
-                            } else {
-                                status
-                            }
-                        }
+                        Some(status) => status,
                         None =>
                         // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
                         {
@@ -2510,27 +2503,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             (None, None, None)
                         }
                         types::PaymentsResponseData::PostCaptureVoidResponse {
-                            post_capture_void_status,
-                            connector_reference_id,
-                            description,
-                        } => (
-                            None,
-                            Some(storage::PaymentAttemptUpdate::VoidPostCaptureUpdate {
-                                updated_by: processor.get_account().storage_scheme.to_string(),
-                                amount_capturable: router_data
-                                    .request
-                                    .get_amount_capturable(
-                                        &payment_data,
-                                        router_data
-                                            .minor_amount_capturable
-                                            .map(MinorUnit::get_amount_as_i64),
-                                        router_data.status,
-                                    )
-                                    .map(MinorUnit::new)
-                                    .unwrap_or(MinorUnit::new(0)),
-                            }),
-                            None,
-                        ),
+                            ..
+                        } => (None, None, None)
                     }
                 }
             }
