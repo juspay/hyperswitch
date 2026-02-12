@@ -16,7 +16,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "stripe cybersource"
+  PAYMENTS_CONNECTORS: "trustpay worldpayxml"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu volt zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
@@ -216,7 +216,7 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     permissions:
       pull-requests: write
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
