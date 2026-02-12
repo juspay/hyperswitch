@@ -17,9 +17,9 @@ impl AuthorizationNew {
 }
 
 impl Authorization {
-    pub async fn update_by_processor_merchant_id_authorization_id(
+    pub async fn update_by_merchant_id_authorization_id(
         conn: &PgPooledConn,
-        processor_merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: AuthorizationUpdate,
     ) -> StorageResult<Self> {
@@ -30,8 +30,8 @@ impl Authorization {
             _,
         >(
             conn,
-            dsl::processor_merchant_id
-                .eq(processor_merchant_id.to_owned())
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
                 .and(dsl::authorization_id.eq(authorization_id.to_owned())),
             AuthorizationUpdateInternal::from(authorization_update),
         )
@@ -44,8 +44,8 @@ impl Authorization {
                 errors::DatabaseError::NoFieldsToUpdate => {
                     generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
                         conn,
-                        dsl::processor_merchant_id
-                            .eq(processor_merchant_id.to_owned())
+                        dsl::merchant_id
+                            .eq(merchant_id.to_owned())
                             .and(dsl::authorization_id.eq(authorization_id.to_owned())),
                     )
                     .await
@@ -56,15 +56,15 @@ impl Authorization {
         }
     }
 
-    pub async fn find_by_processor_merchant_id_payment_id(
+    pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
-        processor_merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::processor_merchant_id
-                .eq(processor_merchant_id.to_owned())
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
             None,
             None,
