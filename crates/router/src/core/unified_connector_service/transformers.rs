@@ -808,8 +808,27 @@ impl
             merchant_account_metadata,
             metadata: None,
             test_mode: router_data.test_mode,
-            payment_experience: None,
+            payment_experience: router_data
+                .request
+                .payment_experience
+                .map(payments_grpc::PaymentExperience::foreign_from)
+                .map(Into::into),
         })
+    }
+}
+
+impl ForeignFrom<common_enums::PaymentExperience> for payments_grpc::PaymentExperience {
+    fn foreign_from(tokenization: common_enums::PaymentExperience) -> Self {
+        match tokenization {
+            common_enums::PaymentExperience::RedirectToUrl => Self::RedirectToUrl,
+            common_enums::PaymentExperience::InvokeSdkClient => Self::InvokeSdkClient,
+            common_enums::PaymentExperience::DisplayQrCode => Self::DisplayQrCode,
+            common_enums::PaymentExperience::OneClick => Self::OneClick,
+            common_enums::PaymentExperience::LinkWallet => Self::LinkWallet,
+            common_enums::PaymentExperience::InvokePaymentApp => Self::InvokePaymentApp,
+            common_enums::PaymentExperience::DisplayWaitScreen => Self::DisplayWaitScreen,
+            common_enums::PaymentExperience::CollectOtp => Self::CollectOtp,
+        }
     }
 }
 
