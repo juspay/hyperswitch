@@ -185,7 +185,6 @@ impl AuthorizationInterface for MockDb {
         let mut authorizations = self.authorizations.lock().await;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
-        // Find index first to avoid borrow issues
         let index = authorizations
             .iter()
             .position(|authorization| {
