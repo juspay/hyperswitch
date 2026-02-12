@@ -542,6 +542,8 @@ impl Action {
                 })
                 .ok();
 
+                let is_expiry_update =  account_updater_action.as_ref().map(storage::revenue_recovery_redis_operation::AccountUpdaterAction::is_expiry_update);
+
                 let _account_updater_result = account_updater_action
                     .async_map(|action| {
                         let customer_id = connector_customer_id.clone();
@@ -618,16 +620,16 @@ impl Action {
                             .attach_printable("Failed while generating response for payment")?;
 
                         RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
-                        state,
-                        common_enums::EventClass::Payments,
-                        event_status,
-                        payment_intent,
-                        &platform,
-                        profile,
-                        payment_data.payment_attempt.id.get_string_repr().to_string(),
-                        payments_response
-                    )
-                    .await?;
+                            state,
+                            common_enums::EventClass::Payments,
+                            event_status,
+                            payment_intent,
+                            &platform,
+                            profile,
+                            payment_data.payment_attempt.id.get_string_repr().to_string(),
+                            payments_response
+                        )
+                        .await?;
 
                         Ok(Self::SuccessfulPayment(
                             payment_data.payment_attempt.clone(),
@@ -712,25 +714,30 @@ impl Action {
                         .await
                         .ok();
 
+                        // when account updater is an expiry update we dont want to update the hard decline flag to give it a chance to do a retry
+                        let should_we_update_hard_decline_flag = is_expiry_update
+                            .and_then(|is_expiry| is_expiry.then_some(false))
+                            .or(is_hard_decline);
+
                         let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
-                        state,
-                        &connector_customer_id,
-                        &error_code,
-                        &is_hard_decline,
-                        Some(&scheduled_token
-                            .payment_processor_token_details
-                            .payment_processor_token)
-                            ,
-                    )
-                    .await;
+                            state,
+                            &connector_customer_id,
+                            &error_code,
+                            &should_we_update_hard_decline_flag,
+                            Some(&scheduled_token
+                                .payment_processor_token_details
+                                .payment_processor_token)
+                                ,
+                        )
+                        .await;
 
                         // unlocking the token
-                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-        state,
-        &connector_customer_id,
-                        &payment_intent.id
-    )
-    .await;
+                        let _unlock_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                            state,
+                            &connector_customer_id,
+                            &payment_intent.id
+                        )
+                        .await;
 
                         // Reopen calculate workflow on payment failure
                         Box::pin(reopen_calculate_workflow_on_payment_failure(
