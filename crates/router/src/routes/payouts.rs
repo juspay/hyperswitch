@@ -189,6 +189,7 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, mut req, _| {
+            #[cfg(feature = "v1")]
             if let Some(cs) = auth.client_secret {
                 req.client_secret = Some(cs);
             }

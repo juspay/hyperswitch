@@ -58,6 +58,7 @@ pub async fn link_token_create(
         &req,
         payload,
         |state, auth, mut payload, _| {
+            #[cfg(feature = "v1")]
             if let Some(cs) = auth.client_secret {
                 payload.client_secret = Some(cs);
             }
@@ -114,6 +115,7 @@ pub async fn exchange_token(
         &req,
         payload,
         |state, auth, mut payload, _| {
+            #[cfg(feature = "v1")]
             if let Some(cs) = auth.client_secret {
                 payload.client_secret = Some(cs);
             }

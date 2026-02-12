@@ -668,11 +668,7 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData {
-            platform,
-            profile,
-            client_secret: None,
-        };
+        let auth = AuthenticationData { platform, profile };
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
