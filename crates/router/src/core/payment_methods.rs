@@ -1128,7 +1128,7 @@ pub async fn create_persistent_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) => {
-            Box::pin(create_payment_method_card_core(
+            Box::pin(create_or_fetch_payment_method_core(
                 state,
                 req,
                 platform,
@@ -1233,9 +1233,80 @@ pub async fn create_volatile_payment_method_core(
 }
 
 #[cfg(feature = "v2")]
+async fn payment_method_resolver(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer_id: &id_type::GlobalCustomerId,
+    req: &api::PaymentMethodCreate,
+) -> RouterResult<PaymentMethodResolver> {
+    let db = &*state.store;
+    let payment_method_data =
+        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
+            .populate_bin_details_for_payment_method(state)
+            .await;
+
+    let fingerprint_id = vault::get_fingerprint_id_from_vault(
+        state,
+        &payment_method_data,
+        customer_id.get_string_repr().to_owned(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get fingerprint_id from vault")?;
+
+    match db
+        .find_payment_method_by_fingerprint_id(
+            platform.get_provider().get_key_store(),
+            &fingerprint_id,
+        )
+        .await
+    {
+        Ok(existing_pm) => {
+            logger::info!("Payment method is duplicated, returning existing payment method");
+            return Ok(PaymentMethodResolver {
+                resolution: PaymentMethodResolution::Get(Box::new(existing_pm)),
+            });
+        }
+        Err(err) => {
+            if !err.current_context().is_db_not_found() {
+                logger::error!(
+                    "Error while checking for existing payment method: {:?}",
+                    err
+                );
+                return Err(err)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to check for existing payment method in db");
+            }
+            logger::debug!("Payment method not found, falling back to creation");
+        }
+    }
+
+    Ok(PaymentMethodResolver {
+        resolution: PaymentMethodResolution::Create {
+            fingerprint_id,
+            payment_method_data,
+        },
+    })
+}
+
+#[cfg(feature = "v2")]
+pub enum PaymentMethodResolution {
+    Get(Box<domain::PaymentMethod>),
+    Create {
+        fingerprint_id: String,
+        payment_method_data: domain::PaymentMethodVaultingData,
+    },
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodResolver {
+    resolution: PaymentMethodResolution,
+}
+
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn create_payment_method_card_core(
+async fn create_or_fetch_payment_method_core(
     state: &SessionState,
     req: api::PaymentMethodCreate,
     platform: &domain::Platform,
@@ -1243,41 +1314,103 @@ pub async fn create_payment_method_card_core(
     merchant_id: &id_type::MerchantId,
     customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
+    billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    let resolver = payment_method_resolver(state, platform, customer_id, &req).await?;
+
+    resolver
+        .execute(
+            state,
+            &req,
+            platform,
+            profile,
+            merchant_id,
+            customer_id,
+            payment_method_id,
+            billing_address,
+        )
+        .await
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodResolver {
+    #[allow(clippy::too_many_arguments)]
+    #[instrument(skip_all)]
+    pub async fn execute(
+        self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_id: id_type::GlobalPaymentMethodId,
+        billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
+    ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+        let db = &*state.store;
+        match self.resolution {
+            PaymentMethodResolution::Get(existing_pm) => {
+                let resp = pm_transforms::generate_payment_method_response(
+                    &existing_pm,
+                    &None,
+                    req.storage_type,
+                    None,
+                    req.customer_id.clone(),
+                    None,
+                )?;
+
+                Ok((resp, *existing_pm))
+            }
+
+            PaymentMethodResolution::Create {
+                fingerprint_id,
+                payment_method_data,
+            } => {
+                let payment_method = create_payment_method_for_intent(
+                    state,
+                    req.metadata.clone(),
+                    customer_id,
+                    payment_method_id,
+                    merchant_id,
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
+                    billing_address.clone(),
+                )
+                .await?;
+                Box::pin(execute_payment_method_create(
+                    state,
+                    req,
+                    platform,
+                    profile,
+                    customer_id,
+                    payment_method,
+                    payment_method_data,
+                    fingerprint_id,
+                    billing_address,
+                ))
+                .await
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+async fn execute_payment_method_create(
+    state: &SessionState,
+    req: &api::PaymentMethodCreate,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    customer_id: &id_type::GlobalCustomerId,
+    payment_method: domain::PaymentMethod,
+    payment_method_data: domain::PaymentMethodVaultingData,
+    fingerprint_id_from_vault: String,
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    match &req.payment_method_data {
-        api::PaymentMethodCreateData::Card(card_data) => {
-            payments_core::helpers::validate_card_expiry(
-                &card_data.card_exp_month,
-                &card_data.card_exp_year,
-            )?;
-        }
-        _ => {
-            logger::debug!("Payment method data is not CardDetail");
-        }
-    }
-
     let db = &*state.store;
-
-    let payment_method = create_payment_method_for_intent(
-        state,
-        req.metadata.clone(),
-        customer_id,
-        payment_method_id,
-        merchant_id,
-        platform.get_provider().get_key_store(),
-        platform.get_provider().get_account().storage_scheme,
-        payment_method_billing_address,
-    )
-    .await
-    .attach_printable("failed to add payment method to db")?;
-
-    let payment_method_data =
-        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
-            .populate_bin_details_for_payment_method(state)
-            .await;
 
     let vaulting_result = vault_payment_method(
         state,
@@ -1285,6 +1418,7 @@ pub async fn create_payment_method_card_core(
         platform,
         profile,
         None,
+        fingerprint_id_from_vault,
         customer_id,
     )
     .await;
@@ -1362,7 +1496,7 @@ pub async fn create_payment_method_card_core(
                 &None,
                 req.storage_type,
                 cvc_expiry_details,
-                req.customer_id,
+                req.customer_id.clone(),
                 None,
             )?;
 
@@ -2802,33 +2936,10 @@ pub async fn vault_payment_method_internal(
     pmd: &domain::PaymentMethodVaultingData,
     platform: &domain::Platform,
     existing_vault_id: Option<domain::VaultId>,
+    fingerprint_id_from_vault: String,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let db = &*state.store;
-
-    // get fingerprint_id from vault
-    let fingerprint_id_from_vault =
-        vault::get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get fingerprint_id from vault")?;
-
-    // throw back error if payment method is duplicated
-    when(
-        db.find_payment_method_by_fingerprint_id(
-            platform.get_provider().get_key_store(),
-            &fingerprint_id_from_vault,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to find payment method by fingerprint_id")
-        .inspect_err(|e| logger::error!("Vault Fingerprint_id error: {:?}", e))
-        .is_ok(),
-        || {
-            Err(report!(errors::ApiErrorResponse::DuplicatePaymentMethod)
-                .attach_printable("Cannot vault duplicate payment method"))
-        },
-    )?;
 
     let mut resp_from_vault =
         vault::add_payment_method_to_vault(state, platform, pmd, existing_vault_id, customer_id)
@@ -3114,6 +3225,7 @@ pub async fn vault_payment_method(
     platform: &domain::Platform,
     profile: &domain::Profile,
     existing_vault_id: Option<domain::VaultId>,
+    fingerprint_id_from_vault: String,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<(
     pm_types::AddVaultResponse,
@@ -3160,11 +3272,16 @@ pub async fn vault_payment_method(
             .await
             .map(|value| (value, Some(external_vault_source)))
         }
-        false => {
-            vault_payment_method_internal(state, pmd, platform, existing_vault_id, customer_id)
-                .await
-                .map(|value| (value, None))
-        }
+        false => vault_payment_method_internal(
+            state,
+            pmd,
+            platform,
+            existing_vault_id,
+            fingerprint_id_from_vault,
+            customer_id,
+        )
+        .await
+        .map(|value| (value, None)),
     }
 }
 
@@ -3904,41 +4021,62 @@ pub async fn update_payment_method_core(
                         )
                     });
 
-            let vaulting_response = match vault_request_data {
+            match vault_request_data {
                 // cannot use async map because of problems related to lifetimes
                 // to overcome this, we will have to use a move closure and add some clones
-                Some(ref vault_request_data) => {
-                    let (vault_response, _) = vault_payment_method(
+                Some(ref vault_request_data_req) => {
+                    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(
                         state,
-                        vault_request_data,
-                        platform,
-                        profile,
-                        // using current vault_id for now,
-                        // will have to refactor this to generate new one on each vaulting later on
-                        current_vault_id,
-                        &payment_method
+                        vault_request_data_req,
+                        payment_method
                             .customer_id
                             .clone()
-                            .get_required_value("GlobalCustomerId")?,
+                            .get_required_value("GlobalCustomerId")?
+                            .get_string_repr()
+                            .to_owned(),
                     )
                     .await
-                    .attach_printable("Failed to add payment method in vault")?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get fingerprint_id from vault")?;
 
-                    Some(vault_response)
-                }
-                None => None,
-            };
+                    let is_stored_payment_method_same_as_in_request = payment_method
+                        .locker_fingerprint_id
+                        .clone()
+                        .map(|data| data == fingerprint_id_from_vault);
 
-            match vaulting_response {
-                Some(vaulting_response) => {
-                    let vault_id = vaulting_response.vault_id.get_string_repr().to_owned();
-                    (
-                        vault_request_data,
-                        Some(vault_id),
-                        vaulting_response.fingerprint_id,
-                    )
+                    // If payment method with the same fingerprint exists, return it as an idempotent response
+                    match is_stored_payment_method_same_as_in_request {
+                        Some(true) => {
+                            logger::info!("Payment method with the same fingerprint_id already exists, returning existing payment method data");
+                            (None, None, None)
+                        }
+                        Some(false) | None => {
+                            logger::info!("No existing payment method with the same fingerprint_id, proceeding to vault the payment method");
+                            let (vault_response, _) = vault_payment_method(
+                                state,
+                                vault_request_data_req,
+                                platform,
+                                profile,
+                                current_vault_id,
+                                fingerprint_id_from_vault,
+                                &payment_method
+                                    .customer_id
+                                    .clone()
+                                    .get_required_value("GlobalCustomerId")?,
+                            )
+                            .await
+                            .attach_printable("Failed to add payment method in vault")?;
+
+                            let vault_id = vault_response.vault_id.get_string_repr().to_owned();
+                            (
+                                vault_request_data,
+                                Some(vault_id),
+                                vault_response.fingerprint_id,
+                            )
+                        }
+                    }
                 }
-                None => (vault_request_data, None, None),
+                None => (None, None, None),
             }
         } else {
             (None, None, None)
