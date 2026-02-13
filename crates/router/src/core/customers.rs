@@ -1,4 +1,4 @@
-use api_models::customers::CustomerDocumentDetails;
+use api_models::{customers::CustomerDocumentDetails, payment_methods::PaymentMethodId};
 use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
@@ -20,6 +20,8 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::cards::create_encrypted_data;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::delete_payment_method;
 #[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
@@ -700,13 +702,20 @@ pub async fn list_customers_with_count(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
-    provider: domain::Provider,
+    platform: domain::Platform,
     id: id_type::GlobalCustomerId,
+    profile: domain::Profile,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    id.redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
-        .await
+    id.redact_customer_details_and_generate_response(
+        db,
+        &platform,
+        key_manager_state,
+        &state,
+        profile,
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -715,10 +724,12 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        provider: &'a domain::Provider,
+        platform: &'a domain::Platform,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+        profile: domain::Profile,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+        let provider = platform.get_provider();
         let customer_orig = db
             .find_customer_by_global_id(
                 self,
@@ -744,9 +755,17 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    db.delete_payment_method(provider.get_key_store(), pm)
-                        .await
-                        .switch()?;
+                    let pm_id = PaymentMethodId {
+                        payment_method_id: pm.id.get_string_repr().to_string(),
+                    };
+                    Box::pin(delete_payment_method(
+                        state.clone(),
+                        pm_id,
+                        platform.clone(),
+                        profile.clone(),
+                    ))
+                    .await
+                    .switch()?;
                 }
             }
             Err(error) => {
@@ -829,9 +848,10 @@ trait CustomerDeleteBridge {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        provider: &'a domain::Provider,
+        platform: &'a domain::Platform,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+        profile: domain::Profile,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
@@ -845,7 +865,13 @@ pub async fn delete_customer(
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
+        .redact_customer_details_and_generate_response(
+            db,
+            &provider,
+            key_manager_state,
+            &state,
+            profile,
+        )
         .await
 }
 
