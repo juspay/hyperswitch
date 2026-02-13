@@ -17523,7 +17523,7 @@
       },
       "DeRoutableConnectorChoice": {
         "type": "object",
-        "description": "Routable Connector chosen for a payment",
+        "description": "Connector representation used in API request/response.\n\nRepresents a Merchant Connector Account.",
         "required": [
           "gateway_name",
           "gateway_id"
@@ -17533,7 +17533,9 @@
             "$ref": "#/components/schemas/RoutableConnectors"
           },
           "gateway_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Merchant Connector Account ID.\n\nExample:\n```json\n\"mca_ExbsYfO1xFErhNtwY1PX\"\n```",
+            "example": "authipay_1705"
           }
         }
       },
@@ -36383,6 +36385,7 @@
       },
       "RoutingEvaluateRequest": {
         "type": "object",
+        "description": "Request body used to evaluate routing rules.\n\nThis API evaluates routing logic based on dynamic parameters\nlike payment method, amount, country, card_bin, etc.",
         "required": [
           "created_by",
           "parameters",
@@ -36390,22 +36393,26 @@
         ],
         "properties": {
           "created_by": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the user/system triggering routing evaluation.\n\nExample:\n```json\n\"created_by\": \"some_id\"\n```",
+            "example": "profile_123"
           },
           "parameters": {
             "type": "object",
-            "description": "Parameters that can be used in the routing evaluate request.\neg: {\"parameters\": {\n\"payment_method\": {\"type\": \"enum_variant\", \"value\": \"card\"},\n\"payment_method_type\": {\"type\": \"enum_variant\", \"value\": \"credit\"},\n\"amount\": {\"type\": \"number\", \"value\": 10},\n\"currency\": {\"type\": \"str_value\", \"value\": \"INR\"},\n\"authentication_type\": {\"type\": \"enum_variant\", \"value\": \"three_ds\"},\n\"card_bin\": {\"type\": \"str_value\", \"value\": \"424242\"},\n\"capture_method\": {\"type\": \"enum_variant\", \"value\": \"scheduled\"},\n\"business_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"billing_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"business_label\": {\"type\": \"str_value\", \"value\": \"business_label\"},\n\"setup_future_usage\": {\"type\": \"enum_variant\", \"value\": \"off_session\"},\n\"card_network\": {\"type\": \"enum_variant\", \"value\": \"visa\"},\n\"payment_type\": {\"type\": \"enum_variant\", \"value\": \"recurring_mandate\"},\n\"mandate_type\": {\"type\": \"enum_variant\", \"value\": \"single_use\"},\n\"mandate_acceptance_type\": {\"type\": \"enum_variant\", \"value\": \"online\"},\n\"metadata\":{\"type\": \"metadata_variant\", \"value\": {\"key\": \"key1\", \"value\": \"value1\"}}\n}}"
+            "description": "Dynamic parameters used during routing evaluation.\n\nEach key represents a routing attribute.\n\nExample fields:\n\n- `payment_method`\n- `payment_method_type`\n- `amount`\n- `currency`\n- `authentication_type`\n- `card_bin`\n- `capture_method`\n- `business_country`\n- `billing_country`\n- `business_label`\n- `setup_future_usage`\n- `card_network`\n- `payment_type`\n- `mandate_type`\n- `mandate_acceptance_type`\n- `metadata`\n\nExample:\n```json\n{\n\"payment_method\": { \"type\": \"enum_variant\", \"value\": \"card\" },\n\"amount\": { \"type\": \"number\", \"value\": 10 },\n\"currency\": { \"type\": \"str_value\", \"value\": \"INR\" },\n\"authentication_type\": { \"type\": \"enum_variant\", \"value\": \"three_ds\" },\n\"card_bin\": { \"type\": \"str_value\", \"value\": \"424242\" },\n\"business_country\": { \"type\": \"str_value\", \"value\": \"IN\" },\n\"setup_future_usage\": { \"type\": \"enum_variant\", \"value\": \"off_session\" },\n\"card_network\": { \"type\": \"enum_variant\", \"value\": \"visa\" },\n\"metadata\": {\n\"type\": \"metadata_variant\",\n\"value\": { \"key\": \"key1\", \"value\": \"value1\" }\n}\n}\n```\n\nFor the complete superset of supported routing keys,\nrefer to `routing_configs.keys` in:\nhttps://github.com/juspay/decision-engine/blob/main/config/development.toml"
           },
           "fallback_output": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DeRoutableConnectorChoice"
-            }
+            },
+            "description": "Fallback connectors used if routing rule evaluation fails.\n\nThese connectors will be returned if no rule matches.\n\nExample:\n```json\n[\n{\n\"gateway_name\": \"stripe\",\n\"gateway_id\": \"mca_123\"\n}\n]\n```"
           }
         }
       },
       "RoutingEvaluateResponse": {
         "type": "object",
+        "description": "Response returned after routing evaluation.\n\nContains:\n- Routing status\n- Raw output structure (priority / volume_split)\n- Final evaluated connectors\n- Eligible connectors list",
         "required": [
           "status",
           "output",
@@ -36414,14 +36421,19 @@
         ],
         "properties": {
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Status of routing evaluation.\n\nExample:\n```json\n\"success\"\n```",
+            "example": "success"
           },
-          "output": {},
+          "output": {
+            "description": "Raw routing output returned by routing engine.\n\nPossible structures:\n\n1. Volume Split:\n```json\n{\n\"type\": \"volume_split\",\n\"splits\": [\n{\n\"connector\": { \"gateway_name\": \"adyen\", \"gateway_id\": \"mca_124\" },\n\"split\": 60\n},\n{\n\"connector\": { \"gateway_name\": \"stripe\", \"gateway_id\": \"mca_123\" },\n\"split\": 40\n}\n]\n}\n```\n\n2. Priority:\n```json\n{\n\"type\": \"priority\",\n\"connectors\": [\n{ \"gateway_name\": \"stripe\", \"gateway_id\": \"mca_123\" },\n{ \"gateway_name\": \"adyen\", \"gateway_id\": \"mca_124\" }\n]\n}\n```"
+          },
           "evaluated_output": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RoutableConnectorChoice"
-            }
+            },
+            "description": "Final connector(s) selected after evaluation.\n\nExample:\n```json\n[\n{\n\"connector\": \"stripe\",\n\"merchant_connector_id\": \"mca_123\"\n}\n]\n```"
           },
           "eligible_connectors": {
             "type": "array",

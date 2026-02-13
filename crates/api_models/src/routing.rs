@@ -1563,6 +1563,11 @@ impl RuleMigrationResponse {
     }
 }
 
+/// Source from which the routing result was generated.
+///
+/// Possible values:
+/// - `decision_engine` → External Decision Engine evaluated the rule
+/// - `hyperswitch_routing` → Internal Hyperswitch routing logic was used
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1572,39 +1577,148 @@ pub enum RoutingResultSource {
     /// Inbuilt Hyperswitch Routing Engine
     HyperswitchRouting,
 }
+
 //TODO: temporary change will be refactored afterwards
+/// Request body used to evaluate routing rules.
+///
+/// This API evaluates routing logic based on dynamic parameters
+/// like payment method, amount, country, card_bin, etc.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct RoutingEvaluateRequest {
+    /// Identifier of the user/system triggering routing evaluation.
+    ///
+    /// Example:
+    /// ```json
+    /// "created_by": "some_id"
+    /// ```
+    #[schema(example = "profile_123")]
     pub created_by: String,
+    /// Dynamic parameters used during routing evaluation.
+    ///
+    /// Each key represents a routing attribute.
+    ///
+    /// Example fields:
+    ///
+    /// - `payment_method`
+    /// - `payment_method_type`
+    /// - `amount`
+    /// - `currency`
+    /// - `authentication_type`
+    /// - `card_bin`
+    /// - `capture_method`
+    /// - `business_country`
+    /// - `billing_country`
+    /// - `business_label`
+    /// - `setup_future_usage`
+    /// - `card_network`
+    /// - `payment_type`
+    /// - `mandate_type`
+    /// - `mandate_acceptance_type`
+    /// - `metadata`
+    ///
+    /// Example:
+    /// ```json
+    /// {
+    ///   "payment_method": { "type": "enum_variant", "value": "card" },
+    ///   "amount": { "type": "number", "value": 10 },
+    ///   "currency": { "type": "str_value", "value": "INR" },
+    ///   "authentication_type": { "type": "enum_variant", "value": "three_ds" },
+    ///   "card_bin": { "type": "str_value", "value": "424242" },
+    ///   "business_country": { "type": "str_value", "value": "IN" },
+    ///   "setup_future_usage": { "type": "enum_variant", "value": "off_session" },
+    ///   "card_network": { "type": "enum_variant", "value": "visa" },
+    ///   "metadata": {
+    ///     "type": "metadata_variant",
+    ///     "value": { "key": "key1", "value": "value1" }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// For the complete superset of supported routing keys,
+    /// refer to `routing_configs.keys` in:
+    /// https://github.com/juspay/decision-engine/blob/main/config/development.toml
     #[schema(value_type = Object)]
-    ///Parameters that can be used in the routing evaluate request.
-    ///eg: {"parameters": {
-    ///    "payment_method": {"type": "enum_variant", "value": "card"},
-    ///    "payment_method_type": {"type": "enum_variant", "value": "credit"},
-    ///    "amount": {"type": "number", "value": 10},
-    ///    "currency": {"type": "str_value", "value": "INR"},
-    ///    "authentication_type": {"type": "enum_variant", "value": "three_ds"},
-    /// "card_bin": {"type": "str_value", "value": "424242"},
-    ///    "capture_method": {"type": "enum_variant", "value": "scheduled"},
-    ///    "business_country": {"type": "str_value", "value": "IN"},
-    ///    "billing_country": {"type": "str_value", "value": "IN"},
-    ///    "business_label": {"type": "str_value", "value": "business_label"},
-    ///    "setup_future_usage": {"type": "enum_variant", "value": "off_session"},
-    ///    "card_network": {"type": "enum_variant", "value": "visa"},
-    ///    "payment_type": {"type": "enum_variant", "value": "recurring_mandate"},
-    ///    "mandate_type": {"type": "enum_variant", "value": "single_use"},
-    ///    "mandate_acceptance_type": {"type": "enum_variant", "value": "online"},
-    ///    "metadata":{"type": "metadata_variant", "value": {"key": "key1", "value": "value1"}}
-    ///  }}
     pub parameters: std::collections::HashMap<String, Option<ValueType>>,
+
+    /// Fallback connectors used if routing rule evaluation fails.
+    ///
+    /// These connectors will be returned if no rule matches.
+    ///
+    /// Example:
+    /// ```json
+    /// [
+    ///   {
+    ///     "gateway_name": "stripe",
+    ///     "gateway_id": "mca_123"
+    ///   }
+    /// ]
+    /// ```
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
 }
 impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 
+/// Response returned after routing evaluation.
+///
+/// Contains:
+/// - Routing status
+/// - Raw output structure (priority / volume_split)
+/// - Final evaluated connectors
+/// - Eligible connectors list
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct RoutingEvaluateResponse {
+    /// Status of routing evaluation.
+    ///
+    /// Example:
+    /// ```json
+    /// "success"
+    /// ```
+    #[schema(example = "success")]
     pub status: String,
+
+    /// Raw routing output returned by routing engine.
+    ///
+    /// Possible structures:
+    ///
+    /// 1. Volume Split:
+    /// ```json
+    /// {
+    ///   "type": "volume_split",
+    ///   "splits": [
+    ///     {
+    ///       "connector": { "gateway_name": "adyen", "gateway_id": "mca_124" },
+    ///       "split": 60
+    ///     },
+    ///     {
+    ///       "connector": { "gateway_name": "stripe", "gateway_id": "mca_123" },
+    ///       "split": 40
+    ///     }
+    ///   ]
+    /// }
+    /// ```
+    ///
+    /// 2. Priority:
+    /// ```json
+    /// {
+    ///   "type": "priority",
+    ///   "connectors": [
+    ///     { "gateway_name": "stripe", "gateway_id": "mca_123" },
+    ///     { "gateway_name": "adyen", "gateway_id": "mca_124" }
+    ///   ]
+    /// }
+    /// ```
     pub output: serde_json::Value,
+
+    /// Final connector(s) selected after evaluation.
+    ///
+    /// Example:
+    /// ```json
+    /// [
+    ///   {
+    ///     "connector": "stripe",
+    ///     "merchant_connector_id": "mca_123"
+    ///   }
+    /// ]
+    /// ```
     #[serde(deserialize_with = "deserialize_connector_choices")]
     pub evaluated_output: Vec<RoutableConnectorChoice>,
     #[serde(deserialize_with = "deserialize_connector_choices")]
@@ -1634,14 +1748,29 @@ impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
         }
     }
 }
-
-/// Routable Connector chosen for a payment
+/// Connector representation used in API request/response.
+///
+/// Represents a Merchant Connector Account.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DeRoutableConnectorChoice {
+    /// Connector name (e.g., stripe, adyen).
+    ///
+    /// Example:
+    /// ```json
+    /// "stripe"
+    /// ```
     pub gateway_name: RoutableConnectors,
-    #[schema(value_type = String)]
+
+    /// Merchant Connector Account ID.
+    ///
+    /// Example:
+    /// ```json
+    /// "mca_ExbsYfO1xFErhNtwY1PX"
+    /// ```
+    #[schema(value_type = String,example = "authipay_1705")]
     pub gateway_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
+
 /// Represents a value in the DSL
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
