@@ -1,0 +1,370 @@
+curls.
+
+
+MA create.
+
+curl --location 'localhost:8080/accounts' \
+--header 'Content-Type: application/json' \
+--header 'Accept: application/json' \
+--header 'api-key: test_admin' \
+--data-raw '{
+    "merchant_id": "postman_merchant_GHAction_a2c6411a-8293-45e4-8633-acd7236d6d59",
+    "locker_id": "m0010",
+    "merchant_name": "NewAge Retailer",
+    "primary_business_details": [
+        {
+            "country": "US",
+            "business": "default"
+        }
+        
+        
+        
+        
+        
+    ],
+    "merchant_details": {
+        "primary_contact_person": "John Test",
+        "primary_email": "JohnTest@test.com",
+        "primary_phone": "sunt laborum",
+        "secondary_contact_person": "John Test2",
+        "secondary_email": "JohnTest2@test.com",
+        "secondary_phone": "cillum do dolor id",
+        "website": "www.example.com",
+        "about_business": "Online Retail with a wide selection of organic products for North America",
+        "address": {
+            "line1": "1467",
+            "line2": "Harrison Street",
+            "line3": "Harrison Street",
+            "city": "San Fransico",
+            "state": "California",
+            "zip": "94122",
+            "country": "US"
+        }
+    },
+    "return_url": "https://duck.com",
+    "webhook_details": {
+        "webhook_version": "1.0.1",
+        "webhook_username": "ekart_retail",
+        "webhook_password": "password_ekart@123",
+        "payment_created_enabled": true,
+        "payment_succeeded_enabled": true,
+        "payment_failed_enabled": true
+    },
+    "sub_merchants_enabled": false,
+    "metadata": {
+        "city": "NY",
+        "unit": "245"
+    }
+}'
+
+
+curl --location 'localhost:8080/api_keys/postman_merchant_GHAction_8e0d9627-fe93-43b2-8ddf-e5f1e39a7817' \
+--header 'Content-Type: application/json' \
+--header 'Accept: application/json' \
+--header 'api-key: test_admin' \
+--data '{"name":"API Key 1","description":null,"expiration":"2069-09-23T01:02:03.000Z"}'
+
+
+
+curl --location 'localhost:8080/account/postman_merchant_GHAction_8e0d9627-fe93-43b2-8ddf-e5f1e39a7817/connectors' \
+--header 'Content-Type: application/json' \
+--header 'Accept: application/json' \
+--header 'api-key: snd_3THH7GM76yPlqg5wpGqrNrSzMl12VK3s1HsFkE5gMAOwBkASd8AwvxwjPgYgdUxp' \
+--data '{
+    "connector_type": "payment_processor",
+    "connector_name": "stripe_test",
+    "connector_account_details": {
+        "auth_type": "HeaderKey",
+        "api_key": "test_key"
+    },
+    "test_mode": true,
+    "disabled": false,
+    "business_country": "US",
+    "business_label": "default",
+    "payment_methods_enabled": [
+        {
+            "payment_method": "card",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "credit",
+                    "card_networks": [
+                        "AmericanExpress",
+                        "Discover",
+                        "Interac",
+                        "JCB",
+                        "Mastercard",
+                        "Visa",
+                        "DinersClub",
+                        "UnionPay",
+                        "RuPay"
+                    ],
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "debit",
+                    "card_networks": [
+                        "AmericanExpress",
+                        "Discover",
+                        "Interac",
+                        "JCB",
+                        "Mastercard",
+                        "Visa",
+                        "DinersClub",
+                        "UnionPay",
+                        "RuPay"
+                    ],
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                }
+            ]
+        },
+        {
+            "payment_method": "pay_later",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "klarna",
+                    "payment_experience": "redirect_to_url",
+                    "card_networks": null,
+                    "accepted_currencies": null,
+                    "accepted_countries": null,
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "affirm",
+                    "payment_experience": "redirect_to_url",
+                    "card_networks": null,
+                    "accepted_currencies": null,
+                    "accepted_countries": null,
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "afterpay_clearpay",
+                    "payment_experience": "redirect_to_url",
+                    "card_networks": null,
+                    "accepted_currencies": null,
+                    "accepted_countries": null,
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "pay_bright",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "walley",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                }
+            ]
+        },
+        {
+            "payment_method": "wallet",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "paypal",
+                    "payment_experience": "redirect_to_url",
+                    "card_networks": null,
+                    "accepted_currencies": null,
+                    "accepted_countries": null,
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "google_pay",
+                    "payment_experience": "invoke_sdk_client",
+                    "card_networks": null,
+                    "accepted_currencies": null,
+                    "accepted_countries": null,
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "apple_pay",
+                    "payment_experience": "invoke_sdk_client",
+                    "card_networks": null,
+                    "accepted_currencies": null,
+                    "accepted_countries": null,
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "mobile_pay",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "ali_pay",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "we_chat_pay",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "mb_way",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                }
+            ]
+        },
+        {
+            "payment_method": "gift_card",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "givex",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                }
+            ]
+        },
+        {
+            "payment_method": "bank_redirect",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "giropay",
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "eps",
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "sofort",
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "blik",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "trustly",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "online_banking_czech_republic",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "online_banking_finland",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "online_banking_poland",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "online_banking_slovakia",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "bancontact_card",
+                    "minimum_amount": 1,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                }
+            ]
+        },
+        {
+            "payment_method": "bank_debit",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "ach",
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                },
+                {
+                    "payment_method_type": "bacs",
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": true
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "google_pay": {
+            "allowed_payment_methods": [
+                {
+                    "type": "CARD",
+                    "parameters": {
+                        "allowed_auth_methods": [
+                            "PAN_ONLY",
+                            "CRYPTOGRAM_3DS"
+                        ],
+                        "allowed_card_networks": [
+                            "AMEX",
+                            "DISCOVER",
+                            "INTERAC",
+                            "JCB",
+                            "MASTERCARD",
+                            "VISA"
+                        ]
+                    },
+                    "tokenization_specification": {
+                        "type": "PAYMENT_GATEWAY"
+                    }
+                }
+            ],
+            "merchant_info": {
+                "merchant_name": "Narayan Bhat"
+            }
+        }
+    }
+}'
