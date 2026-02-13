@@ -53,7 +53,15 @@ use transformers as helcim;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, to_connector_meta, PaymentsAuthorizeRequestData},
+    utils::{
+        convert_amount,
+        to_connector_meta,
+        PaymentsAuthorizeRequestData,
+        get_authorise_integrity_object,
+        get_sync_integrity_object,
+        get_refund_integrity_object,
+        get_capture_integrity_object,
+    },
 };
 
 #[derive(Clone)]
@@ -280,9 +288,26 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
-            response,
+            response: response.clone(),
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            // --- Integrity check: Authorize ---
+            if let Ok(amount) = convert_amount(
+                self.amount_convertor,
+                data.request.minor_amount,
+                data.request.currency,
+            ) {
+                if let Ok(integrity) = get_authorise_integrity_object(
+                    self.amount_convertor,
+                    amount,
+                    data.request.currency.to_string(),
+                ) {
+                    router_data.request.integrity_object = Some(integrity);
+                }
+            }
+            router_data
         })
     }
     fn get_error_response(
@@ -367,13 +392,67 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Helcim PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        // --- Integrity check: PSync (Payments Sync) ---
+        let response_integrity_object = get_sync_integrity_object(
+            self.amount_convertor,
+            response.amount,
+            response.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // --- Integrity check: Refund ---
+        let converted_amount = convert_amount(
+            self.amount_convertor,
+            data.request.minor_refund_amount,
+            data.request.currency,
+        )?;
+        let response_integrity_object = get_refund_integrity_object(
+            self.amount_convertor,
+            converted_amount,
+            data.request.currency.to_string(),
+        )?;
 
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+            data.request.currency.to_string(),
+        )?;
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -626,12 +705,33 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
-            response,
+        // --- Integrity check: Void/Cancel ---
+        let router_data_result = RouterData::try_from(ResponseRouterData {
+            response: response.clone(),
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        });
+
+        if let Some(minor_amount) = data.request.minor_amount {
+            let converted_amount = convert_amount(
+                self.amount_convertor,
+                minor_amount,
+                data.request.currency,
+            )?;
+            let response_integrity_object = get_sync_integrity_object(
+                self.amount_convertor,
+                converted_amount,
+                data.request.currency.to_string(),
+            )?;
+            return router_data_result
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+        }
+
+        router_data_result.change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -734,12 +834,18 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
         &self,
         req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
-    {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::RefundSyncType::get_content_type(self)
-                .to_string()
+
+            // --- Integrity check: Refund Sync ---
+            let converted_amount = convert_amount(
+                self.amount_convertor,
+                data.request.minor_refund_amount,
+                data.request.currency,
+            )?;
+            let response_integrity_object = get_refund_integrity_object(
+                self.amount_convertor,
+                converted_amount,
+                data.request.currency.to_string(),
+            )?;
                 .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
@@ -954,6 +1060,16 @@ impl ConnectorTransactionId for Helcim {
                 payment_attempt
                     .connector_metadata
                     .as_ref()
+                    .map(|connector_metadata| connector_metadata.peek()),
+            );
+            metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string))
+        }
+    }
+}
                     .map(|connector_metadata| connector_metadata.peek()),
             );
             metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
