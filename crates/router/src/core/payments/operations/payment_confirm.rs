@@ -751,7 +751,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_details_present,
         )?;
 
-        let payment_method_data_from_request =
+                let payment_method_data_from_request =
             request
                 .payment_method_data
                 .as_ref()
@@ -764,9 +764,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_from_request.map(Into::into))
             .or(payment_method_recurring_details.clone())
-            .zip(additional_pm_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            .map(|payment_method_data| {
+                if let Some(additional_pm_data) = additional_pm_data {
+                    payment_method_data.apply_additional_payment_data(additional_pm_data)
+                } else {
+                    payment_method_data
+                }
             });
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
@@ -1205,10 +1208,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     // Fetch payment method using PM Modular Service
                     let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                         state,
-                        platform.get_provider().get_account().get_id(),
+                        platform,
                         &profile_id,
                         payment_token,
                         payment_method_data,
+                        false, // is_off_session, is false since customer present in the flow, but to be checked in On_session MIT
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
