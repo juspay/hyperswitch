@@ -1273,6 +1273,86 @@ pub fn build_unified_connector_service_payment_method(
             )
             .into()),
         },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => {
+            match voucher_data {
+                hyperswitch_domain_models::payment_method_data::VoucherData::Boleto(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Boleto(
+                            payments_grpc::Boleto {
+                                social_security_number: None,
+                            },
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Alfamart(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Alfamart(
+                            payments_grpc::Alfamart {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Indomaret(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Indomaret(
+                            payments_grpc::Indomaret {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Oxxo => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::OxxoVoucher(
+                            payments_grpc::OxxoVoucher {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::SevenEleven(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::SevenEleven(
+                            payments_grpc::SevenEleven {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Lawson(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Lawson(
+                            payments_grpc::Lawson {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::MiniStop(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::MiniStop(
+                            payments_grpc::MiniStop {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::FamilyMart(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::FamilyMart(
+                            payments_grpc::FamilyMart {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Seicomart(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Seicomart(
+                            payments_grpc::Seicomart {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::PayEasy(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::PayEasy(
+                            payments_grpc::PayEasy {},
+                        )),
+                    })
+                }
+                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+            }
+        }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
