@@ -742,19 +742,8 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_payment_method_list_by_global_customer_id(provider.get_key_store(), self, None)
             .await
         {
-            // check this in review
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    // if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                    //     cards::delete_card_by_locker_id(
-                    //         state,
-                    //         self,
-                    //         provider.get_account().get_id(),
-                    //     )
-                    //     .await
-                    //     .switch()?;
-                    // }
-
                     db.delete_payment_method(provider.get_key_store(), pm)
                         .await
                         .switch()?;
