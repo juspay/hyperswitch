@@ -8702,31 +8702,27 @@ pub fn get_merchant_advice_code_recommended_action(
     }
 }
 
-pub fn convert_to_string_vec<T: ToString>(val: Option<&Vec<T>>) -> Option<Vec<String>> {
-    val.map(|values| values.iter().map(|item| item.to_string()).collect())
-}
-
 #[cfg(all(feature = "v1", feature = "olap"))]
 pub fn get_search_filters(
     constraints: &api_models::payments::PaymentListFilterConstraints,
 ) -> api_models::analytics::search::SearchFilters {
     api_models::analytics::search::SearchFilters {
-        payment_method: convert_to_string_vec(constraints.payment_method.as_ref()),
-        currency: convert_to_string_vec(constraints.currency.as_ref()),
-        status: convert_to_string_vec(constraints.status.as_ref()),
-        connector: convert_to_string_vec(constraints.connector.as_ref()),
-        payment_method_type: convert_to_string_vec(constraints.payment_method_type.as_ref()),
-        authentication_type: convert_to_string_vec(constraints.authentication_type.as_ref()),
-        card_network: convert_to_string_vec(constraints.card_network.as_ref()),
+        payment_method: constraints.payment_method.clone(),
+        currency: constraints.currency.clone(),
+        status: constraints.status.clone(),
+        payment_method_type: constraints.payment_method_type.clone(),
+        authentication_type: constraints.authentication_type.clone(),
+        card_network: constraints.card_network.clone(),
+        connector: constraints.connector.clone(),
+        card_discovery: constraints.card_discovery.clone(),
         customer_id: constraints
             .customer_id
             .as_ref()
-            .map(|customer_id| vec![customer_id.get_string_repr().to_string()]),
+            .map(|customer_id| vec![customer_id.clone()]),
         payment_id: constraints
             .payment_id
             .as_ref()
-            .map(|payment_id| vec![payment_id.get_string_repr().to_string()]),
-        card_discovery: convert_to_string_vec(constraints.card_discovery.as_ref()),
+            .map(|payment_id| vec![payment_id.clone()]),
         merchant_order_reference_id: constraints
             .merchant_order_reference_id
             .as_ref()
