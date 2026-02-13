@@ -552,16 +552,10 @@ pub struct AuthEventsAnalyticsMetadata {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReportType {
+    #[default]
     V2Payments,
     RevenueRecovery,
-}
-
-#[cfg(feature = "v2")]
-impl Default for ReportType {
-    fn default() -> Self {
-        ReportType::V2Payments
-    }
 }

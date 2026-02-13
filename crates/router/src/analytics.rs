@@ -2261,7 +2261,6 @@ pub mod routes {
     }
 
     // Common core function - handles GenerateReportRequest construction and Lambda invocation
-    // Common core function - handles GenerateReportRequest construction and Lambda invocation
     async fn invoke_payment_report_lambda(
         state: &SessionState,
         payload: ReportRequest,
@@ -2594,7 +2593,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, user_from_token: auth::UserFromToken, payload, _| async move {
+            |state, user_from_token: UserFromToken, payload, _| async move {
                 let user =
                     UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
                         .await
@@ -2637,7 +2636,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, user_from_token: auth::UserFromToken, payload, _| async move {
+            |state, user_from_token: UserFromToken, payload, _| async move {
                 let user =
                     UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
                         .await
@@ -2679,7 +2678,7 @@ pub mod routes {
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, user_from_token: auth::UserFromToken, payload, _| async move {
+            |state, user_from_token: UserFromToken, payload, _| async move {
                 let user =
                     UserInterface::find_user_by_id(&*state.global_store, &user_from_token.user_id)
                         .await
