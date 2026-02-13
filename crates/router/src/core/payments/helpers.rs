@@ -1490,7 +1490,7 @@ where
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding task to process tracker")
+                    .attach_printable("Failed while adding task to process tracker")?;
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
                     metrics::TASKS_RESET_COUNT.add(
@@ -1500,11 +1500,39 @@ where
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                        .attach_printable("Failed while updating task in process tracker")?;
                 }
             }
-            None => Ok(()),
+            None => {}
         }
+
+        // Schedule ACH pending promotion task if the payment is an ACH payment in Pending status.
+        // After the 3-day window, this auto-promotes the payment from Pending to Charged.
+
+        if !requeue
+            && payment_attempt.payment_method_type == Some(storage_enums::PaymentMethodType::Ach)
+        {
+            logger::info!("ACH pending promotion condition met! Scheduling task...");
+            let ach_schedule_time =
+                payment_attempt
+                    .created_at
+                    .saturating_add(time::Duration::seconds(
+                        consts::PAYLOAD_ACH_PENDING_WINDOW_SECONDS,
+                    ));
+            super::add_ach_pending_promotion_task(
+                &*state.store,
+                payment_attempt,
+                ach_schedule_time,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed while adding ACH pending promotion task to process tracker",
+            )?;
+        }
+
+        Ok(())
     } else {
         Ok(())
     }

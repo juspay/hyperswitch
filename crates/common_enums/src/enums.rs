@@ -10177,6 +10177,7 @@ pub enum ProcessTrackerRunner {
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+    AchPendingPromotionWorkflow,
 }
 
 #[derive(

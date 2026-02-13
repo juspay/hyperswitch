@@ -17,3 +17,5 @@ pub mod process_dispute;
 pub mod dispute_list;
 
 pub mod invoice_sync;
+
+pub mod ach_pending_promotion;

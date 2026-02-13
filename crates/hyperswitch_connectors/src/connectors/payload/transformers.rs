@@ -431,6 +431,27 @@ where
                 let status = enums::AttemptStatus::from(response.status);
 
                 let router_data: &dyn std::any::Any = &item.data;
+
+                // For ACH bank debit payments, keep Processed as Pending for the 3-day
+                // pending window. This allows reject/decline webhooks during this period
+                // to be treated as payment failures instead of disputes.
+                let status = if status == enums::AttemptStatus::Charged {
+                    let is_ach = router_data
+                        .downcast_ref::<PaymentsAuthorizeRouterData>()
+                        .is_some_and(|rd| {
+                            matches!(
+                                rd.request.payment_method_data,
+                                PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
+                            )
+                        });
+                    if is_ach {
+                        enums::AttemptStatus::Pending
+                    } else {
+                        status
+                    }
+                } else {
+                    status
+                };
                 let is_mandate_payment = router_data
                     .downcast_ref::<PaymentsAuthorizeRouterData>()
                     .is_some_and(|router_data| router_data.request.is_mandate_payment())
@@ -666,7 +687,7 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
     fn from(trigger: responses::PayloadWebhooksTrigger) -> Self {
         match trigger {
             // Payment Success Events
-            responses::PayloadWebhooksTrigger::Processed => Self::PaymentIntentSuccess,
+            responses::PayloadWebhooksTrigger::Processed => Self::PaymentIntentProcessing,
             responses::PayloadWebhooksTrigger::Authorized => {
                 Self::PaymentIntentAuthorizationSuccess
             }
