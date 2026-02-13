@@ -101,6 +101,7 @@ use crate::{
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
         domain::{self, Profile},
+        payment_methods as pm_types,
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
@@ -108,10 +109,7 @@ use crate::{
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
-use crate::{
-    core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
-    utils::ConnectorResponseExt,
-};
+use crate::{core::payment_methods as pm_core, headers, utils::ConnectorResponseExt};
 
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
@@ -633,7 +631,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode Vaulting data to string")?;
 
-        let payload = crate::types::payment_methods::VaultFingerprintRequest {
+        let payload = pm_types::VaultFingerprintRequest {
             key: customer_id.get_string_repr().to_owned(),
             data,
         }
@@ -641,14 +639,12 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<crate::types::payment_methods::GetVaultFingerprint>(
-            self.state, payload,
-        )
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
 
-        let fingerprint_resp: crate::types::payment_methods::VaultFingerprintResponse = resp
+        let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Failed to parse data into VaultFingerprintResponse")?;
@@ -684,7 +680,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(fingerprint_id),
             ))
         } else {
-            let payload = crate::types::payment_methods::AddVaultRequest {
+            let payload = pm_types::AddVaultRequest {
                 entity_id: customer_id.to_owned(),
                 vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
                 data: pmd,
@@ -694,14 +690,12 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode AddVaultRequest")?;
 
-            let resp = vault::call_to_vault::<crate::types::payment_methods::AddVault>(
-                self.state, payload,
-            )
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+            let resp = vault::call_to_vault::<pm_types::AddVault>(self.state, payload)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")?;
 
-            let stored_pm_resp: crate::types::payment_methods::InternalAddVaultResponse = resp
+            let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
                 .parse_struct("InternalAddVaultResponse")
                 .change_context(errors::VaultError::ResponseDeserializationFailed)
                 .attach_printable("Failed to parse data into AddVaultResponse")?;
@@ -5039,7 +5033,7 @@ pub async fn get_bank_debit_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
-    let vault_request = crate::types::payment_methods::VaultRetrieveRequest {
+    let vault_request = pm_types::VaultRetrieveRequest {
         entity_id: customer_id.to_owned(),
         vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
             token_ref.to_owned(),
@@ -5051,13 +5045,13 @@ pub async fn get_bank_debit_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<crate::types::payment_methods::VaultRetrieve>(state, payload)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let stored_pm_resp: crate::types::payment_methods::VaultRetrieveResponse = resp
+    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
         .parse_struct("VaultRetrieveResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into VaultRetrieveResponse")
