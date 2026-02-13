@@ -1387,7 +1387,7 @@ impl PaymentMethodResolver {
                     );
                     let existing_cvc_expiry_details =
                         vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
-                            &state,
+                            state,
                             existing_pm.id.to_owned(),
                         )
                         .await
