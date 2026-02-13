@@ -604,6 +604,11 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
+<<<<<<< HEAD
+=======
+            None,
+            None,
+>>>>>>> 6ed908f92 (feat(router): Add duplication check support for BankDebit)
         )
         .await
     }
