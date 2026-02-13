@@ -70,7 +70,7 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
             connector_tokens: v2_resp.connector_tokens,
             network_token: v2_resp.network_token,
             raw_payment_method_data: v2_resp.raw_payment_method_data,
-            billing: v2_resp.billing.map(|billing| billing),
+            billing: v2_resp.billing,
             network_transaction_id: v2_resp.network_transaction_id,
         })
     }
