@@ -6,6 +6,8 @@ pub use ::payment_methods::helpers::{
 };
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
+#[cfg(feature = "v2")]
+use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
@@ -84,7 +86,8 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
-        authentication, configs,
+        authentication,
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1863,6 +1866,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
+    _dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1876,6 +1880,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
+    dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -1971,21 +1976,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
 
             Some(match customer_data {
                 Some(c) => {
-                    let implicit_customer_update = configs::get_config_bool(
-                        state,
-                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE,
-                        &provider
-                            .get_account()
-                            .get_id()
-                            .get_implicit_customer_update_key(), // database
-                        Some(external_services::superposition::ConfigContext::new().with(
-                            "merchant_id",
-                            provider.get_account().get_id().get_string_repr(),
-                        )), // context
-                        false, // Implicit Customer update is disabled by default
-                    )
-                    .await
-                    .attach_printable("Failed to fetch implicit_customer_update config")?;
+                    let implicit_customer_update = dimensions
+                        .get_implicit_customer_update(
+                            state.store.as_ref(),
+                            state.superposition_service.as_deref(),
+                        )
+                        .await;
 
                     // Update the customer data if new data is passed in the request
                     if implicit_customer_update
@@ -2128,12 +2124,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 );
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-                payment_data.email = payment_data.email.clone().or_else(|| {
-                    customer
-                        .email
-                        .clone()
-                        .map(|encrypted_value| encrypted_value.into())
-                });
 
                 Some(customer)
             }
@@ -7627,6 +7617,39 @@ pub fn add_connector_response_to_additional_payment_data(
             }),
             samsung_pay: samsung_pay.clone(),
         },
+        #[cfg(feature = "v2")]
+        (
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(details),
+            },
+            AdditionalPaymentMethodConnectorResponse::Upi {
+                upi_mode: Some(upi_mode),
+            },
+        ) => {
+            let upi_source = Some(UpiSource::from(upi_mode));
+            let updated_details = match details {
+                UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
+                    api_models::payments::additional_info::UpiCollectAdditionalData {
+                        vpa_id: None,
+                        upi_source,
+                    },
+                )),
+                UpiAdditionalData::UpiIntent(_) => {
+                    UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                        upi_source,
+                        app_name: None,
+                    }))
+                }
+                UpiAdditionalData::UpiQr(_) => {
+                    UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData {
+                        upi_source,
+                    }))
+                }
+            };
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(updated_details),
+            }
+        }
 
         _ => additional_payment_data,
     }
