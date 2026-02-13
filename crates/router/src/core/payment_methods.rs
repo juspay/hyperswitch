@@ -4254,7 +4254,7 @@ pub async fn payment_methods_session_create(
             associated_payment_methods: None,
             associated_payment: None,
             associated_token_id: None,
-            storage_type: request.storage_type.clone(),
+            storage_type: request.storage_type,
         };
 
     db.insert_payment_methods_session(
