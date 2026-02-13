@@ -3584,7 +3584,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state: crate::routes::SessionState, auth: AuthenticationData, req, _| async move {
+            |state: SessionState, auth: AuthenticationData, req, _| async move {
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
                 let profile_id = auth
