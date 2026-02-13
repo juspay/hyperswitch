@@ -53,7 +53,11 @@ use transformers as razorpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, handle_json_response_deserialization_failure},
+    utils::{
+        convert_amount, get_authorise_integrity_object, get_capture_integrity_object,
+        get_refund_integrity_object, get_sync_integrity_object,
+        handle_json_response_deserialization_failure,
+    },
 };
 
 #[derive(Clone)]
@@ -382,6 +386,28 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Razorpay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+
+        let expected_integrity = get_authorise_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount,
+            data.request.currency.iso_4217().to_string(),
+        )?;
+
+        let actual_integrity = get_authorise_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(response.amount),
+            response.currency.clone(),
+        )?;
+
+        if expected_integrity != actual_integrity {
+            router_env::logger::error!(
+                "Integrity check failed: expected={:?}, actual={:?}",
+                expected_integrity,
+                actual_integrity
+            );
+            return Err(errors::ConnectorError::ResponseHandlingFailed.into());
+        }
+
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
@@ -457,6 +483,29 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Raz
             .parse_struct("razorpay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+        for item in &response.items {
+            let expected_integrity = get_sync_integrity_object(
+                self.amount_converter,
+                data.request.amount,
+                data.request.currency.iso_4217().to_string(),
+            )?;
+
+            let actual_integrity = get_sync_integrity_object(
+                self.amount_converter,
+                MinorUnit::new(item.amount),
+                item.currency.clone(),
+            )?;
+
+            if expected_integrity != actual_integrity {
+                router_env::logger::error!(
+                    "Integrity check failed for payment id {}: expected={:?}, actual={:?}",
+                    item.id,
+                    expected_integrity,
+                    actual_integrity
+                );
+                return Err(errors::ConnectorError::ResponseHandlingFailed.into());
+            }
+        }
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
@@ -613,6 +662,29 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Razorpa
             .parse_struct("razorpay RazorpayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+
+        let expected_integrity = get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency.iso_4217().to_string(),
+        )?;
+
+        let actual_integrity = get_refund_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(response.amount),
+            response.currency.clone(),
+        )?;
+
+        if expected_integrity != actual_integrity {
+            router_env::logger::error!(
+                "Integrity check failed for refund id {}: expected={:?}, actual={:?}",
+                response.id,
+                expected_integrity,
+                actual_integrity
+            );
+            return Err(errors::ConnectorError::ResponseHandlingFailed.into());
+        }
+
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
@@ -690,6 +762,29 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
             .parse_struct("razorpay RazorpayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+
+        let expected_integrity = get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency.iso_4217().to_string(),
+        )?;
+
+        let actual_integrity = get_refund_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(response.amount),
+            response.currency.clone(),
+        )?;
+
+        if expected_integrity != actual_integrity {
+            router_env::logger::error!(
+                "Integrity check failed for refund id {}: expected={:?}, actual={:?}",
+                response.id,
+                expected_integrity,
+                actual_integrity
+            );
+            return Err(errors::ConnectorError::ResponseHandlingFailed.into());
+        }
+
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
