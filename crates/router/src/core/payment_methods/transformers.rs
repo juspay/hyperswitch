@@ -6,7 +6,7 @@ use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
 use common_utils::{crypto::Encryptable, request::Headers, types::keymanager::KeyManagerState};
 use common_utils::{
-    ext_traits::{Encode, StringExt, AsyncExt},
+    ext_traits::{AsyncExt, Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
     request::RequestContent,
@@ -1207,7 +1207,8 @@ impl DomainPaymentMethodWrapper {
         let encrypted_payment_method_billing_address: Option<
             Encryptable<Secret<serde_json::Value>>,
         > = response
-            .billing.clone()
+            .billing
+            .clone()
             .async_map(|address| {
                 create_encrypted_data(
                     &key_manager_state,
@@ -1256,14 +1257,17 @@ impl DomainPaymentMethodWrapper {
                         ))
                     })
                     .collect();
-                
-                let mandate_reference = hyperswitch_domain_models::mandates::CommonMandateReference {
-                    payments: Some(hyperswitch_domain_models::mandates::PaymentsMandateReference(
-                        payments_map,
-                    )),
-                    payouts: None,
-                };
-                
+
+                let mandate_reference =
+                    hyperswitch_domain_models::mandates::CommonMandateReference {
+                        payments: Some(
+                            hyperswitch_domain_models::mandates::PaymentsMandateReference(
+                                payments_map,
+                            ),
+                        ),
+                        payouts: None,
+                    };
+
                 serde_json::to_value(mandate_reference)
             })
             .transpose()
@@ -1304,7 +1308,7 @@ impl DomainPaymentMethodWrapper {
             last_used_at: response
                 .last_used_at
                 .unwrap_or_else(common_utils::date_time::now),
-            connector_mandate_details: None, 
+            connector_mandate_details: None,
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: None,
@@ -1330,7 +1334,8 @@ impl DomainPaymentMethodWrapper {
         let encrypted_payment_method_billing_address: Option<
             Encryptable<Secret<serde_json::Value>>,
         > = response
-            .billing.clone()
+            .billing
+            .clone()
             .async_map(|address| {
                 create_encrypted_data(
                     &key_manager_state,
@@ -1379,14 +1384,17 @@ impl DomainPaymentMethodWrapper {
                         ))
                     })
                     .collect();
-                
-                let mandate_reference = hyperswitch_domain_models::mandates::CommonMandateReference {
-                    payments: Some(hyperswitch_domain_models::mandates::PaymentsMandateReference(
-                        payments_map,
-                    )),
-                    payouts: None,
-                };
-                
+
+                let mandate_reference =
+                    hyperswitch_domain_models::mandates::CommonMandateReference {
+                        payments: Some(
+                            hyperswitch_domain_models::mandates::PaymentsMandateReference(
+                                payments_map,
+                            ),
+                        ),
+                        payouts: None,
+                    };
+
                 serde_json::to_value(mandate_reference)
             })
             .transpose()
@@ -1569,34 +1577,41 @@ pub async fn fetch_payment_method_from_modular_service(
     };
 
     //Fetch modular service call
-    let pm_response =
-        retrieve_pm_modular_service_call(state, platform.get_provider().get_account().get_id(), profile_id, payment_method_fetch_req)
-            .await?;
+    let pm_response = retrieve_pm_modular_service_call(
+        state,
+        platform.get_provider().get_account().get_id(),
+        profile_id,
+        payment_method_fetch_req,
+    )
+    .await?;
 
     //Convert PMResponse to PaymentMethodWithRawData
-    let payment_method = DomainPaymentMethodWrapper::transform_pm_mod_retrieve_response(&pm_response, &state.into(), &platform)
-        .await
-        .attach_printable("Failed to transform payment method retrieve response")?;
+    let payment_method = DomainPaymentMethodWrapper::transform_pm_mod_retrieve_response(
+        &pm_response,
+        &state.into(),
+        &platform,
+    )
+    .await
+    .attach_printable("Failed to transform payment method retrieve response")?;
 
     //Convert RawPaymentMethodData to domain::PaymentMethodData
-    let raw_payment_method_data = if !is_off_session_payment{
-        pm_response
-        .raw_payment_method_data
-        .map(|raw_data| {
-            DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
+    let raw_payment_method_data = (!is_off_session_payment)
+        .then(|| {
+            pm_response
+                .raw_payment_method_data
+                .map(|raw_data| {
+                    DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
+                })
+                .transpose()
         })
         .transpose()
         .attach_printable("Failed to convert raw payment method data")?
-    }else{
-        //currently, for mit, raw payment method data is none, only connector token mandate flow is available
-        None
-    };
+        .flatten();
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method,
         raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
-    logger::debug!("Successfully fetched payment method from modular serviceeeee: {:?}", pm_wrapper);
     Ok(pm_wrapper)
 }
 
