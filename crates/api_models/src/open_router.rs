@@ -146,32 +146,41 @@ pub enum RankingAlgorithm {
     NtwBasedRouting,
 }
 
+/// Payment information used for routing decision-making
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
+    /// Unique identifier for the payment transaction
     #[schema(value_type = String, example = "pay_12345")]
     pub payment_id: id_type::PaymentId,
+    /// Payment amount in minor units
     #[schema(value_type = i64, example = "100")]
     pub amount: MinorUnit,
+    /// Currency code for the payment
     #[schema(value_type = String, example = "USD")]
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
     // preferredGateway: Option<ETG::Gateway>,
+    /// Type of payment transaction being processed
     #[schema(value_type = String, example = "ORDER_PAYMENT")]
     pub payment_type: String,
+    /// Optional metadata associated with the payment
     #[schema(value_type = String, example = "metadata")]
     pub metadata: Option<String>,
     // internalMetadata: Option<String>,
     // isEmi: Option<bool>,
     // emiBank: Option<String>,
     // emiTenure: Option<i32>,
+    /// Specific payment method type being used
     #[schema(value_type = String, example = "upi")]
     pub payment_method_type: String,
+    /// General payment method category
     #[schema(value_type = String, example = "upi")]
     pub payment_method: PaymentMethod,
     // paymentSource: Option<String>,
     // authType: Option<ETCa::txn_card_info::AuthType>,
     // cardIssuerBankName: Option<String>,
+    /// Card Issuer Identification Number (first 6 digits of card)
     #[schema(value_type = String, example = "424242")]
     pub card_isin: Option<String>,
     // cardType: Option<ETCa::card_type::CardType>,
@@ -365,15 +374,36 @@ pub enum DecisionEngineConfigVariant {
     Elimination(DecisionEngineEliminationData),
 }
 
+/// Configuration for Decision Engine success rate based routing
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineSuccessRateData {
+    /// Default latency threshold in percentile for gateway selection
+    #[schema(value_type = Option<f64>, example = 90.0)]
     pub default_latency_threshold: Option<f64>,
+
+    /// Default number of transactions to consider for success rate calculation
+    #[schema(value_type = Option<i32>, example = 100)]
     pub default_bucket_size: Option<i32>,
+
+    /// Default percentage of traffic to route for exploration/hedging
+    #[schema(value_type = Option<f64>, example = 5.0)]
     pub default_hedging_percent: Option<f64>,
+
+    /// Lower reset factor for adjusting gateway scores
+    #[schema(value_type = Option<f64>, example = 0.5)]
     pub default_lower_reset_factor: Option<f64>,
+
+    /// Upper reset factor for adjusting gateway scores
+    #[schema(value_type = Option<f64>, example = 1.5)]
     pub default_upper_reset_factor: Option<f64>,
+
+    /// Gateway-specific extra scoring factors
+    #[schema(value_type = Option<Vec<DecisionEngineGatewayWiseExtraScore>>)]
     pub default_gateway_extra_score: Option<Vec<DecisionEngineGatewayWiseExtraScore>>,
+
+    /// Payment method level specific configurations
+    #[schema(value_type = Option<Vec<DecisionEngineSRSubLevelInputConfig>>)]
     pub sub_level_input_config: Option<Vec<DecisionEngineSRSubLevelInputConfig>>,
 }
 
@@ -406,16 +436,41 @@ impl DecisionEngineSuccessRateData {
         }
     }
 }
+
+/// Payment method level configuration for success rate based routing
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineSRSubLevelInputConfig {
+    /// Payment method type (e.g., "card", "wallet")
+    #[schema(value_type = Option<String>, example = "card")]
     pub payment_method_type: Option<String>,
+
+    /// Specific payment method (e.g., "credit", "debit")
+    #[schema(value_type = Option<String>, example = "credit")]
     pub payment_method: Option<String>,
+
+    /// Latency threshold in percentile for this payment method
+    #[schema(value_type = Option<f64>, example = 90.0)]
     pub latency_threshold: Option<f64>,
+
+    /// Number of transactions to consider for this payment method
+    #[schema(value_type = Option<i32>, example = 100)]
     pub bucket_size: Option<i32>,
+
+    /// Percentage of traffic to route for exploration for this payment method
+    #[schema(value_type = Option<f64>, example = 5.0)]
     pub hedging_percent: Option<f64>,
+
+    /// Lower reset factor for this payment method
+    #[schema(value_type = Option<f64>, example = 0.5)]
     pub lower_reset_factor: Option<f64>,
+
+    /// Upper reset factor for this payment method
+    #[schema(value_type = Option<f64>, example = 1.5)]
     pub upper_reset_factor: Option<f64>,
+
+    /// Gateway-specific extra scoring factors for this payment method
+    #[schema(value_type = Option<Vec<DecisionEngineGatewayWiseExtraScore>>)]
     pub gateway_extra_score: Option<Vec<DecisionEngineGatewayWiseExtraScore>>,
 }
 
@@ -467,6 +522,8 @@ impl DecisionEngineGatewayWiseExtraScore {
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineEliminationData {
+    /// Threshold for elimination logic in gateway selection
+    #[schema(value_type = f64, example = 0.3)]
     pub threshold: f64,
 }
 

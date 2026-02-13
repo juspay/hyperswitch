@@ -17636,7 +17636,9 @@
         "properties": {
           "threshold": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Threshold for elimination logic in gateway selection",
+            "example": 0.3
           }
         }
       },
@@ -17658,38 +17660,53 @@
       },
       "DecisionEngineSRSubLevelInputConfig": {
         "type": "object",
+        "description": "Payment method level configuration for success rate based routing",
         "properties": {
           "paymentMethodType": {
             "type": "string",
+            "description": "Payment method type (e.g., \"card\", \"wallet\")",
+            "example": "card",
             "nullable": true
           },
           "paymentMethod": {
             "type": "string",
+            "description": "Specific payment method (e.g., \"credit\", \"debit\")",
+            "example": "credit",
             "nullable": true
           },
           "latencyThreshold": {
             "type": "number",
             "format": "double",
+            "description": "Latency threshold in percentile for this payment method",
+            "example": 90.0,
             "nullable": true
           },
           "bucketSize": {
             "type": "integer",
             "format": "int32",
+            "description": "Number of transactions to consider for this payment method",
+            "example": 100,
             "nullable": true
           },
           "hedgingPercent": {
             "type": "number",
             "format": "double",
+            "description": "Percentage of traffic to route for exploration for this payment method",
+            "example": 5.0,
             "nullable": true
           },
           "lowerResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Lower reset factor for this payment method",
+            "example": 0.5,
             "nullable": true
           },
           "upperResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Upper reset factor for this payment method",
+            "example": 1.5,
             "nullable": true
           },
           "gatewayExtraScore": {
@@ -17697,36 +17714,48 @@
             "items": {
               "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
             },
+            "description": "Gateway-specific extra scoring factors for this payment method",
             "nullable": true
           }
         }
       },
       "DecisionEngineSuccessRateData": {
         "type": "object",
+        "description": "Configuration for Decision Engine success rate based routing",
         "properties": {
           "defaultLatencyThreshold": {
             "type": "number",
             "format": "double",
+            "description": "Default latency threshold in percentile for gateway selection",
+            "example": 90.0,
             "nullable": true
           },
           "defaultBucketSize": {
             "type": "integer",
             "format": "int32",
+            "description": "Default number of transactions to consider for success rate calculation",
+            "example": 100,
             "nullable": true
           },
           "defaultHedgingPercent": {
             "type": "number",
             "format": "double",
+            "description": "Default percentage of traffic to route for exploration/hedging",
+            "example": 5.0,
             "nullable": true
           },
           "defaultLowerResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Lower reset factor for adjusting gateway scores",
+            "example": 0.5,
             "nullable": true
           },
           "defaultUpperResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Upper reset factor for adjusting gateway scores",
+            "example": 1.5,
             "nullable": true
           },
           "defaultGatewayExtraScore": {
@@ -17734,6 +17763,7 @@
             "items": {
               "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
             },
+            "description": "Gateway-specific extra scoring factors",
             "nullable": true
           },
           "subLevelInputConfig": {
@@ -17741,6 +17771,7 @@
             "items": {
               "$ref": "#/components/schemas/DecisionEngineSRSubLevelInputConfig"
             },
+            "description": "Payment method level specific configurations",
             "nullable": true
           }
         }
@@ -18225,6 +18256,7 @@
             "items": {
               "$ref": "#/components/schemas/DynamicRoutingConfigParams"
             },
+            "deprecated": true,
             "nullable": true
           },
           "elimination_analyser_config": {
@@ -25374,6 +25406,7 @@
       },
       "PaymentInfo": {
         "type": "object",
+        "description": "Payment information used for routing decision-making",
         "required": [
           "paymentId",
           "amount",
@@ -25387,35 +25420,43 @@
         "properties": {
           "paymentId": {
             "type": "string",
+            "description": "Unique identifier for the payment transaction",
             "example": "pay_12345"
           },
           "amount": {
             "type": "integer",
             "format": "int64",
+            "description": "Payment amount in minor units",
             "example": "100"
           },
           "currency": {
             "type": "string",
+            "description": "Currency code for the payment",
             "example": "USD"
           },
           "paymentType": {
             "type": "string",
+            "description": "Type of payment transaction being processed",
             "example": "ORDER_PAYMENT"
           },
           "metadata": {
             "type": "string",
+            "description": "Optional metadata associated with the payment",
             "example": "metadata"
           },
           "paymentMethodType": {
             "type": "string",
+            "description": "Specific payment method type being used",
             "example": "upi"
           },
           "paymentMethod": {
             "type": "string",
+            "description": "General payment method category",
             "example": "upi"
           },
           "cardIsin": {
             "type": "string",
+            "description": "Card Issuer Identification Number (first 6 digits of card)",
             "example": "424242"
           }
         }
@@ -37995,6 +38036,7 @@
             "items": {
               "$ref": "#/components/schemas/DynamicRoutingConfigParams"
             },
+            "deprecated": true,
             "nullable": true
           },
           "config": {

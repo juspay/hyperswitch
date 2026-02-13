@@ -1014,7 +1014,9 @@ pub struct RoutingVolumeSplitResponse {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EliminationRoutingConfig {
+    #[schema(deprecated)]
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
+    #[schema(deprecated)]
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
     #[schema(value_type = DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
@@ -1109,7 +1111,9 @@ impl EliminationRoutingConfig {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfig {
+    #[schema(deprecated)]
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
+    #[schema(deprecated)]
     pub config: Option<SuccessBasedRoutingConfigBody>,
     #[schema(value_type = DecisionEngineSuccessRateData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineSuccessRateData>,
