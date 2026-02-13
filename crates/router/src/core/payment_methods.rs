@@ -4067,17 +4067,15 @@ pub async fn update_payment_method_core(
         .await
         .attach_printable("Failed to update card cvc")?;
 
-    let update_data = handler
+    let (vaulting_data, vaulting_resp) = handler
         .perform_vaulting_operations_if_required()
         .await
         .attach_printable("Failed to perform vaulting operations for payment method update")?;
 
-    if let Some((vault_req_data, vault_resp)) = update_data {
-        handler
-            .update_payment_method_if_required(vault_req_data, vault_resp)
-            .await
-            .attach_printable("Failed to update payment method in db")?;
-    }
+    handler
+        .update_payment_method_if_required(vaulting_data, vaulting_resp)
+        .await
+        .attach_printable("Failed to update payment method in db")?;
 
     let response = handler
         .generate_response(card_cvc_details)
@@ -5380,14 +5378,12 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
     pub async fn perform_vaulting_operations_if_required(
         &self,
-    ) -> RouterResult<
-        Option<(
-            domain::PaymentMethodVaultingData,
-            pm_types::AddVaultResponse,
-        )>,
-    > {
+    ) -> RouterResult<(
+        Option<domain::PaymentMethodVaultingData>,
+        Option<pm_types::AddVaultResponse>,
+    )> {
         if !self.request.is_payment_method_metadata_update() {
-            return Ok(None);
+            return Ok((None, None));
         }
 
         let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
@@ -5442,7 +5438,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 logger::info!(
                     "Payment method vault data is same as in request, skipping vault update"
                 );
-                Ok(None)
+                Ok((None, None))
             }
             Some(false) | None => {
                 logger::info!("Payment method vault data is different from request, proceeding with vault update");
@@ -5462,15 +5458,15 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .await
                 .attach_printable("Failed to add payment method in vault")?;
 
-                Ok(Some((vault_request_data, vault_response)))
+                Ok((Some(vault_request_data), Some(vault_response)))
             }
         }
     }
 
     pub async fn update_payment_method_if_required(
         &mut self,
-        vault_request_data: domain::PaymentMethodVaultingData,
-        vault_resp: pm_types::AddVaultResponse,
+        vault_request_data: Option<domain::PaymentMethodVaultingData>,
+        vault_resp: Option<pm_types::AddVaultResponse>,
     ) -> RouterResult<()> {
         if !self.request.is_payment_method_update_required() {
             return Ok(());
@@ -5479,11 +5475,15 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         let db = self.state.store.as_ref();
 
         let pm_update = create_pm_additional_data_update(
-            Some(&vault_request_data),
+            vault_request_data.as_ref(),
             self.state,
             self.platform.get_provider().get_key_store(),
-            Some(vault_resp.vault_id.get_string_repr().to_owned()),
-            vault_resp.fingerprint_id.clone(),
+            vault_resp
+                .as_ref()
+                .map(|resp| resp.vault_id.get_string_repr().to_owned()),
+            vault_resp
+                .as_ref()
+                .and_then(|resp| resp.fingerprint_id.clone()),
             &self.payment_method,
             self.request.connector_token_details.clone(),
             self.request.network_transaction_id.clone(),
