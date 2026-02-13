@@ -94,6 +94,7 @@ pub struct PaymentMethod {
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
     pub customer_details: OptionalEncryptableValue,
+    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -369,6 +370,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 
@@ -509,6 +511,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             customer_details,
+            locker_fingerprint_id: item.locker_fingerprint_id,
         })
     }
 
@@ -560,6 +563,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 }
@@ -1417,6 +1421,7 @@ mod tests {
             created_by: None,
             last_modified_by: None,
             customer_details: None,
+            locker_fingerprint_id: None,
         };
         payment_method.clone()
     }

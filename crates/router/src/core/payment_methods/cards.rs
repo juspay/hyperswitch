@@ -205,6 +205,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     created_by: None,
                     last_modified_by: None,
                     customer_details: payment_method_customer_details_encrypted,
+                    locker_fingerprint_id: None,
                 },
                 self.provider.get_account().storage_scheme,
             )
