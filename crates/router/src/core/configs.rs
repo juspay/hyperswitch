@@ -126,11 +126,11 @@ impl ConfigType for serde_json::Value {
 /// This function is specifically for DatabaseBackedConfig types and enforces
 /// that database fallback is used when superposition fails. It uses the config's
 /// `db_key` method to construct the database key from dimensions.
-pub async fn fetch_db_with_dimensions<C, M, O, P, T>(
+pub async fn fetch_db_with_dimensions<C, M, O, P>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
-    targeting_key: Option<&T>,
+    targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -138,13 +138,12 @@ where
     M: Send + Sync,
     O: Send + Sync,
     P: Send + Sync,
-    T: common_utils::id_type::TargetingKey,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
     let context = dimensions.to_superposition_context();
 
-    fetch_db_config::<C, T>(
+    fetch_db_config::<C>(
         storage,
         superposition_client,
         &db_key,
@@ -167,17 +166,16 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// Fetch configuration value from Superposition with database fallback.
 /// This function is specifically for DatabaseBackedConfig types and enforces
 /// that database fallback is used when superposition fetch fails.
-pub async fn fetch_db_config<C, T>(
+pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,
-    targeting_key: Option<&T>,
+    targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
     C::Output: ConfigType,
-    T: common_utils::id_type::TargetingKey,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let default_value = C::DEFAULT_VALUE;

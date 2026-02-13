@@ -5,7 +5,7 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
 use masking::ExposeInterface;
 
@@ -205,6 +205,9 @@ pub trait Config {
     /// The output type of this configuration
     type Output: Default + Clone;
 
+    /// The type used as the targeting key for experiment traffic splitting
+    type TargetingKey: TargetingKey + Send + Sync;
+
     /// Get the Superposition key for this config
     const SUPERPOSITION_KEY: &'static str;
 
@@ -212,14 +215,13 @@ pub trait Config {
     const DEFAULT_VALUE: Self::Output;
 
     /// Fetch config value from Superposition.
-    fn fetch<T>(
+    fn fetch(
         superposition_client: &SuperpositionClient,
         context: Option<ConfigContext>,
-        targeting_key: Option<&T>,
+        targeting_key: Option<&Self::TargetingKey>,
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
-        T: common_utils::id_type::TargetingKey,
     {
         let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {

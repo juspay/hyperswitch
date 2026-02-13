@@ -50,6 +50,7 @@ macro_rules! config {
 
             impl superposition::Config for [<$superposition_key:camel>] {
                 type Output = $output;
+                type TargetingKey = $targeting_type;
 
                 const SUPERPOSITION_KEY: &'static str =
                     superposition_consts::$superposition_key;
@@ -69,7 +70,7 @@ macro_rules! config {
                     superposition_client: Option<&superposition::SuperpositionClient>,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
-                    fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P, $targeting_type>(
+                    fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
                         storage,
                         superposition_client,
                         self,
