@@ -1257,15 +1257,12 @@ async fn payment_method_resolver(
             )))
         }
         Err(err) => {
-            if !err.current_context().is_db_not_found() {
-                logger::error!(
-                    "Error while checking for existing payment method: {:?}",
-                    err
-                );
-                return Err(err)
+            when(!err.current_context().is_db_not_found(), || {
+                Err(err)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to check for existing payment method in db");
-            }
+                    .attach_printable("Failed to find payment method by fingerprint id")
+            })?;
+
             logger::debug!("Payment method not found, falling back to creation");
             Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
                 fingerprint_id,
@@ -1320,7 +1317,15 @@ async fn create_or_fetch_payment_method_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get fingerprint_id from vault")?;
 
-    let resolver = payment_method_resolver(state, platform, customer_id, &req, fingerprint_id, payment_method_data).await?;
+    let resolver = payment_method_resolver(
+        state,
+        platform,
+        customer_id,
+        &req,
+        fingerprint_id,
+        payment_method_data,
+    )
+    .await?;
 
     resolver
         .execute(
@@ -1356,11 +1361,52 @@ impl PaymentMethodResolver {
         let db = &*state.store;
         match self.0 {
             PaymentMethodResolution::Get(existing_pm) => {
+                logger::debug!("Payment method is duplicate, found {:?}", existing_pm.id);
+                let card_cvc = req
+                    .payment_method_data
+                    .get_card()
+                    .and_then(|card| card.card_cvc.clone());
+
+                let cvc_expiry_details = if let Some(cvc) = card_cvc {
+                    logger::debug!("Inserting CVC for payment method {:?}", existing_pm.id);
+                    let intent_fulfillment_time =
+                        common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+                    Some(
+                        vault::insert_cvc_using_payment_token(
+                            state,
+                            &existing_pm.id,
+                            cvc,
+                            intent_fulfillment_time,
+                            platform.get_provider().get_key_store(),
+                        )
+                        .await?,
+                    )
+                } else {
+                    logger::debug!(
+                        "No CVC found in the payment method request, trying to retrieve from redis"
+                    );
+                    let existing_cvc_expiry_details =
+                        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+                            &state,
+                            existing_pm.id.to_owned(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to retrieve cvc from redis")
+                        .ok()
+                        .map(|time| {
+                            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
+                                time,
+                            )
+                        });
+                    existing_cvc_expiry_details
+                };
+
                 let resp = pm_transforms::generate_payment_method_response(
                     &existing_pm,
                     &None,
                     req.storage_type,
-                    None,
+                    cvc_expiry_details,
                     req.customer_id.clone(),
                     None,
                 )?;
