@@ -143,6 +143,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
+        locker_fingerprint_id: Option<String>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -205,7 +206,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     created_by: None,
                     last_modified_by: None,
                     customer_details: payment_method_customer_details_encrypted,
-                    locker_fingerprint_id: None,
+                    locker_fingerprint_id,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -515,6 +516,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_payment_method_data,
             vault_source_details,
             None,
+            None,
         )
         .await
     }
@@ -618,61 +620,99 @@ impl PaymentMethodsController for PmCards<'_> {
         (
             api::PaymentMethodResponse,
             Option<payment_methods::DataDuplicationCheck>,
+            Option<String>,
         ),
         errors::VaultError,
     > {
-        let key = key_store.key.get_inner().peek();
-
-        let key_manager_state: KeyManagerState = self.state.into();
-        let enc_data = async {
-            serde_json::to_value(bank_debit_data.to_owned())
-                .map_err(|err| {
-                    logger::error!("Error while encoding bank debit data: {err:?}");
-                    errors::VaultError::SavePaymentMethodFailed
-                })
-                .change_context(errors::VaultError::SavePaymentMethodFailed)
-                .attach_printable("Unable to encode bank debit data")
-                .ok()
-                .map(|v| {
-                    let secret: Secret<String> = Secret::new(v.to_string());
-                    secret
-                })
-                .async_lift(|inner| async {
-                    domain::types::crypto_operation(
-                        &key_manager_state,
-                        type_name!(payment_method::PaymentMethod),
-                        domain::types::CryptoOperation::EncryptOptional(inner),
-                        Identifier::Merchant(key_store.merchant_id.clone()),
-                        key,
-                    )
-                    .await
-                    .and_then(|val| val.try_into_optionaloperation())
-                })
-                .await
-        }
-        .await
-        .change_context(errors::VaultError::SavePaymentMethodFailed)
-        .attach_printable("Failed to encrypt payment method data")?
-        .map(Encryption::from)
-        .map(|e| e.into_inner())
-        .map_or(Err(errors::VaultError::SavePaymentMethodFailed), |e| {
-            Ok(hex::encode(e.peek()))
-        })?;
-
-        let payload =
-            payment_methods::StoreLockerReq::LockerGeneric(payment_methods::StoreGenericReq {
-                merchant_id: self.provider.get_account().get_id().to_owned(),
-                merchant_customer_id: customer_id.to_owned(),
-                enc_data,
-                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-            });
-        let store_resp = add_card_to_vault(self.state, &payload, customer_id).await?;
-        let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
-            store_resp.card_reference,
-            req,
-            self.provider.get_account().get_id(),
+        let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::from(
+            api_models::payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_data)
+                .clone(),
         );
-        Ok((payment_method_resp, store_resp.duplication_check))
+
+        let data = serde_json::to_string(&pmd)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode Vaulting data to string")?;
+
+        let payload = crate::types::payment_methods::VaultFingerprintRequest {
+            key: customer_id.get_string_repr().to_owned(),
+            data,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+
+        let resp = vault::call_to_vault::<crate::types::payment_methods::GetVaultFingerprint>(
+            self.state, payload,
+        )
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+        let fingerprint_resp: crate::types::payment_methods::VaultFingerprintResponse = resp
+            .parse_struct("VaultFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into VaultFingerprintResponse")?;
+
+        let fingerprint_id = fingerprint_resp.fingerprint_id.clone();
+
+        let existing_pm = self
+            .state
+            .store
+            .find_payment_method_by_fingerprint_id(key_store, &fingerprint_id)
+            .await;
+
+        // 3. If duplicate found, return it with duplication check
+        if let Ok(existing_payment_method) = existing_pm {
+            logger::debug!(
+                "Found existing payment method with fingerprint: {}",
+                fingerprint_id
+            );
+
+            let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
+                existing_payment_method
+                    .locker_id
+                    .clone()
+                    .unwrap_or(existing_payment_method.payment_method_id),
+                req,
+                self.provider.get_account().get_id(),
+            );
+
+            Ok((
+                payment_method_resp,
+                Some(payment_methods::DataDuplicationCheck::Duplicated),
+                Some(fingerprint_id),
+            ));
+        } else {
+            let payload = crate::types::payment_methods::AddVaultRequest {
+                entity_id: customer_id.to_owned(),
+                vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+                data: pmd,
+                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode AddVaultRequest")?;
+
+            let resp = vault::call_to_vault::<crate::types::payment_methods::AddVault>(
+                self.state, payload,
+            )
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+            let stored_pm_resp: crate::types::payment_methods::InternalAddVaultResponse = resp
+                .parse_struct("InternalAddVaultResponse")
+                .change_context(errors::VaultError::ResponseDeserializationFailed)
+                .attach_printable("Failed to parse data into AddVaultResponse")?;
+
+            let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
+                stored_pm_resp.vault_id.get_string_repr().to_owned(),
+                req,
+                self.provider.get_account().get_id(),
+            );
+
+            Ok((payment_method_resp, None, Some(fingerprint_id)))
+        }
     }
     /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
     async fn add_card_to_locker(
@@ -1432,6 +1472,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
+                None,
                 None,
             )
             .await?;
@@ -4997,24 +5038,56 @@ pub async fn get_bank_debit_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
-    let payment_method = get_encrypted_data_from_vault(
-        state,
-        provider.get_key_store(),
-        customer_id,
-        provider.get_account().get_id(),
-        token_ref,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting payment method from locker")?;
-
-    let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
-        .peek()
-        .to_string()
-        .parse_struct("BankDebitDetail")
+    let vault_request = crate::types::payment_methods::VaultRetrieveRequest {
+        entity_id: customer_id.to_owned(),
+        vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+            token_ref.to_owned(),
+        ),
+    };
+    let payload = vault_request
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok(bank_debit_create_data)
+    let resp = vault::call_to_vault::<crate::types::payment_methods::VaultRetrieve>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let stored_pm_resp: crate::types::payment_methods::VaultRetrieveResponse = resp
+        .parse_struct("VaultRetrieveResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultRetrieveResponse")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    match stored_pm_resp.data {
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(
+            bank_debit_detail,
+        ) => Ok(bank_debit_detail),
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid payment method data found")?,
+    }
+
+    // let payment_method = get_encrypted_data_from_vault(
+    //     state,
+    //     provider.get_key_store(),
+    //     customer_id,
+    //     provider.get_account().get_id(),
+    //     token_ref,
+    // )
+    // .await
+    // .change_context(errors::ApiErrorResponse::InternalServerError)
+    // .attach_printable("Error getting payment method from locker")?;
+
+    // let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
+    //     .peek()
+    //     .to_string()
+    //     .parse_struct("BankDebitDetail")
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    // Ok(bank_debit_create_data)
 }
 
 #[cfg(feature = "v1")]

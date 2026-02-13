@@ -58,6 +58,7 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
+        locker_fingerprint_id: Option<String>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
@@ -149,7 +150,11 @@ pub trait PaymentMethodsController {
         bank_debit_data: api_models::payment_methods::BankDebitDetail,
         key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    ) -> errors::VaultResult<(
+        api::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+        Option<String>,
+    )>;
 
     #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(

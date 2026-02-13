@@ -1012,7 +1012,6 @@ pub trait PaymentMethodInterface {
         payment_method: PaymentMethod,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,

@@ -1,12 +1,12 @@
 use common_enums::PaymentMethodType;
+#[cfg(feature = "v2")]
+use common_utils::encryption::Encryption;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
 };
-#[cfg(feature = "v2")]
-use common_utils::{encryption::Encryption, request};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_flow_types::{
@@ -40,13 +40,18 @@ use crate::{
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, transformers as pm_transforms, utils},
+        payment_methods::{cards as pm_cards, utils},
         payments::{self as payments_core, helpers as payment_helpers},
     },
-    headers, settings,
-    types::payment_methods as pm_types,
-    utils::{ext_traits::OptionExt, ConnectorResponseExt},
+    utils::ext_traits::OptionExt,
 };
+
+use crate::core::payment_methods::transformers as pm_transforms;
+
+use crate::types::payment_methods as pm_types;
+use crate::utils::ConnectorResponseExt;
+use crate::{headers, settings};
+use common_utils::request;
 
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -1469,7 +1474,6 @@ pub async fn delete_tokenized_data(
     }
 }
 
-#[cfg(feature = "v2")]
 async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -1493,7 +1497,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     let mut request = request::Request::new(services::Method::Post, &url);
     request.add_header(
         headers::CONTENT_TYPE,
-        consts::VAULT_HEADER_CONTENT_TYPE.into(),
+        consts::V2_VAULT_HEADER_CONTENT_TYPE.into(),
     );
     request.add_header(
         headers::X_TENANT_ID,
@@ -1503,7 +1507,6 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     Ok(request)
 }
 
-#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,

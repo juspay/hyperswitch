@@ -1,11 +1,11 @@
-use api_models::payment_methods;
+use api_models::payment_methods::{self, BankDebitDetail};
 #[cfg(feature = "v2")]
 use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
 use crate::errors;
 use crate::payment_method_data;
 
@@ -14,6 +14,7 @@ pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
+    BankDebit(BankDebitDetail),
 }
 
 impl PaymentMethodVaultingData {
@@ -22,6 +23,7 @@ impl PaymentMethodVaultingData {
             Self::Card(card) => Some(card),
             Self::NetworkToken(_) => None,
             Self::CardNumber(_) => None,
+            Self::BankDebit(_) => None,
         }
     }
 
@@ -32,6 +34,7 @@ impl PaymentMethodVaultingData {
             }
             Self::NetworkToken(_) => {}
             Self::CardNumber(_) => {}
+            Self::BankDebit(_) => {}
         }
     }
 
@@ -132,6 +135,23 @@ impl PaymentMethodVaultingData {
                     co_badged_card_data: None,
                 },
             ),
+
+            Self::BankDebit(bank_debit) => {
+                payment_method_data::PaymentMethodsData::BankDebit(match bank_debit {
+                    BankDebitDetail::Ach {
+                        account_number: _,
+                        routing_number: _,
+                    } => payment_method_data::BankDebitDetailsPaymentMethod::AchBankDebit {
+                        masked_account_number: bank_debit.get_masked_account_number(),
+                        masked_routing_number: bank_debit.get_masked_routing_number(),
+                        card_holder_name: None,
+                        bank_account_holder_name: None,
+                        bank_name: None,
+                        bank_type: None,
+                        bank_holder_type: None,
+                    },
+                })
+            }
         }
     }
 }
@@ -174,6 +194,12 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
             Self::Card(card) => card.card_number.to_string(),
             Self::NetworkToken(network_token) => network_token.network_token.to_string(),
             Self::CardNumber(card_number) => card_number.to_string(),
+            Self::BankDebit(bank_debit) => match bank_debit {
+                BankDebitDetail::Ach {
+                    account_number,
+                    routing_number: _,
+                } => account_number.clone().expose(),
+            },
         }
     }
 }
@@ -199,31 +225,56 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
     }
 }
 
-impl From<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
-    fn from(item: PaymentMethodVaultingData) -> Self {
+impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
+    fn from(item: payment_methods::PaymentMethodCreateData) -> Self {
         match item {
-            PaymentMethodVaultingData::Card(card_data) => Self::CardData(CardCustomData {
+            payment_methods::PaymentMethodCreateData::Card(card) => {
+                Self::Card(payment_methods::CardDetail {
+                    card_cvc: None, // card cvc should not be used for vaulting
+                    ..card
+                })
+            }
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
+                Self::BankDebit(bank_debit_detail)
+            }
+        }
+    }
+}
+
+impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+
+    fn try_from(item: PaymentMethodVaultingData) -> Result<Self, Self::Error> {
+        match item {
+            PaymentMethodVaultingData::Card(card_data) => Ok(Self::CardData(CardCustomData {
                 card_number: Some(card_data.card_number),
                 card_exp_month: Some(card_data.card_exp_month),
                 card_exp_year: Some(card_data.card_exp_year),
                 card_cvc: card_data.card_cvc,
-            }),
+            })),
             PaymentMethodVaultingData::NetworkToken(network_token_data) => {
-                Self::NetworkTokenData(NetworkTokenCustomData {
+                Ok(Self::NetworkTokenData(NetworkTokenCustomData {
                     network_token: Some(network_token_data.network_token),
                     network_token_exp_month: Some(network_token_data.network_token_exp_month),
                     network_token_exp_year: Some(network_token_data.network_token_exp_year),
                     cryptogram: network_token_data.cryptogram,
-                })
+                }))
             }
             PaymentMethodVaultingData::CardNumber(card_number_data) => {
-                Self::CardData(CardCustomData {
+                Ok(Self::CardData(CardCustomData {
                     card_number: Some(card_number_data),
                     card_exp_month: None,
                     card_exp_year: None,
                     card_cvc: None,
-                })
+                }))
             }
+            PaymentMethodVaultingData::BankDebit(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for BankDebit".to_string(),
+                    ),
+                },
+            )?,
         }
     }
 }

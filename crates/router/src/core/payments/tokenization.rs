@@ -65,19 +65,22 @@ async fn save_in_locker(
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
+    Option<String>,
 )> {
     match &business_profile.external_vault_details {
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
             logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
-            Box::pin(save_in_locker_external(
+            let (pm_response, duplication_check) = Box::pin(save_in_locker_external(
                 state,
                 platform,
                 payment_method_request,
                 card_detail,
                 external_vault_details,
             ))
-            .await
+            .await?;
+
+            Ok((pm_response, duplication_check, None))
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
@@ -254,7 +257,12 @@ where
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
                 let (
-                    (mut resp, duplication_check, network_token_requestor_ref_id),
+                    (
+                        mut resp,
+                        duplication_check,
+                        network_token_requestor_ref_id,
+                        locker_fingerprint_id,
+                    ),
                     network_token_resp,
                 ) = if !state.conf.locker.locker_enabled {
                     let (res, dc) = skip_saving_card_in_locker(
@@ -262,7 +270,7 @@ where
                         payment_method_create_request.to_owned(),
                     )
                     .await?;
-                    ((res, dc, None), None)
+                    ((res, dc, None, None), None)
                 } else {
                     let payment_method_status = common_enums::PaymentMethodStatus::from(
                         save_payment_method_data.attempt_status,
@@ -495,6 +503,7 @@ where
                                                 pm_network_token_data_encrypted,
                                                 Some(vault_source_details),
                                                 payment_method_customer_details_encrypted,
+                                                locker_fingerprint_id,
                                             )
                                             .await
                                     } else {
@@ -614,6 +623,7 @@ where
                                                     pm_network_token_data_encrypted,
                                                     Some(vault_source_details),
                                                     payment_method_customer_details_encrypted,
+                                                    locker_fingerprint_id,
                                                 )
                                                 .await
                                         } else {
@@ -838,6 +848,7 @@ where
                                     pm_network_token_data_encrypted,
                                     Some(vault_source_details),
                                     payment_method_customer_details_encrypted,
+                                    locker_fingerprint_id,
                                 )
                                 .await?;
 
@@ -1126,6 +1137,7 @@ pub async fn save_in_locker_internal(
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
+    Option<String>,
 )> {
     payment_method_request.validate()?;
     let customer_id = payment_method_request
@@ -1137,16 +1149,24 @@ pub async fn save_in_locker_internal(
         card_detail,
         payment_method_request.payment_method_data.clone(),
     ) {
-        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
-            PmCards {
-                state,
-                provider: platform.get_provider(),
-            }
-            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
+        (_, Some(card), _) | (Some(card), _, _) => {
+            let (pm_response, duplication_check) = Box::pin(
+                PmCards {
+                    state,
+                    provider: platform.get_provider(),
+                }
+                .add_card_to_locker(
+                    payment_method_request,
+                    &card,
+                    &customer_id,
+                    None,
+                ),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")?;
+            Ok((pm_response, duplication_check, None))
+        }
 
         (
             None,
@@ -1189,7 +1209,7 @@ pub async fn save_in_locker_internal(
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
             };
-            Ok((payment_method_response, None))
+            Ok((payment_method_response, None, None))
         }
     }
 }
@@ -1804,6 +1824,7 @@ pub async fn save_card_and_network_token_in_locker(
         api_models::payment_methods::PaymentMethodResponse,
         Option<payment_methods::transformers::DataDuplicationCheck>,
         Option<String>,
+        Option<String>,
     ),
     Option<api_models::payment_methods::PaymentMethodResponse>,
 )> {
@@ -1832,7 +1853,7 @@ pub async fn save_card_and_network_token_in_locker(
                 )
                 .await;
             }
-            let (res, dc) = Box::pin(save_in_locker(
+            let (res, dc, _locker_fingerprint_id) = Box::pin(save_in_locker(
                 state,
                 platform,
                 payment_method_create_request.to_owned(),
@@ -1843,7 +1864,7 @@ pub async fn save_card_and_network_token_in_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card In Locker Failed")?;
 
-            Ok(((res, dc, None), None))
+            Ok(((res, dc, None, None), None))
         }
         Some(hyperswitch_domain_models::payments::VaultOperation::SaveCardAndNetworkTokenData(
             save_card_and_network_token_data,
@@ -1859,7 +1880,7 @@ pub async fn save_card_and_network_token_in_locker(
             );
 
             if payment_method_status == common_enums::PaymentMethodStatus::Active {
-                let (res, dc) = Box::pin(save_in_locker_internal(
+                let (res, dc, _locker_fingerprint_id) = Box::pin(save_in_locker_internal(
                     state,
                     platform,
                     payment_method_create_request.to_owned(),
@@ -1881,7 +1902,7 @@ pub async fn save_card_and_network_token_in_locker(
                 .attach_printable("Add Network Token In Locker Failed")?;
 
                 Ok((
-                    (res, dc, network_token_requestor_reference_id),
+                    (res, dc, network_token_requestor_reference_id, None),
                     network_token_resp,
                 ))
             } else {
@@ -1904,7 +1925,7 @@ pub async fn save_card_and_network_token_in_locker(
                     )
                     .await;
                 }
-                let (res, dc) = Box::pin(save_in_locker_internal(
+                let (res, dc, locker_fingerprint_id) = Box::pin(save_in_locker_internal(
                     state,
                     platform,
                     payment_method_create_request.to_owned(),
@@ -1914,12 +1935,12 @@ pub async fn save_card_and_network_token_in_locker(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add Card In Locker Failed")?;
 
-                Ok(((res, dc, None), None))
+                Ok(((res, dc, None, None), None))
             }
         }
         _ => {
             let card_data = payment_method_create_request.card.clone();
-            let (res, dc) = Box::pin(save_in_locker(
+            let (res, dc, locker_fingerprint_id) = Box::pin(save_in_locker(
                 state,
                 platform,
                 payment_method_create_request.to_owned(),
@@ -1947,14 +1968,14 @@ pub async fn save_card_and_network_token_in_locker(
                         .await?;
 
                         Ok((
-                            (res, dc, network_token_requestor_ref_id),
+                            (res, dc, network_token_requestor_ref_id, None), // locker_fingerprint_id uses generic locker and should be None for cards as they use a different mechanism for duplication check
                             network_token_resp,
                         ))
                     }
-                    _ => Ok(((res, dc, None), None)), //network_token_resp is None in case of other payment methods
+                    _ => Ok(((res, dc, None, locker_fingerprint_id), None)), //network_token_resp is None in case of other payment methods
                 }
             } else {
-                Ok(((res, dc, None), None))
+                Ok(((res, dc, None, locker_fingerprint_id), None))
             }
         }
     }

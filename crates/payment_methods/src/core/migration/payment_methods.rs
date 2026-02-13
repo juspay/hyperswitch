@@ -451,6 +451,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 Default::default(),
                 None,
+                None,
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
