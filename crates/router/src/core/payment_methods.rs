@@ -1091,8 +1091,9 @@ pub async fn create_persistent_payment_method_core(
         .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id(
+    db.find_customer_by_global_id_merchant_id(
         &customer_id,
+        platform.get_provider().get_account().get_id(),
         platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
     )
@@ -1173,8 +1174,9 @@ pub async fn create_volatile_payment_method_core(
     let key_manager_state = &(state).into();
 
     if let Some(ref customer_id) = customer_id {
-        db.find_customer_by_global_id(
+        db.find_customer_by_global_id_merchant_id(
             customer_id,
+            platform.get_provider().get_account().get_id(),
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
@@ -2198,8 +2200,9 @@ pub async fn payment_method_intent_create(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id(
+    db.find_customer_by_global_id_merchant_id(
         &customer_id,
+        provider.get_account().get_id(),
         provider.get_key_store(),
         provider.get_account().storage_scheme,
     )
@@ -4270,8 +4273,9 @@ pub async fn delete_payment_method_core(
     )?;
 
     let _customer = db
-        .find_customer_by_global_id(
+        .find_customer_by_global_id_merchant_id(
             customer_id,
+            platform.get_provider().get_account().get_id(),
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
@@ -4427,13 +4431,15 @@ pub async fn payment_methods_session_create(
     let key_manager_state = &(&state).into();
 
     if let (Some(customer_id)) = &request.customer_id {
-        db.find_customer_by_global_id(
+        db.find_customer_by_global_id_merchant_id(
             customer_id,
+            provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found for the payment method")?;
     }
 
     let payment_methods_session_id =
