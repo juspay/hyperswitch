@@ -36,7 +36,7 @@ pub struct RetrievePaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
     pub network_transaction_id: Option<String>,
-    pub billing : Option<hyperswitch_domain_models::address::Address>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveRequest {
