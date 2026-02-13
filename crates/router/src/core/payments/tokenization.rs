@@ -624,20 +624,23 @@ where
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable("Failed to add payment method in db")?;
 
-                                        if let Some(nt_ref_id) = network_token_requestor_ref_id {
-                                            //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
-                                            save_network_token_details_in_nt_mapper(
-                                            state,
-                                            platform,
-                                            &customer_id,
-                                            resp.payment_method_id.clone(),
-                                            nt_ref_id,
-                                        )
-                                        .await
-                                        .attach_printable(
+                                        network_token_requestor_ref_id
+                                            .as_ref()
+                                            .async_map(|nt_ref_id| {
+                                                 //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
+                                                save_network_token_details_in_nt_mapper(
+                                                    state,
+                                                    platform,
+                                                    &customer_id,
+                                                    resp.payment_method_id.clone(),
+                                                    nt_ref_id.clone(),
+                                                )
+                                            })
+                                            .await
+                                            .transpose()
+                                            .attach_printable(
                                             "Failed to save network token details in NT mapper table",
                                         )?;
-                                        };
 
                                         Ok(pm)
                                     }
