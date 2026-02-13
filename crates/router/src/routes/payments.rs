@@ -688,10 +688,11 @@ pub async fn payments_retrieve_with_gateway_creds(
         allow_platform_self_operation: false,
     };
 
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, _auth_flow) =
+        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     tracing::Span::current().record("payment_id", json_payload.payment_id.get_string_repr());
 
@@ -717,7 +718,10 @@ pub async fn payments_retrieve_with_gateway_creds(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
