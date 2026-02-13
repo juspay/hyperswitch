@@ -32,6 +32,9 @@ pub enum PaymentMethodData {
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
+    DecryptedWalletTokenDetailsForNetworkTransactionId(
+        DecryptedWalletTokenDetailsForNetworkTransactionId,
+    ),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -70,6 +73,13 @@ pub enum RecurringDetails {
     /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
     /// is not stored in the application
     NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+
+    /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
+    /// is not stored in the application
+    /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    NetworkTransactionIdAndDecryptedWalletTokenDetails(
+        Box<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
+    ),
 
     CardWithLimitedData(Box<CardWithLimitedData>),
 }
@@ -220,6 +230,7 @@ impl PaymentMethodData {
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
+            | Self::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | Self::CardWithLimitedDetails(_) => Some(common_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
@@ -419,6 +430,16 @@ pub struct NetworkTokenDetailsForNetworkTransactionId {
     pub eci: Option<String>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
+    pub decrypted_token: cards::NetworkToken,
+    pub token_exp_month: Secret<String>,
+    pub token_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub token_source: Option<common_types::payments::TokenSource>,
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CardDetail {
     pub card_number: cards::CardNumber,
@@ -534,6 +555,26 @@ impl NetworkTokenDetailsForNetworkTransactionId {
     }
 }
 
+impl DecryptedWalletTokenDetailsForNetworkTransactionId {
+    pub fn get_nti_and_decrypted_wallet_token_details_for_mit_flow(
+        network_transaction_id_and_decrypted_wallet_token_details: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_decrypted_wallet_token_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        (
+            mandate_reference_id,
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                network_transaction_id_and_decrypted_wallet_token_details.into(),
+            ),
+        )
+    }
+}
+
 impl From<&Card> for CardDetail {
     fn from(item: &Card) -> Self {
         Self {
@@ -625,6 +666,23 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             bank_code: network_token_details_for_nti.bank_code,
             nick_name: network_token_details_for_nti.nick_name,
             eci: network_token_details_for_nti.eci,
+        }
+    }
+}
+
+impl From<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>
+    for DecryptedWalletTokenDetailsForNetworkTransactionId
+{
+    fn from(
+        decrypted_token_details_for_nti: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+    ) -> Self {
+        Self {
+            decrypted_token: decrypted_token_details_for_nti.decrypted_token,
+            token_exp_month: decrypted_token_details_for_nti.token_exp_month,
+            token_exp_year: decrypted_token_details_for_nti.token_exp_year,
+            card_holder_name: decrypted_token_details_for_nti.card_holder_name,
+            token_source: decrypted_token_details_for_nti.token_source,
+            eci: decrypted_token_details_for_nti.eci,
         }
     }
 }
@@ -3390,6 +3448,28 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
     }
 }
 
+impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetworkTokenInfo {
+    fn from(network_token_with_ntid: DecryptedWalletTokenDetailsForNetworkTransactionId) -> Self {
+        Self {
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            token_exp_month: Some(network_token_with_ntid.token_exp_month.clone()),
+            token_exp_year: Some(network_token_with_ntid.token_exp_year.clone()),
+            card_holder_name: network_token_with_ntid.card_holder_name.clone(),
+            last4: Some(network_token_with_ntid.decrypted_token.get_last4().clone()),
+            token_isin: Some(
+                network_token_with_ntid
+                    .decrypted_token
+                    .get_card_isin()
+                    .clone(),
+            ),
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl
     From<(
@@ -3542,6 +3622,11 @@ impl From<mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
                 (*network_transaction_id_and_network_token_details).into(),
             )),
+            mandates::RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(
+                network_transaction_id_and_decrypted_wallet_token_details,
+            ) => Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(Box::new(
+                *network_transaction_id_and_decrypted_wallet_token_details,
+            )),
             mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
             }
@@ -3614,6 +3699,9 @@ impl RecurringDetails {
             }
             Self::CardWithLimitedData(card_with_limited_data) => {
                 Some(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
+            }
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
+                Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
             Self::PaymentMethodId(_)
             | Self::MandateId(_)
