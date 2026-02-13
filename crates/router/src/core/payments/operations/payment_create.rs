@@ -531,9 +531,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pm| pm.raw_payment_method_data.clone())
             .or(payment_method_data_from_request.map(Into::into))
             .or(payment_method_recurring_details)
-            .zip(additional_payment_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            .map(|payment_method_data| {
+                if let Some(additional_payment_data) = additional_payment_data {
+                    payment_method_data.apply_additional_payment_data(additional_payment_data)
+                } else {
+                    payment_method_data
+                }
             });
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
