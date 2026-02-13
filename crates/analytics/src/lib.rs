@@ -1111,6 +1111,7 @@ impl Default for AnalyticsConfig {
         }
     }
 }
+
 #[derive(Clone, Debug, serde::Deserialize, Default, serde::Serialize)]
 pub struct ReportConfig {
     pub payment_function: String,

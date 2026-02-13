@@ -163,9 +163,6 @@ pub struct GenerateReportRequest {
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub auth: AuthInfo,
     pub email: Secret<String, EmailStrategy>,
-    #[cfg(feature = "v2")]
-    #[serde(default)]
-    pub report_type: Option<ReportType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
