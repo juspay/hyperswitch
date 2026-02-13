@@ -1198,6 +1198,7 @@ pub struct PaymentMethodWithRawData {
     pub raw_payment_method_data: Option<domain::PaymentMethodData>,
 }
 
+#[cfg(feature = "v1")]
 impl DomainPaymentMethodWrapper {
     pub async fn transform_pm_mod_retrieve_response(
         response: &RetrievePaymentMethodResponse,

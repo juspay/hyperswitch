@@ -1401,6 +1401,10 @@ impl PaymentMethodResolver {
                         });
                     existing_cvc_expiry_details
                 };
+                let billing = billing_address
+                    .clone()
+                    .map(|billing| billing.into_inner())
+                    .map(From::from);
 
                 let resp = pm_transforms::generate_payment_method_response(
                     &existing_pm,
@@ -1409,6 +1413,7 @@ impl PaymentMethodResolver {
                     cvc_expiry_details,
                     req.customer_id.clone(),
                     None,
+                    billing,
                 )?;
 
                 Ok((resp, *existing_pm))
@@ -3726,10 +3731,10 @@ pub async fn retrieve_payment_method(
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
     let billing = payment_method
-            .payment_method_billing_address
-            .clone()
-            .map(|billing| billing.into_inner())
-            .map(From::from);
+        .payment_method_billing_address
+        .clone()
+        .map(|billing| billing.into_inner())
+        .map(From::from);
 
     transformers::generate_payment_method_response(
         &payment_method,
@@ -3740,7 +3745,7 @@ pub async fn retrieve_payment_method(
         }),
         payment_method.customer_id.clone(),
         raw_payment_method_data,
-        billing
+        billing,
     )
     .map(services::ApplicationResponse::Json)
 }
