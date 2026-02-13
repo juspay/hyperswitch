@@ -844,7 +844,18 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         Ok(services::ApplicationResponse::Json(response))
     }
 }
-
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+trait CustomerDeleteBridge {
+    async fn redact_customer_details_and_generate_response<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        provider: &'a domain::Provider,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
+}
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 trait CustomerDeleteBridge {
     async fn redact_customer_details_and_generate_response<'a>(
@@ -867,13 +878,7 @@ pub async fn delete_customer(
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .redact_customer_details_and_generate_response(
-            db,
-            &provider,
-            key_manager_state,
-            &state,
-            profile,
-        )
+        .redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
         .await
 }
 
