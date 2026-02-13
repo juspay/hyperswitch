@@ -2129,7 +2129,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0#d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0"
+source = "git+https://github.com/juspay/connector-service?rev=d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc#d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3800,7 +3800,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0#d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0"
+source = "git+https://github.com/juspay/connector-service?rev=d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc#d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -4984,7 +4984,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.52.6",
+ "windows-targets 0.53.5",
 ]
 
 [[package]]
@@ -5844,9 +5844,9 @@ checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
 name = "openssl-src"
-version = "300.5.5+3.5.5"
+version = "300.5.4+3.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f1787d533e03597a7934fd0a765f0d28e94ecc5fb7789f8053b1e699a56f709"
+checksum = "a507b3792995dae9b0df8a1c1e3771e8418b7c2d9f0baeba32e6fe8b06c7cb72"
 dependencies = [
  "cc",
 ]
@@ -6085,6 +6085,12 @@ dependencies = [
  "rand_core 0.6.4",
  "subtle",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pathdiff"
@@ -7345,8 +7351,10 @@ dependencies = [
  "num-traits",
  "num_cpus",
  "once_cell",
+ "open-feature",
  "openidconnect",
  "openssl",
+ "paste",
  "payment_link",
  "payment_methods",
  "pm_auth",
@@ -7473,7 +7481,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0#d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0"
+source = "git+https://github.com/juspay/connector-service?rev=d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc#d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10263,7 +10271,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0#d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0"
+source = "git+https://github.com/juspay/connector-service?rev=d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc#d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -10279,7 +10287,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0#d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0"
+source = "git+https://github.com/juspay/connector-service?rev=d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc#d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10290,7 +10298,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0#d1a28bfe75ac219f7a3e5558c3b60fb67a64a5b0"
+source = "git+https://github.com/juspay/connector-service?rev=d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc#d4b923ce29c4c48cd9eb87682010ca7f5dee0ddc"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
