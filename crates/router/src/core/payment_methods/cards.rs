@@ -661,18 +661,19 @@ impl PaymentMethodsController for PmCards<'_> {
             .find_payment_method_by_fingerprint_id(key_store, &fingerprint_id)
             .await;
 
-        // 3. If duplicate found, return it with duplication check
         if let Ok(existing_payment_method) = existing_pm {
-            logger::debug!(
-                "Found existing payment method with fingerprint: {}",
-                fingerprint_id
-            );
+            let bank_debit_locker_id = existing_payment_method
+                .locker_id
+                .clone()
+                .ok_or(errors::VaultError::MissingRequiredField {
+                    field_name: "locker_id",
+                })
+                .attach_printable(
+                    "Payment Method with the fingerprint already exists but is missing locker_id",
+                )?;
 
             let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
-                existing_payment_method
-                    .locker_id
-                    .clone()
-                    .unwrap_or(existing_payment_method.payment_method_id),
+                bank_debit_locker_id,
                 req,
                 self.provider.get_account().get_id(),
             );
@@ -5069,25 +5070,6 @@ pub async fn get_bank_debit_from_hs_locker(
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid payment method data found")?,
     }
-
-    // let payment_method = get_encrypted_data_from_vault(
-    //     state,
-    //     provider.get_key_store(),
-    //     customer_id,
-    //     provider.get_account().get_id(),
-    //     token_ref,
-    // )
-    // .await
-    // .change_context(errors::ApiErrorResponse::InternalServerError)
-    // .attach_printable("Error getting payment method from locker")?;
-
-    // let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
-    //     .peek()
-    //     .to_string()
-    //     .parse_struct("BankDebitDetail")
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    // Ok(bank_debit_create_data)
 }
 
 #[cfg(feature = "v1")]
