@@ -126,7 +126,10 @@ pub async fn msearch_results(
                 let connector_strings: Vec<String> =
                     connector.iter().map(|c| c.to_string()).collect();
                 query_builder
-                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector_strings))
+                    .add_filter_clause(
+                        "connector.keyword".to_string(),
+                        convert_to_value(connector_strings),
+                    )
                     .switch()?;
             }
         };
@@ -374,8 +377,10 @@ pub async fn search_results(
         };
         if let Some(card_discovery) = filters.card_discovery {
             if !card_discovery.is_empty() {
-                let card_discovery_strings: Vec<String> =
-                    card_discovery.iter().map(|card_discovery| card_discovery.to_string()).collect();
+                let card_discovery_strings: Vec<String> = card_discovery
+                    .iter()
+                    .map(|card_discovery| card_discovery.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "card_discovery.keyword".to_string(),

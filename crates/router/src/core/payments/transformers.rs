@@ -7084,7 +7084,7 @@ struct PaymentAttemptFromOpenSearch(storage::PaymentAttempt);
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 fn nanos_to_primitive_datetime(nanos: i64) -> time::PrimitiveDateTime {
-    time::OffsetDateTime::from_unix_timestamp_nanos(nanos as i128)
+    time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos))
         .map(|date_time| time::PrimitiveDateTime::new(date_time.date(), date_time.time()))
         .unwrap_or(time::PrimitiveDateTime::MIN)
 }
