@@ -292,6 +292,7 @@ pub struct MonerisPaymentsResponse {
     payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
+    pub amount: Amount,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -431,6 +432,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     refund_id: String,
     refund_status: RefundStatus,
+    pub refund_amount: Amount,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
