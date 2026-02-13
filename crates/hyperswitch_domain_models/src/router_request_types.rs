@@ -1,5 +1,6 @@
 pub mod authentication;
 pub mod fraud_check;
+pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 pub mod unified_authentication_service;
@@ -101,6 +102,8 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub rrn: Option<String>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -223,8 +226,12 @@ pub struct PaymentsPostSessionTokensData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsUpdateMetadataData {
-    pub metadata: pii::SecretSerdeValue,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_transaction_id: String,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub connector_meta: Option<serde_json::Value>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -1008,6 +1015,7 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1034,6 +1042,8 @@ pub struct PaymentsCancelData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub merchant_order_reference_id: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1381,6 +1391,15 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
+            }),
+            router_data::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+                ..
+            } => Ok(Self {
+                app_id: certificate,
+                id: Some(private_key),
                 authentication_token: None,
             }),
 

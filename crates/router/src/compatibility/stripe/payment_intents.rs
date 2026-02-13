@@ -151,7 +151,11 @@ pub async fn payment_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth, mut payload, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
+            }
+
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -235,7 +239,11 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -315,7 +323,11 @@ pub async fn payment_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -405,7 +417,11 @@ pub async fn payment_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,

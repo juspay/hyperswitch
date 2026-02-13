@@ -627,8 +627,7 @@ pub fn build_unified_connector_service_payment_method(
             let card_network = card
                 .card_network
                 .clone()
-                .map(payments_grpc::CardNetwork::foreign_try_from)
-                .transpose()?;
+                .map(payments_grpc::CardNetwork::foreign_from);
 
             let card_details = CardDetails {
                 card_number: Some(
@@ -695,7 +694,7 @@ pub fn build_unified_connector_service_payment_method(
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(upi_intent_data) => {
                     let upi_details = payments_grpc::UpiIntent {
-                        app_name: None,
+                        app_name: upi_intent_data.app_name,
                         upi_source: upi_intent_data
                             .upi_source
                             .map(payments_grpc::UpiSource::foreign_try_from)
@@ -778,6 +777,17 @@ pub fn build_unified_connector_service_payment_method(
 
                 Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Eps(eps)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Sofort { country, preferred_language } => {
+                let sofort = payments_grpc::Sofort {
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into()),
+                    preferred_language,
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Sofort(sofort)),
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Przelewy24 { bank_name } => {
@@ -1281,8 +1291,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
             let card_network = external_vault_card
                 .card_network
                 .clone()
-                .map(payments_grpc::CardNetwork::foreign_try_from)
-                .transpose()?;
+                .map(payments_grpc::CardNetwork::foreign_from);
             let card_details = CardDetails {
                 card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())

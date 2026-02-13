@@ -225,7 +225,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             force_sync: None,
             all_keys_required: None,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
