@@ -833,6 +833,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
                 api_models::mandates::RecurringDetails::CardWithLimitedData(_)
                 | api_models::mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                 | api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                     Some(api_models::payments::MandateIds {
                         mandate_id: None,
