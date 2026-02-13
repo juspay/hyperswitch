@@ -1925,7 +1925,7 @@ pub async fn save_card_and_network_token_in_locker(
                     )
                     .await;
                 }
-                let (res, dc, locker_fingerprint_id) = Box::pin(save_in_locker_internal(
+                let (res, dc, _locker_fingerprint_id) = Box::pin(save_in_locker_internal(
                     state,
                     platform,
                     payment_method_create_request.to_owned(),

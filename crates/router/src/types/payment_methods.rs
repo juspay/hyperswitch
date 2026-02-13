@@ -12,12 +12,12 @@ use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::api;
 #[cfg(feature = "v2")]
 use crate::types::storage;
-
-use crate::consts;
-use crate::types::domain;
+use crate::{
+    consts,
+    types::{api, domain},
+};
 
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;

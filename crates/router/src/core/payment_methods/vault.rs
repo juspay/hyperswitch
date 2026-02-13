@@ -6,6 +6,7 @@ use common_utils::{
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
+    request,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
@@ -25,16 +26,18 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
+        payment_methods::transformers as pm_transforms,
         payments, utils as core_utils,
     },
-    db, logger,
+    db, headers, logger,
     routes::{self, metrics},
     services::{self, connector_integration_interface::RouterDataConversion},
+    settings,
     types::{
-        self, api, domain,
+        self, api, domain, payment_methods as pm_types,
         storage::{self, enums},
     },
-    utils::StringExt,
+    utils::{ConnectorResponseExt, StringExt},
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -45,13 +48,6 @@ use crate::{
     },
     utils::ext_traits::OptionExt,
 };
-
-use crate::core::payment_methods::transformers as pm_transforms;
-
-use crate::types::payment_methods as pm_types;
-use crate::utils::ConnectorResponseExt;
-use crate::{headers, settings};
-use common_utils::request;
 
 const VAULT_SERVICE_NAME: &str = "CARD";
 

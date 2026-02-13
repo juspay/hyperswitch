@@ -681,7 +681,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 payment_method_resp,
                 Some(payment_methods::DataDuplicationCheck::Duplicated),
                 Some(fingerprint_id),
-            ));
+            ))
         } else {
             let payload = crate::types::payment_methods::AddVaultRequest {
                 entity_id: customer_id.to_owned(),
@@ -5034,7 +5034,7 @@ pub async fn get_bank_from_vault(
 #[cfg(feature = "v1")]
 pub async fn get_bank_debit_from_hs_locker(
     state: &routes::SessionState,
-    provider: &domain::Provider,
+    _provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {

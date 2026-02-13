@@ -587,7 +587,7 @@ pub async fn retrieve_payment_method_with_token(
             .unwrap_or_default()
         }
 
-        storage::PaymentTokenData::Permanent(card_token) => {
+        storage::PaymentTokenData::Permanent(card_token) => Box::pin(
             payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
@@ -608,26 +608,26 @@ pub async fn retrieve_payment_method_with_token(
                 payment_attempt.connector.clone(),
                 should_retry_with_pan,
                 vault_data,
-            )
-            .await
-            .map(|card| Some((card, enums::PaymentMethod::Card)))?
-            .map(
-                |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
-                    payment_method_data: Some(payment_method_data),
-                    payment_method: Some(payment_method),
-                    payment_method_id: Some(
-                        card_token
-                            .payment_method_id
-                            .as_ref()
-                            .unwrap_or(&card_token.token)
-                            .to_string(),
-                    ),
-                },
-            )
-            .unwrap_or_default()
-        }
+            ),
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card)))?
+        .map(
+            |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                payment_method_data: Some(payment_method_data),
+                payment_method: Some(payment_method),
+                payment_method_id: Some(
+                    card_token
+                        .payment_method_id
+                        .as_ref()
+                        .unwrap_or(&card_token.token)
+                        .to_string(),
+                ),
+            },
+        )
+        .unwrap_or_default(),
 
-        storage::PaymentTokenData::PermanentCard(card_token) => {
+        storage::PaymentTokenData::PermanentCard(card_token) => Box::pin(
             payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
@@ -648,24 +648,24 @@ pub async fn retrieve_payment_method_with_token(
                 payment_attempt.connector.clone(),
                 should_retry_with_pan,
                 vault_data,
-            )
-            .await
-            .map(|card| Some((card, enums::PaymentMethod::Card)))?
-            .map(
-                |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
-                    payment_method_data: Some(payment_method_data),
-                    payment_method: Some(payment_method),
-                    payment_method_id: Some(
-                        card_token
-                            .payment_method_id
-                            .as_ref()
-                            .unwrap_or(&card_token.token)
-                            .to_string(),
-                    ),
-                },
-            )
-            .unwrap_or_default()
-        }
+            ),
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card)))?
+        .map(
+            |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                payment_method_data: Some(payment_method_data),
+                payment_method: Some(payment_method),
+                payment_method_id: Some(
+                    card_token
+                        .payment_method_id
+                        .as_ref()
+                        .unwrap_or(&card_token.token)
+                        .to_string(),
+                ),
+            },
+        )
+        .unwrap_or_default(),
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
             pm_auth::retrieve_payment_method_from_auth_service(

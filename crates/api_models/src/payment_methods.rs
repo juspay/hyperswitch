@@ -585,7 +585,6 @@ pub enum PaymentMethodCreateData {
     BankDebit(BankDebitDetail),
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -601,7 +600,7 @@ pub enum BankDebitDetail {
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            BankDebitDetail::Ach {
+            Self::Ach {
                 account_number,
                 routing_number: _,
             } => account_number
@@ -618,7 +617,7 @@ impl BankDebitDetail {
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            BankDebitDetail::Ach {
+            Self::Ach {
                 account_number: _,
                 routing_number,
             } => routing_number

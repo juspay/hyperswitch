@@ -1,4 +1,4 @@
-use api_models::payment_methods::{self, BankDebitDetail};
+use api_models::payment_methods;
 #[cfg(feature = "v2")]
 use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
@@ -6,15 +6,14 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
-use crate::errors;
-use crate::payment_method_data;
+use crate::{errors, payment_method_data};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
-    BankDebit(BankDebitDetail),
+    BankDebit(payment_methods::BankDebitDetail),
 }
 
 impl PaymentMethodVaultingData {
@@ -49,6 +48,8 @@ impl PaymentMethodVaultingData {
             // When it is card number populated_payment_methods_data_and_get_payment_method_vaulting_data
             // will be called which will populated the payment methods data for card number and convert it to type CardDetail
             Self::CardNumber(card_number) => None,
+            // Raw payment methods data is not available for BankDebit
+            Self::BankDebit(_) => None,
         }
     }
 
@@ -60,6 +61,7 @@ impl PaymentMethodVaultingData {
         match self {
             Self::Card(card_details) => Ok(self.clone()),
             Self::NetworkToken(_) => Ok(self.clone()),
+            Self::BankDebit(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
@@ -138,7 +140,7 @@ impl PaymentMethodVaultingData {
 
             Self::BankDebit(bank_debit) => {
                 payment_method_data::PaymentMethodsData::BankDebit(match bank_debit {
-                    BankDebitDetail::Ach {
+                    payment_methods::BankDebitDetail::Ach {
                         account_number: _,
                         routing_number: _,
                     } => payment_method_data::BankDebitDetailsPaymentMethod::AchBankDebit {
@@ -195,7 +197,7 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
             Self::NetworkToken(network_token) => network_token.network_token.to_string(),
             Self::CardNumber(card_number) => card_number.to_string(),
             Self::BankDebit(bank_debit) => match bank_debit {
-                BankDebitDetail::Ach {
+                payment_methods::BankDebitDetail::Ach {
                     account_number,
                     routing_number: _,
                 } => account_number.clone().expose(),
@@ -225,6 +227,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
     fn from(item: payment_methods::PaymentMethodCreateData) -> Self {
         match item {
