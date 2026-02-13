@@ -695,6 +695,8 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
+    /// This function is to retrieve customer details. If the customer is deleted, it returns
+    /// customer details that contains the fields as Redacted
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
