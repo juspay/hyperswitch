@@ -473,7 +473,10 @@ fn build_rollout_keys(
         )
     } else {
         match payment_method {
-            common_enums::PaymentMethod::Wallet | common_enums::PaymentMethod::PayLater => {
+            common_enums::PaymentMethod::Wallet
+            | common_enums::PaymentMethod::BankRedirect
+            | common_enums::PaymentMethod::Voucher
+            | common_enums::PaymentMethod::PayLater => {
                 let payment_method_str = payment_method.to_string();
                 let payment_method_type_str = payment_method_type
                     .map(|pmt| pmt.to_string())
@@ -489,11 +492,9 @@ fn build_rollout_keys(
                 )
             }
             common_enums::PaymentMethod::Card
-            | common_enums::PaymentMethod::BankRedirect
             | common_enums::PaymentMethod::CardRedirect
             | common_enums::PaymentMethod::Upi
             | common_enums::PaymentMethod::Crypto
-            | common_enums::PaymentMethod::Voucher
             | common_enums::PaymentMethod::Reward
             | common_enums::PaymentMethod::BankDebit
             | common_enums::PaymentMethod::RealTimePayment
