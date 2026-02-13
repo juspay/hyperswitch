@@ -16,49 +16,125 @@ use crate::{
     payment_methods,
 };
 
+/// Request to decide the optimal gateway for routing a payment
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenRouterDecideGatewayRequest {
+    /// Payment information for routing decision
     pub payment_info: PaymentInfo,
-    #[schema(value_type = String)]
+
+    /// Profile ID of the merchant
+    #[schema(value_type = String, example = "pro_aMoPnEkgCVnh2WVsFe32")]
     pub merchant_id: id_type::ProfileId,
+
+    /// List of eligible gateways for routing consideration
+    #[schema(value_type = Option<Vec<String>>, example = "[\"stripe:mca_123\", \"adyen:mca_456\"]")]
     pub eligible_gateway_list: Option<Vec<String>>,
+
+    /// Algorithm to use for ranking and selecting gateways
+    #[schema(value_type = Option<RankingAlgorithm>, example = "SR_BASED_ROUTING")]
     pub ranking_algorithm: Option<RankingAlgorithm>,
+
+    /// Whether elimination logic is enabled for filtering gateways
+    #[schema(value_type = Option<bool>, example = true)]
     pub elimination_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DecideGatewayResponse {
+    /// The gateway decided by the routing engine
+    #[schema(value_type = Option<String>, example = "stripe:mca1")]
     pub decided_gateway: Option<String>,
+
+    /// Map of gateways with their priority scores
+    #[schema(value_type = Option<HashMap<String, f64>>, example = json!({"stripe:mca1": 1.0, "adyen:mca2": 1.0}))]
     pub gateway_priority_map: Option<serde_json::Value>,
+
+    /// Gateways organized by filter criteria
+    #[schema(value_type = Option<Object>)]
     pub filter_wise_gateways: Option<serde_json::Value>,
+
+    /// Tag identifying the priority logic used
+    #[schema(value_type = Option<String>)]
     pub priority_logic_tag: Option<String>,
+
+    /// The routing approach used for decision making
+    #[schema(value_type = Option<String>, example = "SR_SELECTION_V3_ROUTING")]
     pub routing_approach: Option<String>,
+
+    /// The gateway that was evaluated before the final decision
+    #[schema(value_type = Option<String>, example = "adyen:mca2")]
     pub gateway_before_evaluation: Option<String>,
+
+    /// Detailed output from the priority logic evaluation
+    #[schema(value_type = Option<PriorityLogicOutput>)]
     pub priority_logic_output: Option<PriorityLogicOutput>,
+
+    /// The reset approach applied during routing
+    #[schema(value_type = Option<String>, example = "NO_RESET")]
     pub reset_approach: Option<String>,
+
+    /// Dimensions used for routing decision (payment type, method, etc.)
+    #[schema(value_type = Option<String>, example = "ORDER_PAYMENT, UPI, upi")]
     pub routing_dimension: Option<String>,
+
+    /// Level at which routing dimension is evaluated
+    #[schema(value_type = Option<String>, example = "PM_LEVEL")]
     pub routing_dimension_level: Option<String>,
+
+    /// Indicates if routing decision was affected by scheduled outage
+    #[schema(value_type = Option<bool>, example = false)]
     pub is_scheduled_outage: Option<bool>,
+
+    /// Indicates if dynamic merchant gateway account is enabled
+    #[schema(value_type = Option<bool>, example = false)]
     pub is_dynamic_mga_enabled: Option<bool>,
+
+    /// Map of gateways to their MGA IDs
+    #[schema(value_type = Option<Object>)]
     pub gateway_mga_id_map: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PriorityLogicOutput {
+    /// Whether enforcement mode is enabled
+    #[schema(value_type = Option<bool>, example = false)]
     pub is_enforcement: Option<bool>,
+
+    /// List of gateways returned by the priority logic
+    #[schema(value_type = Option<Vec<String>>, example = json!(["stripe:mca1", "adyen:mca2"]))]
     pub gws: Option<Vec<String>>,
+
+    /// Tag identifying the priority logic used
+    #[schema(value_type = Option<String>)]
     pub priority_logic_tag: Option<String>,
+
+    /// Map of gateway reference IDs
+    #[schema(value_type = Option<Object>, example = json!({}))]
     pub gateway_reference_ids: Option<HashMap<String, String>>,
+
+    /// Primary logic details
+    #[schema(value_type = Option<PriorityLogicData>)]
     pub primary_logic: Option<PriorityLogicData>,
+
+    /// Fallback logic details
+    #[schema(value_type = Option<PriorityLogicData>)]
     pub fallback_logic: Option<PriorityLogicData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PriorityLogicData {
+    /// Name of the logic
+    #[schema(value_type = Option<String>, example = "success_rate_logic")]
     pub name: Option<String>,
+
+    /// Status of the logic execution
+    #[schema(value_type = Option<String>, example = "success")]
     pub status: Option<String>,
+
+    /// Reason for failure if the logic failed
+    #[schema(value_type = Option<String>, example = "insufficient_data")]
     pub failure_reason: Option<String>,
 }
 
@@ -73,23 +149,30 @@ pub enum RankingAlgorithm {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
-    #[schema(value_type = String)]
+    #[schema(value_type = String, example = "pay_12345")]
     pub payment_id: id_type::PaymentId,
+    #[schema(value_type = i64, example = "100")]
     pub amount: MinorUnit,
+    #[schema(value_type = String, example = "USD")]
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
     // preferredGateway: Option<ETG::Gateway>,
+    #[schema(value_type = String, example = "ORDER_PAYMENT")]
     pub payment_type: String,
+    #[schema(value_type = String, example = "metadata")]
     pub metadata: Option<String>,
     // internalMetadata: Option<String>,
     // isEmi: Option<bool>,
     // emiBank: Option<String>,
     // emiTenure: Option<i32>,
+    #[schema(value_type = String, example = "upi")]
     pub payment_method_type: String,
+    #[schema(value_type = String, example = "upi")]
     pub payment_method: PaymentMethod,
     // paymentSource: Option<String>,
     // authType: Option<ETCa::txn_card_info::AuthType>,
     // cardIssuerBankName: Option<String>,
+    #[schema(value_type = String, example = "424242")]
     pub card_isin: Option<String>,
     // cardType: Option<ETCa::card_type::CardType>,
     // cardSwitchProvider: Option<Secret<String>>,
@@ -198,19 +281,32 @@ pub struct UnifiedError {
     pub developer_message: String,
 }
 
+/// Request payload to update gateway performance score based on transaction outcome
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateScorePayload {
-    #[schema(value_type = String)]
+    /// Profile ID of the merchant
+    #[schema(value_type = String, example = "pro_aMoPnEkgCVnh2WVsFe32")]
     pub merchant_id: id_type::ProfileId,
+
+    /// Payment Gateway identifier
+    #[schema(value_type = String, example = "stripe:mca1")]
     pub gateway: String,
+
+    /// Transaction status for feedback scoring
+    #[schema(value_type = TxnStatus, example = "CHARGED")]
     pub status: TxnStatus,
-    #[schema(value_type = String)]
+
+    /// Payment ID associated with the transaction
+    #[schema(value_type = String, example = "pay_1234")]
     pub payment_id: id_type::PaymentId,
 }
 
+/// Response after updating gateway score
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct UpdateScoreResponse {
+    /// Status message indicating the result of the score update
+    #[schema(value_type = String, example = "Gateway score updated successfully")]
     pub message: String,
 }
 

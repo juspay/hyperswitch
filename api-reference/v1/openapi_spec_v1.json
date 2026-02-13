@@ -17544,24 +17544,43 @@
         "properties": {
           "decided_gateway": {
             "type": "string",
+            "description": "The gateway decided by the routing engine",
+            "example": "stripe:mca1",
             "nullable": true
           },
           "gateway_priority_map": {
+            "type": "object",
+            "description": "Map of gateways with their priority scores",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": {
+              "adyen:mca2": 1.0,
+              "stripe:mca1": 1.0
+            },
             "nullable": true
           },
           "filter_wise_gateways": {
+            "type": "object",
+            "description": "Gateways organized by filter criteria",
             "nullable": true
           },
           "priority_logic_tag": {
             "type": "string",
+            "description": "Tag identifying the priority logic used",
             "nullable": true
           },
           "routing_approach": {
             "type": "string",
+            "description": "The routing approach used for decision making",
+            "example": "SR_SELECTION_V3_ROUTING",
             "nullable": true
           },
           "gateway_before_evaluation": {
             "type": "string",
+            "description": "The gateway that was evaluated before the final decision",
+            "example": "adyen:mca2",
             "nullable": true
           },
           "priority_logic_output": {
@@ -17574,25 +17593,37 @@
           },
           "reset_approach": {
             "type": "string",
+            "description": "The reset approach applied during routing",
+            "example": "NO_RESET",
             "nullable": true
           },
           "routing_dimension": {
             "type": "string",
+            "description": "Dimensions used for routing decision (payment type, method, etc.)",
+            "example": "ORDER_PAYMENT, UPI, upi",
             "nullable": true
           },
           "routing_dimension_level": {
             "type": "string",
+            "description": "Level at which routing dimension is evaluated",
+            "example": "PM_LEVEL",
             "nullable": true
           },
           "is_scheduled_outage": {
             "type": "boolean",
+            "description": "Indicates if routing decision was affected by scheduled outage",
+            "example": false,
             "nullable": true
           },
           "is_dynamic_mga_enabled": {
             "type": "boolean",
+            "description": "Indicates if dynamic merchant gateway account is enabled",
+            "example": false,
             "nullable": true
           },
           "gateway_mga_id_map": {
+            "type": "object",
+            "description": "Map of gateways to their MGA IDs",
             "nullable": true
           }
         }
@@ -24091,6 +24122,7 @@
       },
       "OpenRouterDecideGatewayRequest": {
         "type": "object",
+        "description": "Request to decide the optimal gateway for routing a payment",
         "required": [
           "paymentInfo",
           "merchantId"
@@ -24100,13 +24132,17 @@
             "$ref": "#/components/schemas/PaymentInfo"
           },
           "merchantId": {
-            "type": "string"
+            "type": "string",
+            "description": "Profile ID of the merchant",
+            "example": "pro_aMoPnEkgCVnh2WVsFe32"
           },
           "eligibleGatewayList": {
             "type": "array",
             "items": {
               "type": "string"
             },
+            "description": "List of eligible gateways for routing consideration",
+            "example": "[\"stripe:mca_123\", \"adyen:mca_456\"]",
             "nullable": true
           },
           "rankingAlgorithm": {
@@ -24119,6 +24155,8 @@
           },
           "eliminationEnabled": {
             "type": "boolean",
+            "description": "Whether elimination logic is enabled for filtering gateways",
+            "example": true,
             "nullable": true
           }
         }
@@ -25341,35 +25379,44 @@
           "amount",
           "currency",
           "paymentType",
+          "metadata",
           "paymentMethodType",
-          "paymentMethod"
+          "paymentMethod",
+          "cardIsin"
         ],
         "properties": {
           "paymentId": {
-            "type": "string"
+            "type": "string",
+            "example": "pay_12345"
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "example": "100"
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "type": "string",
+            "example": "USD"
           },
           "paymentType": {
-            "type": "string"
+            "type": "string",
+            "example": "ORDER_PAYMENT"
           },
           "metadata": {
             "type": "string",
-            "nullable": true
+            "example": "metadata"
           },
           "paymentMethodType": {
-            "type": "string"
+            "type": "string",
+            "example": "upi"
           },
           "paymentMethod": {
-            "$ref": "#/components/schemas/PaymentMethod"
+            "type": "string",
+            "example": "upi"
           },
           "cardIsin": {
             "type": "string",
-            "nullable": true
+            "example": "424242"
           }
         }
       },
@@ -33740,14 +33787,20 @@
         "properties": {
           "name": {
             "type": "string",
+            "description": "Name of the logic",
+            "example": "success_rate_logic",
             "nullable": true
           },
           "status": {
             "type": "string",
+            "description": "Status of the logic execution",
+            "example": "success",
             "nullable": true
           },
           "failure_reason": {
             "type": "string",
+            "description": "Reason for failure if the logic failed",
+            "example": "insufficient_data",
             "nullable": true
           }
         }
@@ -33757,6 +33810,8 @@
         "properties": {
           "isEnforcement": {
             "type": "boolean",
+            "description": "Whether enforcement mode is enabled",
+            "example": false,
             "nullable": true
           },
           "gws": {
@@ -33764,17 +33819,21 @@
             "items": {
               "type": "string"
             },
+            "description": "List of gateways returned by the priority logic",
+            "example": [
+              "stripe:mca1",
+              "adyen:mca2"
+            ],
             "nullable": true
           },
           "priorityLogicTag": {
             "type": "string",
+            "description": "Tag identifying the priority logic used",
             "nullable": true
           },
           "gatewayReferenceIds": {
             "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
+            "description": "Map of gateway reference IDs",
             "nullable": true
           },
           "primaryLogic": {
@@ -38749,6 +38808,7 @@
       },
       "UpdateScorePayload": {
         "type": "object",
+        "description": "Request payload to update gateway performance score based on transaction outcome",
         "required": [
           "merchantId",
           "gateway",
@@ -38757,27 +38817,36 @@
         ],
         "properties": {
           "merchantId": {
-            "type": "string"
+            "type": "string",
+            "description": "Profile ID of the merchant",
+            "example": "pro_aMoPnEkgCVnh2WVsFe32"
           },
           "gateway": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment Gateway identifier",
+            "example": "stripe:mca1"
           },
           "status": {
             "$ref": "#/components/schemas/TxnStatus"
           },
           "paymentId": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment ID associated with the transaction",
+            "example": "pay_1234"
           }
         }
       },
       "UpdateScoreResponse": {
         "type": "object",
+        "description": "Response after updating gateway score",
         "required": [
           "message"
         ],
         "properties": {
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Status message indicating the result of the score update",
+            "example": "Gateway score updated successfully"
           }
         }
       },
