@@ -1,4 +1,6 @@
-use api_models::{customers::CustomerDocumentDetails, payment_methods::PaymentMethodId};
+use api_models::customers::CustomerDocumentDetails;
+#[cfg(feature = "v2")]
+use api_models::payment_methods::PaymentMethodId;
 use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
