@@ -9125,6 +9125,7 @@ pub fn get_proxy_connector_filters(
 ) -> RouterResult<HashSet<String>> {
     match recurring_details {
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors
