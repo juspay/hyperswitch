@@ -17,19 +17,23 @@ pub enum PaymentMethodVaultingData {
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
-    Card {
-        card_number: cards::CardNumber,
-        card_exp_month: masking::Secret<String>,
-        card_exp_year: masking::Secret<String>,
-    },
-    NetworkToken {
-        network_token: cards::NetworkToken,
-        network_token_exp_month: masking::Secret<String>,
-        network_token_exp_year: masking::Secret<String>,
-    },
-    CardNumber {
-        card_number: cards::CardNumber,
-    },
+    Card(FingerprintCardData),
+    NetworkToken(FingerprintNetworkTokenData),
+    CardNumber(cards::CardNumber),
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintCardData {
+    card_number: cards::CardNumber,
+    card_exp_month: masking::Secret<String>,
+    card_exp_year: masking::Secret<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintNetworkTokenData {
+    network_token: cards::NetworkToken,
+    network_token_exp_month: masking::Secret<String>,
+    network_token_exp_year: masking::Secret<String>,
 }
 
 impl PaymentMethodVaultingData {
@@ -152,19 +156,17 @@ impl PaymentMethodVaultingData {
     }
     pub fn to_fingerprint_data(&self) -> FingerprintData {
         match self {
-            Self::Card(card) => FingerprintData::Card {
+            Self::Card(card) => FingerprintData::Card(FingerprintCardData {
                 card_number: card.card_number.clone(),
                 card_exp_month: card.card_exp_month.clone(),
                 card_exp_year: card.card_exp_year.clone(),
-            },
-            Self::NetworkToken(nt) => FingerprintData::NetworkToken {
+            }),
+            Self::NetworkToken(nt) => FingerprintData::NetworkToken(FingerprintNetworkTokenData {
                 network_token: nt.network_token.clone(),
                 network_token_exp_month: nt.network_token_exp_month.clone(),
                 network_token_exp_year: nt.network_token_exp_year.clone(),
-            },
-            Self::CardNumber(card_number) => FingerprintData::CardNumber {
-                card_number: card_number.clone(),
-            },
+            }),
+            Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
         }
     }
 }
@@ -213,9 +215,9 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
 impl VaultingDataInterface for FingerprintData {
     fn get_vaulting_data_key(&self) -> String {
         match self {
-            Self::Card { card_number, .. } => card_number.to_string(),
-            Self::NetworkToken { network_token, .. } => network_token.to_string(),
-            Self::CardNumber { card_number } => card_number.to_string(),
+            Self::Card(card) => card.card_number.to_string(),
+            Self::NetworkToken(network_token) => network_token.network_token.to_string(),
+            Self::CardNumber(card_number) => card_number.to_string(),
         }
     }
 }
