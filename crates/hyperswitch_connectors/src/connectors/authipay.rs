@@ -298,12 +298,25 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Authipay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.approved_amount.total,
+            response.approved_amount.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -379,12 +392,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aut
             .response
             .parse_struct("authipay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.approved_amount.total,
+            response.approved_amount.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -469,12 +495,25 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Authipay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(response.approved_amount.total),
+            response.approved_amount.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -647,12 +686,25 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipa
             .response
             .parse_struct("authipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.approved_amount.total,
+            response.approved_amount.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -728,12 +780,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authipay 
             .response
             .parse_struct("authipay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.approved_amount.total,
+            response.approved_amount.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
