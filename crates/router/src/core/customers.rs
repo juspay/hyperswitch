@@ -23,8 +23,6 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::cards::create_encrypted_data;
 #[cfg(feature = "v2")]
-use crate::core::payment_methods::delete_payment_method;
-#[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method_by_record;
 #[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
