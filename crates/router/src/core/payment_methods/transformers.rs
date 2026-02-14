@@ -1383,7 +1383,8 @@ impl DomainPaymentMethodWrapper {
                                 connector_customer_id: None,
                             },
                         )
-                    }).collect();
+                    })
+                    .collect();
 
                 let mandate_reference =
                     hyperswitch_domain_models::mandates::CommonMandateReference {
