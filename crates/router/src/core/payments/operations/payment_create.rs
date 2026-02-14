@@ -852,16 +852,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                let (payment_method_reference, is_off_session_payment) = if req.off_session == Some(true) {
-                    match req.recurring_details.as_ref() {
-                        Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
-                            (Some(payment_method_id), true)
+                let (payment_method_reference, is_off_session_payment) =
+                    if req.off_session == Some(true) {
+                        match req.recurring_details.as_ref() {
+                            Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
+                                (Some(payment_method_id), true)
+                            }
+                            _ => (None, true),
                         }
-                        _ => (None, true),
-                    }
-                } else {
-                    (req.payment_token.as_ref(), false)
-                };
+                    } else {
+                        (req.payment_token.as_ref(), false)
+                    };
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
@@ -871,7 +872,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &profile_id,
                         payment_method_ref,
                         None, // CVC token data is not passed in create api
-                        is_off_session_payment
+                        is_off_session_payment,
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");

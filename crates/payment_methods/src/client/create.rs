@@ -162,7 +162,10 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
             metadata: request.metadata.clone(),
             customer_id: request.customer_id.clone(),
             payment_method_data,
-            billing: request.billing.as_ref().map(|billing| billing.clone().into()),
+            billing: request
+                .billing
+                .as_ref()
+                .map(|billing| billing.clone().into()),
             psp_tokenization: None,
             network_tokenization: request.network_tokenization.clone(),
             storage_type: request.storage_type,

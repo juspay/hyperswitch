@@ -751,7 +751,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_details_present,
         )?;
 
-                let payment_method_data_from_request =
+        let payment_method_data_from_request =
             request
                 .payment_method_data
                 .as_ref()
