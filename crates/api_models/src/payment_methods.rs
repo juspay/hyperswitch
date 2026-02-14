@@ -1205,6 +1205,7 @@ pub struct PaymentMethodResponse {
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
 
     /// Billing details of the payment method
+    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 }
 
