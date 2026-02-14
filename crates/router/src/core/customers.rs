@@ -24,6 +24,8 @@ use router_env::{instrument, tracing};
 use crate::core::payment_methods::cards::create_encrypted_data;
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::delete_payment_method_by_record;
 #[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
@@ -757,17 +759,9 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    let pm_id = PaymentMethodId {
-                        payment_method_id: pm.id.get_string_repr().to_string(),
-                    };
-                    Box::pin(delete_payment_method(
-                        state.clone(),
-                        pm_id,
-                        platform.clone(),
-                        profile.clone(),
-                    ))
-                    .await
-                    .switch()?;
+                    delete_payment_method_by_record(db, state, platform, &profile, pm)
+                        .await
+                        .switch()?;
                 }
             }
             Err(error) => {

@@ -4043,6 +4043,22 @@ pub async fn delete_payment_method_core(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
+    delete_payment_method_by_record(db, state, platform, profile, payment_method).await?;
+
+    let response = api::PaymentMethodDeleteResponse { id: pm_id };
+
+    Ok(response)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn delete_payment_method_by_record(
+    db: &dyn StorageInterface,
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<()> {
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
@@ -4065,9 +4081,7 @@ pub async fn delete_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
-    let response = api::PaymentMethodDeleteResponse { id: pm_id };
-
-    Ok(response)
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
