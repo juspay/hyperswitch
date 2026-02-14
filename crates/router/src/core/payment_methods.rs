@@ -1308,9 +1308,11 @@ async fn create_or_fetch_payment_method_core(
 
     let payment_method_data = bin_enriched_payment_method_data.data;
 
+    let fingerprint_data = payment_method_data.to_fingerprint_data();
+
     let fingerprint_id = vault::get_fingerprint_id_from_vault(
         state,
-        &payment_method_data,
+        &fingerprint_data,
         customer_id.get_string_repr().to_owned(),
     )
     .await
