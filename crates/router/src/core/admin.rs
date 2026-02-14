@@ -3792,6 +3792,47 @@ pub async fn delete_profile(
     Ok(service_api::ApplicationResponse::Json(delete_result))
 }
 
+#[cfg(feature = "v2")]
+pub async fn delete_profile_v2(
+    state: SessionState,
+    profile_id: id_type::ProfileId,
+    merchant_id: &id_type::MerchantId,
+    _key_store: domain::MerchantKeyStore,
+) -> RouterResponse<api::ProfileDeleteResponse> {
+    let db = state.store.as_ref();
+
+    // First, check if the profile exists
+    let key_manager_state = &(&state).into();
+    let _profile = db
+        .find_business_profile_by_merchant_id_profile_id(
+            key_manager_state,
+            &_key_store,
+            merchant_id,
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    // SOFT DELETE IMPLEMENTATION:
+    // For now, we'll perform a hard delete, but this can be changed to soft delete
+    // similar to merchant deletion if needed for audit trails
+    let is_deleted = db
+        .delete_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let response = api::ProfileDeleteResponse {
+        profile_id,
+        deleted: is_deleted,
+    };
+
+    Ok(service_api::ApplicationResponse::Json(response))
+}
+
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 trait ProfileUpdateBridge {
