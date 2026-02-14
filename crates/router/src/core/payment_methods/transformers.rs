@@ -1212,7 +1212,7 @@ impl DomainPaymentMethodWrapper {
             .clone()
             .async_map(|address| {
                 create_encrypted_data(
-                    &key_manager_state,
+                    key_manager_state,
                     platform.get_provider().get_key_store(),
                     address.clone(),
                 )
@@ -1230,8 +1230,8 @@ impl DomainPaymentMethodWrapper {
                     hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
                     .iter()
-                    .filter_map(|token_detail| {
-                        Some((
+                    .map(|token_detail| {
+                        (
                             token_detail.connector_id.clone(),
                             hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
@@ -1255,7 +1255,7 @@ impl DomainPaymentMethodWrapper {
                                     .clone(),
                                 connector_customer_id: None,
                             },
-                        ))
+                        )
                     })
                     .collect();
 
@@ -1339,7 +1339,7 @@ impl DomainPaymentMethodWrapper {
             .clone()
             .async_map(|address| {
                 create_encrypted_data(
-                    &key_manager_state,
+                    key_manager_state,
                     platform.get_provider().get_key_store(),
                     address.clone(),
                 )
@@ -1357,8 +1357,8 @@ impl DomainPaymentMethodWrapper {
                     hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
                     .iter()
-                    .filter_map(|token_detail| {
-                        Some((
+                    .map(|token_detail| {
+                        (
                             token_detail.connector_id.clone(),
                             hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
@@ -1382,9 +1382,8 @@ impl DomainPaymentMethodWrapper {
                                     .clone(),
                                 connector_customer_id: None,
                             },
-                        ))
-                    })
-                    .collect();
+                        )
+                    }).collect();
 
                 let mandate_reference =
                     hyperswitch_domain_models::mandates::CommonMandateReference {
@@ -1590,7 +1589,7 @@ pub async fn fetch_payment_method_from_modular_service(
     let payment_method = DomainPaymentMethodWrapper::transform_pm_mod_retrieve_response(
         &pm_response,
         &state.into(),
-        &platform,
+        platform,
     )
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
