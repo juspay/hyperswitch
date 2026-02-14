@@ -1,5 +1,8 @@
 use common_enums::enums;
-use common_utils::{ext_traits::OptionExt as _, types::SemanticVersion};
+use common_utils::{
+    ext_traits::OptionExt as _,
+    types::{MinorUnit, SemanticVersion},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
@@ -22,14 +25,14 @@ use crate::{
 
 //TODO: Fill the struct with respective fields
 pub struct NetceteraRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for NetceteraRouterData<T> {
+impl<T> TryFrom<(&CurrencyUnit, enums::Currency, MinorUnit, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&CurrencyUnit, enums::Currency, i64, T),
+        (_currency_unit, _currency, amount, item): (&CurrencyUnit, enums::Currency, MinorUnit, T),
     ) -> Result<Self, Self::Error> {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
@@ -39,9 +42,9 @@ impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for NetceteraRouterDat
     }
 }
 
-impl<T> TryFrom<(i64, T)> for NetceteraRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from((amount, router_data): (i64, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
