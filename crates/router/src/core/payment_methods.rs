@@ -4000,7 +4000,10 @@ pub async fn delete_payment_method(
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-    let response = delete_payment_method_core(&state, pm_id, &platform, &profile).await?;
+    let response = Box::pin(delete_payment_method_core(
+        &state, pm_id, &platform, &profile,
+    ))
+    .await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -4528,9 +4531,14 @@ pub async fn payment_methods_session_delete_payment_method(
                 "Failed to retrieve payment method id from payment method token data",
             )?;
 
-    delete_payment_method_core(&state, payment_method_id, &platform, &profile)
-        .await
-        .attach_printable("Failed to delete saved payment method")?;
+    Box::pin(delete_payment_method_core(
+        &state,
+        payment_method_id,
+        &platform,
+        &profile,
+    ))
+    .await
+    .attach_printable("Failed to delete saved payment method")?;
 
     Ok(services::ApplicationResponse::Json(
         payment_methods::PaymentMethodDeleteSessionResponse {
