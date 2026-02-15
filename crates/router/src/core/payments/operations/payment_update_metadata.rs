@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
@@ -10,6 +11,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -43,6 +45,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>,
     > {
@@ -71,6 +74,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 storage_enums::IntentStatus::PartiallyCaptured,
                 storage_enums::IntentStatus::PartiallyCapturedAndCapturable,
                 storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresCustomerAction,
             ],
             "update_metadata",
         )?;
@@ -104,13 +108,37 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let merged_metadata = payment_intent
-            .merge_metadata(request.metadata.clone().expose())
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Metadata should be an object and contain at least 1 key".to_owned(),
-            })?;
+        if let Some(metadata) = request.metadata.as_ref().map(|data| data.clone().expose()) {
+            let merged_metadata = payment_intent.merge_metadata(metadata).change_context(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Metadata should be an object and contain at least 1 key".to_owned(),
+                },
+            )?;
 
-        payment_intent.metadata = Some(merged_metadata);
+            payment_intent.metadata = Some(merged_metadata);
+        }
+
+        if let Some(feature_metadata) = request.feature_metadata.clone() {
+            let existing_feature_metadata = payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(|value| {
+                    value
+                        .clone()
+                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse feature metadata from payment intent")
+                })
+                .transpose()?;
+
+            let merged_feature_metadata = feature_metadata.clone().merge(existing_feature_metadata);
+
+            payment_intent.feature_metadata = Some(
+                serde_json::to_value(merged_feature_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize feature metadata")?,
+            );
+        }
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -118,7 +146,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
@@ -185,6 +212,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (
             PaymentUpdateMetadataOperation<'a, F>,
@@ -240,16 +268,40 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _state: &'b SessionState,
+        state: &'b SessionState,
         _req_state: ReqState,
-        _processor: &domain::Processor,
-        payment_data: PaymentData<F>,
+        processor: &domain::Processor,
+        mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateMetadataOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
+        let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(masking::Secret::new);
+
+        payment_data.payment_intent = state
+            .store
+            .update_payment_intent(
+                payment_data.payment_intent,
+                storage::PaymentIntentUpdate::MetadataUpdate {
+                    metadata,
+                    feature_metadata,
+                    updated_by: storage_scheme.to_string(),
+                },
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Failed to Update Payment Intent In Update Metadata Flow")?;
         Ok((Box::new(self), payment_data))
     }
 }
@@ -266,6 +318,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
         PaymentUpdateMetadataOperation<'b, F>,
         operations::ValidateResult,
     )> {
+        request.validate().change_context(
+            payment_methods::errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "metadata/feature_metadata",
+            },
+        )?;
         //payment id is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
 

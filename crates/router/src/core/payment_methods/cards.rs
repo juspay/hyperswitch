@@ -78,6 +78,7 @@ use crate::{
     consts as router_consts,
     core::{
         configs,
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -141,6 +142,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
+        payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -202,6 +204,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                     created_by: None,
                     last_modified_by: None,
+                    customer_details: payment_method_customer_details_encrypted,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -510,6 +513,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
+            None,
         )
         .await
     }
@@ -1427,6 +1431,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
+                None,
             )
             .await?;
 
@@ -4180,6 +4185,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&id_type::CustomerId>,
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {
@@ -4203,6 +4210,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
+            dimensions,
         ))
         .await
     } else {
@@ -4222,6 +4230,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
+                    dimensions,
                 ))
                 .await
             }
@@ -4243,6 +4252,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
+    dimensions: DimensionsWithMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
@@ -4265,29 +4275,10 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = configs::get_config_bool(
-        state,
-        router_consts::superposition::REQUIRES_CVV, // superposition key
-        &platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_requires_cvv_key(), // database key
-        Some(
-            external_services::superposition::ConfigContext::new().with(
-                "merchant_id",
-                platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .get_string_repr(),
-            ),
-        ), // context
-        true,                                       // default value
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch requires_cvv config")?;
+    // Get requires_cvv using type-safe dimensions config
+    let requires_cvv = dimensions
+        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref())
+        .await;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
@@ -5276,14 +5267,21 @@ pub async fn execute_card_tokenization(
     let domain_card = optional_card
         .get_required_value("card")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
     let network_token_details = executor
-        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
     let builder = builder.set_token_details(&network_token_details);
 
     // Store card and token in locker
     let store_card_and_token_resp = executor
-        .store_card_and_token_in_locker(&network_token_details, &domain_card, &customer.id)
+        .store_card_and_token_in_locker(&network_token_details, &domain_card, customer_id)
         .await?;
     let builder = builder.set_stored_card_response(&store_card_and_token_resp);
     let builder = builder.set_stored_token_response(&store_card_and_token_resp);
@@ -5294,7 +5292,7 @@ pub async fn execute_card_tokenization(
             &store_card_and_token_resp,
             &network_token_details,
             &domain_card,
-            &customer.id,
+            customer_id,
         )
         .await?;
     let builder = builder.set_payment_method_response(&payment_method);
@@ -5320,10 +5318,18 @@ pub async fn execute_payment_method_tokenization(
         .await?;
     let builder = builder.set_validate_result(&customer);
 
+    let customer_id =
+        customer
+            .id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
+
     // Fetch card from locker
     let card_details = get_card_from_locker(
         executor.state,
-        &customer.id,
+        customer_id,
         executor.merchant_account.get_id(),
         &locker_id,
     )
@@ -5346,7 +5352,7 @@ pub async fn execute_payment_method_tokenization(
     let (optional_card, optional_cvc) = builder.get_optional_card_and_cvc();
     let domain_card = optional_card.get_required_value("card")?;
     let network_token_details = executor
-        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .tokenize_card(customer_id, &domain_card, optional_cvc)
         .await?;
     let builder = builder.set_token_details(&network_token_details);
 
@@ -5354,7 +5360,7 @@ pub async fn execute_payment_method_tokenization(
     let store_token_resp = executor
         .store_network_token_in_locker(
             &network_token_details,
-            &customer.id,
+            customer_id,
             card_details.name_on_card.clone(),
             card_details.nick_name.clone().map(Secret::new),
         )

@@ -102,14 +102,22 @@ pub struct PaymentMethodCreate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct PaymentMethodRetrieveRequest {
+    #[serde(default)]
+    pub fetch_raw_detail: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -509,7 +517,7 @@ pub struct PaymentMethodUpdate {
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
@@ -529,6 +537,12 @@ impl PaymentMethodUpdate {
             }
             _ => false,
         }
+    }
+
+    pub fn is_payment_method_update_required(&self) -> bool {
+        self.is_payment_method_metadata_update()
+            || self.connector_token_details.is_some()
+            || self.network_transaction_id.is_some()
     }
 }
 
@@ -958,6 +972,14 @@ pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum RawPaymentMethodData {
+    Card(CardDetail),
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
@@ -1177,6 +1199,14 @@ pub struct PaymentMethodResponse {
     /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
     pub network_transaction_id: Option<masking::Secret<String>>,
+
+    /// The raw data associated with the payment method
+    #[schema(value_type = RawPaymentMethodData)]
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
+
+    /// Billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
 }
 
 #[cfg(feature = "v2")]
@@ -1209,6 +1239,15 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+}
+
+impl PaymentMethodsData {
+    pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
+        match self {
+            Self::Card(card_details) => Some(card_details.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -3531,8 +3570,8 @@ pub struct PaymentMethodSessionConfirmRequest {
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType, example = "google_pay")]
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
 
     /// The payment instrument data to be used for the payment
     #[schema(value_type = PaymentMethodDataRequest)]

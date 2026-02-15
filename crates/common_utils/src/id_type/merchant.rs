@@ -232,6 +232,10 @@ impl MerchantId {
             ),
         }
     }
+    /// get_authentication_service_eligible_key
+    pub fn get_authentication_service_eligible_key(&self) -> String {
+        format!("authentication_service_eligible_{}", self.get_string_repr())
+    }
     /// allow payment update via client auth default should be false
     pub fn get_payment_update_enabled_for_client_auth_key(&self) -> String {
         format!(
@@ -256,5 +260,13 @@ impl MerchantId {
     /// Get threeds_routing_region key for merchant
     pub fn get_threeds_routing_region_uas_key(&self) -> String {
         format!("threeds_routing_region_uas_{}", self.get_string_repr())
+    }
+
+    /// fetch should_return_raw_payment_method_details key for organization
+    pub fn should_return_raw_payment_method_details_key(&self) -> String {
+        format!(
+            "should_return_raw_payment_method_details_{}",
+            self.get_string_repr()
+        )
     }
 }

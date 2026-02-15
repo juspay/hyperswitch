@@ -706,6 +706,7 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
@@ -1334,6 +1335,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -3606,7 +3608,7 @@ pub struct PaypalSourceVerificationRequest {
     pub transmission_sig: String,
     pub auth_algo: String,
     pub webhook_id: String,
-    pub webhook_event: serde_json::Value,
+    pub webhook_event: Secret<serde_json::Value>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -3879,7 +3881,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
                 .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)
                 .attach_printable("Could not convert secret to UTF-8")?,
-            webhook_event: req_body,
+            webhook_event: Secret::new(req_body),
         })
     }
 }

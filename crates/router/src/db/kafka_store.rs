@@ -532,6 +532,19 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
+        self.diesel_store
+            .find_customer_by_global_id_merchant_id(id, merchant_id, key_store, storage_scheme)
+            .await
+    }
+
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
@@ -3767,25 +3780,28 @@ impl AuthorizationInterface for KafkaStore {
         self.diesel_store.insert_authorization(authorization).await
     }
 
-    async fn find_all_authorizations_by_merchant_id_payment_id(
+    async fn find_all_authorizations_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         self.diesel_store
-            .find_all_authorizations_by_merchant_id_payment_id(merchant_id, payment_id)
+            .find_all_authorizations_by_processor_merchant_id_payment_id(
+                processor_merchant_id,
+                payment_id,
+            )
             .await
     }
 
-    async fn update_authorization_by_merchant_id_authorization_id(
+    async fn update_authorization_by_processor_merchant_id_authorization_id(
         &self,
-        merchant_id: id_type::MerchantId,
+        processor_merchant_id: id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         self.diesel_store
-            .update_authorization_by_merchant_id_authorization_id(
-                merchant_id,
+            .update_authorization_by_processor_merchant_id_authorization_id(
+                processor_merchant_id,
                 authorization_id,
                 authorization,
             )
