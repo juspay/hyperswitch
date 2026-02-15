@@ -77,6 +77,7 @@ impl From<api_models::relay::RelayData> for RelayData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             api_models::relay::RelayData::IncrementalAuthorization(
@@ -87,8 +88,8 @@ impl From<api_models::relay::RelayData> for RelayData {
                 currency: relay_incremental_authorization_request.currency,
             }),
             api_models::relay::RelayData::Void(relay_void_request) => Self::Void(RelayVoidData {
-                amount: relay_void_request.amount,
-                currency: relay_void_request.currency,
+                void_amount: relay_void_request.void_amount,
+                void_currency: relay_void_request.void_currency,
                 cancellation_reason: relay_void_request.cancellation_reason,
             }),
         }
@@ -111,6 +112,7 @@ impl From<api_models::relay::RelayCaptureRequestData> for RelayCaptureData {
             authorized_amount: relay.authorized_amount,
             amount_to_capture: relay.amount_to_capture,
             currency: relay.currency,
+            capture_method: relay.capture_method,
         }
     }
 }
@@ -130,8 +132,8 @@ impl From<api_models::relay::RelayIncrementalAuthorizationRequestData>
 impl From<api_models::relay::RelayVoidRequestData> for RelayVoidData {
     fn from(relay: api_models::relay::RelayVoidRequestData) -> Self {
         Self {
-            amount: relay.amount,
-            currency: relay.currency,
+            void_amount: relay.void_amount,
+            void_currency: relay.void_currency,
             cancellation_reason: relay.cancellation_reason,
         }
     }
@@ -286,6 +288,7 @@ impl From<RelayData> for api_models::relay::RelayData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
@@ -300,8 +303,8 @@ impl From<RelayData> for api_models::relay::RelayData {
             }
             RelayData::Void(relay_void_request) => {
                 Self::Void(api_models::relay::RelayVoidRequestData {
-                    amount: relay_void_request.amount,
-                    currency: relay_void_request.currency,
+                    void_amount: relay_void_request.void_amount,
+                    void_currency: relay_void_request.void_currency,
                     cancellation_reason: relay_void_request.cancellation_reason,
                 })
             }
@@ -334,6 +337,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
@@ -348,8 +352,8 @@ impl From<Relay> for api_models::relay::RelayResponse {
             }
             RelayData::Void(relay_void_request) => {
                 api_models::relay::RelayData::Void(api_models::relay::RelayVoidRequestData {
-                    amount: relay_void_request.amount,
-                    currency: relay_void_request.currency,
+                    void_amount: relay_void_request.void_amount,
+                    void_currency: relay_void_request.void_currency,
                     cancellation_reason: relay_void_request.cancellation_reason,
                 })
             }
@@ -415,10 +419,10 @@ impl RelayData {
     pub fn get_void_data(&self) -> CustomResult<RelayVoidData, ApiErrorResponse> {
         match self.clone() {
             Self::Void(void_data) => Ok(void_data),
-            Self::Refund(_) | Self::Capture(_) | Self::IncrementalAuthorization(_) => Err(
-                ApiErrorResponse::InternalServerError,
-            )
-            .attach_printable("relay data does not contain relay incremental authorization data"),
+            Self::Refund(_) | Self::Capture(_) | Self::IncrementalAuthorization(_) => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("relay data does not contain relay void data")
+            }
         }
     }
 }
@@ -435,6 +439,7 @@ pub struct RelayCaptureData {
     pub authorized_amount: MinorUnit,
     pub amount_to_capture: MinorUnit,
     pub currency: enums::Currency,
+    pub capture_method: Option<enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -446,8 +451,8 @@ pub struct RelayIncrementalAuthorizationData {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayVoidData {
-    pub amount: Option<MinorUnit>,
-    pub currency: Option<enums::Currency>,
+    pub void_amount: Option<MinorUnit>,
+    pub void_currency: Option<enums::Currency>,
     pub cancellation_reason: Option<String>,
 }
 

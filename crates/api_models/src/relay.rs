@@ -54,6 +54,9 @@ pub struct RelayCaptureRequestData {
     /// The currency in which the amount is being captured
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
+    /// type of capture for the relay
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -73,10 +76,10 @@ pub struct RelayIncrementalAuthorizationRequestData {
 pub struct RelayVoidRequestData {
     /// The amount of the transaction that is being voided
     #[schema(value_type = i64 , example = 6540)]
-    pub amount: Option<MinorUnit>,
+    pub void_amount: Option<MinorUnit>,
     /// The currency in which the amount is being voided
     #[schema(value_type = Option<Currency>)]
-    pub currency: Option<api_enums::Currency>,
+    pub void_currency: Option<api_enums::Currency>,
     /// The cancellation reason for voiding the transaction
     #[schema(example = "Requested by merchant")]
     pub cancellation_reason: Option<String>,

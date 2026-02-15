@@ -230,7 +230,12 @@ pub async fn construct_relay_capture_router_data(
             currency: relay_capture_data.currency,
             connector_transaction_id: relay_record.connector_resource_id.clone(),
             payment_amount: relay_capture_data.authorized_amount.get_amount_as_i64(),
-            multiple_capture_data: None,
+            multiple_capture_data: Some(
+                hyperswitch_domain_models::router_request_types::MultipleCaptureRequestData {
+                    capture_sequence: 1,
+                    capture_reference: relay_id_string.clone(),
+                },
+            ),
             connector_meta: None,
             browser_info: None,
             metadata: None,
@@ -480,9 +485,9 @@ pub async fn construct_relay_void_router_data(
         minor_amount_captured: None,
         request: hyperswitch_domain_models::router_request_types::PaymentsCancelData {
             amount: relay_void_data
-                .amount
+                .void_amount
                 .map(|value| value.get_amount_as_i64()),
-            currency: relay_void_data.currency,
+            currency: relay_void_data.void_currency,
             connector_transaction_id: relay_record.connector_resource_id.clone(),
             cancellation_reason: relay_void_data.cancellation_reason,
             connector_meta: None,
