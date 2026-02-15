@@ -1086,6 +1086,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
+    if: ${{ github.event_name == 'pull_request' && needs.resolve-s-test-ready.outputs.s_test_ready == 'true' }}
     needs: resolve-s-test-ready
     runs-on: hyperswitch-runners
     permissions:
