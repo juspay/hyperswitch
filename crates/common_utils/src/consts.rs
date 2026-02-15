@@ -93,6 +93,9 @@ pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// General purpose base64 engine standard nopad
+pub const BASE64_ENGINE_STD_NO_PAD: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::STANDARD_NO_PAD;
 
 /// URL Safe base64 engine
 pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
@@ -163,8 +166,14 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 
+/// Sub-flow name
+pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
+
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
+
+/// Config Override Header for UCS
+pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
@@ -217,3 +226,9 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
+
+/// Length of CPF document number, used in Brazil commonly
+pub const CPF_LENGTH: usize = 11;
+
+/// Length of CNPJ document number, used in Brazil commonly
+pub const CNPJ_LENGTH: usize = 14;

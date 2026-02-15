@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
@@ -11,6 +11,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -41,9 +42,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsUpdateMetadataRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>,
     > {
@@ -52,15 +54,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let key_manager_state: &KeyManagerState = &state.into();
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                merchant_id,
-                merchant_context.get_merchant_key_store(),
+                processor_merchant_id,
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -74,16 +74,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 storage_enums::IntentStatus::PartiallyCaptured,
                 storage_enums::IntentStatus::PartiallyCapturedAndCapturable,
                 storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresCustomerAction,
             ],
             "update_metadata",
         )?;
 
         let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                merchant_id,
+                processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -98,8 +100,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
 
         let business_profile = db
             .find_business_profile_by_profile_id(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 profile_id,
             )
             .await
@@ -107,13 +108,37 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let merged_metadata = payment_intent
-            .merge_metadata(request.metadata.clone().expose())
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Metadata should be an object and contain at least 1 key".to_owned(),
-            })?;
+        if let Some(metadata) = request.metadata.as_ref().map(|data| data.clone().expose()) {
+            let merged_metadata = payment_intent.merge_metadata(metadata).change_context(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Metadata should be an object and contain at least 1 key".to_owned(),
+                },
+            )?;
 
-        payment_intent.metadata = Some(merged_metadata);
+            payment_intent.metadata = Some(merged_metadata);
+        }
+
+        if let Some(feature_metadata) = request.feature_metadata.clone() {
+            let existing_feature_metadata = payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(|value| {
+                    value
+                        .clone()
+                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse feature metadata from payment intent")
+                })
+                .transpose()?;
+
+            let merged_feature_metadata = feature_metadata.clone().merge(existing_feature_metadata);
+
+            payment_intent.feature_metadata = Some(
+                serde_json::to_value(merged_feature_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize feature metadata")?,
+            );
+        }
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -121,7 +146,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
@@ -144,7 +168,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
-            ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details: None,
@@ -188,8 +211,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (
             PaymentUpdateMetadataOperation<'a, F>,
@@ -206,8 +229,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _state: &'a SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -220,7 +242,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         state: &SessionState,
         _request: &api::PaymentsUpdateMetadataRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -232,7 +254,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -246,19 +268,40 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _state: &'b SessionState,
+        state: &'b SessionState,
         _req_state: ReqState,
-        payment_data: PaymentData<F>,
-        _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
+        processor: &domain::Processor,
+        mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateMetadataOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
+        let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(masking::Secret::new);
+
+        payment_data.payment_intent = state
+            .store
+            .update_payment_intent(
+                payment_data.payment_intent,
+                storage::PaymentIntentUpdate::MetadataUpdate {
+                    metadata,
+                    feature_metadata,
+                    updated_by: storage_scheme.to_string(),
+                },
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Failed to Update Payment Intent In Update Metadata Flow")?;
         Ok((Box::new(self), payment_data))
     }
 }
@@ -270,20 +313,25 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsUpdateMetadataRequest,
-        merchant_context: &'a domain::MerchantContext,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(
         PaymentUpdateMetadataOperation<'b, F>,
         operations::ValidateResult,
     )> {
+        request.validate().change_context(
+            payment_methods::errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "metadata/feature_metadata",
+            },
+        )?;
         //payment id is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))

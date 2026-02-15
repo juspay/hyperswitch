@@ -1,30 +1,29 @@
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
-use common_utils::{id_type, types::keymanager::KeyManagerState};
+use common_utils::id_type;
 use diesel_models::enums as storage_enums;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-use hyperswitch_domain_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate,
+use hyperswitch_domain_models::behaviour::Conversion;
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore,
+    payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
 
 use super::MockDb;
 use crate::errors::StorageError;
-#[cfg(feature = "v1")]
-use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
     type Error = StorageError;
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+    async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,
         _payment_id: &common_utils::id_type::PaymentId,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _attempt_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -34,7 +33,7 @@ impl PaymentAttemptInterface for MockDb {
     async fn get_filters_for_payments(
         &self,
         _pi: &[hyperswitch_domain_models::payments::PaymentIntent],
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<
         hyperswitch_domain_models::payments::payment_attempt::PaymentListFilters,
@@ -46,7 +45,7 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _active_attempt_ids: &[String],
         _connector: Option<Vec<api_models::enums::Connector>>,
         _payment_method: Option<Vec<common_enums::PaymentMethod>>,
@@ -77,11 +76,12 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         _attempt_id: &str,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -90,7 +90,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _attempt_id: &id_type::GlobalAttemptId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -102,7 +101,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _id: &id_type::GlobalPaymentId,
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: common_enums::MerchantStorageScheme,
@@ -112,22 +110,24 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
         &self,
         _preprocessing_id: &str,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+    async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _connector_txn_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -136,7 +136,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _profile_id: &id_type::ProfileId,
         _connector_transaction_id: &str,
@@ -147,11 +146,12 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_attempts_by_merchant_id_payment_id(
+    async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _payment_id: &common_utils::id_type::PaymentId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -161,11 +161,11 @@ impl PaymentAttemptInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_payment_attempt(
         &self,
-        payment_attempt: PaymentAttemptNew,
+        payment_attempt: PaymentAttempt,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
-        let time = common_utils::date_time::now();
         let payment_attempt = PaymentAttempt {
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
@@ -184,8 +184,8 @@ impl PaymentAttemptInterface for MockDb {
             capture_on: payment_attempt.capture_on,
             confirm: payment_attempt.confirm,
             authentication_type: payment_attempt.authentication_type,
-            created_at: payment_attempt.created_at.unwrap_or(time),
-            modified_at: payment_attempt.modified_at.unwrap_or(time),
+            created_at: payment_attempt.created_at,
+            modified_at: payment_attempt.modified_at,
             last_synced: payment_attempt.last_synced,
             cancellation_reason: payment_attempt.cancellation_reason,
             amount_to_capture: payment_attempt.amount_to_capture,
@@ -246,6 +246,9 @@ impl PaymentAttemptInterface for MockDb {
             is_stored_credential: payment_attempt.is_stored_credential,
             authorized_amount: payment_attempt.authorized_amount,
             tokenization: payment_attempt.tokenization,
+            encrypted_payment_method_data: payment_attempt.encrypted_payment_method_data,
+            error_details: payment_attempt.error_details,
+            retry_type: payment_attempt.retry_type,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -255,7 +258,6 @@ impl PaymentAttemptInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_payment_attempt(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _payment_attempt: PaymentAttempt,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -272,6 +274,7 @@ impl PaymentAttemptInterface for MockDb {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
 
@@ -279,12 +282,24 @@ impl PaymentAttemptInterface for MockDb {
             .iter_mut()
             .find(|item| item.attempt_id == this.attempt_id)
             .unwrap();
-
-        *item = PaymentAttempt::from_storage_model(
-            payment_attempt
-                .to_storage_model()
-                .apply_changeset(this.to_storage_model()),
-        );
+        let diesel_payment_attempt = this
+            .convert()
+            .await
+            .change_context(StorageError::EncryptionError)?;
+        let updated_diesel_payment_attempt = payment_attempt
+            .to_storage_model()
+            .apply_changeset(diesel_payment_attempt);
+        let key_manager_state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
+        *item = PaymentAttempt::convert_back(
+            key_manager_state,
+            updated_diesel_payment_attempt,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)?;
 
         Ok(item.clone())
     }
@@ -292,7 +307,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _this: PaymentAttempt,
         _payment_attempt: PaymentAttemptUpdate,
@@ -303,12 +317,13 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
         &self,
         _connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         _payment_id: &common_utils::id_type::PaymentId,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -317,11 +332,12 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
-    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let payment_attempts = self.payment_attempts.lock().await;
 
@@ -329,7 +345,9 @@ impl PaymentAttemptInterface for MockDb {
             .iter()
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
-                    && payment_attempt.merchant_id.eq(merchant_id)
+                    && payment_attempt
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
             })
             .cloned()
             .unwrap())
@@ -337,11 +355,12 @@ impl PaymentAttemptInterface for MockDb {
 
     #[cfg(feature = "v1")]
     #[allow(clippy::unwrap_used)]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let payment_attempts = self.payment_attempts.lock().await;
 
@@ -349,7 +368,9 @@ impl PaymentAttemptInterface for MockDb {
             .iter()
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
-                    && payment_attempt.merchant_id.eq(merchant_id)
+                    && payment_attempt
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
                     && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
                         || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })
@@ -361,7 +382,6 @@ impl PaymentAttemptInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         _storage_scheme: storage_enums::MerchantStorageScheme,

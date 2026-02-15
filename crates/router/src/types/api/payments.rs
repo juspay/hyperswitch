@@ -147,6 +147,7 @@ mod payments_test {
             card_network: Some(api_models::enums::CardNetwork::Visa),
             bank_code: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_type: None,
             nick_name: Some(masking::Secret::new("nick_name".into())),
         }

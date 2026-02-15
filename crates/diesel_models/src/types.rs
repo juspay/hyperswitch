@@ -71,6 +71,26 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+    /// Additional information related to pix like expiry time etc for QR Code payments
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct BoletoAdditionalDetails {
+    /// Due Date for the Boleto
+    #[serde(with = "common_utils::custom_serde::date_only_optional")]
+    pub due_date: Option<time::PrimitiveDateTime>,
+    // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
+    // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
+    // It is a number which shows a contract between merchant and bank
+    pub covenant_code: Option<Secret<String>>,
+    /// Pix identification details
+    pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
 #[cfg(feature = "v2")]
@@ -112,6 +132,39 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// The system that the gateway is integrated with, e.g., `Direct`(through hyperswitch), `UnifiedConnectorService`(through ucs), etc.
     pub gateway_system: Option<common_enums::GatewaySystem>,
+    /// Additional information related to pix like expiry time etc for QR Code payments
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub enum PixAdditionalDetails {
+    #[serde(rename = "immediate")]
+    Immediate(ImmediateExpirationTime),
+    #[serde(rename = "scheduled")]
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    pub time: u32,
+    /// Pix identification details
+    pub pix_key: Option<common_enums::enums::PixKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    pub date: time::PrimitiveDateTime,
+    /// Days after expiration date for which the QR code remains valid
+    pub validity_after_expiration: Option<u32>,
+    /// Pix identification details
+    pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -133,10 +186,10 @@ pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
     /// The date of the first payment
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_start_date: Option<time::PrimitiveDateTime>,
     /// The date of the final payment
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_end_date: Option<time::PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,

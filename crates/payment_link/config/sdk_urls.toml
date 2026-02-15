@@ -1,0 +1,23 @@
+# SDK URL Configuration for Payment Link WASM Builds
+# 
+# Used ONLY for WASM builds - read at compile-time by build.rs and embedded into the WASM binary.
+# Router uses different SDK URLs from config/*.toml files (can be overridden by env vars at runtime).
+#
+# We don't use router's configs because build.rs cannot replicate router's complex runtime 
+# configuration resolution (TOML + env var overrides). This simplified config only needs 
+# the ENVIRONMENT env var to select the appropriate SDK URL.
+#
+# Usage: ENVIRONMENT=integ wasm-pack build --features wasm --target web
+# Environments must match router_env::Env enum: development, integ, sandbox, production
+
+[development]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+
+[integ]
+sdk_url = "https://dev.hyperswitch.io/v0/HyperLoader.js"
+
+[sandbox]
+sdk_url = "https://beta.hyperswitch.io/v1/HyperLoader.js"
+
+[production]
+sdk_url = "https://checkout.hyperswitch.io/v0/HyperLoader.js"

@@ -1,6 +1,8 @@
 use common_enums::enums;
 use common_utils::{
     errors::ParsingError,
+    ext_traits::ValueExt,
+    id_type,
     pii::{Email, IpAddress},
     request::Method,
     types::{MinorUnit, StringMajorUnit},
@@ -16,7 +18,10 @@ use hyperswitch_domain_models::{
         PSync,
     },
     router_request_types::{PaymentsSyncData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
+    },
     types,
 };
 use hyperswitch_interfaces::errors;
@@ -178,7 +183,30 @@ pub struct AirwallexPaymentsRequest {
     payment_method: AirwallexPaymentMethod,
     payment_method_options: Option<AirwallexPaymentOptions>,
     return_url: Option<String>,
-    device_data: DeviceData,
+    device_data: Option<DeviceData>,
+    payment_consent: Option<PaymentConsentData>,
+    customer_id: Option<String>,
+    payment_consent_id: Option<String>,
+    triggered_by: Option<TriggeredBy>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymentConsentData {
+    next_triggered_by: TriggeredBy,
+    merchant_trigger_reason: MerchantTriggeredReason,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantTriggeredReason {
+    Unscheduled,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TriggeredBy {
+    Merchant,
+    Customer,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Default)]
@@ -245,6 +273,12 @@ pub enum AirwallexPaymentMethod {
     PayLater(AirwallexPayLaterData),
     BankRedirect(AirwallexBankRedirectData),
     BankTransfer(AirwallexBankTransferData),
+    PaymentMethodId(AirwallexPaymentMethodId),
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexPaymentMethodId {
+    id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -518,10 +552,34 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::BankRedirect(ref bankredirect_data) => {
                 get_bankredirect_details(bankredirect_data, item)
             }
+            PaymentMethodData::MandatePayment => {
+                let mandate_data = item
+                    .router_data
+                    .request
+                    .get_connector_mandate_data()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_data",
+                    })?;
+                let mandate_metadata: AirwallexMandateMetadata = mandate_data
+                    .get_mandate_metadata()
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
+                    .clone()
+                    .parse_value("AirwallexMandateMetadata")
+                    .change_context(errors::ConnectorError::ParsingFailed)?;
+
+                Ok(AirwallexPaymentMethod::PaymentMethodId(
+                    AirwallexPaymentMethodId {
+                        id: mandate_metadata.id.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "mandate_metadata.id",
+                            },
+                        )?,
+                    },
+                ))
+            }
             PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
@@ -531,13 +589,28 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("airwallex"),
                 ))
             }
         }?;
-        let device_data = get_device_data(item.router_data)?;
+
+        let payment_consent = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            Some(PaymentConsentData {
+                next_triggered_by: TriggeredBy::Merchant,
+                merchant_trigger_reason: MerchantTriggeredReason::Unscheduled,
+            })
+        } else {
+            None
+        };
 
         let return_url = match &request.payment_method_data {
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -556,12 +629,42 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             _ => request.complete_authorize_url.clone(),
         };
 
+        let is_mandate_payment = item.router_data.request.is_mit_payment()
+            || item
+                .router_data
+                .request
+                .is_customer_initiated_mandate_payment();
+
+        let (device_data, customer_id) = if is_mandate_payment {
+            let customer_id = item.router_data.get_connector_customer_id()?;
+            (None, Some(customer_id))
+        } else {
+            let device_data = Some(get_device_data(item.router_data)?);
+            (device_data, None)
+        };
+
+        let (payment_consent_id, triggered_by) = if item.router_data.request.is_mit_payment() {
+            let mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                },
+            )?;
+
+            (Some(mandate_id), Some(TriggeredBy::Merchant))
+        } else {
+            (None, None)
+        };
+
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
             return_url,
             device_data,
+            payment_consent,
+            customer_id,
+            payment_consent_id,
+            triggered_by,
         })
     }
 }
@@ -1053,6 +1156,22 @@ pub struct AirwallexPaymentsResponse {
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
+    latest_payment_attempt: Option<AirwallexPaymentAttemptResponse>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct AirwallexPaymentAttemptResponse {
+    payment_method: Option<AirwallexPaymentMethodResponse>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct AirwallexPaymentMethodResponse {
+    id: Option<Secret<String>>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct AirwallexMandateMetadata {
+    id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1233,17 +1352,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
             },
         );
 
+        let mandate_reference = Box::new(Some(MandateReference {
+            connector_mandate_id: item
+                .response
+                .payment_consent_id
+                .clone()
+                .map(|id| id.expose()),
+            payment_method_id: None,
+            mandate_metadata: item
+                .response
+                .latest_payment_attempt
+                .and_then(|attempt| attempt.payment_method)
+                .map(|pm| Secret::new(serde_json::json!(AirwallexMandateMetadata { id: pm.id }))),
+            connector_mandate_request_reference_id: None,
+        }));
+
         Ok(Self {
             status,
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1299,6 +1434,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1350,6 +1486,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1592,6 +1729,149 @@ pub struct AirwallexErrorResponse {
     pub code: String,
     pub message: String,
     pub source: Option<String>,
+    pub provider_original_response_code: Option<String>,
+}
+
+pub fn map_error_code_to_message(code: String) -> Option<String> {
+    match code.as_str() {
+        "01" => Some("Contact card issuer".to_string()),
+        "03" => Some("Invalid Merchant".to_string()),
+        "04" => Some("Pick up card(no fraud)".to_string()),
+        "05" => Some("Do not honor".to_string()),
+        "06" => Some("Error".to_string()),
+        "07" => Some("Pick up card, special condition (fraud account)".to_string()),
+        "12" => Some("Invalid transaction".to_string()),
+        "13" => Some("Invalid amount".to_string()),
+        "14" => Some("Invalid card number".to_string()),
+        "15" => Some("Invalid issuer".to_string()),
+        "19" => Some("Re-enter transaction".to_string()),
+        "21" => Some("No action taken".to_string()),
+        "22" => Some("Operation error".to_string()),
+        "30" => Some("Format error".to_string()),
+        "34" => Some("Fraudulent card".to_string()),
+        "40" => Some("Transaction that is not supported by the Issuer".to_string()),
+        "41" => Some("Lost card".to_string()),
+        "43" => Some("Stolen card".to_string()),
+        "46" => Some("Closed account".to_string()),
+        "51" => Some("Insufficient funds/over credit limit / Not sufficient funds".to_string()),
+        "52" => Some("No checking account".to_string()),
+        "53" => Some("No savings account".to_string()),
+        "54" => Some("Expired card".to_string()),
+        "55" => Some("Incorrect PIN".to_string()),
+        "57" => Some("Transaction not permitted to issuer/cardholder".to_string()),
+        "58" => Some("Transaction not permitted to acquirer/terminal".to_string()),
+        "59" => Some("Suspected fraud".to_string()),
+        "61" => Some("Exceeds withdrawal limit".to_string()),
+        "62" => Some("Restricted card".to_string()),
+        "63" => Some("Security violation".to_string()),
+        "64" => Some("AML requirement failure / Original transaction amount mismatch".to_string()),
+        "65" => Some("Exceeds withdrawal count limit / Additional customer authentication required".to_string()),
+        "6P" => Some("Customer ID verification failed".to_string()),
+        "70" => Some("Contact Card Issuer".to_string()),
+        "72" => Some("Account not yet activated".to_string()),
+        "78" => Some("Invalid/nonexistent account specified (general)".to_string()),
+        "79" => Some("Life Cycle".to_string()),
+        "80" => Some("Credit issuer unavailable	".to_string()),
+        "82" => Some("Policy / Negative online CAM, dCVV, iCVV, CVV, or CAVV results or Offline PIN authentication interrupted".to_string()),
+        "83" => Some("Fraud / Security violation".to_string()),
+        "85" => Some("No reason to decline".to_string()),
+        "90" => Some("Decline due to daily cutoff being in progress".to_string()),
+        "91" => Some("Authorization Platform or issuer system inoperative / Issuer not available OR Issuer unavailable or switch inoperative".to_string()),
+        "92" => Some("Destination cannot be found for routing / Unable to route transaction".to_string()),
+        "93" => Some("Transaction cannot be completed; violation of law".to_string()),
+        "96" => Some("System malfunction".to_string()),
+        "1A" => Some("Authentication Required".to_string()),
+        "R0" => Some("Stop payment order".to_string()),
+        "R1" => Some("Revocation of authorisation order".to_string()),
+        "R3" => Some("Revocation of all authorisation orders".to_string()),
+        "N7" => Some("Decline for CVV2 failure".to_string()),
+        "5C" => Some("Transaction not supported / blocked by issuer".to_string()),
+        "9G" => Some("Blocked by cardholder / contact cardholder".to_string()),
+        "100" => Some("Deny / Do Not Honor".to_string()),
+        "101" => Some("Expired Card / Invalid Expiration Date".to_string()),
+        "109" => Some("Invalid merchant".to_string()),
+        "110" => Some("Invalid amount".to_string()),
+        "111" => Some("Invalid account / Invalid MICR (Travelers Cheque) / Invalid Card Number".to_string()),
+        "115" => Some("Requested function not supported".to_string()),
+        "116" => Some("Not sufficient funds".to_string()),
+        "119" => Some("Cardmember not enrolled / not permitted".to_string()),
+        "121" => Some("Limit exceeded".to_string()),
+        "122" => Some("Invalid card security code (a.k.a., CID, 4DBC, 4CSC) / Card Validity Period Exceeded".to_string()),
+        "130" => Some("Additional customer identification required".to_string()),
+        "181" => Some("Format error".to_string()),
+        "183" => Some("Invalid currency code".to_string()),
+        "187" => Some("Deny - new card issued".to_string()),
+        "189" => Some("Deny - Canceled or Closed Merchant/SE".to_string()),
+        "190" => Some("National ID mismatch".to_string()),
+        "200" => Some("Deny - Pick up card / Do Not Honor".to_string()),
+        "909" => Some("System Malfunction (Cryptographic error)".to_string()),
+        "912" => Some("Issuer not available".to_string()),
+        "978" => Some("Invalid Payment Times".to_string()),
+        "800.100.100" => Some("Transaction declined for unknown reason".to_string()),
+        "800.100.150" => Some("Transaction declined (refund on gambling tx not allowed)".to_string()),
+        "800.100.151" => Some("Transaction declined (invalid card)".to_string()),
+        "800.100.152" => Some("Transaction declined by authorization system".to_string()),
+        "800.100.153" => Some("Transaction declined (invalid CVV)".to_string()),
+        "800.100.154" => Some("Transaction declined (transaction marked as invalid)".to_string()),
+        "800.100.155" => Some("Transaction declined (amount exceeds credit)".to_string()),
+        "800.100.156" => Some("Transaction declined (format error)".to_string()),
+        "800.100.157" => Some("Transaction declined (wrong expiry date)".to_string()),
+        "800.100.158" => Some("Transaction declined (suspecting manipulation)".to_string()),
+        "800.100.159" => Some("Transaction declined (stolen card)".to_string()),
+        "800.100.160" => Some("Transaction declined (card blocked)".to_string()),
+        "800.100.161" => Some("Transaction declined (too many invalid tries)".to_string()),
+        "800.100.162" => Some("Transaction declined (limit exceeded)".to_string()),
+        "800.100.163" => Some("Transaction declined (maximum transaction frequency exceeded)".to_string()),
+        "800.100.164" => Some("Transaction declined (merchants limit exceeded)".to_string()),
+        "800.100.165" => Some("Transaction declined (card lost)".to_string()),
+        "800.100.168" => Some("Transaction declined (restricted card)".to_string()),
+        "800.100.169" => Some("Transaction declined (card type is not processed by the authorization center)".to_string()),
+        "800.100.170" => Some("Transaction declined (transaction not permitted)".to_string()),
+        "800.100.171" => Some("Transaction declined (pick up card)".to_string()),
+        "800.100.172" => Some("Transaction declined (account blocked)".to_string()),
+        "800.100.173" => Some("Transaction declined (invalid currency, not processed by authorization center)".to_string()),
+        "800.100.174" => Some("Insufficient Funds".to_string()),
+        "800.100.176" => Some("Transaction declined (account temporarily not available. Please try again later)".to_string()),
+        "800.100.179" => Some("Transaction declined (exceeds withdrawal count limit)".to_string()),
+        "800.100.190" => Some("Transaction declined (invalid configuration data)".to_string()),
+        "800.100.192" => Some("Transaction declined (invalid CVV, Amount has still been reserved on the customer's card and will be released in a few business days.)".to_string()),
+        "800.100.195" => Some("Transaction declined (UserAccount Number/ID unknown)".to_string()),
+        "800.100.200" => Some("Refer to Payer due to reason not specified".to_string()),
+        "800.100.201" => Some("Account or Bank Details Incorrect".to_string()),
+        "800.100.202" => Some("Account Closed".to_string()),
+        "800.100.203" => Some("Insufficient Funds".to_string()),
+        "800.100.204" => Some("Mandate Expired".to_string()),
+        "800.100.205" => Some("Mandate Discarded".to_string()),
+        "800.100.402" => Some("CC/bank account holder not valid".to_string()),
+        "800.100.403" => Some("Transaction declined (revocation of authorisation order)".to_string()),
+        "800.100.500" => Some("The card holder has advised his bank to stop this recurring payment".to_string()),
+        "800.100.501" => Some("Card holder has advised his bank to stop all recurring payments for this merchant".to_string()),
+        "081" => Some("Approved by Issuer".to_string()),
+        "102" => Some("Suspected Fraud".to_string()),
+        "103" => Some("Customer Authentication Required".to_string()),
+        "104" => Some("Restricted Card".to_string()),
+        "106" => Some("Allowable PIN Tries Exceeded".to_string()),
+        "117" => Some("Incorrect PIN".to_string()),
+        "118" => Some("Cycle Range Suspended".to_string()),
+        "120" => Some("Transaction Not Permitted To Originator".to_string()),
+        "124" => Some("Violation Of Law".to_string()),
+        "125" => Some("Card Not Effective".to_string()),
+        "129" => Some("Suspected Counterfeit Card".to_string()),
+        "163" => Some("Security Violations".to_string()),
+        "182" => Some("Decline Given By Issuer".to_string()),
+        "192" => Some("Restricted Merchant".to_string()),
+        "197" => Some("Card Account Verification Failed".to_string()),
+        "198" => Some("TVR or CVR Validation Failed".to_string()),
+        "201" => Some("Expired Card".to_string()),
+        "202" => Some("Suspected Fraud".to_string()),
+        "204" => Some("Restricted Card".to_string()),
+        "206" => Some("Allowable Pin Tries Exceeded".to_string()),
+        "207" => Some("Special Conditions".to_string()),
+        "208" => Some("Lost Card".to_string()),
+        "209" => Some("Stolen Card".to_string()),
+        "210" => Some("Suspected Counterfeit Card".to_string()),
+        _ => None,
+    }
 }
 
 impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhookEvent {
@@ -1641,5 +1921,54 @@ impl From<AirwallexDisputeStage> for api_models::enums::DisputeStage {
             AirwallexDisputeStage::Dispute => Self::Dispute,
             AirwallexDisputeStage::Arbitration => Self::PreArbitration,
         }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct CustomerRequest {
+    pub request_id: String,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub merchant_customer_id: id_type::CustomerId,
+}
+
+impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_id: Uuid::new_v4().to_string(),
+            email: item.request.email.to_owned(),
+            phone_number: item.request.phone.to_owned(),
+            first_name: item.request.name.to_owned(),
+            last_name: item.request.name.to_owned(),
+            merchant_customer_id: item.customer_id.to_owned().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_id",
+                },
+            )?,
+        })
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct AirwallexCustomerResponse {
+    pub id: String,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
+            )),
+            ..item.data
+        })
     }
 }

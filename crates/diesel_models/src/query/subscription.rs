@@ -56,4 +56,23 @@ impl Subscription {
                 .attach_printable("Error while updating subscription entry")
         })
     }
+
+    pub async fn list_by_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::profile_id.eq(profile_id.to_owned())),
+            limit,
+            offset,
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
 }

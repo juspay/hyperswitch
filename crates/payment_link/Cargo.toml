@@ -1,0 +1,42 @@
+[package]
+name = "payment_link"
+description = "Payment Link rendering and WASM bindings"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = ["v1"]
+v1 = ["api_models/v1"]
+v2 = ["api_models/v2"]
+wasm = ["dep:wasm-bindgen", "getrandom/js"]
+
+[dependencies]
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tera = "1.20.0"
+url = { version = "2.5.4", features = ["serde"] }
+urlencoding = "2.1.3"
+error-stack = "0.4.1"
+thiserror = "1.0.69"
+wasm-bindgen = { version = "0.2", optional = true }
+
+# First party crates
+api_models = { path = "../api_models", default-features = false }
+common_utils = { path = "../common_utils" }
+getrandom = { version = "0.2.16", optional = true }
+
+[build-dependencies]
+router_env = { path = "../router_env" }
+toml = "0.8"
+serde = { version = "1.0.219", features = ["derive"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+
+[lints]
+workspace = true

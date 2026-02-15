@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_request_types::VaultRequestData,
     router_response_types::{MultiVaultIdType, VaultIdType, VaultResponseData},
     types::{RefreshTokenRouterData, VaultRouterData},
-    vault::PaymentMethodVaultingData,
+    vault::{PaymentMethodCustomVaultingData, PaymentMethodVaultingData},
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -58,28 +58,36 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::Card(req_card)) => {
+            Some(PaymentMethodCustomVaultingData::CardData(req_card)) => {
                 if item.request.should_generate_multiple_tokens == Some(true) {
-                    let mut data = vec![
-                        VgsTokenRequestItem {
-                            value: Secret::new(req_card.card_number.get_card_no()),
+                    let mut data: Vec<VgsTokenRequestItem> = Vec::new();
+
+                    if let Some(card_number) = req_card.card_number {
+                        data.push(VgsTokenRequestItem {
+                            value: Secret::new(card_number.get_card_no()),
                             classifiers: vec!["card_number".to_string()],
                             format: VGS_FORMAT.to_string(),
                             storage: VgsStorageType::Volatile,
-                        },
-                        VgsTokenRequestItem {
-                            value: req_card.card_exp_month,
+                        });
+                    }
+
+                    if let Some(card_exp_month) = req_card.card_exp_month {
+                        data.push(VgsTokenRequestItem {
+                            value: card_exp_month,
                             classifiers: vec!["card_expiry_month".to_string()],
                             format: VGS_FORMAT.to_string(),
                             storage: VgsStorageType::Volatile,
-                        },
-                        VgsTokenRequestItem {
-                            value: req_card.card_exp_year,
+                        });
+                    }
+
+                    if let Some(card_exp_year) = req_card.card_exp_year {
+                        data.push(VgsTokenRequestItem {
+                            value: card_exp_year,
                             classifiers: vec!["card_expiry_year".to_string()],
                             format: VGS_FORMAT.to_string(),
                             storage: VgsStorageType::Volatile,
-                        },
-                    ];
+                        });
+                    }
 
                     if let Some(card_cvc) = req_card.card_cvc {
                         data.push(VgsTokenRequestItem {
@@ -106,27 +114,35 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                     })
                 }
             }
-            Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => {
-                let mut data = vec![
-                    VgsTokenRequestItem {
-                        value: Secret::new(network_token_data.network_token.get_card_no()),
+            Some(PaymentMethodCustomVaultingData::NetworkTokenData(network_token_data)) => {
+                let mut data: Vec<VgsTokenRequestItem> = Vec::new();
+
+                if let Some(network_token) = network_token_data.network_token {
+                    data.push(VgsTokenRequestItem {
+                        value: Secret::new(network_token.get_card_no()),
                         classifiers: vec!["payment_token".to_string()],
                         format: VGS_FORMAT.to_string(),
                         storage: VgsStorageType::Volatile,
-                    },
-                    VgsTokenRequestItem {
-                        value: network_token_data.network_token_exp_month,
+                    });
+                }
+
+                if let Some(network_token_exp_month) = network_token_data.network_token_exp_month {
+                    data.push(VgsTokenRequestItem {
+                        value: network_token_exp_month,
                         classifiers: vec!["token_expiry_month".to_string()],
                         format: VGS_FORMAT.to_string(),
                         storage: VgsStorageType::Volatile,
-                    },
-                    VgsTokenRequestItem {
-                        value: network_token_data.network_token_exp_year,
+                    });
+                }
+
+                if let Some(network_token_exp_year) = network_token_data.network_token_exp_year {
+                    data.push(VgsTokenRequestItem {
+                        value: network_token_exp_year,
                         classifiers: vec!["token_expiry_year".to_string()],
                         format: VGS_FORMAT.to_string(),
                         storage: VgsStorageType::Volatile,
-                    },
-                ];
+                    });
+                }
 
                 if let Some(cryptogram) = network_token_data.cryptogram {
                     data.push(VgsTokenRequestItem {
@@ -233,29 +249,31 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         match item.data.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => {
+            Some(PaymentMethodCustomVaultingData::NetworkTokenData(network_token_data)) => {
                 let multi_tokens = MultiVaultIdType::NetworkToken {
-                    tokenized_network_token: get_token_from_response(
-                        &item.response.data,
-                        &network_token_data.network_token.get_card_no(),
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "network_token",
-                    })?,
-                    tokenized_network_token_exp_year: get_token_from_response(
-                        &item.response.data,
-                        network_token_data.network_token_exp_year.peek(),
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "network_token_exp_year",
-                    })?,
-                    tokenized_network_token_exp_month: get_token_from_response(
-                        &item.response.data,
-                        network_token_data.network_token_exp_month.peek(),
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "network_token_exp_month",
-                    })?,
+                    tokenized_network_token: network_token_data.network_token.clone().and_then(
+                        |network_token| {
+                            get_token_from_response(&item.response.data, network_token.peek())
+                        },
+                    ),
+                    tokenized_network_token_exp_year: network_token_data
+                        .network_token_exp_year
+                        .clone()
+                        .and_then(|network_token_exp_year| {
+                            get_token_from_response(
+                                &item.response.data,
+                                network_token_exp_year.peek(),
+                            )
+                        }),
+                    tokenized_network_token_exp_month: network_token_data
+                        .network_token_exp_month
+                        .clone()
+                        .and_then(|network_token_exp_month| {
+                            get_token_from_response(
+                                &item.response.data,
+                                network_token_exp_month.peek(),
+                            )
+                        }),
                     tokenized_cryptogram: network_token_data.cryptogram.clone().and_then(
                         |cryptogram| {
                             get_token_from_response(&item.response.data, cryptogram.peek())
@@ -267,48 +285,36 @@ impl
                     status: common_enums::AttemptStatus::Started,
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                         connector_vault_id: VaultIdType::MultiVauldIds(multi_tokens),
-                        fingerprint_id: get_token_from_response(
-                            &item.response.data,
-                            &network_token_data.network_token.get_card_no(),
-                        )
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "network_token",
-                        })?
-                        .expose(),
+                        fingerprint_id: network_token_data
+                            .network_token
+                            .clone()
+                            .and_then(|network_token| {
+                                get_token_from_response(&item.response.data, network_token.peek())
+                            })
+                            .unwrap_or(Secret::new("default".to_string()))
+                            .expose(),
                     }),
                     ..item.data
                 })
             }
-            Some(PaymentMethodVaultingData::Card(card_data)) => {
+            Some(PaymentMethodCustomVaultingData::CardData(card_data)) => {
                 if item.data.request.should_generate_multiple_tokens == Some(true) {
                     let multi_tokens = MultiVaultIdType::Card {
-                        tokenized_card_number: get_token_from_response(
-                            &item.response.data,
-                            &card_data.card_number.get_card_no(),
-                        )
-                        .ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "card_number",
+                        tokenized_card_number: card_data.card_number.clone().and_then(
+                            |card_number| {
+                                get_token_from_response(&item.response.data, card_number.peek())
                             },
-                        )?,
-                        tokenized_card_expiry_month: get_token_from_response(
-                            &item.response.data,
-                            card_data.card_exp_month.peek(),
-                        )
-                        .ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "card_expiry_month",
+                        ),
+                        tokenized_card_expiry_month: card_data.card_exp_month.clone().and_then(
+                            |card_exp_month| {
+                                get_token_from_response(&item.response.data, card_exp_month.peek())
                             },
-                        )?,
-                        tokenized_card_expiry_year: get_token_from_response(
-                            &item.response.data,
-                            card_data.card_exp_year.peek(),
-                        )
-                        .ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "card_expiry_year",
+                        ),
+                        tokenized_card_expiry_year: card_data.card_exp_year.clone().and_then(
+                            |card_exp_year| {
+                                get_token_from_response(&item.response.data, card_exp_year.peek())
                             },
-                        )?,
+                        ),
                         tokenized_card_cvc: card_data.card_cvc.clone().and_then(|card_cvc| {
                             get_token_from_response(&item.response.data, card_cvc.peek())
                         }),
@@ -318,14 +324,14 @@ impl
                         status: common_enums::AttemptStatus::Started,
                         response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                             connector_vault_id: VaultIdType::MultiVauldIds(multi_tokens),
-                            fingerprint_id: get_token_from_response(
-                                &item.response.data,
-                                &card_data.card_number.get_card_no(),
-                            )
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "card_number",
-                            })?
-                            .expose(),
+                            fingerprint_id: card_data
+                                .card_number
+                                .clone()
+                                .and_then(|card_number| {
+                                    get_token_from_response(&item.response.data, card_number.peek())
+                                })
+                                .unwrap_or(Secret::new("default".to_string()))
+                                .expose(),
                         }),
                         ..item.data
                     })

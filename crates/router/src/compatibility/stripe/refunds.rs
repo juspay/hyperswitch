@@ -7,7 +7,6 @@ use router_env::{instrument, tracing, Flow, Tag};
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking, refunds},
-    db::domain,
     logger, routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
@@ -51,14 +50,11 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refunds::refund_create_core(state, merchant_context, None, req)
+            refunds::refund_create_core(state, auth.platform, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -101,20 +97,17 @@ pub async fn refund_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             refunds::refund_response_wrapper(
                 state,
-                merchant_context,
+                auth.platform,
                 None,
                 refund_request,
                 refunds::refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -150,20 +143,17 @@ pub async fn refund_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             refunds::refund_response_wrapper(
                 state,
-                merchant_context,
+                auth.platform,
                 None,
                 refund_request,
                 refunds::refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -196,14 +186,11 @@ pub async fn refund_update(
         &req,
         create_refund_update_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refunds::refund_update_core(state, merchant_context, req)
+            refunds::refund_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

@@ -29,6 +29,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors, webhooks};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use serde_with::skip_serializing_none;
 use time::PrimitiveDateTime;
 use url::Url;
@@ -41,8 +42,8 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
-        RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, AdditionalCardInfo, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 
@@ -168,7 +169,10 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -254,6 +258,18 @@ pub enum PaymentSource {
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+    DecryptedWalletToken(DecryptedWalletToken),
+}
+
+#[derive(Debug, Serialize)]
+pub struct DecryptedWalletToken {
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -287,6 +303,7 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    NetworkToken,
     #[serde(rename = "id")]
     SourceId,
 }
@@ -383,6 +400,7 @@ pub struct PaymentsRequest {
     pub return_url: ReturnUrl,
     pub capture: bool,
     pub reference: String,
+    #[serde(skip_serializing_if = "is_metadata_empty")]
     pub metadata: Option<Secret<serde_json::Value>>,
     pub payment_type: CheckoutPaymentType,
     pub merchant_initiated: Option<bool>,
@@ -470,6 +488,52 @@ fn split_account_holder_name(
             None => (Some(Secret::new(name)), None),
         },
         _ => (None, None),
+    }
+}
+
+fn build_metadata(
+    item: &CheckoutRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<Secret<serde_json::Value>> {
+    // get metadata or create empty json object
+    let mut metadata_json = item
+        .router_data
+        .request
+        .metadata
+        .clone()
+        .unwrap_or_else(|| json!({}));
+
+    // get udf5 value (name or integrator)
+    let udf5 = item
+        .router_data
+        .request
+        .partner_merchant_identifier_details
+        .as_ref()
+        .and_then(|p| p.partner_details.as_ref())
+        .and_then(|e| e.name.clone().or(e.integrator.clone()));
+
+    // insert udf5 if present
+    if let Some(v) = udf5 {
+        if let Some(obj) = metadata_json.as_object_mut() {
+            obj.insert("udf5".to_string(), json!(v));
+        } else {
+            metadata_json = json!({ "udf5": v });
+        }
+    }
+
+    Some(Secret::new(metadata_json))
+}
+
+fn is_metadata_empty(val: &Option<Secret<serde_json::Value>>) -> bool {
+    match val {
+        None => true,
+        Some(secret) => {
+            let inner = secret.clone().expose();
+            match inner {
+                serde_json::Value::Null => true,
+                serde_json::Value::Object(map) => map.is_empty(),
+                _ => false,
+            }
+        }
     }
 }
 
@@ -701,6 +765,52 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                network_token_data,
+            ) => {
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+
+                let token_type = match network_token_data.token_source {
+                    Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
+                    Some(common_types::payments::TokenSource::GooglePay) => "googlepay".to_string(),
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "token_source",
+                    })?,
+                };
+
+                let exp_month = network_token_data.token_exp_month.clone();
+                let expiry_year_4_digit = network_token_data.get_card_expiry_year_4_digit()?;
+
+                let payment_source = PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
+                    token: cards::CardNumber::from(network_token_data.decrypted_token.clone()),
+                    decrypt_type: "network_token".to_string(),
+                    token_type,
+                    expiry_month: exp_month,
+                    expiry_year: expiry_year_4_digit,
+                    billing_address: billing_details,
+                });
+
+                Ok((
+                    payment_source,
+                    previous_id,
+                    Some(true),
+                    p_type,
+                    store_for_future_use,
+                ))
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
             )),
@@ -752,7 +862,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let metadata = item.router_data.request.metadata.clone().map(Into::into);
+        let metadata = build_metadata(item);
         let (customer, processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.l2_l3_data
         {
@@ -815,16 +925,21 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let payment_ip = item.router_data.request.get_ip_address_as_optional();
 
-        let billing_descriptor =
-            item.router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(|descriptor| CheckoutBillingDescriptor {
+        let billing_descriptor = item
+            .router_data
+            .request
+            .billing_descriptor
+            .as_ref()
+            .and_then(|descriptor| {
+                (descriptor.name.is_some()
+                    || descriptor.city.is_some()
+                    || descriptor.reference.is_some())
+                .then(|| CheckoutBillingDescriptor {
                     name: descriptor.name.clone(),
                     city: descriptor.city.clone(),
-                    reference: descriptor.statement_descriptor.clone(),
-                });
+                    reference: descriptor.reference.clone(),
+                })
+            });
 
         let request = Self {
             source: source_var,
@@ -1090,6 +1205,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1141,6 +1257,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
 
@@ -1224,6 +1341,7 @@ impl
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1255,6 +1373,7 @@ impl
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
@@ -1293,6 +1412,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1331,6 +1451,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
@@ -1405,6 +1526,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status: response.into(),
@@ -1507,6 +1629,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status,
@@ -2083,6 +2206,7 @@ fn convert_to_additional_payment_method_connector_response(
             payment_checks: Some(payment_checks),
             card_network: None,
             domestic_network: None,
+            auth_code: None,
         }
     })
 }

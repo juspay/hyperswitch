@@ -1,5 +1,10 @@
 # For explanantion of each config, please refer to the `config/config.example.toml` file
 
+# This is used to identify the running application instance
+# Check common_enums::ApplicationSource for available options
+# For more details - https://github.com/juspay/hyperswitch/issues/10489
+application_source = "main"
+
 [analytics.clickhouse]
 username = "clickhouse_username"     # Clickhouse username
 password = "clickhouse_password"     # Clickhouse password (optional)
@@ -118,7 +123,6 @@ redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redi
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
-rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in rust locker
 
 # Locker settings contain details for accessing a card locker, a
@@ -126,7 +130,6 @@ vault_private_key = ""          # private key in pem format, corresponding publi
 # like card details
 [locker]
 host = ""                                                             # Locker host
-host_rs = ""                                                          # Rust Locker host
 mock_locker = true                                                    # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
@@ -276,6 +279,10 @@ sessionizer_disputes = "sessionizer-dispute-events"
 # Configuration for the Key Manager Service
 [key_manager]
 url = "http://localhost:5000" # URL of the encryption service
+# Enable / disable legacy key store decryption behavior.
+# Set to true if upgrading from previous versions of Hyperswitch.
+# Set to false for new deployments to use newer / correct decryption behavior.
+use_legacy_key_store_decryption = false
 
 # This section provides some secret values.
 [secrets]
@@ -293,6 +300,12 @@ host = "127.0.0.1"
 shutdown_timeout = 30
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
+# Keep-alive timeout in seconds
+keep_alive = 5              
+# Client request timeout in milliseconds
+client_request_timeout = 5000
+# Client disconnect timeout in milliseconds
+client_disconnect_timeout = 1000
 
 # HTTPS Server Configuration
 # Self-signed Private Key and Certificate can be generated with mkcert for local development
@@ -354,6 +367,7 @@ key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
+check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
@@ -390,7 +404,7 @@ connector_names = "connector_names"     # Comma-separated list of allowed connec
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -446,3 +460,16 @@ polling_interval = 15                           # Polling interval in seconds fo
 [trace_header]
 header_name = "x-request-id"    # HTTP header name for request tracing
 id_reuse = "ignore_incoming"    # Policy for handling incoming request IDs: "use_incoming" or "ignore_incoming"
+
+[oidc.key.k1]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 4096)
+
+[oidc.key.k2]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 4096)
+
+[oidc.client.c1]
+client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
+client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
+redirect_uri = ""  # Redirect URI registered for the OIDC client 

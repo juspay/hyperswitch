@@ -169,6 +169,14 @@ impl From<enums::MobilePaymentType> for global_enums::PaymentMethodType {
     }
 }
 
+impl From<enums::NetworkTokenType> for global_enums::PaymentMethodType {
+    fn from(value: enums::NetworkTokenType) -> Self {
+        match value {
+            enums::NetworkTokenType::NetworkToken => Self::NetworkToken,
+        }
+    }
+}
+
 impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
     fn from(value: enums::BankRedirectType) -> Self {
         match value {
@@ -191,6 +199,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::OpenBankingUk => Self::OpenBankingUk,
             enums::BankRedirectType::Przelewy24 => Self::Przelewy24,
             enums::BankRedirectType::Trustly => Self::Trustly,
+            enums::BankRedirectType::OpenBanking => Self::OpenBanking,
         }
     }
 }
@@ -227,6 +236,7 @@ impl From<enums::RealTimePaymentType> for global_enums::PaymentMethodType {
             enums::RealTimePaymentType::DuitNow => Self::DuitNow,
             enums::RealTimePaymentType::PromptPay => Self::PromptPay,
             enums::RealTimePaymentType::VietQr => Self::VietQr,
+            enums::RealTimePaymentType::Qris => Self::Qris,
         }
     }
 }
@@ -289,6 +299,8 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         }
         dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
         dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
+        dir::DirValue::TransactionInitiator(ti) => EuclidValue::TransactionInitiator(ti),
+        dir::DirValue::NetworkTokenType(nt) => EuclidValue::PaymentMethodType(nt.into()),
     })
 }
 

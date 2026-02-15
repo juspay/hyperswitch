@@ -74,7 +74,7 @@ use hyperswitch_interfaces::{
         RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
         TokenizationType, UploadFileType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask as _, Maskable, PeekInterface};
 use router_env::{instrument, tracing};
@@ -84,6 +84,7 @@ use self::transformers as stripe;
 #[cfg(feature = "payouts")]
 use crate::utils::{PayoutsData as OtherPayoutsData, RouterData as OtherRouterData};
 use crate::{
+    connectors::stripe::transformers::get_stripe_compatible_connect_account_header,
     constants::headers::{AUTHORIZATION, CONTENT_TYPE, STRIPE_COMPATIBLE_CONNECT_ACCOUNT},
     types::{
         ResponseRouterData, RetrieveFileRouterData, SubmitEvidenceRouterData, UploadFileRouterData,
@@ -187,6 +188,7 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -229,6 +231,7 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::Sofort,
             PaymentMethodDataType::Ideal,
             PaymentMethodDataType::BancontactCard,
+            PaymentMethodDataType::MandatePayment,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -390,6 +393,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -444,8 +448,14 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         if matches!(
-            req.request.split_payments,
-            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+            (
+                req.request.split_payments.as_ref(),
+                req.request.payment_method_data.clone()
+            ),
+            (
+                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
+                PaymentMethodData::Card(_)
+            )
         ) {
             return Ok(format!(
                 "{}{}",
@@ -542,6 +552,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -702,6 +713,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -870,6 +882,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -895,33 +908,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
-
-        // if the request has split payment object, then append the transfer account id in headers in charge_type is Direct
-        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-            stripe_split_payment,
-        )) = &req.request.split_payments
-        {
-            if stripe_split_payment.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                let mut customer_account_header = vec![(
-                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    stripe_split_payment
-                        .transfer_account_id
-                        .clone()
-                        .into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-        }
-        // if request doesn't have transfer_account_id, but stripe_split_payment_metadata has it, append it
-        else if let Some(transfer_account_id) =
-            stripe_split_payment_metadata.transfer_account_id.clone()
-        {
+        if let Some(id) = get_stripe_compatible_connect_account_header(req)? {
             let mut customer_account_header = vec![(
                 STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                transfer_account_id.into_masked(),
+                id.into_masked(),
             )];
             header.append(&mut customer_account_header);
         }
@@ -1044,6 +1034,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1189,6 +1180,7 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1407,6 +1399,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1549,6 +1542,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1715,6 +1709,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1847,6 +1842,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1991,6 +1987,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -2092,6 +2089,7 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -2218,6 +2216,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -2410,6 +2409,7 @@ impl IncomingWebhook for Stripe {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let details: stripe::WebhookEventTypeBody = request
             .body
@@ -2501,6 +2501,7 @@ impl IncomingWebhook for Stripe {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<DisputePayload, ConnectorError> {
         let details: stripe::WebhookEvent = request
             .body

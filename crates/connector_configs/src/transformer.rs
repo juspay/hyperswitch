@@ -39,6 +39,7 @@ impl DashboardRequestPayload {
     ) -> Option<api_models::enums::PaymentExperience> {
         match payment_method {
             PaymentMethod::BankRedirect => None,
+            PaymentMethod::NetworkToken => None,
             _ => match (connector, payment_method_type) {
                 #[cfg(feature = "dummy_connector")]
                 (Connector::DummyConnector4, _) | (Connector::DummyConnector7, _) => {
@@ -70,6 +71,7 @@ impl DashboardRequestPayload {
                 (_, PaymentMethodType::Cashapp) | (_, PaymentMethodType::Swish) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
+                (Connector::Adyen, PaymentMethodType::Givex) => None,
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
         }
@@ -151,7 +153,8 @@ impl DashboardRequestPayload {
                     | PaymentMethod::GiftCard
                     | PaymentMethod::OpenBanking
                     | PaymentMethod::CardRedirect
-                    | PaymentMethod::MobilePayment => {
+                    | PaymentMethod::MobilePayment
+                    | PaymentMethod::NetworkToken => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,

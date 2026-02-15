@@ -169,6 +169,7 @@ impl ConnectorCommon for Loonio {
             reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -798,6 +799,7 @@ impl webhooks::IncomingWebhook for Loonio {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: loonio::LoonioWebhookBody = request
             .body
@@ -846,7 +848,7 @@ lazy_static! {
         display_name: "Loonio",
         description: "Loonio is a payment processing platform that provides APIs for deposits and payouts via methods like Interac, PIX, EFT, and credit cards, with webhook support and transaction sync for real-time and manual status tracking.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
     static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
         enums::EventClass::Payments,

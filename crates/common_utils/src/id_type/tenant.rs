@@ -1,5 +1,5 @@
 use crate::{
-    consts::DEFAULT_GLOBAL_TENANT_ID,
+    consts::{DEFAULT_GLOBAL_TENANT_ID, DEFAULT_TENANT},
     errors::{CustomResult, ValidationError},
 };
 
@@ -22,6 +22,13 @@ impl TenantId {
     pub fn get_default_global_tenant_id() -> Self {
         Self(super::LengthId::new_unchecked(
             super::AlphaNumericId::new_unchecked(DEFAULT_GLOBAL_TENANT_ID.to_string()),
+        ))
+    }
+
+    /// Get the default tenant ID
+    pub fn get_default_tenant_id() -> Self {
+        Self(super::LengthId::new_unchecked(
+            super::AlphaNumericId::new_unchecked(DEFAULT_TENANT.to_string()),
         ))
     }
 

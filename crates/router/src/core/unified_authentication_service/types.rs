@@ -1,4 +1,5 @@
 use api_models::payments;
+use common_enums::RoutingRegion;
 use hyperswitch_domain_models::{
     errors::api_error_response::{self as errors, NotImplementedMessage},
     router_request_types::{
@@ -44,6 +45,7 @@ pub trait UnifiedAuthenticationService {
         _acquirer_bin: Option<String>,
         _acquirer_merchant_id: Option<String>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -71,6 +73,7 @@ pub trait UnifiedAuthenticationService {
         _billing_address: Option<&hyperswitch_domain_models::address::Address>,
         _acquirer_bin: Option<String>,
         _acquirer_merchant_id: Option<String>,
+        _routing_region: Option<RoutingRegion>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPreAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("pre_authentication".to_string()),
@@ -85,7 +88,7 @@ pub trait UnifiedAuthenticationService {
         _currency: Option<common_enums::Currency>,
         _message_category: MessageCategory,
         _device_channel: payments::DeviceChannel,
-        _authentication: diesel_models::authentication::Authentication,
+        _authentication: hyperswitch_domain_models::authentication::Authentication,
         _return_url: Option<String>,
         _sdk_information: Option<payments::SdkInformation>,
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -93,6 +96,7 @@ pub trait UnifiedAuthenticationService {
         _webhook_url: String,
         _force_3ds_challenge: Option<bool>,
         _psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        _routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -112,7 +116,7 @@ pub trait UnifiedAuthenticationService {
         _currency: Option<common_enums::Currency>,
         _message_category: MessageCategory,
         _device_channel: payments::DeviceChannel,
-        _authentication_data: diesel_models::authentication::Authentication,
+        _authentication_data: hyperswitch_domain_models::authentication::Authentication,
         _return_url: Option<String>,
         _sdk_information: Option<payments::SdkInformation>,
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -123,6 +127,7 @@ pub trait UnifiedAuthenticationService {
         _payment_id: Option<common_utils::id_type::PaymentId>,
         _force_3ds_challenge: Option<bool>,
         _psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        _routing_region: Option<RoutingRegion>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("authentication".to_string()),
@@ -131,7 +136,8 @@ pub trait UnifiedAuthenticationService {
     }
 
     fn get_post_authentication_request_data(
-        _authentication: Option<diesel_models::authentication::Authentication>,
+        _authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
+        _routing_region: Option<RoutingRegion>,
     ) -> RouterResult<UasPostAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("post_authentication".to_string()),
@@ -149,7 +155,8 @@ pub trait UnifiedAuthenticationService {
         _authentication_id: &common_utils::id_type::AuthenticationId,
         _payment_method: common_enums::PaymentMethod,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _authentication: Option<&diesel_models::authentication::Authentication>,
+        _authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
+        _routing_region: Option<RoutingRegion>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("post_authentication".to_string()),

@@ -52,7 +52,7 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     }
 }
 
-impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
+impl_api_event_type!(Miscellaneous, (GenericLinkFormData));
 
 #[derive(Debug, PartialEq)]
 pub struct RedirectionFormData {
@@ -64,22 +64,8 @@ pub struct RedirectionFormData {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentLinkAction {
-    PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLinkStatus(PaymentLinkStatusData),
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
-    pub js_script: String,
-    pub css_script: String,
-    pub sdk_url: url::Url,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkStatusData {
-    pub js_script: String,
-    pub css_script: String,
+    PaymentLinkFormData(payment_link::PaymentLinkFormData),
+    PaymentLinkStatus(payment_link::PaymentLinkStatusData),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -96,7 +82,7 @@ pub enum GenericLinksData {
     PayoutLink(GenericLinkFormData),
     PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
-    SecurePaymentLink(PaymentLinkFormData),
+    SecurePaymentLink(payment_link::PaymentLinkFormData),
 }
 
 impl Display for GenericLinksData {

@@ -142,6 +142,7 @@ impl ConnectorCommon for Paytm {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -577,6 +578,7 @@ impl webhooks::IncomingWebhook for Paytm {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -642,5 +644,9 @@ impl ConnectorSpecifications for Paytm {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*PAYTM_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        true
     }
 }

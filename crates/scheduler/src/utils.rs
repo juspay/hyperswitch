@@ -22,13 +22,18 @@ pub async fn divide_and_append_tasks<T>(
     flow: SchedulerFlow,
     tasks: Vec<storage::ProcessTracker>,
     settings: &SchedulerSettings,
+    application_source: enums::ApplicationSource,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
     T: SchedulerInterface + Send + Sync + ?Sized,
 {
-    let batches = divide(tasks, settings);
+    let batches = divide(tasks, settings, application_source);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
-    logger::info!("Adding {} batches to stream", batches.len());
+    logger::info!(
+        "Adding {} batches for application_source: {:?}",
+        batches.len(),
+        application_source
+    );
     #[allow(clippy::as_conversions)]
     metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
@@ -148,10 +153,11 @@ where
 pub fn divide(
     tasks: Vec<storage::ProcessTracker>,
     conf: &SchedulerSettings,
+    application_source: enums::ApplicationSource,
 ) -> Vec<ProcessTrackerBatch> {
     let now = common_utils::date_time::now();
     let batch_size = conf.producer.batch_size;
-    divide_into_batches(batch_size, tasks, now, conf)
+    divide_into_batches(batch_size, tasks, now, conf, application_source)
 }
 
 pub fn divide_into_batches(
@@ -159,8 +165,14 @@ pub fn divide_into_batches(
     tasks: Vec<storage::ProcessTracker>,
     batch_creation_time: time::PrimitiveDateTime,
     conf: &SchedulerSettings,
+    application_source: enums::ApplicationSource,
 ) -> Vec<ProcessTrackerBatch> {
     let batch_id = Uuid::new_v4().to_string();
+
+    let stream_name = match application_source {
+        enums::ApplicationSource::Main => &conf.stream,
+        enums::ApplicationSource::Cug => &conf.cug_stream,
+    };
 
     tasks
         .chunks(batch_size)
@@ -168,7 +180,7 @@ pub fn divide_into_batches(
             let batch = ProcessTrackerBatch {
                 id: batch_id.clone(),
                 group_name: conf.consumer.consumer_group.clone(),
-                stream_name: conf.stream.clone(),
+                stream_name: stream_name.to_string(),
                 connection_name: String::new(),
                 created_time: batch_creation_time,
                 rule: String::new(), // is it required?

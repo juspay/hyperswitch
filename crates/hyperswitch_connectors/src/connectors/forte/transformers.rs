@@ -94,14 +94,15 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
         item_data: &ForteRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let item = item_data.router_data;
-        if item.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Forte",
-            })?
-        }
+
         match item.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
+                if item.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Cards 3DS".to_string(),
+                        connector: "Forte",
+                    })?
+                }
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
@@ -148,7 +149,10 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Forte"),
                 ))?
@@ -310,6 +314,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsRespo
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -367,6 +372,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsR
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -436,6 +442,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             amount_captured: None,
@@ -504,6 +511,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsRespons
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

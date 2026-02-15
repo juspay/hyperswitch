@@ -682,6 +682,9 @@ pub struct AuthenticationSyncResponse {
     #[schema(value_type = Option<String>)]
     pub directory_server_id: Option<String>,
 
+    /// The insensitive payment method data
+    pub payment_method_data: Option<AuthenticationPaymentMethodDataResponse>,
+
     /// The tokens for vaulted data
     pub vault_token_data: Option<AuthenticationVaultTokenData>,
 
@@ -747,47 +750,71 @@ pub struct AuthenticationSyncResponse {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum AuthenticationVaultTokenData {
-    CardToken {
-        /// token representing card_number
-        #[schema(value_type = String)]
-        #[serde(rename = "card_number")]
-        tokenized_card_number: masking::Secret<String>,
+pub enum AuthenticationPaymentMethodDataResponse {
+    CardData {
+        /// card expiry year
+        #[schema(value_type = Option<String>)]
+        card_expiry_year: Option<masking::Secret<String>>,
 
-        /// token representing card_numcard_expiry_yearber
-        #[schema(value_type = String)]
+        /// card expiry month
+        #[schema(value_type = Option<String>)]
+        card_expiry_month: Option<masking::Secret<String>>,
+    },
+    NetworkTokenData {
+        /// network token expiry month
+        #[schema(value_type = Option<String>)]
+        network_token_expiry_month: Option<masking::Secret<String>>,
+
+        /// network token expiry year
+        #[schema(value_type = Option<String>)]
+        network_token_expiry_year: Option<masking::Secret<String>>,
+    },
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AuthenticationVaultTokenData {
+    CardData {
+        /// token representing card_number
+        #[schema(value_type = Option<String>)]
+        #[serde(rename = "card_number")]
+        tokenized_card_number: Option<masking::Secret<String>>,
+
+        /// token representing card_expiry_year
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_year")]
-        tokenized_card_expiry_year: masking::Secret<String>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
 
         /// token representing card_expiry_month
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_month")]
-        tokenized_card_expiry_month: masking::Secret<String>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
 
         /// token representing card_cvc
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_cvc")]
         tokenized_card_cvc: Option<masking::Secret<String>>,
     },
-    NetworkToken {
+    NetworkTokenData {
         /// token representing payment_token
-        #[schema(value_type = String)]
-        #[serde(rename = "payment_token")]
-        tokenized_payment_token: masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(rename = "network_token")]
+        tokenized_network_token: Option<masking::Secret<String>>,
 
         /// token representing token_expiry_year
-        #[schema(value_type = String)]
-        #[serde(rename = "token_expiry_year")]
-        tokenized_expiry_year: masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(rename = "network_token_expiry_year")]
+        tokenized_expiry_year: Option<masking::Secret<String>>,
 
         /// token representing token_expiry_month
-        #[schema(value_type = String)]
-        #[serde(rename = "token_expiry_month")]
-        tokenized_expiry_month: masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(rename = "network_token_expiry_month")]
+        tokenized_expiry_month: Option<masking::Secret<String>>,
 
         /// token representing token_cryptogram
         #[schema(value_type = Option<String>)]
-        #[serde(rename = "token_cryptogram")]
+        #[serde(rename = "network_token_cryptogram")]
         tokenized_cryptogram: Option<masking::Secret<String>>,
     },
 }

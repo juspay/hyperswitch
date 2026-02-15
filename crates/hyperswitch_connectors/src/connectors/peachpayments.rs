@@ -52,6 +52,7 @@ use crate::{
     utils::{self, RefundsRequestData},
 };
 
+const REFUND: &str = "Refund";
 #[derive(Clone)]
 pub struct Peachpayments {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -157,6 +158,7 @@ impl ConnectorCommon for Peachpayments {
             reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -213,7 +215,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 "{}/transactions/create-and-confirm",
                 self.base_url(connectors)
             )),
-            CaptureMethod::Manual => Ok(format!("{}/transactions", self.base_url(connectors))),
+            CaptureMethod::Manual => Ok(format!(
+                "{}/transactions/authorization",
+                self.base_url(connectors)
+            )),
             CaptureMethod::ManualMultiple
             | CaptureMethod::Scheduled
             | CaptureMethod::SequentialAutomatic => {
@@ -382,7 +387,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
         Ok(format!(
-            "{}/transactions/{}/confirm",
+            "{}/transactions/authorization/{}/capture",
             self.base_url(connectors),
             connector_transaction_id
         ))
@@ -401,7 +406,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
         let connector_router_data = peachpayments::PeachpaymentsRouterData::from((amount, req));
         let connector_req =
-            peachpayments::PeachpaymentsConfirmRequest::try_from(&connector_router_data)?;
+            peachpayments::PeachpaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -431,7 +436,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsConfirmResponse = res
+        let response: peachpayments::PeachpaymentsCaptureResponse = res
             .response
             .parse_struct("Peachpayments PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -473,7 +478,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
         Ok(format!(
-            "{}/transactions/{}/void",
+            "{}/transactions/authorization/{}/reverse",
             self.base_url(connectors),
             connector_transaction_id
         ))
@@ -484,7 +489,24 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = peachpayments::PeachpaymentsVoidRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Currency",
+                })?,
+        )?;
+
+        let connector_router_data = peachpayments::PeachpaymentsRouterData::from((amount, req));
+
+        let connector_req =
+            peachpayments::PeachpaymentsVoidRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -691,33 +713,60 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let reference_id = webhook_body
+        let description = webhook_body
             .transaction
             .as_ref()
-            .map(|txn| txn.reference_id.clone())
-            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .map(|txn| txn.transaction_type.description.clone());
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::PaymentAttemptId(reference_id),
-        ))
+        if description == Some(REFUND.to_string()) {
+            let refund_id = webhook_body
+                .transaction
+                .as_ref()
+                .map(|txn| txn.transaction_id.clone())
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_id),
+            ))
+        } else {
+            let transaction_id = webhook_body
+                .transaction
+                .as_ref()
+                .map(|txn| txn.transaction_id.clone())
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
+            ))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: peachpayments::PeachpaymentsIncomingWebhook = request
             .body
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
+        let description = webhook_body
+            .transaction
+            .as_ref()
+            .map(|txn| txn.transaction_type.description.clone());
+
         match webhook_body.webhook_type.as_str() {
             "transaction" => {
                 if let Some(transaction) = webhook_body.transaction {
                     match transaction.transaction_result {
-                        peachpayments::PeachpaymentsPaymentStatus::Successful
-                        | peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
+                        peachpayments::PeachpaymentsPaymentStatus::Successful => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                        }
+                        peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
+                            if description == Some(REFUND.to_string()) {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+                            } else {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                            }
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Authorized
                         | peachpayments::PeachpaymentsPaymentStatus::Approved => {
@@ -728,7 +777,11 @@ impl webhooks::IncomingWebhook for Peachpayments {
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Declined
                         | peachpayments::PeachpaymentsPaymentStatus::Failed => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                            if description == Some(REFUND.to_string()) {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+                            } else {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                            }
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Voided
                         | peachpayments::PeachpaymentsPaymentStatus::Reversed => {
@@ -821,6 +874,17 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
             },
         );
 
+        peachpayments_supported_payment_methods.add(
+            enums::PaymentMethod::NetworkToken,
+            enums::PaymentMethodType::NetworkToken,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
         peachpayments_supported_payment_methods
     });
 
@@ -828,7 +892,7 @@ static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Peach Payments",
     description: "The secure African payment gateway with easy integrations, 365-day support, and advanced orchestration.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Beta,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =

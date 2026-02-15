@@ -250,6 +250,7 @@ impl ProcessTrackerInterface for MockDb {
             created_at: new.created_at,
             updated_at: new.updated_at,
             version: new.version,
+            application_source: new.application_source,
         };
         processes.push(process.clone());
         Ok(process)

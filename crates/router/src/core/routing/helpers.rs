@@ -13,7 +13,7 @@ use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
-use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
@@ -214,7 +214,6 @@ pub async fn update_merchant_active_algorithm_ref(
 
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
-        &state.into(),
         &key_store.merchant_id,
         merchant_account_update,
         key_store,
@@ -234,7 +233,6 @@ pub async fn update_merchant_active_algorithm_ref(
 #[cfg(feature = "v1")]
 pub async fn update_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
@@ -264,7 +262,6 @@ pub async fn update_profile_active_algorithm_ref(
     };
 
     db.update_profile_by_profile_id(
-        key_manager_state,
         merchant_key_store,
         current_business_profile,
         business_profile_update,
@@ -295,7 +292,6 @@ pub async fn update_profile_active_algorithm_ref(
 #[cfg(feature = "v1")]
 pub async fn update_business_profile_active_dynamic_algorithm_ref(
     db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     dynamic_routing_algorithm_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -308,7 +304,6 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
         dynamic_routing_algorithm: Some(ref_val),
     };
     db.update_profile_by_profile_id(
-        key_manager_state,
         merchant_key_store,
         current_business_profile,
         business_profile_update,
@@ -478,7 +473,6 @@ pub async fn validate_connectors_in_routing_config(
     let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             merchant_id,
             true,
             key_store,
@@ -805,7 +799,7 @@ pub async fn update_gateway_score_helper_with_open_router(
 
         let routable_connector = routing_types::RoutableConnectorChoice {
             choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-            connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+            connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to infer routable_connector from connector")?,
             merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -862,7 +856,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let routable_connector = routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -1263,7 +1257,7 @@ pub async fn update_window_for_elimination_routing(
                 vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                        connector: common_enums::RoutableConnectors::from_str(
+                        connector: euclid::enums::RoutableConnectors::from_str(
                             payment_connector.as_str(),
                         )
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1365,7 +1359,7 @@ pub async fn update_window_for_elimination_routing(
             routing_event.set_status_code(200);
             routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                connector: euclid::enums::RoutableConnectors::from_str(payment_connector.as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
@@ -1558,7 +1552,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                     choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                    connector: common_enums::RoutableConnectors::from_str(
+                    connector: euclid::enums::RoutableConnectors::from_str(
                         final_label_info.label.as_str(),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1796,7 +1790,6 @@ pub async fn disable_dynamic_routing_algorithm(
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let (algorithm_id, mut dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
@@ -1956,7 +1949,6 @@ pub async fn disable_dynamic_routing_algorithm(
     let response = record.foreign_into();
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        key_manager_state,
         &key_store,
         business_profile,
         dynamic_routing_algorithm,
@@ -2095,7 +2087,6 @@ where
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        &state.into(),
         &key_store,
         business_profile,
         dynamic_routing_algo_ref.clone(),
@@ -2125,7 +2116,6 @@ pub async fn default_specific_dynamic_routing_setup(
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
@@ -2213,7 +2203,6 @@ pub async fn default_specific_dynamic_routing_setup(
     );
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        key_manager_state,
         &key_store,
         business_profile,
         dynamic_routing_algo_ref,
@@ -2241,7 +2230,6 @@ pub async fn create_specific_dynamic_routing_setup(
     payload: routing_types::DynamicRoutingPayload,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
@@ -2332,7 +2320,6 @@ pub async fn create_specific_dynamic_routing_setup(
     dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        key_manager_state,
         &key_store,
         business_profile,
         dynamic_routing_algo_ref,

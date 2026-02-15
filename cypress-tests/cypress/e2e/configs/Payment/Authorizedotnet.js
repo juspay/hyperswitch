@@ -1,9 +1,9 @@
+import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
-import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -35,10 +35,10 @@ const failedNo3DSCardDetails = {
 const paymentMethodData = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -49,6 +49,7 @@ const paymentMethodData = {
       avs_result_code: "Y",
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -533,6 +534,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
         email: generateRandomEmail(),
       },
       Response: {
@@ -731,11 +734,24 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_16",
+          },
         },
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "payload.id",
+      // Type of payment reference ID
+      type: "string",
     },
   },
 };

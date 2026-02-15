@@ -4,11 +4,13 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RecoveryPaymentListResponse, RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RevenueRecoveryGetIntentResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
-    ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
+    ListMethodsForPaymentMethodsRequest, PaymentMethodGetTokenDetailsResponse,
+    PaymentMethodListResponseForSession,
 };
 use crate::{
     payment_methods::{
@@ -258,6 +260,15 @@ impl ApiEventMetric for PaymentsIntentResponse {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+impl ApiEventMetric for RevenueRecoveryGetIntentResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ApiEventMetric for payments::PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -494,6 +505,13 @@ impl ApiEventMetric for RecoveryPaymentsResponse {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListResponseV2 {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -582,6 +600,17 @@ impl ApiEventMetric for payments::PaymentsCaptureResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::PaymentMethodGetTokenDetailsResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: None,
+            payment_method_subtype: None,
         })
     }
 }

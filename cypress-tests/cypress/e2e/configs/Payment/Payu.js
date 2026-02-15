@@ -68,6 +68,7 @@ const paymentMethodData = {
     card_holder_name: "John Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -584,6 +585,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: polishBillingAddress,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,

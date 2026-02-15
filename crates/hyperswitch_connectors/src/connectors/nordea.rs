@@ -13,15 +13,16 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data,
     router_data::{AccessToken, AccessTokenAuthenticationResponse, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        AccessTokenAuthentication, PreProcessing,
+        AccessTokenAuthentication, CreateOrder, PreProcessing,
     },
     router_request_types::{
-        AccessTokenAuthenticationRequestData, AccessTokenRequestData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, CreateOrderRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
@@ -31,7 +32,7 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        AccessTokenAuthenticationRouterData, PaymentsAuthorizeRouterData,
+        AccessTokenAuthenticationRouterData, CreateOrderRouterData, PaymentsAuthorizeRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
         RefundsRouterData,
     },
@@ -238,6 +239,7 @@ impl Nordea {
 }
 
 impl api::Payment for Nordea {}
+impl api::PaymentsCreateOrder for Nordea {}
 impl api::PaymentSession for Nordea {}
 impl api::ConnectorAuthenticationToken for Nordea {}
 impl api::ConnectorAccessToken for Nordea {}
@@ -410,6 +412,7 @@ impl ConnectorCommon for Nordea {
                 .and_then(|failure| failure.failure_type.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -740,6 +743,117 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
+impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData> for Nordea {
+    fn get_headers(
+        &self,
+        req: &CreateOrderRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &CreateOrderRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // Determine the payment endpoint based on country and currency
+        let country = req.get_billing_country()?;
+
+        let currency = req.request.currency;
+
+        let endpoint = match (country, currency) {
+            (api_models::enums::CountryAlpha2::FI, api_models::enums::Currency::EUR) => {
+                "/personal/v5/payments/sepa-credit-transfers"
+            }
+            (api_models::enums::CountryAlpha2::DK, api_models::enums::Currency::DKK) => {
+                "/personal/v5/payments/domestic-credit-transfers"
+            }
+            (
+                api_models::enums::CountryAlpha2::FI
+                | api_models::enums::CountryAlpha2::DK
+                | api_models::enums::CountryAlpha2::SE
+                | api_models::enums::CountryAlpha2::NO,
+                _,
+            ) => "/personal/v5/payments/cross-border-credit-transfers",
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: format!("Country {country:?} is not supported by Nordea"),
+                    connector: "Nordea",
+                }
+                .into())
+            }
+        };
+
+        Ok(format!("{}{}", self.base_url(connectors), endpoint))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &CreateOrderRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_amount = req.request.minor_amount;
+        let currency = req.request.currency;
+
+        let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+        let connector_router_data = NordeaRouterData::from((amount, req));
+        let connector_req = NordeaPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &CreateOrderRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::CreateOrderType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::CreateOrderType::get_headers(self, req, connectors)?)
+                .set_body(types::CreateOrderType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &CreateOrderRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<CreateOrderRouterData, errors::ConnectorError> {
+        let response: NordeaPaymentsInitiateResponse = res
+            .response
+            .parse_struct("NordeaPaymentsInitiateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
     for Nordea
 {
@@ -801,12 +915,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
+        let minor_amount = req.request.minor_amount;
         let currency =
             req.request
                 .currency
@@ -1105,6 +1214,7 @@ impl webhooks::IncomingWebhook for Nordea {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -1152,6 +1262,19 @@ lazy_static! {
 }
 
 impl ConnectorSpecifications for Nordea {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => matches!(
+                &request_data.payment_method_data,
+                payment_method_data::PaymentMethodData::BankDebit(_)
+            ),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*NORDEA_CONNECTOR_INFO)
     }

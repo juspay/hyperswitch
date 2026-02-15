@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
+use api_models::payment_methods as api;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::{enums as api_enums, payment_methods as api};
 #[cfg(feature = "v1")]
 use common_enums::enums as common_enums;
 #[cfg(feature = "v2")]
@@ -57,6 +57,7 @@ pub trait PaymentMethodsController {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
+        payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
@@ -120,7 +121,6 @@ pub trait PaymentMethodsController {
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
-        locker_choice: api_enums::LockerChoice,
         card_reference: Option<&str>,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 
@@ -139,6 +139,15 @@ pub trait PaymentMethodsController {
         req: api::PaymentMethodCreate,
         key_store: &merchant_key_store::MerchantKeyStore,
         bank: &payouts::Bank,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+
+    #[cfg(feature = "v1")]
+    async fn add_bank_debit_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        bank_debit_data: api_models::payment_methods::BankDebitDetail,
+        key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 

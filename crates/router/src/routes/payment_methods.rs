@@ -1,3 +1,6 @@
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use std::collections::HashMap;
+
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -16,7 +19,10 @@ use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-use crate::core::{customers, payment_methods::tokenize};
+use crate::core::{
+    customers,
+    payment_methods::{batch_retrieve, tokenize},
+};
 use crate::{
     core::{
         api_locking,
@@ -46,19 +52,16 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             Box::pin(cards::get_client_secret_or_add_payment_method(
                 &state,
                 req,
-                &merchant_context,
+                auth.platform.get_provider(),
             ))
             .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -74,27 +77,71 @@ pub async fn create_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+    let jwt_auth = auth::JWTAuth {
+        permission: Permission::MerchantCustomerRead,
+    };
+    let (auth_type, _api_key_type) =
+        match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
+            req.headers(),
+            api_auth,
+            jwt_auth,
+            state.conf.internal_merchant_id_profile_id_auth.clone(),
+        ) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, req_state| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             Box::pin(payment_methods_routes::create_payment_method(
                 &state,
                 &req_state,
                 req,
-                &merchant_context,
+                &auth.platform,
+                &auth.profile,
+            ))
+            .await
+        },
+        &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::NetworkTokenEligibilityCheck))]
+pub async fn get_pm_nt_eligibility_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<payment_methods::NetworkTokenEligibilityRequest>,
+) -> HttpResponse {
+    let flow = Flow::NetworkTokenEligibilityCheck;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, req, _req_state| async move {
+            Box::pin(payment_methods_routes::get_card_nt_eligibility(
+                &state,
+                req,
+                &auth.platform,
                 &auth.profile,
             ))
             .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -116,19 +163,16 @@ pub async fn create_payment_method_intent_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             Box::pin(payment_methods_routes::payment_method_intent_create(
                 &state,
                 req,
-                &merchant_context,
+                auth.platform.get_provider().clone(),
             ))
             .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -173,27 +217,35 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::update_payment_method(
                 state,
-                merchant_context,
+                auth.platform,
                 auth.profile,
                 req,
                 &payment_method_id,
             )
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -204,6 +256,7 @@ pub async fn payment_method_update_api(
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodRetrieveRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsRetrieve;
@@ -212,21 +265,36 @@ pub async fn payment_method_retrieve_api(
     })
     .into_inner();
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payment_methods_routes::retrieve_payment_method(state, pm, merchant_context)
+            payment_methods_routes::retrieve_payment_method(
+                state,
+                pm,
+                auth.profile,
+                auth.platform,
+                api_key_type,
+                query_payload.fetch_raw_detail,
+            )
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -245,21 +313,29 @@ pub async fn payment_method_delete_api(
     })
     .into_inner();
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payment_methods_routes::delete_payment_method(state, pm, merchant_context, auth.profile)
+            payment_methods_routes::delete_payment_method(state, pm, auth.platform, auth.profile)
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -280,17 +356,21 @@ pub async fn migrate_payment_method_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store,
+                None,
+            );
             Box::pin(migrate_payment_method(
                 &(&state).into(),
                 req,
                 &merchant_id,
-                &merchant_context,
+                &platform,
                 &cards::PmCards {
                     state: &state,
-                    merchant_context: &merchant_context,
+                    provider: platform.get_provider(),
                 },
             ))
             .await
@@ -305,11 +385,9 @@ async fn get_merchant_account(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
-    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -318,7 +396,7 @@ async fn get_merchant_account(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))
@@ -351,11 +429,15 @@ pub async fn migrate_payment_methods(
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
                 // Create customers if they are not already present
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(merchant_account.clone(), key_store.clone()),
-                ));
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                    None,
+                );
 
-                let mut mca_cache = std::collections::HashMap::new();
+                let mut mca_cache = HashMap::new();
                 let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
                     &req,
                     merchant_id.clone(),
@@ -371,10 +453,9 @@ pub async fn migrate_payment_methods(
                                 let mca = state
                         .store
                         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            &(&state).into(),
                             &merchant_id,
                             &connector_customer.merchant_connector_id,
-                            merchant_context.get_merchant_key_store(),
+                            platform.get_processor().get_key_store(),
                         )
                         .await
                         .to_not_found_response(
@@ -389,18 +470,18 @@ pub async fn migrate_payment_methods(
                     }
                 }
 
-                customers::migrate_customers(state.clone(), customers, merchant_context.clone())
+                customers::migrate_customers(state.clone(), customers, platform.clone())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let controller = cards::PmCards {
                     state: &state,
-                    merchant_context: &merchant_context,
+                    provider: platform.get_provider(),
                 };
                 Box::pin(migration::migrate_payment_methods(
                     &(&state).into(),
                     req,
                     &merchant_id,
-                    &merchant_context,
+                    &platform,
                     merchant_connector_ids,
                     &controller,
                 ))
@@ -435,16 +516,89 @@ pub async fn update_payment_methods(
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(merchant_account.clone(), key_store.clone()),
-                ));
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                    None,
+                );
                 Box::pin(update_migration::update_payment_methods(
                     &state,
                     req,
                     &merchant_id,
-                    &merchant_context,
+                    &platform,
                 ))
                 .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchRetrieve))]
+pub async fn payment_methods_batch_retrieve_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<batch_retrieve::PaymentMethodsBatchRetrieveForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchRetrieve;
+    let (merchant_id, records) = match batch_retrieve::get_payment_method_batch_records(form) {
+        Ok(result) => result,
+        Err(error) => return api::log_and_return_error_response(error.into()),
+    };
+
+    if records.is_empty() {
+        return api::log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "No payment_method_ids provided".to_string(),
+            }
+            .into(),
+        );
+    }
+
+    if records.len() > 200 {
+        return api::log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "A maximum of 200 payment_method_ids are allowed per request".to_string(),
+            }
+            .into(),
+        );
+    }
+
+    let payload_records = records.clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload_records,
+        |state, _, _, _| {
+            let merchant_id = merchant_id.clone();
+            let records = records.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                    None,
+                );
+
+                let responses = batch_retrieve::retrieve_payment_method_data(
+                    &state,
+                    &merchant_id,
+                    &platform,
+                    records,
+                )
+                .await?;
+
+                Ok(services::ApplicationResponse::Json(responses))
             }
         },
         &auth::AdminApiAuth,
@@ -464,10 +618,12 @@ pub async fn save_payment_method_api(
     let flow = Flow::PaymentMethodSave;
     let payload = json_payload.into_inner();
     let pm_id = path.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    {
+    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -477,14 +633,15 @@ pub async fn save_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             Box::pin(cards::add_payment_method_data(
                 state,
                 req,
-                merchant_context,
+                auth.platform.get_provider().clone(),
                 pm_id.clone(),
             ))
         },
@@ -503,10 +660,12 @@ pub async fn list_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    {
+    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -516,12 +675,13 @@ pub async fn list_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            cards::list_payment_methods(state, merchant_context, req)
+            cards::list_payment_methods(state, auth.platform, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -543,30 +703,41 @@ pub async fn list_customer_payment_method_api(
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
-    let api_auth = auth::ApiKeyAuth::default();
-
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
+
+    let auth_type: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(err),
+            },
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
-                merchant_context,
+                auth.platform,
                 Some(req),
                 Some(&customer_id),
                 None,
             )
         },
-        &*ephemeral_auth,
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -585,28 +756,49 @@ pub async fn list_customer_payment_method_api_client(
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
     let api_key = auth::get_api_key(req.headers()).ok();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
 
-    let (auth, _, is_ephemeral_auth) =
-        match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
-            .await
-        {
-            Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    // Check if Authorization header is present for SDK authorization
+    let (auth, _, is_ephemeral_auth) = match req
+        .headers()
+        .get(actix_web::http::header::AUTHORIZATION)
+    {
+        Some(_) => {
+            // If Authorization header is present, use SdkAuthorizationAuth
+            let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+                Box::new(auth::SdkAuthorizationAuth {
+                    allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                    allow_platform_self_operation: api_auth.allow_platform_self_operation,
+                });
+            (auth, api::AuthFlow::Client, false)
+        }
+        None => {
+            // If Authorization header is not present, use existing logic
+            match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
+                .await
+            {
+                Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
-                merchant_context,
+                auth.platform,
                 Some(req),
                 None,
                 is_ephemeral_auth.then_some(api_key).flatten(),
@@ -632,14 +824,11 @@ pub async fn initiate_pm_collect_link_flow(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payment_methods_routes::initiate_pm_collect_link(state, merchant_context, req)
+            payment_methods_routes::initiate_pm_collect_link(state, auth.platform, req)
         },
         &auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -658,31 +847,33 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner();
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::list_saved_payment_methods_for_customer(
                 state,
-                merchant_context,
+                auth.platform.get_provider().clone(),
                 customer_id.clone(),
             )
         },
-        auth::auth_type(
-            &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            &auth::JWTAuth {
-                permission: Permission::MerchantCustomerRead,
-            },
-            req.headers(),
-        ),
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -708,8 +899,7 @@ pub async fn get_payment_method_token_data(
         |state, auth: auth::AuthenticationData, req, _| {
             payment_methods_routes::get_token_data_for_payment_method(
                 state,
-                auth.merchant_account,
-                auth.key_store,
+                auth.platform.get_provider().clone(),
                 auth.profile,
                 req,
                 payment_method_id.clone(),
@@ -717,8 +907,8 @@ pub async fn get_payment_method_token_data(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -744,18 +934,15 @@ pub async fn get_total_payment_method_count(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::get_total_saved_payment_methods_for_merchant(
                 state,
-                merchant_context,
+                auth.platform.get_provider().clone(),
             )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -787,10 +974,11 @@ pub async fn render_pm_collect_link(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payment_methods_routes::render_pm_collect_link(state, merchant_context, req)
+            payment_methods_routes::render_pm_collect_link(
+                state,
+                auth.platform.get_provider().clone(),
+                req,
+            )
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
@@ -817,19 +1005,16 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             cards::PmCards {
                 state: &state,
-                merchant_context: &merchant_context,
+                provider: auth.platform.get_provider(),
             }
             .retrieve_payment_method(pm)
             .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -847,10 +1032,12 @@ pub async fn payment_method_update_api(
     let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    {
+    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -860,13 +1047,14 @@ pub async fn payment_method_update_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             cards::update_customer_payment_method(
                 state,
-                merchant_context,
+                auth.platform.get_provider().clone(),
                 req,
                 &payment_method_id,
                 None,
@@ -889,7 +1077,10 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
 
     let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
         Ok(auth) => auth,
@@ -902,12 +1093,9 @@ pub async fn payment_method_delete_api(
         &req,
         pm,
         |state, auth: auth::AuthenticationData, req, _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             cards::PmCards {
                 state: &state,
-                merchant_context: &merchant_context,
+                provider: auth.platform.get_provider(),
             }
             .delete_payment_method(req)
             .await
@@ -936,14 +1124,14 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             cards::list_countries_currencies_for_connector_payment_method(
                 state,
                 req,
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorWrite,
@@ -983,8 +1171,8 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorRead,
@@ -1011,33 +1199,40 @@ pub async fn default_payment_method_set_api(
     let payload = path.into_inner();
     let pc = payload.clone();
     let customer_id = &pc.customer_id;
-    let api_auth = auth::ApiKeyAuth::default();
-
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
+
+    let auth_type: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+        match req.headers().get(actix_web::http::header::AUTHORIZATION) {
+            Some(_) => Box::new(auth::SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(err),
+            },
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            let merchant_id = auth.merchant_account.get_id();
             cards::PmCards {
                 state: &state,
-                merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account.clone(), auth.key_store),
-                )),
+                provider: auth.platform.get_provider(),
             }
             .set_default_payment_method(
-                merchant_id,
+                auth.platform.get_provider().get_account().get_id(),
                 customer_id,
                 default_payment_method.payment_method_id,
             )
             .await
         },
-        &*ephemeral_auth,
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1074,6 +1269,7 @@ pub struct ParentPaymentMethodToken {
 }
 
 impl ParentPaymentMethodToken {
+    #[cfg(feature = "v1")]
     pub fn create_key_for_token(
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> Self {
@@ -1083,10 +1279,15 @@ impl ParentPaymentMethodToken {
     }
 
     #[cfg(feature = "v2")]
-    pub fn return_key_for_token(
-        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
-    ) -> String {
-        format!("pm_token_{parent_pm_token}_{payment_method}_hyperswitch")
+    pub fn create_key_for_token(parent_pm_token: &String) -> Self {
+        Self {
+            key_for_token: format!("pm_token_{parent_pm_token}_hyperswitch"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn return_key_for_token(parent_pm_token: &String) -> String {
+        format!("pm_token_{parent_pm_token}_hyperswitch")
     }
 
     pub async fn insert(
@@ -1142,6 +1343,34 @@ impl ParentPaymentMethodToken {
             }
         }
     }
+
+    pub async fn get_data_for_token(
+        &self,
+        state: &SessionState,
+    ) -> CustomResult<PaymentTokenData, errors::ApiErrorResponse> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        logger::debug!(
+            "Fetching payment method token data from redis for key: {}",
+            self.key_for_token
+        );
+
+        let pm_token_data = redis_conn
+            .get_and_deserialize_key::<PaymentTokenData>(
+                &self.key_for_token.as_str().into(),
+                "Token Data",
+            )
+            .await
+            .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Payment method token either expired or does not exist".to_string(),
+            })?;
+        Ok(pm_token_data)
+    }
 }
 
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
@@ -1161,13 +1390,17 @@ pub async fn tokenize_card_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store,
+                None,
+            );
             let res = Box::pin(cards::tokenize_card_flow(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
-                &merchant_context,
+                platform.get_provider(),
             ))
             .await?;
             Ok(services::ApplicationResponse::Json(res))
@@ -1207,13 +1440,17 @@ pub async fn tokenize_card_using_pm_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store,
+                None,
+            );
             let res = Box::pin(cards::tokenize_card_flow(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
-                &merchant_context,
+                platform.get_provider(),
             ))
             .await?;
             Ok(services::ApplicationResponse::Json(res))
@@ -1247,10 +1484,19 @@ pub async fn tokenize_card_batch_api(
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(merchant_account, key_store),
-                ));
-                Box::pin(tokenize::tokenize_cards(&state, req, &merchant_context)).await
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                    None,
+                );
+                Box::pin(tokenize::tokenize_cards(
+                    &state,
+                    req,
+                    platform.get_provider(),
+                ))
+                .await
             }
         },
         &auth::AdminApiAuth,
@@ -1275,15 +1521,16 @@ pub async fn payment_methods_session_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payment_methods_routes::payment_methods_session_create(state, merchant_context, request)
-                .await
+            payment_methods_routes::payment_methods_session_create(
+                state,
+                auth.platform.get_provider().clone(),
+                request,
+            )
+            .await
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1309,12 +1556,9 @@ pub async fn payment_methods_session_update(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_session_id.clone();
             async move {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
                 payment_methods_routes::payment_methods_session_update(
                     state,
-                    merchant_context,
+                    auth.platform.get_provider().clone(),
                     value.clone(),
                     req,
                 )
@@ -1322,8 +1566,8 @@ pub async fn payment_methods_session_update(
             }
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1346,20 +1590,17 @@ pub async fn payment_methods_session_retrieve(
         &req,
         payment_method_session_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_session_id, _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::payment_methods_session_retrieve(
                 state,
-                merchant_context,
+                auth.platform.get_provider().clone(),
                 payment_method_session_id,
             )
             .await
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::V2ClientAuth(
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(
@@ -1389,12 +1630,9 @@ pub async fn payment_method_session_list_payment_methods(
         &req,
         payment_method_session_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_session_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::list_payment_methods_for_session(
                 state,
-                merchant_context,
+                auth.platform,
                 auth.profile,
                 payment_method_session_id,
             )
@@ -1451,13 +1689,10 @@ pub async fn payment_method_session_confirm(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::payment_methods_session_confirm(
                 state,
                 req_state,
-                merchant_context,
+                auth.platform,
                 auth.profile,
                 request.payment_method_session_id,
                 request.request,
@@ -1498,12 +1733,9 @@ pub async fn payment_method_session_update_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::payment_methods_session_update_payment_method(
                 state,
-                merchant_context,
+                auth.platform,
                 auth.profile,
                 request.payment_method_session_id,
                 request.request,
@@ -1544,14 +1776,11 @@ pub async fn payment_method_session_delete_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::payment_methods_session_delete_payment_method(
                 state,
-                merchant_context,
+                auth.platform,
                 auth.profile,
-                request.request.payment_method_id,
+                request.request.payment_method_token,
                 request.payment_method_session_id,
             )
         },
@@ -1581,19 +1810,63 @@ pub async fn network_token_status_check_api(
         &req,
         payment_method_id,
         |state, auth: auth::AuthenticationData, payment_method_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payment_methods_routes::check_network_token_status(
                 state,
-                merchant_context,
+                auth.platform.get_provider().clone(),
                 payment_method_id,
             )
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodGetTokenDetails))]
+pub async fn payment_method_get_token_details_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodGetTokenDetails;
+    let temporary_token = path.into_inner();
+
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let temporary_token = temporary_token.clone();
+            async move {
+                let platform: domain::Platform = auth.platform;
+                payment_methods_routes::payment_method_get_token_details_core(
+                    state,
+                    platform.get_provider().clone(),
+                    temporary_token,
+                )
+                .await
+            }
+        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

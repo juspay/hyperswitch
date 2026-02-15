@@ -96,6 +96,9 @@ pub mod consts {
 
     /// Header key for sending the merchant reference id to UCS
     pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
+
+    /// Header key for sending the resource id to UCS
+    pub(crate) const UCS_HEADER_RESOURCE_ID: &str = "x-resource-id";
 }
 
 /// Metrics for interactions with external systems.
@@ -114,4 +117,14 @@ pub mod metrics {
     histogram_metric_f64!(AWS_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for AWS KMS decryption time (in sec)
     #[cfg(feature = "aws_kms")]
     histogram_metric_f64!(AWS_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for AWS KMS encryption time (in sec)
+}
+
+/// Metrics for config-related operations
+#[cfg(feature = "superposition")]
+pub mod config_metrics {
+    use router_env::{counter_metric, global_meter};
+
+    global_meter!(GLOBAL_METER, "EXTERNAL_SERVICES");
+
+    counter_metric!(CONFIG_SUPERPOSITION_FETCH, GLOBAL_METER); // No. of configs fetched from Superposition
 }

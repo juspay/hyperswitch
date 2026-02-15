@@ -1,7 +1,5 @@
 use api_models::enums as api_enums;
-use common_utils::{
-    ext_traits::OptionExt, fp_utils::when, pii::Email, types::keymanager::KeyManagerState,
-};
+use common_utils::{ext_traits::OptionExt, fp_utils::when, pii::Email};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::logger;
@@ -151,6 +149,9 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             card_issuing_country: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_issuing_country.clone()),
+            card_issuing_country_code: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.country_code.clone()),
             co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
@@ -276,7 +277,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         self.state
             .store
             .find_payment_method(
-                &self.state.into(),
                 self.key_store,
                 payment_method_id,
                 self.merchant_account.storage_scheme,
@@ -355,10 +355,8 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
 
         // Fetch customer
         let db = &*self.state.store;
-        let key_manager_state: &KeyManagerState = &self.state.into();
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 &payment_method.customer_id,
                 self.merchant_account.get_id(),
                 self.key_store,
@@ -369,7 +367,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let customer_details = api::CustomerDetails {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer.name.clone().map(|name| name.into_inner()),
             email: customer.email.clone().map(Email::from),
             phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -378,6 +376,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .tax_registration_id
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
+            document_details: None,
         };
 
         Ok((locker_id, customer_details))
@@ -404,7 +403,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         self.state
             .store
             .update_payment_method(
-                &self.state.into(),
                 self.key_store,
                 payment_method,
                 payment_method_update,

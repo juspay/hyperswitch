@@ -1,3 +1,5 @@
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder};
+
 use crate::routes;
 
 #[derive(utoipa::OpenApi)]
@@ -113,10 +115,15 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for customers
         routes::customers::customers_create,
+        routes::customers::customers_create_v1,
         routes::customers::customers_retrieve,
+        routes::customers::customers_retrieve_v1,
         routes::customers::customers_update,
+        routes::customers::customers_update_v1,
         routes::customers::customers_delete,
+        routes::customers::customers_delete_v1,
         routes::customers::customers_list,
+        routes::customers::customers_list_v1,
 
         //Routes for payments
         routes::payments::payments_create_intent,
@@ -132,21 +139,34 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
+        routes::payment_method::create_payment_method_api_v1,
         routes::payment_method::create_payment_method_intent_api,
         routes::payment_method::confirm_payment_method_intent_api,
         routes::payment_method::payment_method_update_api,
+        routes::payment_method::payment_method_update_api_v1,
         routes::payment_method::payment_method_retrieve_api,
+        routes::payment_method::payment_method_retrieve_api_v1,
         routes::payment_method::payment_method_delete_api,
+        routes::payment_method::payment_method_delete_api_v1,
         routes::payment_method::network_token_status_check_api,
         routes::payment_method::list_customer_payment_method_api,
+        routes::payment_method::list_customer_payment_method_api_v1,
+        routes::payment_method::payment_method_get_token_details_api,
+        routes::payment_method::payment_method_get_token_details_api_v1,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,
+        routes::payment_method::payment_method_session_create_v1,
         routes::payment_method::payment_method_session_retrieve,
+        routes::payment_method::payment_method_session_retrieve_v1,
         routes::payment_method::payment_method_session_list_payment_methods,
+        routes::payment_method::payment_method_session_list_payment_methods_v1,
         routes::payment_method::payment_method_session_update_saved_payment_method,
+        routes::payment_method::payment_method_session_update_saved_payment_method_v1,
         routes::payment_method::payment_method_session_delete_saved_payment_method,
+        routes::payment_method::payment_method_session_delete_saved_payment_method_v1,
         routes::payment_method::payment_method_session_confirm,
+        routes::payment_method::payment_method_session_confirm_v1,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -159,12 +179,17 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for proxy
         routes::proxy::proxy_core,
+        routes::proxy::proxy_core_v1,
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
         routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
+        api_models::payments::DocumentDetails,
+        api_models::enums::PixKey,
+        api_models::enums::BoletoDocumentKind,
+        api_models::enums::BoletoPaymentType,
         common_utils::types::MinorUnit,
         common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,
@@ -211,6 +236,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payment_methods::PaymentMethodsEnabled,
         common_types::payment_methods::PspTokenization,
         common_types::payment_methods::NetworkTokenization,
+        common_types::payment_methods::AssociatedPaymentMethods,
+        common_types::payment_methods::AssociatedPaymentMethodTokenType,
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
@@ -250,12 +277,15 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerUpdateRequest,
         api_models::customers::CustomerDeleteResponse,
+        api_models::customers::CustomerDocumentDetails,
         api_models::ephemeral_key::ResourceId,
         api_models::payment_methods::PaymentMethodCreate,
         api_models::payment_methods::PaymentMethodIntentCreate,
         api_models::payment_methods::PaymentMethodIntentConfirm,
         api_models::payment_methods::AuthenticationDetails,
         api_models::payment_methods::PaymentMethodResponse,
+        api_models::payment_methods::RawPaymentMethodData,
+        api_models::payment_methods::PaymentMethodRetrieveRequest,
         api_models::payment_methods::PaymentMethodResponseData,
         api_models::payment_methods::CustomerPaymentMethodResponseItem,
         api_models::payment_methods::PaymentMethodResponseItem,
@@ -284,6 +314,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::NetworkTokenStatusCheckResponse,
         api_models::payment_methods::NetworkTokenStatusCheckSuccessResponse,
         api_models::payment_methods::NetworkTokenStatusCheckFailureResponse,
+        api_models::payment_methods::PaymentMethodGetTokenDetailsResponse,
         api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,
@@ -303,7 +334,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::Currency,
         api_models::enums::CavvAlgorithm,
         api_models::enums::ExemptionIndicator,
-        api_models::enums::DocumentKind,
+        common_types::customers::DocumentKind,
         api_models::enums::IntentStatus,
         api_models::enums::CaptureMethod,
         api_models::enums::FutureUsage,
@@ -352,6 +383,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::OrganizationType,
         api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultTokenType,
+        api_models::enums::StorageType,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::CardTestingGuardConfig,
@@ -385,6 +417,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::gsm::GsmResponse,
         api_models::enums::GsmDecision,
         api_models::enums::GsmFeature,
+        api_models::enums::StandardisedCode,
+        api_models::enums::UnifiedCode,
         common_types::domain::GsmFeatureData,
         common_types::domain::RetryFeatureData,
         api_models::payments::NullObject,
@@ -415,6 +449,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
         api_models::payments::UpiData,
+        api_models::payments::UpiSource,
         api_models::payments::UpiCollectData,
         api_models::payments::UpiIntentData,
         api_models::payments::UpiQrData,
@@ -436,6 +471,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkType,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
+        api_models::payments::PixAdditionalDetails,
+        api_models::payments::ImmediateExpirationTime,
+        api_models::payments::ScheduledExpirationTime,
+        api_models::payments::BoletoAdditionalDetails,
         api_models::payments::PaymentProcessingDetailsAt,
         api_models::payments::ApplepayInitiative,
         api_models::payments::PaymentProcessingDetails,
@@ -449,6 +488,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
+        api_models::payments::PeachpaymentsData,
         api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::WalletData,
@@ -560,6 +600,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
         api_models::mandates::NetworkTransactionIdAndCardDetails,
+        api_models::mandates::CardWithLimitedData,
+        api_models::mandates::NetworkTransactionIdAndNetworkTokenDetails,
         api_models::payments::GooglePaySessionResponse,
         api_models::payments::GpayShippingAddressParameters,
         api_models::payments::GpayBillingAddressParameters,
@@ -636,6 +678,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::TokenizeCardRequest,
         api_models::payment_methods::TokenizeDataRequest,
         api_models::payment_methods::TokenizePaymentMethodRequest,
+        api_models::payment_methods::CardCVCTokenStorageDetails,
+        api_models::payment_methods::PaymentMethodDeleteSessionResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::AmountFilter,
@@ -652,6 +696,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BHNGiftCardDetails,
         api_models::payments::MobilePaymentData,
         api_models::payments::MobilePaymentResponse,
+        api_models::payments::NetworkTokenData,
         api_models::payments::Address,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
@@ -680,6 +725,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::Bank,
         api_models::payouts::ApplePayDecrypt,
         api_models::payouts::PayoutCreatePayoutLinkConfig,
+        api_models::platform::Initiator,
         api_models::enums::PayoutEntityType,
         api_models::enums::PayoutSendPriority,
         api_models::enums::PayoutStatus,
@@ -814,6 +860,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
         api_models::payments::additional_info::WalletAdditionalDataForCard,
+        api_models::payments::additional_info::SepaBankTransferPaymentAdditionalData,
         api_models::payments::WalletResponse,
         api_models::payments::WalletResponseData,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
@@ -849,6 +896,14 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::tokenization::GenericTokenizationResponse,
         api_models::tokenization::DeleteTokenDataRequest,
         api_models::tokenization::DeleteTokenDataResponse,
+        api_models::payments::DeviceDetails,
+        common_types::payments::PaymentMethodsConfig,
+        common_types::payments::PaymentMethodConfig,
+        common_types::payments::CustomTerms,
+        common_types::payments::CustomMessage,
+        common_types::payments::SdkDisplayMode,
+        common_types::payments::TokenSource,
+        common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     )),
     modifiers(&SecurityAddon)
 )]
@@ -867,34 +922,31 @@ impl utoipa::Modify for SecurityAddon {
                 (
                     "api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
+                        "Authorization",
+                        "Format: `api-key=<api_key>`\n\nUse the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
                     ))),
                 ),
                 (
                     "admin_api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Admin API keys allow you to perform some privileged actions such as \
-                        creating a merchant account and Connector account."
+                        "Authorization",
+                        "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as \
+                        creating a merchant account and Connector account. This is only used during development."
                     ))),
                 ),
                 (
-                    "publishable_key",
+                    "publishable_key__client_secret",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Publishable keys are a type of keys that can be public and have limited \
-                        scope of usage."
+                        "Authorization",
+                        "Format: `publishable-key=<publishable-key>,client-secret=<client-secret>`\n\nPublishable keys are a type of keys that can be public and have limited \
+                        scope of usage. Client Secret provide temporary access to singular data, such as access to a single customer object for a short period of time. This authentication \
+                        scheme is used by the SDK."
                     ))),
                 ),
                 (
-                    "ephemeral_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Ephemeral keys provide temporary access to singular data, such as access \
-                        to a single customer object for a short period of time."
-                    ))),
-                ),
+                    "jwt_key",
+                    SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build())
+                )
             ]);
         }
     }

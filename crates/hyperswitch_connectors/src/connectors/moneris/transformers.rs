@@ -109,14 +109,14 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
     fn try_from(
         item: &MonerisRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "Moneris",
-            })?
-        };
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ref req_card) => {
+                if item.router_data.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Card 3DS".to_string(),
+                        connector: "Moneris",
+                    })?
+                };
                 let idempotency_key = uuid::Uuid::new_v4().to_string();
                 let amount = Amount {
                     currency: item.router_data.request.currency,
@@ -328,6 +328,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

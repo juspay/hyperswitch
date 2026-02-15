@@ -17,8 +17,9 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
-use common_enums::{self, ExecutionMode};
+use common_enums;
 use common_types::payments::CustomerAcceptance;
+#[cfg(feature = "v2")]
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
@@ -27,7 +28,6 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     payments as domain_payments, router_request_types::PaymentsCaptureData,
 };
-use hyperswitch_interfaces::api as api_interfaces;
 
 use crate::{
     core::{
@@ -48,8 +48,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -62,7 +61,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -72,11 +71,20 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn get_merchant_recipient_data<'a>(
         &self,
         _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
+    }
+
+    #[cfg(feature = "v2")]
+    fn add_guest_customer(
+        &self,
+        _router_data: &mut types::RouterData<F, Req, Res>,
+        _guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
+    ) -> RouterResult<()> {
+        Ok(())
     }
 }
 
@@ -99,12 +107,33 @@ pub trait Feature<F, T> {
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
+    /// In case of payment methods like gifcard, some connectors might support balance check API
+    /// This function can be overridden in those specific connectors to implement balance check flow
+    /// Authorize must be called only if balance is sufficient
+    async fn balance_check_flow<'a>(
+        &self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<types::BalanceCheckResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::BalanceCheckResult {
+            balance_check_result: Ok(None),
+            should_continue_payment: true,
+        })
+    }
+
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        processor: &domain::Processor,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -112,16 +141,17 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
-    ) -> RouterResult<Self>
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<()>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(self)
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(
@@ -130,6 +160,7 @@ pub trait Feature<F, T> {
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult>
     where
         F: Clone,
@@ -143,17 +174,43 @@ pub trait Feature<F, T> {
         })
     }
 
-    async fn preprocessing_steps<'a>(
+    async fn pre_authentication_step<'a>(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
-    ) -> RouterResult<Self>
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
     where
         F: Clone,
         Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(self)
+        Ok((self, true))
+    }
+
+    async fn authentication_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn post_authentication_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
     }
 
     async fn postprocessing_steps<'a>(
@@ -173,6 +230,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>>
     where
         F: Clone,
@@ -192,11 +250,27 @@ pub trait Feature<F, T> {
         Ok((None, true))
     }
 
+    async fn settlement_split_call<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        // By default, settlement split call is not required
+        Ok((self, true))
+    }
+
     async fn create_order_at_connector(
         &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>>
     where
         F: Clone,
@@ -212,55 +286,6 @@ pub trait Feature<F, T> {
     ) {
     }
 
-    fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
-        None
-    }
-
-    async fn call_preprocessing_through_unified_connector_service<'a>(
-        self,
-        _state: &SessionState,
-        _header_payload: &domain_payments::HeaderPayload,
-        _lineage_ids: &grpc_client::LineageIds,
-        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
-        _connector_data: &api::ConnectorData,
-        _unified_connector_service_execution_mode: ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
-    ) -> RouterResult<(Self, bool)>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        // Default behaviour is to do nothing and continue further
-        Ok((self, true))
-    }
-
-    async fn call_unified_connector_service<'a>(
-        &mut self,
-        _state: &SessionState,
-        _header_payload: &domain_payments::HeaderPayload,
-        _lineage_ids: grpc_client::LineageIds,
-        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
-        _connector_data: &api::ConnectorData,
-        _unified_connector_service_execution_mode: ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
-        _call_connector_action: common_enums::CallConnectorAction,
-        _creds_identifier: Option<String>,
-    ) -> RouterResult<()>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        Ok(())
-    }
-
     #[cfg(feature = "v2")]
     async fn call_unified_connector_service_with_external_vault_proxy<'a>(
         &mut self,
@@ -269,9 +294,8 @@ pub trait Feature<F, T> {
         _lineage_ids: grpc_client::LineageIds,
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
-        _unified_connector_service_execution_mode: ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
+        _processor: &domain::Processor,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
     ) -> RouterResult<()>
     where
         F: Clone,

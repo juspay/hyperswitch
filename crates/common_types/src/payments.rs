@@ -195,6 +195,7 @@ impl EuclidDirFilter for ConditionalConfigs {
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
         DirKeyKind::BusinessCountry,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
@@ -846,6 +847,25 @@ impl ApplePayPredecryptData {
         Ok(self.application_expiration_month.clone())
     }
 
+    /// Get the two-digit expiration month from the Apple Pay pre-decrypt data
+    /// Returns the month with zero-padding if it's a single digit (e.g., "1" -> "01")
+    pub fn get_two_digit_expiry_month(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let month_str = self.application_expiration_month.peek();
+        let month = month_str
+            .parse::<u8>()
+            .map_err(|_| errors::ValidationError::InvalidValue {
+                message: format!("Failed to parse expiry month: {month_str}"),
+            })?;
+
+        if !(1..=12).contains(&month) {
+            return Err(errors::ValidationError::InvalidValue {
+                message: format!("Invalid expiry month: {month}. Must be between 1 and 12"),
+            }
+            .into());
+        }
+        Ok(Secret::new(format!("{:02}", month)))
+    }
+
     /// Get the expiry date in MMYY format from the Apple Pay pre-decrypt data
     pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ValidationError> {
         let year = self.get_two_digit_expiry_year()?.expose();
@@ -886,7 +906,7 @@ pub enum RecoveryAction {
 #[diesel(sql_type = Jsonb)]
 pub struct BillingDescriptor {
     /// name to be put in billing description
-    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "The Online Retailer")]
     pub name: Option<Secret<String>>,
     /// city to be put in billing description
     #[schema(value_type = Option<String>, example = "San Francisco")]
@@ -898,6 +918,280 @@ pub struct BillingDescriptor {
     pub statement_descriptor: Option<String>,
     /// Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_suffix: Option<String>,
+    /// A reference to be shown on billing description
+    pub reference: Option<String>,
 }
 
 impl_to_sql_from_sql_json!(BillingDescriptor);
+
+///  Information identifying partner / external platform details
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PartnerApplicationDetails {
+    /// Name of the partner/external platform
+    #[schema(value_type = Option<String>)]
+    pub name: Option<String>,
+    /// Version of the partner/external platform
+    #[schema(value_type = Option<String>, example = "1.0.0")]
+    pub version: Option<String>,
+    /// Integrator
+    #[schema(value_type = Option<String>)]
+    pub integrator: Option<String>,
+}
+impl_to_sql_from_sql_json!(PartnerApplicationDetails);
+
+///  Information identifying merchant details
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct MerchantApplicationDetails {
+    /// Name of the the merchant application
+    #[schema(value_type = Option<String>)]
+    pub name: Option<String>,
+    /// Version of the merchant application
+    #[schema(value_type = Option<String>)]
+    pub version: Option<String>,
+}
+impl_to_sql_from_sql_json!(MerchantApplicationDetails);
+
+/// Information identifying partner and merchant application initiating the request
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PartnerMerchantIdentifierDetails {
+    ///  Information identifying partner/external platform details
+    #[schema(value_type = Option<PartnerApplicationDetails>)]
+    pub partner_details: Option<PartnerApplicationDetails>,
+    ///  Information identifying merchant details
+    #[schema(value_type = Option<MerchantApplicationDetails>)]
+    pub merchant_details: Option<MerchantApplicationDetails>,
+}
+
+impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
+
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Default,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    AsExpression,
+    FromSqlRow,
+    utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PaymentIntentStateMetadata {
+    /// Shows up the total refunded amount for a payment
+    pub total_refunded_amount: Option<MinorUnit>,
+    /// Shows up the total disputed amount across all disputes for a particular payment
+    pub total_disputed_amount: Option<MinorUnit>,
+}
+
+impl PaymentIntentStateMetadata {
+    /// Builder method to set total_refunded_amount
+    pub fn with_total_refunded_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_refunded_amount = Some(amount);
+        self
+    }
+    /// Builder method to set total_disputed_amount
+    pub fn with_total_disputed_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_disputed_amount = Some(amount);
+        self
+    }
+    /// Get the blocked amount which is the sum of total disputed and total refunded amounts
+    pub fn get_blocked_amount(self) -> MinorUnit {
+        let blocked_amount = self
+            .total_disputed_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            + self
+                .total_refunded_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+
+        MinorUnit::new(blocked_amount)
+    }
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);
+
+/// List of custom T&C messages grouped by payment method
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodsConfig(
+    #[schema(example = json!([
+        {
+            "payment_method": "card",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "credit",
+                    "message": {
+                        "value": "I authorize this payment",
+                        "display_mode": "default_sdk_message"
+                    }
+                }
+            ]
+        }
+    ]))]
+    pub Vec<PaymentMethodConfig>,
+);
+
+/// Custom T&C messages for a specific payment method
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodConfig {
+    /// Payment Method
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: common_enums::PaymentMethod,
+
+    /// Payment Method Types
+    #[schema(example = json!([
+        {
+            "payment_method_type": "credit",
+            "message": {
+                "value": "Sample message",
+                "display_mode": "custom"
+            }
+        }
+    ]))]
+    #[schema(value_type = Vec<CustomTerms>)]
+    pub payment_method_types: Vec<CustomTerms>,
+}
+
+/// Custom T&C message for a specific payment method type
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CustomTerms {
+    /// Payment Method Type
+    #[schema(value_type = PaymentMethodType, example = "sepa")]
+    pub payment_method_type: common_enums::PaymentMethodType,
+
+    /// The message to be shown
+    #[schema(value_type = CustomMessage)]
+    pub message: CustomMessage,
+}
+
+/// Custom T&C message content and display mode
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CustomMessage {
+    /// The text to be shown per payment method type
+    #[schema(value_type = String, example = "I authorize Novalnet AG to debit my account.")]
+    pub value: String,
+
+    /// The display mode for terms and conditions
+    #[schema(value_type = SdkDisplayMode , example = "custom")]
+    #[serde(default)]
+    pub display_mode: SdkDisplayMode,
+}
+
+/// Display mode options for controlling how messages are shown.
+#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SdkDisplayMode {
+    /// Display the default terms and conditions in sdk
+    #[default]
+    DefaultSdkMessage,
+    /// Display the custom configured by the merchant
+    CustomMessage,
+    /// No terms and conditions to be shown
+    Hidden,
+}
+
+impl PaymentMethodsConfig {
+    /// Validation function for custom terms and conditions
+    pub fn validate(&self) -> Result<(), errors::ValidationError> {
+        for pm_config in &self.0 {
+            let parent_pm = pm_config.payment_method;
+
+            for pm_type_config in &pm_config.payment_method_types {
+                let pm_type = pm_type_config.payment_method_type;
+
+                // Check if the payment_method_type belongs to the parent payment_method
+                if common_enums::PaymentMethod::from(pm_type) != parent_pm {
+                    return Err(errors::ValidationError::InvalidValue {
+                        message: "Payment Method Type '{pm_type}' does not belong to Payment Method '{parent_pm}'".to_string(),
+                    }
+                    .into());
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Interac Customer Information Details
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracCustomerInfoDetails {
+    /// Customer Name
+    #[schema(value_type = Option<String>)]
+    pub customer_name: Option<Secret<String>>,
+    /// Customer Email
+    #[schema(value_type = Option<String>)]
+    pub customer_email: Option<pii::Email>,
+    /// Customer Phone Number
+    #[schema(value_type = Option<String>)]
+    pub customer_phone_number: Option<Secret<String>>,
+    /// Customer Bank Id
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_id: Option<Secret<String>>,
+    /// Customer Bank Name
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_name: Option<Secret<String>>,
+}
+
+/// Network Transaction ID and Decrypted Wallet Token Details
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
+    /// The Decrypted Token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub decrypted_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// ECI indicator of the card
+    pub eci: Option<String>,
+
+    /// Source of the token
+    #[schema(value_type = Option<TokenSource>, example = "googlepay")]
+    pub token_source: Option<TokenSource>,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[schema(example = "google_pay, apple_pay")]
+#[serde(rename_all = "snake_case")]
+/// Source of the token
+pub enum TokenSource {
+    /// Google Pay
+    GooglePay,
+    /// Apple Pay
+    ApplePay,
+}

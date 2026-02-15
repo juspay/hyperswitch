@@ -2,11 +2,11 @@ pub mod transformers;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -14,12 +14,13 @@ use hyperswitch_domain_models::{
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        ProcessIncomingWebhook,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
@@ -29,6 +30,7 @@ use hyperswitch_domain_models::{
     types::{
         UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
         UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
+        UasProcessWebhookRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,12 +39,12 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
+use masking::PeekInterface;
 use transformers as unified_authentication_service;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -77,6 +79,7 @@ impl api::UasPreAuthentication for UnifiedAuthenticationService {}
 impl api::UasPostAuthentication for UnifiedAuthenticationService {}
 impl api::UasAuthenticationConfirmation for UnifiedAuthenticationService {}
 impl api::UasAuthentication for UnifiedAuthenticationService {}
+impl api::UasProcessWebhook for UnifiedAuthenticationService {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for UnifiedAuthenticationService
@@ -144,11 +147,12 @@ impl ConnectorCommon for UnifiedAuthenticationService {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: NO_ERROR_CODE.to_owned(),
-            message: NO_ERROR_MESSAGE.to_owned(),
+            code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+            message: response.error.to_owned(),
             reason: Some(response.error),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -619,27 +623,163 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
 {
 }
 
+impl
+    ConnectorIntegration<
+        ProcessIncomingWebhook,
+        UasWebhookRequestData,
+        UasAuthenticationResponseData,
+    > for UnifiedAuthenticationService
+{
+    fn get_headers(
+        &self,
+        req: &UasProcessWebhookRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &UasProcessWebhookRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}webhooks", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &UasProcessWebhookRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = unified_authentication_service::WebhookRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &UasProcessWebhookRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::UasProcessWebhookType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::UasProcessWebhookType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::UasProcessWebhookType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &UasProcessWebhookRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<UasProcessWebhookRouterData, errors::ConnectorError> {
+        let response: unified_authentication_service::WebhookResponseResult = res
+            .response
+            .parse_struct("UnifiedAuthenticationService WebhookResponseResult")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: unified_authentication_service::WebhookResponse = request
+            .body
+            .parse_struct("unified_authentication_service WebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(
+            api_models::webhooks::ObjectReferenceId::ExternalAuthenticationID(
+                api_models::webhooks::AuthenticationIdType::ConnectorAuthenticationId(
+                    webhook_body.three_ds_server_transaction_id,
+                ),
+            ),
+        )
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        Ok(api_models::webhooks::IncomingWebhookEvent::ExternalAuthenticationARes)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body_value: unified_authentication_service::WebhookResponse = request
+            .body
+            .parse_struct("unified_authentication_service WebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(webhook_body_value))
+    }
+
+    fn get_external_authentication_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_interfaces::authentication::ExternalAuthenticationPayload,
+        errors::ConnectorError,
+    > {
+        let webhook_body: unified_authentication_service::WebhookResponse = request
+            .body
+            .parse_struct("unified_authentication_service WebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let challenge_cancel = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.peek().get("challengeCancel").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
+        let challenge_code_reason = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.peek().get("transStatusReason").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
+        Ok(
+            hyperswitch_interfaces::authentication::ExternalAuthenticationPayload {
+                trans_status: webhook_body.trans_status,
+                authentication_value: webhook_body.authentication_value,
+                eci: webhook_body.eci,
+                challenge_cancel,
+                challenge_code_reason,
+            },
+        )
     }
 }
 

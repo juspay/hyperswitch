@@ -1,8 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { cardCreditEnabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { cardCreditEnabled } from "../../configs/PaymentMethodList/Commons";
-
 let globalState;
 
 describe("Dynamic Fields Verification", () => {

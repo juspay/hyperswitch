@@ -354,7 +354,7 @@ pub enum ThreeDSRequestorDecoupledRequestIndicator {
     B,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, strum::Display)]
 pub enum SchemeId {
     Visa,
     Mastercard,
