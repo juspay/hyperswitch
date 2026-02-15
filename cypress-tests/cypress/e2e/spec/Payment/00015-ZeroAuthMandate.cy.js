@@ -15,131 +15,256 @@ describe("Card - SingleUse Mandates flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("should complete NoThreeDS automatic CIT and single use MIT payment flow", () => {
-    // Create customer
+  it("Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test", () => {
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Confirm No 3DS CIT
-    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
-    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
+    const citData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthMandate"
+      ];
 
-    if(!utils.should_continue_further(citData)) return;
+    cy.citForMandatesCallTest(
+      fixtures.citConfirmBody,
+      citData,
+      0,
+      true,
+      "automatic",
+      "setup_mandate",
+      globalState
+    );
 
-    // Retrieve payment
+    if (!utils.should_continue_further(citData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: citData });
 
-    // Confirm No 3DS MIT
-    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+    const mitData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MITAutoCapture"
+      ];
 
-    // Retrieve payment
+    cy.mitForMandatesCallTest(
+      fixtures.mitConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
+
     cy.retrievePaymentCallTest({ globalState, data: mitData });
   });
 
-  it("should complete NoThreeDS automatic CIT and multi use MIT payment flow", () => {
-    // Confirm No 3DS CIT
-    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
-    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
+  it("Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test", () => {
+    const citData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthMandate"
+      ];
 
-    if(!utils.should_continue_further(citData)) return;
+    cy.citForMandatesCallTest(
+      fixtures.citConfirmBody,
+      citData,
+      0,
+      true,
+      "automatic",
+      "setup_mandate",
+      globalState
+    );
 
-    // Retrieve payment
+    if (!utils.should_continue_further(citData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: citData });
 
-    // Confirm No 3DS MIT (first)
-    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+    const mitData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MITAutoCapture"
+      ];
 
-    // Retrieve payment
+    cy.mitForMandatesCallTest(
+      fixtures.mitConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
+
     cy.retrievePaymentCallTest({ globalState, data: mitData });
 
-    // Confirm No 3DS MIT (second)
-    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+    cy.mitForMandatesCallTest(
+      fixtures.mitConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: mitData });
   });
 
-  it("should complete zero auth payment flow", () => {
-    // Create No 3DS Payment Intent
-    const paymentIntentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthPaymentIntent"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, paymentIntentData, "no_three_ds", "automatic", globalState);
+  it("Card - Zero Auth Payment", () => {
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthPaymentIntent"
+      ];
 
-    // Confirm No 3DS payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthConfirmPayment"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthConfirmPayment"
+      ];
+
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if(!utils.should_continue_further(confirmData)) return;
+    if (!utils.should_continue_further(confirmData)) return;
 
-    // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-    // List customer payment methods
     cy.listCustomerPMCallTest(globalState);
 
-    // Create recurring payment intent
-    const recurringPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntentOffSession"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, recurringPaymentData, "no_three_ds", "automatic", globalState);
+    const recurringIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
 
-    // Confirm recurring payment
-    const saveCardData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
-    cy.saveCardConfirmCallTest(fixtures.saveCardConfirmBody, saveCardData, globalState);
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      recurringIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
+    if (!utils.should_continue_further(recurringIntentData)) return;
+
+    const saveCardData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardConfirmAutoCaptureOffSession"
+      ];
+
+    cy.saveCardConfirmCallTest(
+      fixtures.saveCardConfirmBody,
+      saveCardData,
+      globalState
+    );
+
+    if (!utils.should_continue_further(saveCardData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: saveCardData });
   });
 
-  it("should complete zero auth mandate flow using PMID with create and confirm", () => {
-    // Create customer
+  it("Card - Zero auth Mandate flow Using PMID (create and confirm)", () => {
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create No 3DS Payment Intent
-    const paymentIntentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthPaymentIntent"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, paymentIntentData, "no_three_ds", "automatic", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthPaymentIntent"
+      ];
 
-    // Confirm No 3DS payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthConfirmPayment"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthConfirmPayment"
+      ];
+
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if(!utils.should_continue_further(confirmData)) return;
+    if (!utils.should_continue_further(confirmData)) return;
 
-    // Retrieve payment
-    const zeroAuthData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
-    cy.retrievePaymentCallTest({ globalState, data: zeroAuthData });
+    const retrieveData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthMandate"
+      ];
 
-    // Confirm No 3DS MIT (first)
-    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-    cy.mitUsingPMId(fixtures.pmIdConfirmBody, mitData, 6000, true, "automatic", globalState);
+    cy.retrievePaymentCallTest({ globalState, data: retrieveData });
 
-    // Retrieve payment
+    const mitData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MITAutoCapture"
+      ];
+
+    cy.mitUsingPMId(
+      fixtures.pmIdConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
+
     cy.retrievePaymentCallTest({ globalState, data: mitData });
 
-    // Confirm No 3DS MIT (second)
-    cy.mitUsingPMId(fixtures.pmIdConfirmBody, mitData, 6000, true, "automatic", globalState);
+    cy.mitUsingPMId(
+      fixtures.pmIdConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: mitData });
   });
 
-  it("should complete zero auth mandate flow using PMID with create+confirm", () => {
-    // Create customer
+  it("Card - Zero auth Mandate flow Using PMID (create + confirm)", () => {
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Confirm No 3DS CIT
-    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthConfirmPayment"];
-    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
+    const citData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthConfirmPayment"
+      ];
 
-    if(!utils.should_continue_further(citData)) return;
+    cy.citForMandatesCallTest(
+      fixtures.citConfirmBody,
+      citData,
+      0,
+      true,
+      "automatic",
+      "setup_mandate",
+      globalState
+    );
 
-    // Retrieve payment
-    const zeroAuthData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
-    cy.retrievePaymentCallTest({ globalState, data: zeroAuthData });
+    if (!utils.should_continue_further(citData)) return;
 
-    // Confirm No 3DS MIT
-    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-    cy.mitUsingPMId(fixtures.pmIdConfirmBody, mitData, 6000, true, "automatic", globalState);
+    const retrieveData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthMandate"
+      ];
 
-    // Retrieve payment
+    cy.retrievePaymentCallTest({ globalState, data: retrieveData });
+
+    const mitData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MITAutoCapture"
+      ];
+
+    cy.mitUsingPMId(
+      fixtures.pmIdConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
+
     cy.retrievePaymentCallTest({ globalState, data: mitData });
   });
 });

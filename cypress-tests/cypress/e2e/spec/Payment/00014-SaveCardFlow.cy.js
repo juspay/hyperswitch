@@ -16,263 +16,432 @@ describe("Card - SaveCard payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("should save card for NoThreeDS automatic capture payment [on_session]", () => {
+  it("Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create and confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "automatic", globalState);
+    const createConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCapture"
+      ];
 
-    if(!utils.should_continue_further(confirmData)) return;
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      createConfirmData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    if (!utils.should_continue_further(createConfirmData)) return;
 
-    // List customer payment methods
+    cy.retrievePaymentCallTest({ globalState, data: createConfirmData });
+
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntent"
+      ];
 
-    // Confirm with saved card
-    cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCapture"
+      ];
+
+    cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
 
-  it("should save card for NoThreeDS manual full capture payment [on_session]", () => {
+  it("Save card for NoThreeDS manual full capture payment- Create+Confirm [on_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create and confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "automatic", globalState);
+    const createConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCapture"
+      ];
 
-    if(!utils.should_continue_further(confirmData)) return;
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      createConfirmData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    if (!utils.should_continue_further(createConfirmData)) return;
 
-    // List customer payment methods
+    cy.retrievePaymentCallTest({ globalState, data: createConfirmData });
+
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "manual", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntent"
+      ];
 
-    // Confirm with saved card
-    const saveCardManualData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSManualCapture"];
-    cy.saveCardConfirmCallTest(saveCardBody, saveCardManualData, globalState);
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "manual",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: saveCardManualData });
+    if (!utils.should_continue_further(paymentIntentData)) return;
 
-    // Capture payment
-    const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSManualCapture"
+      ];
+
+    cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
+
+    if (!utils.should_continue_further(saveCardConfirmData)) return;
+
+    cy.retrievePaymentCallTest({ globalState, data: saveCardConfirmData });
+
+    const captureData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-    // Retrieve payment after capture
+    if (!utils.should_continue_further(captureData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: captureData });
   });
 
-  it("should save card for NoThreeDS manual partial capture payment [on_session]", () => {
+  it("Save card for NoThreeDS manual partial capture payment- Create + Confirm [on_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create and confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "automatic", globalState);
+    const createConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCapture"
+      ];
 
-    if(!utils.should_continue_further(confirmData)) return;
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      createConfirmData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    if (!utils.should_continue_further(createConfirmData)) return;
 
-    // List customer payment methods
+    cy.retrievePaymentCallTest({ globalState, data: createConfirmData });
+
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "manual", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntent"
+      ];
 
-    // Confirm with saved card
-    const saveCardManualData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSManualCapture"];
-    cy.saveCardConfirmCallTest(saveCardBody, saveCardManualData, globalState);
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "manual",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: saveCardManualData });
+    if (!utils.should_continue_further(paymentIntentData)) return;
 
-    // Partial capture
-    const partialCaptureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSManualCapture"
+      ];
+
+    cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
+
+    if (!utils.should_continue_further(saveCardConfirmData)) return;
+
+    cy.retrievePaymentCallTest({ globalState, data: saveCardConfirmData });
+
+    const partialCaptureData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PartialCapture"
+      ];
+
     cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
 
-    // Retrieve payment after capture
+    if (!utils.should_continue_further(partialCaptureData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
   });
 
-  it("should save card for NoThreeDS automatic capture payment [off_session]", () => {
+  it("Save card for NoThreeDS automatic capture payment [off_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create and confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "automatic", globalState);
+    const createConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCaptureOffSession"
+      ];
 
-    if(!utils.should_continue_further(confirmData)) return;
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      createConfirmData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    if (!utils.should_continue_further(createConfirmData)) return;
 
-    // List customer payment methods
+    cy.retrievePaymentCallTest({ globalState, data: createConfirmData });
+
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntentOffSession"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
 
-    // Confirm with saved card
-    const saveCardConfirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardConfirmAutoCaptureOffSession"
+      ];
+
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
 
-  it("should save card for NoThreeDS manual capture payment [off_session]", () => {
+  it("Save card for NoThreeDS manual capture payment- Create+Confirm [off_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create and confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSManualCaptureOffSession"];
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "manual", globalState);
+    const createConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSManualCaptureOffSession"
+      ];
 
-    if(!utils.should_continue_further(confirmData)) return;
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      createConfirmData,
+      "no_three_ds",
+      "manual",
+      globalState
+    );
 
-    // Retrieve payment
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    if (!utils.should_continue_further(createConfirmData)) return;
 
-    // Capture payment
-    const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    cy.retrievePaymentCallTest({ globalState, data: createConfirmData });
+
+    const captureData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-    // Retrieve payment after capture
+    if (!utils.should_continue_further(captureData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: captureData });
 
-    // List customer payment methods
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntentOffSession"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "manual", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
 
-    // Confirm with saved card
-    const saveCardConfirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardConfirmManualCaptureOffSession"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "manual",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardConfirmManualCaptureOffSession"
+      ];
+
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
 
-    // Retrieve payment
+    if (!utils.should_continue_further(saveCardConfirmData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: saveCardConfirmData });
 
-    // Capture payment
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-    // Retrieve payment after capture
+    if (!utils.should_continue_further(captureData)) return;
+
     cy.retrievePaymentCallTest({ globalState, data: captureData });
   });
 
-  it("should save card for NoThreeDS automatic capture payment with create and confirm [off_session]", () => {
+  it("Save card for NoThreeDS automatic capture payment - create and confirm [off_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntentOffSession"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
 
-    // Confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCaptureOffSession"
+      ];
+
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if(!utils.should_continue_further(confirmData)) return;
+    if (!utils.should_continue_further(confirmData)) return;
 
-    // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-    // List customer payment methods
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Confirm with saved card
-    const saveCardConfirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardConfirmAutoCaptureOffSession"
+      ];
+
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
 
-  it("should use billing address from payment method during subsequent payment [off_session]", () => {
+  it("Use billing address from payment method during subsequent payment [off_session]", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    // Create customer
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntentOffSession"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+    const paymentIntentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
 
-    // Confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCaptureOffSession"
+      ];
+
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if(!utils.should_continue_further(confirmData)) return;
+    if (!utils.should_continue_further(confirmData)) return;
 
-    // List customer payment methods
     cy.listCustomerPMCallTest(globalState);
 
-    // Create payment intent
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      paymentIntentData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // Confirm with saved card without billing
-    const saveCardConfirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardConfirmAutoCaptureOffSessionWithoutBilling"];
+    if (!utils.should_continue_further(paymentIntentData)) return;
+
+    const saveCardConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardConfirmAutoCaptureOffSessionWithoutBilling"
+      ];
+
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
 
-  it("should populate card fields when saving card again after metadata update", () => {
-    // Create customer
+  it("Check if card fields are populated when saving card again after a metadata update", () => {
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    // Create and confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "automatic", globalState);
+    const createConfirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCapture"
+      ];
 
-    if(!utils.should_continue_further(confirmData)) return;
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      createConfirmData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    // List customer payment methods
+    if (!utils.should_continue_further(createConfirmData)) return;
+
     cy.listCustomerPMCallTest(globalState);
 
-    // Create and confirm payment with updated card holder name
     const card_holder_name = generateRandomName();
     const newData = {
-      ...confirmData,
+      ...createConfirmData,
       Request: {
-        ...confirmData.Request,
+        ...createConfirmData.Request,
         payment_method_data: {
           card: {
-            ...confirmData.Request.payment_method_data.card,
+            ...createConfirmData.Request.payment_method_data.card,
             card_holder_name: card_holder_name,
           },
         },
       },
     };
-    cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, newData, "no_three_ds", "automatic", globalState);
 
-    // List customer payment methods
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      newData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(createConfirmData)) return;
+
     cy.listCustomerPMCallTest(globalState);
   });
 });

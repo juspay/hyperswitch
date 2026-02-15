@@ -15,45 +15,81 @@ describe("Card - List and revoke Mandates flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("should complete NoThreeDS automatic CIT and MIT then list and revoke mandate", () => {
-    // Confirm No 3DS CIT
-    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSAutoCapture"];
-    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "automatic", "new_mandate", globalState);
+  it("Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test", () => {
+    const citData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MandateSingleUseNo3DSAutoCapture"
+      ];
 
-    if(!utils.should_continue_further(citData)) return;
+    cy.citForMandatesCallTest(
+      fixtures.citConfirmBody,
+      citData,
+      6000,
+      true,
+      "automatic",
+      "new_mandate",
+      globalState
+    );
 
-    // Confirm No 3DS MIT
-    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+    if (!utils.should_continue_further(citData)) return;
 
-    // List mandate
+    const mitData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MITAutoCapture"
+      ];
+
+    cy.mitForMandatesCallTest(
+      fixtures.mitConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
+
     cy.listMandateCallTest(globalState);
 
-    // Revoke mandate
     cy.revokeMandateCallTest(globalState);
 
-    // Revoke already revoked mandate
     cy.revokeMandateCallTest(globalState);
   });
 
-  it("should complete zero auth CIT and MIT then list and revoke mandate", () => {
-    // Confirm No 3DS CIT with zero auth
-    const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
-    cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
+  it("Card - Zero auth CIT and MIT payment flow test", () => {
+    const citData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthMandate"
+      ];
 
-    if(!utils.should_continue_further(citData)) return;
+    cy.citForMandatesCallTest(
+      fixtures.citConfirmBody,
+      citData,
+      0,
+      true,
+      "automatic",
+      "setup_mandate",
+      globalState
+    );
 
-    // List mandate
+    if (!utils.should_continue_further(citData)) return;
+
     cy.listMandateCallTest(globalState);
 
-    // Confirm No 3DS MIT
-    const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-    cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
+    const mitData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MITAutoCapture"
+      ];
 
-    // List mandate
+    cy.mitForMandatesCallTest(
+      fixtures.mitConfirmBody,
+      mitData,
+      6000,
+      true,
+      "automatic",
+      globalState
+    );
+
     cy.listMandateCallTest(globalState);
 
-    // Revoke mandate
     cy.revokeMandateCallTest(globalState);
   });
 });

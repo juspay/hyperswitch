@@ -100,11 +100,9 @@ describe("Corner cases", () => {
     it("[Payment] Confirm w/o PMD", () => {
       const paymentIntentBody = Cypress._.cloneDeep(fixtures.createPaymentBody);
 
-      // Create payment intent
       const createData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
       cy.createPaymentIntentTest(paymentIntentBody, createData, "no_three_ds", "automatic", globalState);
 
-      // Confirm payment intent without payment method data
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntentErrored"];
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
     });
@@ -125,16 +123,13 @@ describe("Corner cases", () => {
     it("[Payment] Capture greater amount", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "no_three_ds", "manual", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Capture with greater amount
       const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["CaptureGreaterAmount"];
       cy.captureCallTest(fixtures.captureBody, captureData, globalState);
     });
@@ -155,16 +150,13 @@ describe("Corner cases", () => {
     it("[Payment] Capture successful payment", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Capture already captured payment
       const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["CaptureCapturedAmount"];
       cy.captureCallTest(fixtures.captureBody, captureData, globalState);
     });
@@ -186,16 +178,13 @@ describe("Corner cases", () => {
     it("[Payment] Confirm successful payment", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Confirm already successful payment
       const reconfirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ConfirmSuccessfulPayment"];
       cy.confirmCallTest(fixtures.confirmBody, reconfirmData, true, globalState);
     });
@@ -216,16 +205,13 @@ describe("Corner cases", () => {
     it("[Payment] Void successful payment", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Void successful payment
       const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
       const commonData = getConnectorDetails(globalState.get("commons"))["card_pm"]["Void"];
       const voidData = {
@@ -251,23 +237,18 @@ describe("Corner cases", () => {
     it("[Payment] 3DS with greater capture", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "three_ds", "manual", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Handle redirection
       const expected_redirection = fixtures.confirmBody["return_url"];
       cy.handleRedirection(globalState, expected_redirection);
 
-      // Retrieve payment after redirection
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Capture with greater amount
       const captureData = getConnectorDetails(globalState.get("commons"))["card_pm"]["CaptureGreaterAmount"];
       cy.captureCallTest(fixtures.captureBody, captureData, globalState);
     });
@@ -288,16 +269,13 @@ describe("Corner cases", () => {
     it("[Payment] Refund exceeds captured Amount", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Refund with greater amount
       const refundData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["RefundGreaterAmount"];
       cy.refundCallTest(fixtures.refundBody, refundData, globalState);
     });
@@ -318,16 +296,13 @@ describe("Corner cases", () => {
     it("[Payment] Refund unsuccessful payment", () => {
       const paymentCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create payment intent and confirm
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(paymentCreateConfirmBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Refund with greater amount
       const refundData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["RefundGreaterAmount"];
       cy.refundCallTest(fixtures.refundBody, refundData, globalState);
     });
@@ -346,20 +321,16 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Recurring mandate with greater mandate amount", () => {
-      // No 3DS CIT
       const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSManualCapture"];
       cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "manual", "new_mandate", globalState);
 
       if(!utils.should_continue_further(citData)) return;
 
-      // Capture CIT
       const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
       cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: captureData });
 
-      // Confirm No 3DS MIT with greater amount
       const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
       cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 60000, true, "manual", globalState);
     });
@@ -378,11 +349,9 @@ describe("Corner cases", () => {
     });
 
     it("Card-NoThreeDS fail payment flow", () => {
-      // Create payment intent
       const createData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
       cy.createPaymentIntentTest(fixtures.createPaymentBody, createData, "no_three_ds", "automatic", globalState);
 
-      // Confirm No 3DS with fail payment
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSFailPayment"];
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
     });
@@ -392,16 +361,13 @@ describe("Corner cases", () => {
     it("Duplicate Payment ID", () => {
       const createConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
 
-      // Create new payment
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(createConfirmBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Create a payment with a duplicate payment ID
       const duplicateCreateConfirmBody = Cypress._.cloneDeep(fixtures.createConfirmPaymentBody);
       const duplicateData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["DuplicatePaymentID"];
       duplicateData.Request.payment_id = globalState.get("paymentID");
@@ -411,24 +377,20 @@ describe("Corner cases", () => {
 
   context("[Payment] Refund variations", () => {
     it("Duplicate Refund ID", () => {
-      // Create new payment
+
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, confirmData, "no_three_ds", "automatic", globalState);
 
       if(!utils.should_continue_further(confirmData)) return;
 
-      // Retrieve payment
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      // Create new refund
       const refundData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialRefund"];
       cy.refundCallTest(fixtures.refundBody, refundData, globalState);
 
-      // Sync refund
       const syncRefundData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
       cy.syncRefundCallTest(syncRefundData, globalState);
 
-      // Create a refund with a duplicate refund ID
       const duplicateRefundData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["DuplicateRefundID"];
       duplicateRefundData.Request.refund_id = globalState.get("refundId");
       cy.refundCallTest(fixtures.refundBody, duplicateRefundData, globalState);
@@ -448,10 +410,8 @@ describe("Corner cases", () => {
     });
 
     it("Duplicate Customer ID", () => {
-      // Create new customer
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-      // Create a customer with a duplicate customer ID
       const customerData = Cypress._.cloneDeep(fixtures.customerCreateBody);
       customerData.customer_id = globalState.get("customerId");
       cy.createCustomerCallTest(customerData, globalState);
@@ -460,11 +420,10 @@ describe("Corner cases", () => {
 
   context("[Payment] Invalid Publishable Key", () => {
     it("Confirm Payment with Invalid Publishable Key", () => {
-      // Create Payment Intent
+
       const createData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
       cy.createPaymentIntentTest(fixtures.createPaymentBody, createData, "no_three_ds", "automatic", globalState);
 
-      // Confirm payment with invalid publishable key
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["InvalidPublishableKey"];
       const originalKey = globalState.get("publishableKey");
       cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
@@ -475,11 +434,10 @@ describe("Corner cases", () => {
 
   context("[Payment] Session Token with Invalid Publishable Key", () => {
     it("Retrieve session token with invalid publishable key", () => {
-      // Create Payment Intent
+
       const createData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
       cy.createPaymentIntentTest(fixtures.createPaymentBody, createData, "no_three_ds", "automatic", globalState);
 
-      // Session call with invalid publishable key
       const sessionData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["InvalidPublishableKey"];
       const originalKey = globalState.get("publishableKey");
       cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));

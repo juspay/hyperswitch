@@ -15,21 +15,32 @@ describe("Card - Sync payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("should complete sync payment flow", () => {
-    // Create payment intent
-    const createPaymentData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-    cy.createPaymentIntentTest(fixtures.createPaymentBody, createPaymentData, "no_three_ds", "automatic", globalState);
+  it("Card - Sync payment flow test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-    // List payment methods
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(data)) return;
+
     cy.paymentMethodsCallTest(globalState);
 
-    // Confirm payment
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if(!utils.should_continue_further(confirmData)) return;
+    if (!utils.should_continue_further(confirmData)) return;
 
-    // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 });
