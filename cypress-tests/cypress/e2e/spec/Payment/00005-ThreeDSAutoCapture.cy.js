@@ -32,10 +32,9 @@ describe("Card - ThreeDS payment flow test", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "3DSAutoCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["3DSAutoCapture"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 

@@ -16,10 +16,9 @@ describe("Card - List and revoke Mandates flow test", () => {
   });
 
   it("Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test", () => {
-    const citData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MandateSingleUseNo3DSAutoCapture"
-      ];
+    const citData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MandateSingleUseNo3DSAutoCapture"];
 
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
@@ -33,10 +32,9 @@ describe("Card - List and revoke Mandates flow test", () => {
 
     if (!utils.should_continue_further(citData)) return;
 
-    const mitData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MITAutoCapture"
-      ];
+    const mitData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MITAutoCapture"];
 
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
@@ -55,10 +53,9 @@ describe("Card - List and revoke Mandates flow test", () => {
   });
 
   it("Card - Zero auth CIT and MIT payment flow test", () => {
-    const citData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthMandate"
-      ];
+    const citData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["ZeroAuthMandate"];
 
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
@@ -74,10 +71,9 @@ describe("Card - List and revoke Mandates flow test", () => {
 
     cy.listMandateCallTest(globalState);
 
-    const mitData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MITAutoCapture"
-      ];
+    const mitData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MITAutoCapture"];
 
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,

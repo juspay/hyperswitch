@@ -21,10 +21,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const createConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const createConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
@@ -40,10 +39,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.listCustomerPMCallTest(globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntent"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -55,10 +53,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
@@ -68,10 +65,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const createConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const createConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
@@ -87,10 +83,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.listCustomerPMCallTest(globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntent"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -102,10 +97,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSManualCapture"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSManualCapture"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
 
@@ -113,8 +107,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.retrievePaymentCallTest({ globalState, data: saveCardConfirmData });
 
-    const captureData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    const captureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
@@ -128,10 +123,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const createConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const createConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
@@ -147,10 +141,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.listCustomerPMCallTest(globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntent"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -162,10 +155,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSManualCapture"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSManualCapture"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
 
@@ -173,10 +165,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.retrievePaymentCallTest({ globalState, data: saveCardConfirmData });
 
-    const partialCaptureData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialCapture"
-      ];
+    const partialCaptureData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PartialCapture"];
 
     cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
 
@@ -190,10 +181,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const createConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCaptureOffSession"
-      ];
+    const createConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
@@ -209,10 +199,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.listCustomerPMCallTest(globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntentOffSession"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -224,10 +213,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardConfirmAutoCaptureOffSession"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
@@ -237,10 +225,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const createConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSManualCaptureOffSession"
-      ];
+    const createConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSManualCaptureOffSession"];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
@@ -254,8 +241,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.retrievePaymentCallTest({ globalState, data: createConfirmData });
 
-    const captureData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    const captureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
@@ -265,10 +253,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.listCustomerPMCallTest(globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntentOffSession"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -280,10 +267,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardConfirmManualCaptureOffSession"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardConfirmManualCaptureOffSession"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
 
@@ -303,10 +289,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntentOffSession"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -318,10 +303,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCaptureOffSession"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
@@ -341,10 +325,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardConfirmAutoCaptureOffSession"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
@@ -354,10 +337,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const paymentIntentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+    const paymentIntentData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PaymentIntentOffSession"];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
@@ -369,10 +351,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCaptureOffSession"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
@@ -390,10 +371,9 @@ describe("Card - SaveCard payment flow test", () => {
 
     if (!utils.should_continue_further(paymentIntentData)) return;
 
-    const saveCardConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardConfirmAutoCaptureOffSessionWithoutBilling"
-      ];
+    const saveCardConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardConfirmAutoCaptureOffSessionWithoutBilling"];
 
     cy.saveCardConfirmCallTest(saveCardBody, saveCardConfirmData, globalState);
   });
@@ -401,10 +381,9 @@ describe("Card - SaveCard payment flow test", () => {
   it("Check if card fields are populated when saving card again after a metadata update", () => {
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    const createConfirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const createConfirmData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,

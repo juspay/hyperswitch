@@ -32,10 +32,9 @@ describe("Bank Transfers", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"][
-        "Pix"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["Pix"];
 
     cy.confirmBankTransferCallTest(
       fixtures.confirmBody,
@@ -73,10 +72,9 @@ describe("Bank Transfers", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"][
-        "InstantBankTransferFinland"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["InstantBankTransferFinland"];
 
     cy.confirmBankTransferCallTest(
       fixtures.confirmBody,
@@ -114,10 +112,9 @@ describe("Bank Transfers", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"][
-        "InstantBankTransferPoland"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["InstantBankTransferPoland"];
 
     cy.confirmBankTransferCallTest(
       fixtures.confirmBody,
@@ -155,10 +152,9 @@ describe("Bank Transfers", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"][
-        "Ach"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["Ach"];
 
     cy.confirmBankTransferCallTest(
       fixtures.confirmBody,

@@ -32,10 +32,9 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["No3DSAutoCapture"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
@@ -79,10 +78,9 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentConfirmWithShippingCost"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["PaymentConfirmWithShippingCost"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 

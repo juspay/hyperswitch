@@ -32,10 +32,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSManualCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["No3DSManualCapture"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
@@ -43,10 +42,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-    const voidData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "VoidAfterConfirm"
-      ];
+    const voidData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["VoidAfterConfirm"];
 
     cy.voidCallTest(fixtures.voidBody, voidData, globalState);
   });
@@ -68,8 +66,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const voidData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
+    const voidData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Void"];
 
     cy.voidCallTest(fixtures.voidBody, voidData, globalState);
   });
@@ -91,10 +90,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSManualCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["No3DSManualCapture"];
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, false, globalState);
 
@@ -102,10 +100,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-    const voidData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "VoidAfterConfirm"
-      ];
+    const voidData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["VoidAfterConfirm"];
 
     cy.voidCallTest(fixtures.voidBody, voidData, globalState);
   });

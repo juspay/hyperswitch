@@ -32,10 +32,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "Blik"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["Blik"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -62,10 +61,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "Eps"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["Eps"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -103,10 +101,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "Ideal"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["Ideal"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -144,10 +141,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "Sofort"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["Sofort"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -185,10 +181,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "Przelewy24"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["Przelewy24"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -226,10 +221,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "OpenBankingUk"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["OpenBankingUk"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -269,10 +263,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "OnlineBankingFpx"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["OnlineBankingFpx"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,
@@ -312,10 +305,9 @@ describe("Bank Redirect tests", () => {
 
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"][
-        "Interac"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_redirect_pm"
+    ]["Interac"];
 
     cy.confirmBankRedirectCallTest(
       fixtures.confirmBody,

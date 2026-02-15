@@ -16,10 +16,9 @@ describe("Card - SingleUse Mandates flow test", () => {
   });
 
   it("Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test", () => {
-    const citData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MandateSingleUseNo3DSAutoCapture"
-      ];
+    const citData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MandateSingleUseNo3DSAutoCapture"];
 
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
@@ -33,10 +32,9 @@ describe("Card - SingleUse Mandates flow test", () => {
 
     if (!utils.should_continue_further(citData)) return;
 
-    const mitData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MITAutoCapture"
-      ];
+    const mitData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MITAutoCapture"];
 
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
@@ -49,10 +47,9 @@ describe("Card - SingleUse Mandates flow test", () => {
   });
 
   it("Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test", () => {
-    const citData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MandateSingleUseNo3DSManualCapture"
-      ];
+    const citData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MandateSingleUseNo3DSManualCapture"];
 
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
@@ -66,17 +63,17 @@ describe("Card - SingleUse Mandates flow test", () => {
 
     if (!utils.should_continue_further(citData)) return;
 
-    const citCaptureData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    const citCaptureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
     cy.captureCallTest(fixtures.captureBody, citCaptureData, globalState);
 
     if (!utils.should_continue_further(citCaptureData)) return;
 
-    const mitData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MITManualCapture"
-      ];
+    const mitData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MITManualCapture"];
 
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
@@ -89,8 +86,9 @@ describe("Card - SingleUse Mandates flow test", () => {
 
     if (!utils.should_continue_further(mitData)) return;
 
-    const mitCaptureData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    const mitCaptureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
     cy.captureCallTest(fixtures.captureBody, mitCaptureData, globalState);
 
@@ -100,10 +98,9 @@ describe("Card - SingleUse Mandates flow test", () => {
   });
 
   it("Card - No threeDS Create + Confirm Manual CIT and MIT payment flow test", () => {
-    const citData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MandateSingleUseNo3DSManualCapture"
-      ];
+    const citData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MandateSingleUseNo3DSManualCapture"];
 
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
@@ -117,17 +114,17 @@ describe("Card - SingleUse Mandates flow test", () => {
 
     if (!utils.should_continue_further(citData)) return;
 
-    const captureData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+    const captureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
     if (!utils.should_continue_further(captureData)) return;
 
-    const mitData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MITAutoCapture"
-      ];
+    const mitData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["MITAutoCapture"];
 
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
