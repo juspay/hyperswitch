@@ -4239,7 +4239,10 @@ pub async fn delete_payment_method(
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-    let response = delete_payment_method_core(&state, pm_id, &platform, &profile).await?;
+    let response = Box::pin(delete_payment_method_core(
+        &state, pm_id, &platform, &profile,
+    ))
+    .await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -4283,6 +4286,22 @@ pub async fn delete_payment_method_core(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
+    delete_payment_method_by_record(db, state, platform, profile, payment_method).await?;
+
+    let response = api::PaymentMethodDeleteResponse { id: pm_id };
+
+    Ok(response)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn delete_payment_method_by_record(
+    db: &dyn StorageInterface,
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<()> {
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
@@ -4305,9 +4324,7 @@ pub async fn delete_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
-    let response = api::PaymentMethodDeleteResponse { id: pm_id };
-
-    Ok(response)
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
@@ -4756,9 +4773,14 @@ pub async fn payment_methods_session_delete_payment_method(
                 "Failed to retrieve payment method id from payment method token data",
             )?;
 
-    delete_payment_method_core(&state, payment_method_id, &platform, &profile)
-        .await
-        .attach_printable("Failed to delete saved payment method")?;
+    Box::pin(delete_payment_method_core(
+        &state,
+        payment_method_id,
+        &platform,
+        &profile,
+    ))
+    .await
+    .attach_printable("Failed to delete saved payment method")?;
 
     Ok(services::ApplicationResponse::Json(
         payment_methods::PaymentMethodDeleteSessionResponse {
