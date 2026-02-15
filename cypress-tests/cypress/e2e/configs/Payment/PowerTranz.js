@@ -778,7 +778,7 @@ export const connectorDetails = {
         },
       },
     },
-     ManualRetryPaymentDisabled: {
+    ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
         payment_method_data: {
