@@ -20,6 +20,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSAutoCapture"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "automatic", "new_mandate", globalState);
 
+    if(!utils.should_continue_further(citData)) return;
+
     // Confirm No 3DS MIT
     const mitData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
     cy.mitForMandatesCallTest(fixtures.mitConfirmBody, mitData, 6000, true, "automatic", globalState);
@@ -29,6 +31,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     // Confirm No 3DS CIT
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSManualCapture"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "manual", "new_mandate", globalState);
+
+    if(!utils.should_continue_further(citData)) return;
 
     // Capture CIT
     const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
@@ -49,6 +53,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     // Create No 3DS CIT
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSManualCapture"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 6000, true, "manual", "new_mandate", globalState);
+
+    if(!utils.should_continue_further(citData)) return;
 
     // Capture CIT
     const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];

@@ -27,6 +27,8 @@ describe("Card - Sync Refund flow test", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if(!utils.should_continue_further(confirmData)) return;
+
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 

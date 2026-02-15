@@ -27,6 +27,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if(!utils.should_continue_further(confirmData)) return;
+
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
@@ -59,6 +61,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     // Confirm payment
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, false, globalState);
+
+    if(!utils.should_continue_further(confirmData)) return;
 
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });

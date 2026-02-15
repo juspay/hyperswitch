@@ -23,6 +23,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
 
+    if(!utils.should_continue_further(citData)) return;
+
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: citData });
 
@@ -38,6 +40,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     // Confirm No 3DS CIT
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
+
+    if(!utils.should_continue_further(citData)) return;
 
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: citData });
@@ -64,6 +68,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     // Confirm No 3DS payment
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthConfirmPayment"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if(!utils.should_continue_further(confirmData)) return;
 
     // Retrieve payment
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
@@ -95,6 +101,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthConfirmPayment"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if(!utils.should_continue_further(confirmData)) return;
+
     // Retrieve payment
     const zeroAuthData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
     cy.retrievePaymentCallTest({ globalState, data: zeroAuthData });
@@ -120,6 +128,8 @@ describe("Card - SingleUse Mandates flow test", () => {
     // Confirm No 3DS CIT
     const citData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthConfirmPayment"];
     cy.citForMandatesCallTest(fixtures.citConfirmBody, citData, 0, true, "automatic", "setup_mandate", globalState);
+
+    if(!utils.should_continue_further(citData)) return;
 
     // Retrieve payment
     const zeroAuthData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];

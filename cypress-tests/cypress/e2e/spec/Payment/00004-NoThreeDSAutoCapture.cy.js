@@ -16,36 +16,38 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   it("Card-NoThreeDS payment flow test Create and confirm", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"];
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
-      data["PaymentIntent"],
+      data,
       "no_three_ds",
       "automatic",
       globalState
     );
 
+    if (!utils.should_continue_further(data)) return;
+
     cy.paymentMethodsCallTest(globalState);
 
-    cy.confirmCallTest(
-      fixtures.confirmBody,
-      data["No3DSAutoCapture"],
-      true,
-      globalState
-    );
-
-    cy.retrievePaymentCallTest({
-      globalState,
-      data: data["No3DSAutoCapture"],
-    });
-  });
-
-  it("Card-NoThreeDS payment flow test Create+Confirm", () => {
-    const data =
+    const confirmData =
       getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
+
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
+
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+  });
+
+  it("Card-NoThreeDS payment flow test Create+Confirm", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "No3DSAutoCapture"
+    ];
 
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
@@ -55,32 +57,37 @@ describe("Card - NoThreeDS payment flow test", () => {
       globalState
     );
 
+    if (!utils.should_continue_further(data)) return;
+
     cy.retrievePaymentCallTest({ globalState, data });
   });
 
   it("Card-NoThreeDS payment with shipping cost", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"];
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntentWithShippingCost"
+    ];
 
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
-      data["PaymentIntentWithShippingCost"],
+      data,
       "no_three_ds",
       "automatic",
       globalState
     );
 
+    if (!utils.should_continue_further(data)) return;
+
     cy.paymentMethodsCallTest(globalState);
 
-    cy.confirmCallTest(
-      fixtures.confirmBody,
-      data["PaymentConfirmWithShippingCost"],
-      true,
-      globalState
-    );
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentConfirmWithShippingCost"
+      ];
 
-    cy.retrievePaymentCallTest({
-      globalState,
-      data: data["PaymentConfirmWithShippingCost"],
-    });
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+    if (!utils.should_continue_further(confirmData)) return;
+
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 });

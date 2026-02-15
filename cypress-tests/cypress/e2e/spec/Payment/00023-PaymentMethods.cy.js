@@ -43,6 +43,8 @@ describe("Payment Methods Tests", () => {
     const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
+    if(!utils.should_continue_further(confirmData)) return;
+
     // List PM for customer
     cy.listCustomerPMCallTest(globalState);
 
@@ -73,6 +75,8 @@ describe("Payment Methods Tests", () => {
       // Create and confirm payment
       const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
       cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, data, "no_three_ds", "automatic", globalState);
+
+      if(!utils.should_continue_further(data)) return;
 
       // List PM for customer
       cy.listCustomerPMCallTest(globalState);
@@ -114,7 +118,7 @@ describe("Payment Methods Tests", () => {
       };
       cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
 
-      if(!utils.should_continue_further(createData)) return;
+      if(!utils.should_continue_further(newData)) return;
 
       // Handle redirection
       const expectedRedirection = fixtures.confirmBody["return_url"];
@@ -134,6 +138,8 @@ describe("Payment Methods Tests", () => {
       // Confirm save card payment
       const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCapture"];
       cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);
+
+      if(!utils.should_continue_further(confirmData)) return;
 
       // List PM for customer
       cy.listCustomerPMCallTest(globalState);
