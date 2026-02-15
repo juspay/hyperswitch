@@ -1403,6 +1403,10 @@ impl PaymentMethodResolver {
                         });
                     existing_cvc_expiry_details
                 };
+                let billing = billing_address
+                    .clone()
+                    .map(|billing| billing.into_inner())
+                    .map(From::from);
 
                 let resp = pm_transforms::generate_payment_method_response(
                     &existing_pm,
@@ -1411,6 +1415,7 @@ impl PaymentMethodResolver {
                     cvc_expiry_details,
                     req.customer_id.clone(),
                     None,
+                    billing,
                 )?;
 
                 Ok((resp, *existing_pm))
@@ -1565,6 +1570,7 @@ async fn execute_payment_method_create(
                 cvc_expiry_details,
                 req.customer_id.clone(),
                 None,
+                payment_method_billing_address.map(|add| add.get_inner().clone().into()),
             )?;
 
             Ok((resp, payment_method))
@@ -1717,6 +1723,7 @@ pub async fn create_volatile_payment_method_card_core(
                 cvc_expiry_details,
                 req.customer_id,
                 None,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1827,6 +1834,7 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
         None,
     )?;
 
@@ -2220,6 +2228,7 @@ pub async fn payment_method_intent_create(
         None,
         None,
         Some(customer_id),
+        None,
         None,
     )?;
 
@@ -3688,6 +3697,11 @@ pub async fn retrieve_payment_method(
         .await
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
+    let billing = payment_method
+        .payment_method_billing_address
+        .clone()
+        .map(|billing| billing.into_inner())
+        .map(From::from);
 
     transformers::generate_payment_method_response(
         &payment_method,
@@ -3698,6 +3712,7 @@ pub async fn retrieve_payment_method(
         }),
         payment_method.customer_id.clone(),
         raw_payment_method_data,
+        billing,
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -4059,6 +4074,8 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert encrypted cvc in redis")?;
 
+    let payment_method_billing_address = payment_method.payment_method_billing_address.clone();
+
     // Stage 2: Update payment method if required
     let updated_payment_method = if request.is_payment_method_update_required() {
         let (vault_request_data, vault_id, fingerprint_id) = if request
@@ -4185,6 +4202,7 @@ pub async fn update_payment_method_core(
         card_cvc_token_details,
         updated_payment_method.customer_id.clone(),
         None,
+        payment_method_billing_address.map(|billing| billing.get_inner().clone().into()),
     )?;
 
     // Add a PT task to handle payment_method delete from vault

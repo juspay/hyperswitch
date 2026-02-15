@@ -493,26 +493,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        let payment_method_data_after_card_bin_call = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|payment_method_data_from_request| {
-                payment_method_data_from_request
-                    .payment_method_data
-                    .as_ref()
-            })
-            .zip(additional_payment_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+        let payment_method_data_from_request =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|request_payment_method_data| {
+                    request_payment_method_data.payment_method_data.clone()
+                });
 
         let payment_method_data = payment_method_with_raw_data
-            .as_ref()
-            .and_then(|pm| pm.raw_payment_method_data.clone())
-            .or(payment_method_data_after_card_bin_call.map(Into::into));
+            .clone()
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(payment_method_data_from_request.map(Into::into))
+            .or(payment_method_recurring_details.clone())
+            .map(|payment_method_data| {
+                if let Some(additional_pm_data) = additional_payment_data {
+                    payment_method_data.apply_additional_payment_data(additional_pm_data)
+                } else {
+                    payment_method_data
+                }
+            });
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
@@ -829,14 +829,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                let pm_info = if let Some(payment_token) = &req.payment_token {
+                let (payment_method_reference, is_off_session_payment) =
+                    if req.off_session == Some(true) {
+                        match req.recurring_details.as_ref() {
+                            Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
+                                (Some(payment_method_id), true)
+                            }
+                            _ => (None, true),
+                        }
+                    } else {
+                        (req.payment_token.as_ref(), false)
+                    };
+
+                let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
                     let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                         state,
-                        platform.get_provider().get_account().get_id(),
+                        platform,
                         &profile_id,
-                        payment_token,
+                        payment_method_ref,
                         None, // CVC token data is not passed in create api
+                        is_off_session_payment,
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
