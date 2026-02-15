@@ -35343,6 +35343,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -35574,16 +35582,16 @@
       "RelayVoidRequestData": {
         "type": "object",
         "required": [
-          "amount"
+          "void_amount"
         ],
         "properties": {
-          "amount": {
+          "void_amount": {
             "type": "integer",
             "format": "int64",
             "description": "The amount of the transaction that is being voided",
             "example": 6540
           },
-          "currency": {
+          "void_currency": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/Currency"
