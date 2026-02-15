@@ -11,7 +11,7 @@ pub mod routes {
         api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
         errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core, routing_events::routing_events_core,
-        sdk_events::sdk_events_core, AnalyticsFlow,
+        sdk_events::sdk_events_core, AnalyticsFlow, SearchProvider,
     };
     use api_models::analytics::{
         api_event::QueryType,
@@ -44,6 +44,7 @@ pub mod routes {
         },
         types::{domain::UserEmail, storage::UserRole},
     };
+    use router_env::logger;
 
     pub struct Analytics;
 
@@ -164,6 +165,10 @@ pub mod routes {
                         .service(
                             web::resource("search/{domain}")
                                 .route(web::post().to(get_search_results)),
+                        )
+                        .service(
+                            web::resource("payments/list")
+                                .route(web::post().to(get_payment_list_from_opensearch)),
                         )
                         .service(
                             web::resource("metrics/disputes")
@@ -431,6 +436,10 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/auth_events/sankey")
                                         .route(web::post().to(get_profile_auth_event_sankey)),
+                                )
+                                .service(
+                                    web::resource("payments/list")
+                                        .route(web::post().to(get_profile_payment_list_from_opensearch)),
                                 ),
                         ),
                 )
@@ -2711,6 +2720,157 @@ pub mod routes {
         .await
     }
 
+    pub async fn get_payment_list_from_opensearch(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::payments::PaymentListFilterConstraints>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentListFromOpenSearch;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, constraints, _| async move {
+                let merchant_id = auth.platform.get_processor().get_account().get_id();
+                let org_id = auth.platform.get_processor().get_account().get_org_id();
+
+                let auth_info = vec![AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                }];
+
+                let filters = analytics::search::get_search_filters(&constraints);
+
+                let search_req = GetSearchRequestWithIndex {
+                    index: SearchIndex::SessionizerPaymentIntents,
+                    search_req: GetSearchRequest {
+                        query: String::new(),
+                        filters: Some(filters),
+                        time_range: constraints.time_range.map(|t| t.into()),
+                        offset: constraints.offset.map(|o| o as i64).unwrap_or(0),
+                        count: constraints.limit as i64,
+                        order: Some(constraints.order),
+                    },
+                };
+
+                let client = state
+                    .opensearch_client
+                    .as_ref()
+                    .ok_or(OpenSearchError::UnknownError)
+                    .attach_printable("OpenSearch client not initialized")?;
+
+                let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
+
+                search_provider
+                    .search_results(search_req, auth_info)
+                    .await
+                    .map(|response| {
+                         logger::info!(
+                            count = response.hits.len(),
+                            total = response.count,
+                            "Successfully retrieved payments from OpenSearch"
+                        );
+                        ApplicationResponse::Json(response)
+                    })
+            },
+            auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                }),
+                &auth::JWTAuth {
+                    permission: Permission::MerchantPaymentRead,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_payment_list_from_opensearch(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::payments::PaymentListFilterConstraints>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentListFromOpenSearch;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, constraints, _| async move {
+                let merchant_id = auth.platform.get_processor().get_account().get_id();
+                let org_id = auth.platform.get_processor().get_account().get_org_id();
+
+                let profile_id = auth
+                    .profile
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(OpenSearchError::AccessForbiddenError)?
+                    .get_id()
+                    .clone();
+
+                let auth_info = vec![AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
+                }];
+
+                let mut constraints = constraints;
+                constraints.profile_id = Some(profile_id);
+
+                let filters = analytics::search::get_search_filters(&constraints);
+
+                let search_req = GetSearchRequestWithIndex {
+                    index: SearchIndex::SessionizerPaymentIntents,
+                    search_req: GetSearchRequest {
+                        query: String::new(),
+                        filters: Some(filters),
+                        time_range: constraints.time_range.map(|t| t.into()),
+                        offset: constraints.offset.map(|o| o as i64).unwrap_or(0),
+                        count: constraints.limit as i64,
+                        order: Some(constraints.order),
+                    },
+                };
+
+                let client = state
+                    .opensearch_client
+                    .as_ref()
+                    .ok_or(OpenSearchError::UnknownError)
+                    .attach_printable("OpenSearch client not initialized")?;
+
+                let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
+
+                search_provider
+                    .search_results(search_req, auth_info)
+                    .await
+                    .map(|response| {
+                        logger::info!(
+                            count = response.hits.len(),
+                            total = response.count,
+                            "Successfully retrieved payments for profile from OpenSearch"
+                        );
+                        ApplicationResponse::Json(response)
+                    })
+            },
+            auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    allow_connected_scope_operation: false,
+                    allow_platform_self_operation: false,
+                }),
+                &auth::JWTAuth {
+                    permission: Permission::ProfilePaymentRead,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     pub async fn get_global_search_results(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2838,17 +2998,18 @@ pub mod routes {
                     })
                     .collect();
 
-                analytics::search::msearch_results(
-                    state
-                        .opensearch_client
-                        .as_ref()
-                        .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
-                    req,
-                    search_params,
-                    SEARCH_INDEXES.to_vec(),
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                let client = state
+                    .opensearch_client
+                    .as_ref()
+                    .ok_or(OpenSearchError::UnknownError)
+                    .attach_printable("OpenSearch client not initialized")?;
+
+                let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
+
+                search_provider
+                    .msearch_results(req, search_params, SEARCH_INDEXES.to_vec())
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
@@ -2989,16 +3150,25 @@ pub mod routes {
                             })
                     })
                     .collect();
-                analytics::search::search_results(
-                    state
-                        .opensearch_client
-                        .as_ref()
-                        .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
-                    req,
-                    search_params,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                let client = state
+                    .opensearch_client
+                    .as_ref()
+                    .ok_or(OpenSearchError::UnknownError)
+                    .attach_printable("OpenSearch client not initialized")?;
+
+                let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
+
+                search_provider
+                    .search_results(req, search_params)
+                    .await
+                    .map(|response| {
+                        logger::info!(
+                            count = response.hits.len(),
+                            total = response.count,
+                            "Successfully retrieved payments from OpenSearch"
+                        );
+                        ApplicationResponse::Json(response)
+                    })
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
