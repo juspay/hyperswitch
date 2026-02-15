@@ -1310,7 +1310,7 @@ async fn create_or_fetch_payment_method_core(
 
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    let fingerprint_id = vault::get_fingerprint_id_from_vault(
+    let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
         state,
         &payment_method_data,
         customer_id.get_string_repr().to_owned(),
@@ -4140,7 +4140,7 @@ pub async fn update_payment_method_core(
                 // cannot use async map because of problems related to lifetimes
                 // to overcome this, we will have to use a move closure and add some clones
                 Some(ref vault_request_data_req) => {
-                    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(
+                    let fingerprint_id_from_vault = vault::get_fingerprint_id_for_payment_method(
                         state,
                         vault_request_data_req,
                         payment_method
