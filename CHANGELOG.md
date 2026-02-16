@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.11.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Mandates Flow for Wallets When Authentication Type is three_ds ([#11260](https://github.com/juspay/hyperswitch/pull/11260)) ([`c815bb2`](https://github.com/juspay/hyperswitch/commit/c815bb20742d767e7f445b659f6fb22d53ae7058))
+
+**Full Changelog:** [`2026.02.11.0...2026.02.11.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.02.11.0...2026.02.11.0-hotfix1)
+
+- - -
+
 ## 2026.02.11.0
 
 ### Features
