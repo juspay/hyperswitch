@@ -493,7 +493,7 @@ pub async fn construct_relay_void_router_data(
             connector_meta: None,
             browser_info: None,
             metadata: None,
-            minor_amount: None,
+            minor_amount: relay_void_data.void_amount,
             webhook_url,
             capture_method: None,
             split_payments: None,

@@ -264,7 +264,7 @@ impl RelayUpdate {
                     ..
                 } => Ok(Self::StatusUpdate {
                     connector_reference_id: resource_id.get_optional_response_id(),
-                    status: common_enums::RelayStatus::from(status),
+                    status: common_enums::RelayStatus::get_void_status(status),
                 }),
                 _ => Err(ApiErrorResponse::InternalServerError)
                     .attach_printable("Payment Response Not Supported"),
