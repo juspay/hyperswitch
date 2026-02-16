@@ -15795,6 +15795,10 @@
             "description": "Indicates the limit of last used payment methods",
             "example": 1,
             "nullable": true
+          },
+          "fetch_new_payment_methods": {
+            "type": "boolean",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21639,7 +21643,8 @@
           "active",
           "inactive",
           "processing",
-          "awaiting_data"
+          "awaiting_data",
+          "new"
         ]
       },
       "PaymentMethodSubtypeSpecificData": {
