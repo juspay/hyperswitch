@@ -16,14 +16,14 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "trustpay worldpayxml"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu volt zift"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex noon"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml cashtocode authorizedotnet"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "loonio nmi gigadat"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "nuvei worldpay"
+  PAYMENTS_CONNECTORS: "stripe cybersource"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cryptopay finix nexixpay"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "adyen checkout zift"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "airwallex finix noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "nmi fiuu gigadat"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml worldpay loonio"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "authorizedotnet cashtocode volt"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "paypal novalnet redsys"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
@@ -622,6 +622,7 @@ jobs:
 
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
+    if: github.event_name == 'merge_group'
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -690,6 +691,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
+    if: github.event_name == 'merge_group'
     needs: [ build-hyperswitch-runners, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
