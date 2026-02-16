@@ -296,29 +296,6 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     }
 }
 
-#[cfg(feature = "v1")]
-impl ForeignFrom<domain::PaymentMethodResponse> for api::PaymentMethodResponse {
-    fn foreign_from(domain_payment_method_response: domain::PaymentMethodResponse) -> Self {
-        Self {
-            merchant_id: domain_payment_method_response.merchant_id,
-            customer_id: domain_payment_method_response.customer_id,
-            payment_method_id: domain_payment_method_response.payment_method_id,
-            payment_method: domain_payment_method_response.payment_method,
-            payment_method_type: domain_payment_method_response.payment_method_type,
-            card: domain_payment_method_response.card,
-            recurring_enabled: domain_payment_method_response.recurring_enabled,
-            installment_payment_enabled: domain_payment_method_response.installment_payment_enabled,
-            payment_experience: domain_payment_method_response.payment_experience,
-            metadata: domain_payment_method_response.metadata,
-            created: domain_payment_method_response.created,
-            #[cfg(feature = "payouts")]
-            bank_transfer: domain_payment_method_response.bank_transfer,
-            last_used_at: domain_payment_method_response.last_used_at,
-            client_secret: domain_payment_method_response.client_secret,
-        }
-    }
-}
-
 #[cfg(feature = "v2")]
 impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     for api::PaymentMethodResponse

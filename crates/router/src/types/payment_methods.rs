@@ -36,11 +36,18 @@ pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
-    #[cfg(feature = "v1")]
     pub entity_id: id_type::CustomerId,
-    #[cfg(feature = "v2")]
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultRequest<D> {
     pub entity_id: id_type::GlobalCustomerId,
     pub vault_id: domain::VaultId,
     pub data: D,

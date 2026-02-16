@@ -493,7 +493,7 @@ pub fn mk_add_card_response_hs(
     card_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> hyperswitch_domain_models::payment_methods::PaymentMethodResponse {
+) -> domain::PaymentMethodResponse {
     let card_number = card.card_number.clone();
     let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
@@ -519,7 +519,7 @@ pub fn mk_add_card_response_hs(
         card_type: card.card_type,
         saved_to_locker: true,
     };
-    hyperswitch_domain_models::payment_methods::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
         payment_method_id: card_reference,

@@ -70,16 +70,14 @@ async fn save_in_locker(
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
             logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
-            let (pm_response, duplication_check) = Box::pin(save_in_locker_external(
+            Box::pin(save_in_locker_external(
                 state,
                 platform,
                 payment_method_request,
                 card_detail,
                 external_vault_details,
             ))
-            .await?;
-
-            Ok((pm_response, duplication_check))
+            .await
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
@@ -1144,24 +1142,16 @@ pub async fn save_in_locker_internal(
         card_detail,
         payment_method_request.payment_method_data.clone(),
     ) {
-        (_, Some(card), _) | (Some(card), _, _) => {
-            let (pm_response, duplication_check) = Box::pin(
-                PmCards {
-                    state,
-                    provider: platform.get_provider(),
-                }
-                .add_card_to_locker(
-                    payment_method_request,
-                    &card,
-                    &customer_id,
-                    None,
-                ),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
-            Ok((pm_response, duplication_check))
-        }
+        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
 
         (
             None,
