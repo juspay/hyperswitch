@@ -757,6 +757,7 @@ pub struct PaymentMethodSession {
         Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]
@@ -777,6 +778,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             associated_payment: self.associated_payment,
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
+            storage_type: self.storage_type,
         })
     }
 
@@ -831,6 +833,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 associated_payment: storage_model.associated_payment,
                 return_url: storage_model.return_url,
                 associated_token_id: storage_model.associated_token_id,
+                storage_type: storage_model.storage_type,
             })
         }
         .await
@@ -852,6 +855,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             associated_payment: self.associated_payment,
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
+            storage_type: self.storage_type,
         })
     }
 }
@@ -1044,6 +1048,7 @@ impl PaymentMethodSession {
             associated_payment_methods,
             associated_payment,
             associated_token_id,
+            storage_type,
         } = self;
         Self {
             id,
@@ -1059,6 +1064,7 @@ impl PaymentMethodSession {
                 .or(associated_payment_methods),
             associated_payment,
             associated_token_id,
+            storage_type,
         }
     }
 }

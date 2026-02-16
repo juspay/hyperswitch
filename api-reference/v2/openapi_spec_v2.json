@@ -20153,7 +20153,8 @@
         "required": [
           "payment_method_type",
           "customer_id",
-          "payment_method_data"
+          "payment_method_data",
+          "storage_type"
         ],
         "properties": {
           "payment_method_type": {
@@ -20207,12 +20208,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           }
         },
         "additionalProperties": false
@@ -20902,6 +20898,7 @@
           "merchant_id",
           "customer_id",
           "payment_method_type",
+          "storage_type",
           "network_transaction_id",
           "raw_payment_method_data"
         ],
@@ -20979,12 +20976,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           },
           "card_cvc_token_storage": {
             "allOf": [
@@ -21183,6 +21175,9 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
+        "required": [
+          "storage_type"
+        ],
         "properties": {
           "customer_id": {
             "type": "string",
@@ -21231,6 +21226,9 @@
           "tokenization_data": {
             "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
             "nullable": true
+          },
+          "storage_type": {
+            "$ref": "#/components/schemas/StorageType"
           }
         }
       },
