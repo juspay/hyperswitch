@@ -229,11 +229,11 @@ impl PaymentMethodsController for PmCards<'_> {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> (
-        api::PaymentMethodResponse,
+        domain::PaymentMethodResponse,
         Option<payment_methods::DataDuplicationCheck>,
     ) {
         let pm_id = generate_id(consts::ID_LENGTH, "pm");
-        let payment_method_response = api::PaymentMethodResponse {
+        let payment_method_response = domain::PaymentMethodResponse {
             merchant_id: merchant_id.to_owned(),
             customer_id: Some(customer_id.to_owned()),
             payment_method_id: pm_id,
@@ -249,6 +249,7 @@ impl PaymentMethodsController for PmCards<'_> {
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
+            locker_fingerprint_id: None,
         };
 
         (payment_method_response, None)
@@ -272,7 +273,7 @@ impl PaymentMethodsController for PmCards<'_> {
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
-        resp: &mut api::PaymentMethodResponse,
+        resp: &mut domain::PaymentMethodResponse,
         customer_id: &id_type::CustomerId,
         key_store: &domain::MerchantKeyStore,
     ) -> errors::RouterResult<domain::PaymentMethod> {
@@ -464,7 +465,7 @@ impl PaymentMethodsController for PmCards<'_> {
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
-        resp: &api::PaymentMethodResponse,
+        resp: &domain::PaymentMethodResponse,
         req: &api::PaymentMethodCreate,
         key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
@@ -547,7 +548,7 @@ impl PaymentMethodsController for PmCards<'_> {
         customer_id: &id_type::CustomerId,
     ) -> errors::CustomResult<
         (
-            api::PaymentMethodResponse,
+            domain::PaymentMethodResponse,
             Option<payment_methods::DataDuplicationCheck>,
         ),
         errors::VaultError,
@@ -616,9 +617,8 @@ impl PaymentMethodsController for PmCards<'_> {
         customer_id: &id_type::CustomerId,
     ) -> errors::CustomResult<
         (
-            api::PaymentMethodResponse,
+            domain::PaymentMethodResponse,
             Option<payment_methods::DataDuplicationCheck>,
-            Option<String>,
         ),
         errors::VaultError,
     > {
@@ -672,12 +672,12 @@ impl PaymentMethodsController for PmCards<'_> {
                 bank_debit_locker_id,
                 req,
                 self.provider.get_account().get_id(),
+                fingerprint_id,
             );
 
             Ok((
                 payment_method_resp,
                 Some(payment_methods::DataDuplicationCheck::Duplicated),
-                Some(fingerprint_id),
             ))
         } else {
             let payload = pm_types::AddVaultRequest {
@@ -704,9 +704,10 @@ impl PaymentMethodsController for PmCards<'_> {
                 stored_pm_resp.vault_id.get_string_repr().to_owned(),
                 req,
                 self.provider.get_account().get_id(),
+                fingerprint_id,
             );
 
-            Ok((payment_method_resp, None, Some(fingerprint_id)))
+            Ok((payment_method_resp, None))
         }
     }
     /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
@@ -718,7 +719,7 @@ impl PaymentMethodsController for PmCards<'_> {
         card_reference: Option<&str>,
     ) -> errors::CustomResult<
         (
-            api::PaymentMethodResponse,
+            domain::PaymentMethodResponse,
             Option<payment_methods::DataDuplicationCheck>,
         ),
         errors::VaultError,
@@ -786,7 +787,7 @@ impl PaymentMethodsController for PmCards<'_> {
         card_reference: Option<&str>,
     ) -> errors::CustomResult<
         (
-            api::PaymentMethodResponse,
+            hyperswitch_domain_models::payment_methods::PaymentMethodResponse,
             Option<payment_methods::DataDuplicationCheck>,
         ),
         errors::VaultError,
@@ -1406,7 +1407,9 @@ impl PaymentMethodsController for PmCards<'_> {
             }
         }
 
-        Ok(services::ApplicationResponse::Json(resp))
+        let api_resp = api::PaymentMethodResponse::foreign_from(resp);
+
+        Ok(services::ApplicationResponse::Json(api_resp))
     }
 }
 
@@ -1586,7 +1589,7 @@ pub async fn add_payment_method_data(
                 .change_context(errors::ApiErrorResponse::InternalServerError);
 
             match resp {
-                Ok((mut pm_resp, duplication_check)) => {
+                Ok((mut domain_pm_resp, duplication_check)) => {
                     if duplication_check.is_some() {
                         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                             status: Some(enums::PaymentMethodStatus::Inactive),
@@ -1606,17 +1609,19 @@ pub async fn add_payment_method_data(
                         cards
                             .get_or_insert_payment_method(
                                 req.clone(),
-                                &mut pm_resp,
+                                &mut domain_pm_resp,
                                 &customer_id,
                                 provider.get_key_store(),
                             )
                             .await?;
 
+                        let pm_resp = api::PaymentMethodResponse::foreign_from(domain_pm_resp);
+
                         return Ok(services::ApplicationResponse::Json(pm_resp));
                     } else {
-                        let locker_id = pm_resp.payment_method_id.clone();
-                        pm_resp.payment_method_id.clone_from(&pm_id);
-                        pm_resp.client_secret = Some(client_secret.clone());
+                        let locker_id = domain_pm_resp.payment_method_id.clone();
+                        domain_pm_resp.payment_method_id.clone_from(&pm_id);
+                        domain_pm_resp.client_secret = Some(client_secret.clone());
 
                         let card_isin = card.card_number.get_card_isin();
 
@@ -1693,6 +1698,7 @@ pub async fn add_payment_method_data(
                                     )
                                 });
                         }
+                        let pm_resp = api::PaymentMethodResponse::foreign_from(domain_pm_resp);
 
                         return Ok(services::ApplicationResponse::Json(pm_resp));
                     }

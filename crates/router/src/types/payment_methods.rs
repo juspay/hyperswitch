@@ -77,7 +77,6 @@ pub struct GetVaultFingerprint;
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieve;
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDelete;
 
@@ -111,14 +110,13 @@ impl VaultingInterface for VaultRetrieve {
     }
 }
 
-#[cfg(feature = "v2")]
 impl VaultingInterface for VaultDelete {
     fn get_vaulting_request_url() -> &'static str {
-        consts::VAULT_DELETE_REQUEST_URL
+        consts::V2_VAULT_DELETE_REQUEST_URL
     }
 
     fn get_vaulting_flow_name() -> &'static str {
-        consts::VAULT_DELETE_FLOW_TYPE
+        consts::V2_VAULT_DELETE_FLOW_TYPE
     }
 }
 

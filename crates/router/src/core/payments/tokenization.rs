@@ -63,9 +63,8 @@ async fn save_in_locker(
     card_detail: Option<api::CardDetail>,
     business_profile: &domain::Profile,
 ) -> RouterResult<(
-    api_models::payment_methods::PaymentMethodResponse,
+    domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
-    Option<String>,
 )> {
     match &business_profile.external_vault_details {
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
@@ -80,7 +79,7 @@ async fn save_in_locker(
             ))
             .await?;
 
-            Ok((pm_response, duplication_check, None))
+            Ok((pm_response, duplication_check))
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
@@ -257,12 +256,7 @@ where
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
                 let (
-                    (
-                        mut resp,
-                        duplication_check,
-                        network_token_requestor_ref_id,
-                        locker_fingerprint_id,
-                    ),
+                    (mut resp, duplication_check, network_token_requestor_ref_id),
                     network_token_resp,
                 ) = if !state.conf.locker.locker_enabled {
                     let (res, dc) = skip_saving_card_in_locker(
@@ -270,7 +264,7 @@ where
                         payment_method_create_request.to_owned(),
                     )
                     .await?;
-                    ((res, dc, None, None), None)
+                    ((res, dc, None), None)
                 } else {
                     let payment_method_status = common_enums::PaymentMethodStatus::from(
                         save_payment_method_data.attempt_status,
@@ -503,7 +497,7 @@ where
                                                 pm_network_token_data_encrypted,
                                                 Some(vault_source_details),
                                                 payment_method_customer_details_encrypted,
-                                                locker_fingerprint_id,
+                                                resp.locker_fingerprint_id,
                                             )
                                             .await
                                     } else {
@@ -623,7 +617,7 @@ where
                                                     pm_network_token_data_encrypted,
                                                     Some(vault_source_details),
                                                     payment_method_customer_details_encrypted,
-                                                    locker_fingerprint_id,
+                                                    resp.locker_fingerprint_id,
                                                 )
                                                 .await
                                         } else {
@@ -848,7 +842,7 @@ where
                                     pm_network_token_data_encrypted,
                                     Some(vault_source_details),
                                     payment_method_customer_details_encrypted,
-                                    locker_fingerprint_id,
+                                    resp.locker_fingerprint_id,
                                 )
                                 .await?;
 
@@ -1033,7 +1027,7 @@ async fn skip_saving_card_in_locker(
     platform: &domain::Platform,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
-    api_models::payment_methods::PaymentMethodResponse,
+    domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
     let customer_id = payment_method_request
@@ -1073,7 +1067,7 @@ async fn skip_saving_card_in_locker(
                 card_type: card.card_type.clone(),
                 saved_to_locker: false,
             };
-            let pm_resp = api::PaymentMethodResponse {
+            let pm_resp = domain::PaymentMethodResponse {
                 merchant_id: platform.get_provider().get_account().get_id().to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id,
@@ -1089,13 +1083,14 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                locker_fingerprint_id: None,
             };
 
             Ok((pm_resp, None))
         }
         None => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
+            let payment_method_response = domain::PaymentMethodResponse {
                 merchant_id: platform.get_provider().get_account().get_id().to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
@@ -1111,6 +1106,7 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                locker_fingerprint_id: None,
             };
             Ok((payment_method_response, None))
         }
@@ -1135,9 +1131,8 @@ pub async fn save_in_locker_internal(
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
 ) -> RouterResult<(
-    api_models::payment_methods::PaymentMethodResponse,
+    domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
-    Option<String>,
 )> {
     payment_method_request.validate()?;
     let customer_id = payment_method_request
@@ -1165,7 +1160,7 @@ pub async fn save_in_locker_internal(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed")?;
-            Ok((pm_response, duplication_check, None))
+            Ok((pm_response, duplication_check))
         }
 
         (
@@ -1192,7 +1187,7 @@ pub async fn save_in_locker_internal(
 
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
+            let payment_method_response = domain::PaymentMethodResponse {
                 merchant_id: platform.get_provider().get_account().get_id().clone(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
@@ -1208,8 +1203,9 @@ pub async fn save_in_locker_internal(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                locker_fingerprint_id: None,
             };
-            Ok((payment_method_response, None, None))
+            Ok((payment_method_response, None))
         }
     }
 }
@@ -1222,7 +1218,7 @@ pub async fn save_in_locker_external(
     card_detail: Option<api::CardDetail>,
     external_vault_connector_details: &ExternalVaultConnectorDetails,
 ) -> RouterResult<(
-    api_models::payment_methods::PaymentMethodResponse,
+    domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
     let customer_id = payment_method_request
@@ -1265,7 +1261,7 @@ pub async fn save_in_locker_external(
         let payment_method_id = vault_response.vault_id.get_single_vault_id()?;
         let card_detail = CardDetailFromLocker::from(card);
 
-        let pm_resp = api::PaymentMethodResponse {
+        let pm_resp = domain::PaymentMethodResponse {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id,
@@ -1281,13 +1277,14 @@ pub async fn save_in_locker_external(
             bank_transfer: None,
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
+            locker_fingerprint_id: None,
         };
 
         Ok((pm_resp, None))
     } else {
         //Similar implementation is done for save in locker internal
         let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-        let payment_method_response = api::PaymentMethodResponse {
+        let payment_method_response = domain::PaymentMethodResponse {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id: pm_id,
@@ -1303,6 +1300,7 @@ pub async fn save_in_locker_external(
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
+            locker_fingerprint_id: None,
         };
         Ok((payment_method_response, None))
     }
@@ -1342,7 +1340,7 @@ pub async fn save_network_token_in_locker(
     network_token_data: Option<api::CardDetail>,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
-    Option<api_models::payment_methods::PaymentMethodResponse>,
+    Option<domain::PaymentMethodResponse>,
     Option<payment_methods::transformers::DataDuplicationCheck>,
     Option<String>,
 )> {
@@ -1821,12 +1819,11 @@ pub async fn save_card_and_network_token_in_locker(
     business_profile: &domain::Profile,
 ) -> RouterResult<(
     (
-        api_models::payment_methods::PaymentMethodResponse,
+        domain::PaymentMethodResponse,
         Option<payment_methods::transformers::DataDuplicationCheck>,
         Option<String>,
-        Option<String>,
     ),
-    Option<api_models::payment_methods::PaymentMethodResponse>,
+    Option<domain::PaymentMethodResponse>,
 )> {
     let network_token_requestor_reference_id = payment_method_info
         .and_then(|pm_info| pm_info.network_token_requestor_reference_id.clone());
@@ -1853,7 +1850,7 @@ pub async fn save_card_and_network_token_in_locker(
                 )
                 .await;
             }
-            let (res, dc, _locker_fingerprint_id) = Box::pin(save_in_locker(
+            let (res, dc) = Box::pin(save_in_locker(
                 state,
                 platform,
                 payment_method_create_request.to_owned(),
@@ -1864,7 +1861,7 @@ pub async fn save_card_and_network_token_in_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card In Locker Failed")?;
 
-            Ok(((res, dc, None, None), None))
+            Ok(((res, dc, None), None))
         }
         Some(hyperswitch_domain_models::payments::VaultOperation::SaveCardAndNetworkTokenData(
             save_card_and_network_token_data,
@@ -1880,7 +1877,7 @@ pub async fn save_card_and_network_token_in_locker(
             );
 
             if payment_method_status == common_enums::PaymentMethodStatus::Active {
-                let (res, dc, _locker_fingerprint_id) = Box::pin(save_in_locker_internal(
+                let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
                     platform,
                     payment_method_create_request.to_owned(),
@@ -1902,7 +1899,7 @@ pub async fn save_card_and_network_token_in_locker(
                 .attach_printable("Add Network Token In Locker Failed")?;
 
                 Ok((
-                    (res, dc, network_token_requestor_reference_id, None),
+                    (res, dc, network_token_requestor_reference_id),
                     network_token_resp,
                 ))
             } else {
@@ -1925,7 +1922,7 @@ pub async fn save_card_and_network_token_in_locker(
                     )
                     .await;
                 }
-                let (res, dc, _locker_fingerprint_id) = Box::pin(save_in_locker_internal(
+                let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
                     platform,
                     payment_method_create_request.to_owned(),
@@ -1935,12 +1932,12 @@ pub async fn save_card_and_network_token_in_locker(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add Card In Locker Failed")?;
 
-                Ok(((res, dc, None, None), None))
+                Ok(((res, dc, None), None))
             }
         }
         _ => {
             let card_data = payment_method_create_request.card.clone();
-            let (res, dc, locker_fingerprint_id) = Box::pin(save_in_locker(
+            let (res, dc) = Box::pin(save_in_locker(
                 state,
                 platform,
                 payment_method_create_request.to_owned(),
@@ -1968,14 +1965,14 @@ pub async fn save_card_and_network_token_in_locker(
                         .await?;
 
                         Ok((
-                            (res, dc, network_token_requestor_ref_id, None), // locker_fingerprint_id uses generic locker and should be None for cards as they use a different mechanism for duplication check
+                            (res, dc, network_token_requestor_ref_id),
                             network_token_resp,
                         ))
                     }
-                    _ => Ok(((res, dc, None, locker_fingerprint_id), None)), //network_token_resp is None in case of other payment methods
+                    _ => Ok(((res, dc, None), None)), //network_token_resp is None in case of other payment methods
                 }
             } else {
-                Ok(((res, dc, None, locker_fingerprint_id), None))
+                Ok(((res, dc, None), None))
             }
         }
     }
