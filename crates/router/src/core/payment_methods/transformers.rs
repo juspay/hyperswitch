@@ -1327,6 +1327,7 @@ impl DomainPaymentMethodWrapper {
             created_by: None,
             last_modified_by: None,
             customer_details: None,
+            locker_fingerprint_id: None,
         }))
     }
 

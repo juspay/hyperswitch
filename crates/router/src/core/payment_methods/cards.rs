@@ -539,7 +539,7 @@ impl PaymentMethodsController for PmCards<'_> {
         todo!()
     }
 
-    #[cfg(feature = "payouts")]
+    #[cfg(all(feature = "payouts", feature = "v1"))]
     async fn add_bank_to_locker(
         &self,
         req: api::PaymentMethodCreate,
@@ -711,6 +711,7 @@ impl PaymentMethodsController for PmCards<'_> {
         }
     }
     /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
+    #[cfg(feature = "v1")]
     async fn add_card_to_locker(
         &self,
         req: api::PaymentMethodCreate,
@@ -777,7 +778,7 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while deleting card from locker")
     }
-
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn add_card_hs(
         &self,

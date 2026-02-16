@@ -117,6 +117,7 @@ pub trait PaymentMethodsController {
         pm_id: api::PaymentMethodId,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
 
+    #[cfg(feature = "v1")]
     async fn add_card_hs(
         &self,
         req: api::PaymentMethodCreate,
@@ -129,6 +130,7 @@ pub trait PaymentMethodsController {
     )>;
 
     /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
+    #[cfg(feature = "v1")]
     async fn add_card_to_locker(
         &self,
         req: api::PaymentMethodCreate,
@@ -140,7 +142,7 @@ pub trait PaymentMethodsController {
         Option<DataDuplicationCheck>,
     )>;
 
-    #[cfg(feature = "payouts")]
+    #[cfg(all(feature = "payouts", feature = "v1"))]
     async fn add_bank_to_locker(
         &self,
         req: api::PaymentMethodCreate,
