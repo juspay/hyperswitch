@@ -216,7 +216,7 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     permissions:
       pull-requests: write
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -273,7 +273,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: hyperswitch-server-hyperswitch-runners
+          name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
