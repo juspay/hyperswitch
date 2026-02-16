@@ -1,7 +1,7 @@
 use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::client::create::CardDetail;
@@ -66,6 +66,8 @@ pub struct ModularPMRetrieveResponse {
     pub storage_type: Option<common_enums::StorageType>,
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub network_transaction_id: Option<String>,
 }
 /// V2 RawPaymentMethodData enum
 #[derive(Clone, Debug, Deserialize)]
@@ -75,7 +77,7 @@ pub enum RawPaymentMethodData {
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConnectorTokenDetails {
     pub connector_id: id_type::MerchantConnectorAccountId,
     pub token_type: common_enums::TokenizationType,

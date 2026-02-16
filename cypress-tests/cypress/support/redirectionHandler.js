@@ -1362,6 +1362,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "worldpay":
+        case "worldpayxml":
           cy.get("iframe", { timeout: constants.WAIT_TIME })
             .its("0.contentDocument.body")
             .within(() => {

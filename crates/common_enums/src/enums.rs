@@ -18,6 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
+use masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -242,6 +243,39 @@ impl AttemptStatus {
 
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
+    }
+
+    pub fn should_update_payment_method(self) -> bool {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired => false,
+        }
     }
 }
 
@@ -743,29 +777,6 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum DocumentKind {
-    Cnpj,
-    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2585,13 +2596,12 @@ impl PaymentMethod {
 
     pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
         match self {
-            Self::BankRedirect => true,
+            Self::BankTransfer | Self::BankRedirect => true,
             Self::Card
             | Self::CardRedirect
             | Self::PayLater
             | Self::Wallet
             | Self::GiftCard
-            | Self::BankTransfer
             | Self::Crypto
             | Self::BankDebit
             | Self::Reward
@@ -2943,6 +2953,8 @@ pub enum RelayStatus {
 pub enum RelayType {
     Refund,
     Capture,
+    IncrementalAuthorization,
+    Void,
 }
 
 #[derive(
@@ -9633,8 +9645,8 @@ impl From<RelayStatus> for RefundStatus {
 }
 
 impl From<AttemptStatus> for RelayStatus {
-    fn from(refund_status: AttemptStatus) -> Self {
-        match refund_status {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::AuthenticationFailed
             | AttemptStatus::RouterDeclined
@@ -9663,6 +9675,16 @@ impl From<AttemptStatus> for RelayStatus {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
+impl From<AuthorizationStatus> for RelayStatus {
+    fn from(authorization_status: AuthorizationStatus) -> Self {
+        match authorization_status {
+            AuthorizationStatus::Failure => Self::Failure,
+            AuthorizationStatus::Processing | AuthorizationStatus::Unresolved => Self::Pending,
+            AuthorizationStatus::Success => Self::Success,
         }
     }
 }
@@ -10537,10 +10559,177 @@ pub enum StorageType {
     Persistent,
 }
 
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    ManualRetry,
+    AutoRetry,
+}
+
 #[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]
 pub enum RoutingRegion {
     Region1,
     Region2,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoDocumentKind {
+    /// Commercial invoice for goods/products
+    CommercialInvoice,
+    /// Service invoice
+    ServiceInvoice,
+    /// Standard promissory note (promise to pay later)
+    PromissoryNote,
+    /// Promissory note for rural/agricultural operations
+    RuralPromissoryNote,
+    /// Payment receipt
+    Receipt,
+    /// Insurance policy payment
+    InsurancePolicy,
+    /// Credit card statement / invoice payment
+    CreditCardInvoice,
+    /// Commercial proposal / quotation acceptance
+    Proposal,
+    /// Deposit or account funding (e.g. wallet top-up)
+    DepositOrFunding,
+    /// Cheque-based payment
+    Cheque,
+    /// Direct promissory note between parties
+    DirectPromissoryNote,
+    /// Any other document type
+    Other,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoPaymentType {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed minimum–maximum range.
+    FlexibleAmount,
+    /// The payer may make up to 99 partial payments.
+    Installment,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpiryType {
+    Immediate,
+    Scheduled,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum PixKey {
+    #[schema(value_type = String)]
+    Cpf(Secret<String>),
+    #[schema(value_type = String)]
+    Cnpj(Secret<String>),
+    #[schema(value_type = String)]
+    Email(Secret<String>),
+    #[schema(value_type = String)]
+    Phone(Secret<String>),
+    #[schema(value_type = String)]
+    EvpToken(Secret<String>),
+}
+
+/// Helper extension for PixKey to extract the secret value regardless of variant
+impl PixKey {
+    pub fn get_inner_value(&self) -> Secret<String> {
+        match self {
+            Self::Cpf(val)
+            | Self::Cnpj(val)
+            | Self::Email(val)
+            | Self::Phone(val)
+            | Self::EvpToken(val) => val.clone(),
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorWebhookEventType {
+    AllEvents,
+    SpecificEvent(EventType),
+}
+
+/// The status of webhook registration
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookRegistrationStatus {
+    // Webhook registration is successful
+    #[default]
+    Success,
+    // Webhook registration has failed
+    Failure,
 }
