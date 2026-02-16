@@ -16,6 +16,7 @@ use common_utils::{generate_customer_id_of_default_length, types::keymanager::To
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use redis_interface::SetnxReply;
 use router_env::logger;
 
 use super::PayoutData;
@@ -56,19 +57,21 @@ pub async fn make_payout_method_data(
     merchant_id: &id_type::MerchantId,
     payout_type: Option<api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payout_data: Option<&mut PayoutData>,
+    mut payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
         if payout_token.starts_with("temporary_token_") {
             Some(payout_token.to_string())
-        } else {
+        } else if payout_token.starts_with("token_") {
             let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
+            let payment_method_for_key =
+                api_enums::PaymentMethod::foreign_from(certain_payout_type);
+
             let key = format!(
                 "pm_token_{}_{}_hyperswitch",
-                payout_token,
-                api_enums::PaymentMethod::foreign_from(certain_payout_type)
+                payout_token, payment_method_for_key
             );
 
             let redis_conn = state
@@ -77,8 +80,20 @@ pub async fn make_payout_method_data(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get redis connection")?;
 
+            // Uses existing API locking Redis helpers
+            let redis_locking_key = format!("PAYOUT_PM_TOKEN_CONSUME_{}", key);
+            let lock_expiry_seconds = i64::from(state.conf.lock_settings.redis_lock_expiry_seconds);
+            let lock_result = redis_conn
+                .set_key_if_not_exists_with_expiry(
+                    &redis_locking_key.as_str().into(),
+                    state.store.get_request_id(),
+                    Some(lock_expiry_seconds),
+                )
+                .await;
+
+            // Proceed with Redis lookup after acquiring lock
             let hyperswitch_token = redis_conn
-                .get_key::<Option<String>>(&key.into())
+                .get_key::<Option<String>>(&key.clone().into())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch the token from redis")?
@@ -87,24 +102,133 @@ pub async fn make_payout_method_data(
                         message: "Token is invalid or expired".to_owned(),
                     },
                 ))?;
-            let payment_token_data = hyperswitch_token
+
+            let _payment_token_data: storage::PaymentTokenData = hyperswitch_token
                 .clone()
                 .parse_struct("PaymentTokenData")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to deserialize hyperswitch token data")?;
 
-            let payment_token = match payment_token_data {
-                storage::PaymentTokenData::PermanentCard(storage::CardTokenData {
-                    locker_id,
-                    token,
-                    ..
-                }) => locker_id.or(Some(token)),
-                storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData {
-                    token,
-                }) => Some(token),
-                _ => None,
-            };
-            payment_token.or(Some(payout_token.to_string()))
+            match lock_result {
+                Ok(SetnxReply::KeySet) => {}
+                Ok(SetnxReply::KeyNotSet) => {
+                    return Err(error_stack::report!(errors::ApiErrorResponse::ResourceBusy))
+                        .attach_printable(
+                            "pm-list payout_token is currently being consumed by another request",
+                        );
+                }
+                Err(err) => {
+                    return Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to acquire Redis lock for pm-list payout_token consumption",
+                        );
+                }
+            }
+
+            // Ensure we always attempt to release the lock, even on early returns.
+            let result: RouterResult<Option<String>> = async {
+                let hyperswitch_token = redis_conn
+                    .get_key::<Option<String>>(&key.into())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".to_owned(),
+                        },
+                    ))?;
+
+                let payment_token_data = hyperswitch_token
+                    .clone()
+                    .parse_struct("PaymentTokenData")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to deserialize hyperswitch token data")?;
+
+                let payment_token = match payment_token_data {
+                    storage::PaymentTokenData::PermanentCard(storage::CardTokenData {
+                        locker_id,
+                        token,
+                        ..
+                    }) => locker_id.or(Some(token)),
+                    storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData { token }) => {
+                        Some(token)
+                    }
+                    _ => None,
+                };
+
+                //Delete Redis keys only after the DB update succeeds
+                if let Some(payout_data) = payout_data.as_mut() {
+                    if let Some(durable_token) = payment_token.clone() {
+                        // Persist token in DB for downstream flows
+                        let updated_payout_attempt =
+                            storage::PayoutAttemptUpdate::PayoutTokenUpdate {
+                                payout_token: durable_token,
+                            };
+                        payout_data.payout_attempt = db
+                            .update_payout_attempt(
+                                &payout_data.payout_attempt,
+                                updated_payout_attempt,
+                                &payout_data.payouts,
+                                storage_scheme,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Error updating payout_attempt with durable token from pm-list payout_token",
+                            )?;
+
+                        // Delete Redis mappings to prevent token reuse
+                        let keys_to_delete = [
+                            format!(
+                                "pm_token_{}_{}_hyperswitch",
+                                payout_token, payment_method_for_key
+                            ),
+                            format!("pm_token_{}_{}_city", payout_token, payment_method_for_key),
+                            format!("pm_token_{}_{}_unit", payout_token, payment_method_for_key),
+                        ];
+
+                        for key in keys_to_delete {
+                            let tenant_aware_delete =
+                                redis_conn.delete_key(&key.clone().into()).await;
+
+                            let tenant_unaware_key = redis_interface::RedisKey::from(key.clone())
+                                .tenant_unaware_key(&redis_conn);
+                            let tenant_unaware_delete =
+                                redis_conn.delete_key(&tenant_unaware_key.into()).await;
+
+                            if tenant_aware_delete.is_ok() || tenant_unaware_delete.is_ok() {
+                                logger::info!("Consumed payout pm_token and deleted Redis key")
+                            } else {
+                                logger::warn!(
+                                    "Failed deleting pm_token Redis key in both tenant-aware and tenant-unaware forms: {:?}",
+                                    key
+                                );
+                            }
+                        }
+                    }
+                }
+
+                Ok(payment_token.or(Some(payout_token.to_string())))
+            }
+            .await;
+
+            // Best-effort lock release: only delete if we still own it (request_id matches).
+            if let Ok(val) = redis_conn
+                .get_key::<Option<String>>(&redis_locking_key.as_str().into())
+                .await
+            {
+                if val == state.store.get_request_id() {
+                    let _ = redis_conn
+                        .delete_key(&redis_locking_key.as_str().into())
+                        .await;
+                }
+            }
+
+            result?
+        } else {
+            // Token is already a durable reference
+            Some(payout_token.to_string())
         }
     } else {
         None
