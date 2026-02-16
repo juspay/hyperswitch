@@ -3025,6 +3025,8 @@ pub struct PaymentMethodRecord {
     pub nick_name: Option<masking::Secret<String>>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
     pub connector_customer_id: Option<String>,
+    // Card fields are optional to support non-card CSV rows (e.g., ACH bank debit).
+    // For card rows these will still be populated normally from the CSV columns.
     #[serde(default)]
     pub card_number_masked: Option<masking::Secret<String>>,
     #[serde(default)]
