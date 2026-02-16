@@ -1605,8 +1605,8 @@ pub async fn payment_methods_session_retrieve(
         },
         auth::sdk_or_api_or_client_auth(
             &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
                 resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
                     payment_method_session_id.clone(),
                 ),
@@ -1652,8 +1652,8 @@ pub async fn payment_method_session_list_payment_methods(
         },
         auth::sdk_or_client_auth(
             &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
                 resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
                     payment_method_session_id.clone(),
                 ),
@@ -1723,8 +1723,8 @@ pub async fn payment_method_session_confirm(
         },
         auth::sdk_or_client_auth(
             &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
                 resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
                     payment_method_session_id.clone(),
                 ),
@@ -1776,8 +1776,8 @@ pub async fn payment_method_session_update_saved_payment_method(
         },
         auth::sdk_or_client_auth(
             &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
                 resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
                     payment_method_session_id.clone(),
                 ),
@@ -1829,8 +1829,8 @@ pub async fn payment_method_session_delete_saved_payment_method(
         },
         auth::sdk_or_client_auth(
             &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
                 resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
                     payment_method_session_id.clone(),
                 ),

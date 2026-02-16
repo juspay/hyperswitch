@@ -132,8 +132,8 @@ pub async fn customers_retrieve(
         common_utils::types::authentication::ResourceId::Customer(id.clone()),
     );
     let sdk_auth = auth::SdkAuthorizationAuth {
-        allow_connected_scope_operation: false,
-        allow_platform_self_operation: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
         resource_id: common_utils::types::authentication::ResourceId::Customer(id.clone()),
     };
     let auth = if auth::is_jwt_auth(req.headers()) {
