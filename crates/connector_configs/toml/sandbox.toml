@@ -2254,6 +2254,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[dlocal.debit]]
 payment_method_type = "UnionPay"
+[[dlocal.voucher]]
+  payment_method_type = "oxxo"
 [dlocal.connector_auth.SignatureKey]
 api_key = "X Login"
 key1 = "X Trans Key"
