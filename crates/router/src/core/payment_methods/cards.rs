@@ -2282,7 +2282,6 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    // Should we update network_transaction_id here too?
     let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
         locker_id: None,
         payment_method_data: None,
