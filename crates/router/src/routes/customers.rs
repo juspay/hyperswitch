@@ -106,7 +106,7 @@ pub async fn customers_retrieve(
         state,
         &req,
         customer_id,
-        |state, auth: auth::AuthenticationData, customer_id, _| {
+        |state, auth, customer_id, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             retrieve_customer(
                 state,
@@ -408,7 +408,7 @@ pub async fn customers_delete(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            delete_customer(state, auth.platform.get_provider().clone(), id)
+            delete_customer(state, auth.platform, id, auth.profile)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {

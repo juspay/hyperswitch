@@ -20,8 +20,8 @@ pub struct SdkAuthorization {
     /// Platform publishable key (only for platform-initiated flows)
     pub platform_publishable_key: Option<String>,
 
-    /// Client secret for the payment (if available)
-    pub client_secret: Option<String>,
+    /// Client secret for the payment (required for SDK authorization)
+    pub client_secret: String,
 
     /// Customer ID for the payment (if available)
     pub customer_id: Option<id_type::CustomerId>,
@@ -38,9 +38,7 @@ impl SdkAuthorization {
             self.platform_publishable_key
                 .as_ref()
                 .map(|k| format!("platform_publishable_key={}", k)),
-            self.client_secret
-                .as_ref()
-                .map(|s| format!("client_secret={}", s)),
+            Some(format!("client_secret={}", self.client_secret)),
             self.customer_id
                 .as_ref()
                 .map(|id| format!("customer_id={}", id.get_string_repr())),
@@ -110,7 +108,14 @@ impl SdkAuthorization {
                 })?
                 .to_string(),
             platform_publishable_key: parts.get("platform_publishable_key").map(|v| v.to_string()),
-            client_secret: parts.get("client_secret").map(|v| v.to_string()),
+            client_secret: parts
+                .get("client_secret")
+                .ok_or_else(|| {
+                    report!(ValidationError::InvalidValue {
+                        message: "Missing required field: client_secret".to_string()
+                    })
+                })?
+                .to_string(),
             customer_id: parts
                 .get("customer_id")
                 .map(|v| {

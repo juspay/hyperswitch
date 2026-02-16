@@ -190,7 +190,14 @@ pub async fn payouts_confirm(
         state,
         &req,
         payload,
-        |state, auth, req, _| payouts_confirm_core(state, auth.platform, req),
+        |state, auth, mut req, _| {
+            #[cfg(feature = "v1")]
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
+            payouts_confirm_core(state, auth.platform, req)
+        },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
