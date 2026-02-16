@@ -21369,6 +21369,9 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
+        "required": [
+          "storage_type"
+        ],
         "properties": {
           "customer_id": {
             "type": "string",
@@ -21419,12 +21422,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           }
         }
       },
