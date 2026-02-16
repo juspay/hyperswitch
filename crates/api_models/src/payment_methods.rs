@@ -3058,6 +3058,7 @@ pub struct PaymentMethodRecord {
     pub routing_number: Option<masking::Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
 impl PaymentMethodRecord {
     /// Constructs `PaymentMethodCreateData` from the CSV record fields.
     /// Returns `None` for card records (cards are handled via `MigrateCardDetail`).
