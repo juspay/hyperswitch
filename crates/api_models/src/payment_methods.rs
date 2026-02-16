@@ -545,6 +545,7 @@ impl PaymentMethodUpdate {
         self.is_payment_method_metadata_update()
             || self.connector_token_details.is_some()
             || self.network_transaction_id.is_some()
+            || self.acknowledgement_status.is_some()
     }
 }
 

@@ -10580,7 +10580,6 @@ pub enum StorageType {
 pub enum AcknowledgementStatus {
     Authenticated,
     Failed,
-    Pending,
 }
 
 /// Represents the type of retry for a payment attempt

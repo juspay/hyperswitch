@@ -4231,9 +4231,6 @@ pub async fn update_payment_method_core(
             Some(common_enums::AcknowledgementStatus::Authenticated) => {
                 Some(common_enums::PaymentMethodStatus::Active)
             },
-            Some(common_enums::AcknowledgementStatus::Pending) => {
-                None
-            },
             Some(common_enums::AcknowledgementStatus::Failed) => {
                 Some(common_enums::PaymentMethodStatus::Inactive)
             },
