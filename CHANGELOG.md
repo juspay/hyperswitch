@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.11.0-hotfix2
+
+### Features
+
+- **core:** Add static routing to proxy payment core ([#11267](https://github.com/juspay/hyperswitch/pull/11267)) ([`ad2039a`](https://github.com/juspay/hyperswitch/commit/ad2039a6e6666a94c9941012754010108b689008))
+
+**Full Changelog:** [`2026.02.11.0-hotfix1...2026.02.11.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.02.11.0-hotfix1...2026.02.11.0-hotfix2)
+
+- - -
+
 ## 2026.02.11.0-hotfix1
 
 ### Bug Fixes
