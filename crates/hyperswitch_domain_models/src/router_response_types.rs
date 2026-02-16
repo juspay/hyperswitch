@@ -113,6 +113,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
