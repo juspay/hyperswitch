@@ -3107,16 +3107,7 @@ where
         return sdk_auth;
     }
 
-    // Check for key-value auth (api-key= or publishable-key=)
-    if let Ok(val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
-        if val.trim().starts_with("api-key=") {
-            api_auth
-        } else {
-            client_auth
-        }
-    } else {
-        api_auth
-    }
+    api_or_client_auth(api_auth, client_auth, headers)
 }
 
 #[cfg(feature = "v2")]
@@ -3583,16 +3574,16 @@ where
         let sdk_auth = SdkAuthorization::decode(sdk_auth_header)
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Extract client_secret from decoded SDK authorization
+        let client_secret = sdk_auth.client_secret.clone();
+
         // Validate client_secret against database
         let db_client_secret: diesel_models::ClientSecretType = state
             .store()
-            .get_client_secret(&sdk_auth.client_secret)
+            .get_client_secret(&client_secret)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Invalid client_secret in SDK authorization")?;
-
-        // Extract client_secret from decoded SDK authorization
-        let client_secret = sdk_auth.client_secret.clone();
 
         let (initiator_merchant, initiator_merchant_key_store) = match sdk_auth
             .platform_publishable_key
@@ -3619,56 +3610,37 @@ where
             }
         };
 
-        // Validate that merchant_id from client_secret matches merchant from publishable_key
         if db_client_secret.merchant_id != *initiator_merchant.get_id() {
-            return Err(errors::ApiErrorResponse::Unauthorized).attach_printable(
-                "Merchant ID mismatch between client_secret and publishable_key",
-            );
+            return Err(errors::ApiErrorResponse::Unauthorized.into());
         }
 
-        // Validate resource_id from URL path matches DB client_secret resource_id
-        // (similar to V2ClientAuth validation)
         match (&self.resource_id, &db_client_secret.resource_id) {
             (
-                common_utils::types::authentication::ResourceId::Payment(url_id),
+                common_utils::types::authentication::ResourceId::Payment(self_id),
                 common_utils::types::authentication::ResourceId::Payment(db_id),
             ) => {
-                fp_utils::when(url_id != db_id, || {
+                fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                        .attach_printable("Payment ID mismatch in SDK authorization")
-                })?;
+                });
             }
             (
-                common_utils::types::authentication::ResourceId::Customer(url_customer_id),
-                common_utils::types::authentication::ResourceId::Customer(db_customer_id),
+                common_utils::types::authentication::ResourceId::Customer(self_id),
+                common_utils::types::authentication::ResourceId::Customer(db_id),
             ) => {
-                fp_utils::when(url_customer_id != db_customer_id, || {
+                fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                        .attach_printable("Customer ID mismatch between URL and client_secret")
-                })?;
-
-                // Additional validation: check SDK auth customer_id if present
-                if let Some(ref sdk_customer_id) = sdk_auth.customer_id {
-                    fp_utils::when(url_customer_id != sdk_customer_id, || {
-                        Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                            .attach_printable(
-                                "Customer ID mismatch between URL and SDK authorization",
-                            )
-                    })?;
-                }
+                });
             }
             (
-                common_utils::types::authentication::ResourceId::PaymentMethodSession(url_id),
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(self_id),
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(db_id),
             ) => {
-                fp_utils::when(url_id != db_id, || {
+                fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                        .attach_printable("Payment Method Session ID mismatch in SDK authorization")
-                })?;
+                });
             }
             _ => {
-                return Err(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Resource type mismatch in SDK authorization");
+                return Err(errors::ApiErrorResponse::Unauthorized.into());
             }
         }
 
@@ -5586,14 +5558,8 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
 pub fn is_sdk_authorization(headers: &HeaderMap) -> bool {
     if let Ok(auth_val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
         let trimmed = auth_val.trim();
-
-        // Check if it's NOT key-value format (api-key=, publishable-key=)
-        // These are used by V2ClientAuth and V2ApiKeyAuth
-        if !trimmed.starts_with("api-key=") && !trimmed.starts_with("publishable-key=") {
-            // Try to decode using SdkAuthorization::decode - if it succeeds, it's SDK auth
-            // This is scalable and reuses the existing validation logic
-            return SdkAuthorization::decode(trimmed).is_ok();
-        }
+        // Try to decode using SdkAuthorization::decode - if it succeeds, it's SDK auth
+        return SdkAuthorization::decode(trimmed).is_ok();
     }
     false
 }
