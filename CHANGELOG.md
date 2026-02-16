@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.16.0
+
+### Features
+
+- **core:** Implement NTID flow for Decrypted Wallet Token and also Implement for checkout connector ([#11178](https://github.com/juspay/hyperswitch/pull/11178)) ([`22aeb6f`](https://github.com/juspay/hyperswitch/commit/22aeb6f042274a654059697fc6a51fb20fab1146))
+- **payment-methods:**
+  - Handle the duplication check in create and update api ([#11243](https://github.com/juspay/hyperswitch/pull/11243)) ([`a765116`](https://github.com/juspay/hyperswitch/commit/a76511693ce757e910d8b879e576b8bbf79e081f))
+  - Add billing support in pm retrieve api ([#11251](https://github.com/juspay/hyperswitch/pull/11251)) ([`fca43b5`](https://github.com/juspay/hyperswitch/commit/fca43b59a679e74134d38050af4ee2ceffd0f48c))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Mandates Flow for Wallets When Authentication Type is three_ds ([#11255](https://github.com/juspay/hyperswitch/pull/11255)) ([`20f62f4`](https://github.com/juspay/hyperswitch/commit/20f62f4c81ee1b51354e41b37d09f6221ce34b5f))
+- **customers:** Resolve unimplemented payment method deletion in v2 ([#11192](https://github.com/juspay/hyperswitch/pull/11192)) ([`8e5d98d`](https://github.com/juspay/hyperswitch/commit/8e5d98de350f5f31069cac2b387fa8db73dec4e3))
+- **payment-methods:**
+  - Fetch customer using merchant_id ([#11261](https://github.com/juspay/hyperswitch/pull/11261)) ([`788c2e2`](https://github.com/juspay/hyperswitch/commit/788c2e2805cad7219040db2a5e778c9411383fd0))
+  - Update fingerprint data handling in payment method creation ([#11263](https://github.com/juspay/hyperswitch/pull/11263)) ([`4cdefa2`](https://github.com/juspay/hyperswitch/commit/4cdefa2161f15a70ab89d4442879e5cd1e55f20e))
+- **platform:** Add sdk_authorization support for remaining APIs ([#11257](https://github.com/juspay/hyperswitch/pull/11257)) ([`5548f9c`](https://github.com/juspay/hyperswitch/commit/5548f9caaccbb6e81afa8c76cced00f4eb6ea9e0))
+
+### Miscellaneous Tasks
+
+- **config:** [Dlocal] Add wasm changes for oxxo payment method ([#11188](https://github.com/juspay/hyperswitch/pull/11188)) ([`f4e39df`](https://github.com/juspay/hyperswitch/commit/f4e39df6844c189ba67cc592f00ebee3bb001413))
+
+**Full Changelog:** [`2026.02.13.0...2026.02.16.0`](https://github.com/juspay/hyperswitch/compare/2026.02.13.0...2026.02.16.0)
+
+- - -
+
 ## 2026.02.13.0
 
 ### Features

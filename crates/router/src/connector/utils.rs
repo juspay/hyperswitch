@@ -2661,7 +2661,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,
-            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Self::NetworkToken,
+            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => Self::NetworkToken,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,
