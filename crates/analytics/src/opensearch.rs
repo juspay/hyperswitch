@@ -527,7 +527,6 @@ const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
     return false;
 "#;
 
-
 impl OpenSearchQueryBuilder {
     pub fn new(
         query_type: OpenSearchQuery,
@@ -630,7 +629,10 @@ impl OpenSearchQueryBuilder {
             .into_iter()
             .map(|(k, v)| {
                 if *k == "card_discovery.keyword" {
-                    self.make_active_attempt_script_filter("attempts_list.card_discovery.keyword", v)
+                    self.make_active_attempt_script_filter(
+                        "attempts_list.card_discovery.keyword",
+                        v,
+                    )
                 } else {
                     let key = if *k == "amount" {
                         self.get_amount_field(index).to_string()

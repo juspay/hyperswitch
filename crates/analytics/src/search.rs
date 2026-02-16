@@ -4,6 +4,8 @@ use api_models::analytics::search::{
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use masking::ExposeInterface;
 use router_env::tracing;
 use serde_json::Value;
 
@@ -11,12 +13,12 @@ use crate::{
     enums::AuthInfo,
     opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
-use masking::ExposeInterface;
 
 pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
     items.into_iter().map(|item| item.into()).collect()
 }
 
+#[cfg(feature = "v1")]
 pub fn get_search_filters(
     constraints: &api_models::payments::PaymentListFilterConstraints,
 ) -> api_models::analytics::search::SearchFilters {
@@ -160,8 +162,10 @@ pub async fn msearch_results(
         };
         if let Some(connector) = filters.connector {
             if !connector.is_empty() {
-                let connector_strings: Vec<String> =
-                    connector.iter().map(|connector| connector.to_string()).collect();
+                let connector_strings: Vec<String> = connector
+                    .iter()
+                    .map(|connector| connector.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "connector.keyword".to_string(),
@@ -325,8 +329,10 @@ pub async fn search_results(
     if let Some(filters) = search_req.filters {
         if let Some(currency) = filters.currency {
             if !currency.is_empty() {
-                let currency_strings: Vec<String> =
-                    currency.iter().map(|currency| currency.to_string()).collect();
+                let currency_strings: Vec<String> = currency
+                    .iter()
+                    .map(|currency| currency.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "currency.keyword".to_string(),
@@ -337,7 +343,8 @@ pub async fn search_results(
         };
         if let Some(status) = filters.status {
             if !status.is_empty() {
-                let status_strings: Vec<String> = status.iter().map(|status| status.to_string()).collect();
+                let status_strings: Vec<String> =
+                    status.iter().map(|status| status.to_string()).collect();
                 query_builder
                     .add_filter_clause(
                         "status.keyword".to_string(),
@@ -348,8 +355,10 @@ pub async fn search_results(
         };
         if let Some(payment_method) = filters.payment_method {
             if !payment_method.is_empty() {
-                let payment_method_strings: Vec<String> =
-                    payment_method.iter().map(|payment_method| payment_method.to_string()).collect();
+                let payment_method_strings: Vec<String> = payment_method
+                    .iter()
+                    .map(|payment_method| payment_method.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_method.keyword".to_string(),

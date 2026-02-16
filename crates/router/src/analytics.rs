@@ -29,13 +29,14 @@ pub mod routes {
     use common_utils::types::TimeRange;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
+    use router_env::logger;
 
     use crate::{
         analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
-        routes::AppState,
+        routes::{metrics, AppState},
         services::{
             api,
             authentication::{self as auth, AuthenticationData, UserFromToken},
@@ -44,7 +45,6 @@ pub mod routes {
         },
         types::{domain::UserEmail, storage::UserRole},
     };
-    use router_env::logger;
 
     pub struct Analytics;
 
@@ -437,10 +437,9 @@ pub mod routes {
                                     web::resource("metrics/auth_events/sankey")
                                         .route(web::post().to(get_profile_auth_event_sankey)),
                                 )
-                                .service(
-                                    web::resource("payments/list")
-                                        .route(web::post().to(get_profile_payment_list_from_opensearch)),
-                                ),
+                                .service(web::resource("payments/list").route(
+                                    web::post().to(get_profile_payment_list_from_opensearch),
+                                )),
                         ),
                 )
                 .service(
@@ -2720,6 +2719,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_payment_list_from_opensearch(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2733,47 +2733,55 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, constraints, _| async move {
-                let merchant_id = auth.platform.get_processor().get_account().get_id();
-                let org_id = auth.platform.get_processor().get_account().get_org_id();
+                let req_merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+                common_utils::metrics::utils::record_operation_time(
+                    Box::pin(async move {
+                        let merchant_id = auth.platform.get_processor().get_account().get_id();
+                        let org_id = auth.platform.get_processor().get_account().get_org_id();
 
-                let auth_info = vec![AuthInfo::MerchantLevel {
-                    org_id: org_id.clone(),
-                    merchant_ids: vec![merchant_id.clone()],
-                }];
+                        let auth_info = vec![AuthInfo::MerchantLevel {
+                            org_id: org_id.clone(),
+                            merchant_ids: vec![merchant_id.clone()],
+                        }];
 
-                let filters = analytics::search::get_search_filters(&constraints);
+                        let filters = analytics::search::get_search_filters(&constraints);
 
-                let search_req = GetSearchRequestWithIndex {
-                    index: SearchIndex::SessionizerPaymentIntents,
-                    search_req: GetSearchRequest {
-                        query: String::new(),
-                        filters: Some(filters),
-                        time_range: constraints.time_range.map(|t| t.into()),
-                        offset: constraints.offset.map(|o| o as i64).unwrap_or(0),
-                        count: constraints.limit as i64,
-                        order: Some(constraints.order),
-                    },
-                };
+                        let search_req = GetSearchRequestWithIndex {
+                            index: SearchIndex::SessionizerPaymentIntents,
+                            search_req: GetSearchRequest {
+                                query: String::new(),
+                                filters: Some(filters),
+                                time_range: constraints.time_range,
+                                offset: constraints.offset.map(i64::from).unwrap_or(0),
+                                count: i64::from(constraints.limit),
+                                order: Some(constraints.order),
+                            },
+                        };
 
-                let client = state
-                    .opensearch_client
-                    .as_ref()
-                    .ok_or(OpenSearchError::UnknownError)
-                    .attach_printable("OpenSearch client not initialized")?;
+                        let client = state
+                            .opensearch_client
+                            .as_ref()
+                            .ok_or(OpenSearchError::UnknownError)
+                            .attach_printable("OpenSearch client not initialized")?;
 
-                let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
+                        let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
 
-                search_provider
-                    .search_results(search_req, auth_info)
-                    .await
-                    .map(|response| {
-                         logger::info!(
-                            count = response.hits.len(),
-                            total = response.count,
-                            "Successfully retrieved payments from OpenSearch"
-                        );
-                        ApplicationResponse::Json(response)
-                    })
+                        search_provider
+                            .search_results(search_req, auth_info)
+                            .await
+                            .map(|response| {
+                                logger::info!(
+                                    count = response.hits.len(),
+                                    total = response.count,
+                                    "Successfully retrieved payments from OpenSearch"
+                                );
+                                ApplicationResponse::Json(response)
+                            })
+                    }),
+                    &metrics::PAYMENT_LIST_LATENCY,
+                    router_env::metric_attributes!(("merchant_id", req_merchant_id.clone())),
+                )
+                .await
             },
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -2790,6 +2798,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_payment_list_from_opensearch(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2803,58 +2812,66 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, constraints, _| async move {
-                let merchant_id = auth.platform.get_processor().get_account().get_id();
-                let org_id = auth.platform.get_processor().get_account().get_org_id();
+                let req_merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+                common_utils::metrics::utils::record_operation_time(
+                    Box::pin(async move {
+                        let merchant_id = auth.platform.get_processor().get_account().get_id();
+                        let org_id = auth.platform.get_processor().get_account().get_org_id();
 
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(OpenSearchError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
+                        let profile_id = auth
+                            .profile
+                            .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                            .change_context(OpenSearchError::AccessForbiddenError)?
+                            .get_id()
+                            .clone();
 
-                let auth_info = vec![AuthInfo::ProfileLevel {
-                    org_id: org_id.clone(),
-                    merchant_id: merchant_id.clone(),
-                    profile_ids: vec![profile_id.clone()],
-                }];
+                        let auth_info = vec![AuthInfo::ProfileLevel {
+                            org_id: org_id.clone(),
+                            merchant_id: merchant_id.clone(),
+                            profile_ids: vec![profile_id.clone()],
+                        }];
 
-                let mut constraints = constraints;
-                constraints.profile_id = Some(profile_id);
+                        let mut constraints = constraints;
+                        constraints.profile_id = Some(profile_id);
 
-                let filters = analytics::search::get_search_filters(&constraints);
+                        let filters = analytics::search::get_search_filters(&constraints);
 
-                let search_req = GetSearchRequestWithIndex {
-                    index: SearchIndex::SessionizerPaymentIntents,
-                    search_req: GetSearchRequest {
-                        query: String::new(),
-                        filters: Some(filters),
-                        time_range: constraints.time_range.map(|t| t.into()),
-                        offset: constraints.offset.map(|o| o as i64).unwrap_or(0),
-                        count: constraints.limit as i64,
-                        order: Some(constraints.order),
-                    },
-                };
+                        let search_req = GetSearchRequestWithIndex {
+                            index: SearchIndex::SessionizerPaymentIntents,
+                            search_req: GetSearchRequest {
+                                query: String::new(),
+                                filters: Some(filters),
+                                time_range: constraints.time_range,
+                                offset: constraints.offset.map(i64::from).unwrap_or(0),
+                                count: i64::from(constraints.limit),
+                                order: Some(constraints.order),
+                            },
+                        };
 
-                let client = state
-                    .opensearch_client
-                    .as_ref()
-                    .ok_or(OpenSearchError::UnknownError)
-                    .attach_printable("OpenSearch client not initialized")?;
+                        let client = state
+                            .opensearch_client
+                            .as_ref()
+                            .ok_or(OpenSearchError::UnknownError)
+                            .attach_printable("OpenSearch client not initialized")?;
 
-                let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
+                        let search_provider = SearchProvider::Opensearch(client.as_ref().clone());
 
-                search_provider
-                    .search_results(search_req, auth_info)
-                    .await
-                    .map(|response| {
-                        logger::info!(
-                            count = response.hits.len(),
-                            total = response.count,
-                            "Successfully retrieved payments for profile from OpenSearch"
-                        );
-                        ApplicationResponse::Json(response)
-                    })
+                        search_provider
+                            .search_results(search_req, auth_info)
+                            .await
+                            .map(|response| {
+                                logger::info!(
+                                    count = response.hits.len(),
+                                    total = response.count,
+                                    "Successfully retrieved payments for profile from OpenSearch"
+                                );
+                                ApplicationResponse::Json(response)
+                            })
+                    }),
+                    &metrics::PAYMENT_LIST_LATENCY,
+                    router_env::metric_attributes!(("merchant_id", req_merchant_id.clone())),
+                )
+                .await
             },
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
