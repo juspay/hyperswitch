@@ -3066,7 +3066,9 @@ impl PaymentMethodRecord {
     /// (e.g., SEPA, BACS, wallets) in the future.
     pub fn get_payment_method_data(&self) -> Option<PaymentMethodCreateData> {
         match (self.account_number.as_ref(), self.routing_number.as_ref()) {
-            (Some(account_number), Some(routing_number)) => {
+            (Some(account_number), Some(routing_number))
+                if !account_number.peek().is_empty() && !routing_number.peek().is_empty() =>
+            {
                 Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
                     account_number: account_number.clone(),
                     routing_number: routing_number.clone(),
@@ -3286,6 +3288,7 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     TryFrom<(
         &PaymentMethodRecord,
@@ -3329,10 +3332,10 @@ impl
             None
         };
 
-        // Determine if this is a bank debit record or a card record
-        let is_bank_debit = record.account_number.is_some() && record.routing_number.is_some();
+        let payment_method_data = record.get_payment_method_data();
+        let is_non_card = payment_method_data.is_some();
 
-        let card = if is_bank_debit {
+        let card = if is_non_card {
             None
         } else {
             Some(MigrateCardDetail {
@@ -3352,9 +3355,7 @@ impl
             })
         };
 
-        let payment_method_data = record.get_payment_method_data();
-
-        let network_token = if is_bank_debit {
+        let network_token = if is_non_card {
             None
         } else {
             Some(MigrateNetworkTokenDetail {

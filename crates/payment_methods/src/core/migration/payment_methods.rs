@@ -45,8 +45,12 @@ pub async fn migrate_payment_method(
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
-    // If payment_method_data is present, use the payment method data migration flow
-    if let Some(payment_method_data) = req.payment_method_data.clone() {
+    // If payment_method_data contains non-card data (e.g., bank debit), use the dedicated migration flow
+    if let Some(payment_method_data) = req
+        .payment_method_data
+        .clone()
+        .filter(|data| !matches!(data, pm_api::PaymentMethodCreateData::Card(_)))
+    {
         return migrate_payment_method_data(
             state,
             &req,
@@ -227,6 +231,12 @@ async fn migrate_payment_method_data(
         .add_payment_method(&payment_method_create)
         .await?;
 
+    let payment_method_response = match res {
+        ApplicationResponse::Json(response) => response,
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the payment method response")?,
+    };
+
     migration_status.payment_method_migrated(true);
     migration_status.network_transaction_id_migrated(
         network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
@@ -240,12 +250,6 @@ async fn migrate_payment_method_data(
                     .and_then(|val| (!val.0.is_empty()).then_some(false))
             }),
     );
-
-    let payment_method_response = match res {
-        ApplicationResponse::Json(response) => response,
-        _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the payment method response")?,
-    };
 
     let migrate_status = migration_status.build();
 
