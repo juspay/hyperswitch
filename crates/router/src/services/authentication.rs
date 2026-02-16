@@ -76,6 +76,7 @@ pub struct AuthenticationData {
 pub struct AuthenticationData {
     pub platform: domain::Platform,
     pub profile: domain::Profile,
+    pub client_secret: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -98,7 +99,11 @@ impl AuthenticationData {
         platform: domain::Platform,
         profile: domain::Profile,
     ) -> Self {
-        Self { platform, profile }
+        Self {
+            platform,
+            profile,
+            client_secret: None,
+        }
     }
 }
 
@@ -668,7 +673,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
@@ -1362,6 +1371,7 @@ where
         let auth = AuthenticationData {
             platform: auth_data.platform,
             profile,
+            client_secret: None,
         };
         Ok((auth, auth_type))
     }
@@ -1794,7 +1804,11 @@ where
             initiator,
         );
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth,
             AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
@@ -2318,7 +2332,11 @@ where
             initiator,
         );
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth,
             AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
@@ -2518,7 +2536,11 @@ where
             initiator,
         );
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::MerchantId {
@@ -2706,7 +2728,11 @@ where
             initiator,
         );
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::MerchantId {
@@ -2769,7 +2795,11 @@ where
         );
 
         Ok((
-            AuthenticationData { platform, profile },
+            AuthenticationData {
+                platform,
+                profile,
+                client_secret: None,
+            },
             AuthenticationType::PublishableKey {
                 merchant_id: merchant_account.get_id().clone(),
             },
@@ -2885,7 +2915,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
@@ -3004,7 +3038,11 @@ where
             initiator,
         );
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
 
         Ok((
             auth,
@@ -3054,6 +3092,50 @@ where
         api_auth
     }
 }
+
+#[cfg(feature = "v2")]
+pub fn sdk_or_api_or_client_auth<'a, T, A>(
+    sdk_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    api_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    client_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    // Check for SDK authorization (base64-encoded)
+    if is_sdk_authorization(headers) {
+        return sdk_auth;
+    }
+
+    // Check for key-value auth (api-key= or publishable-key=)
+    if let Ok(val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
+        if val.trim().starts_with("api-key=") {
+            api_auth
+        } else {
+            client_auth
+        }
+    } else {
+        api_auth
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn sdk_or_client_auth<'a, T, A>(
+    sdk_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    client_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    // Check for SDK authorization (base64-encoded)
+    if is_sdk_authorization(headers) {
+        return sdk_auth;
+    }
+
+    // Fall back to client auth (publishable-key=)
+    client_auth
+}
+
 #[derive(Debug, Default)]
 pub struct PublishableKeyAuth {
     pub allow_connected_scope_operation: bool,
@@ -3196,7 +3278,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth,
             AuthenticationType::PublishableKey {
@@ -3207,10 +3293,19 @@ where
 }
 
 /// SDK Authorization authentication using Authorization header
+#[cfg(feature = "v1")]
 #[derive(Debug, Default)]
 pub struct SdkAuthorizationAuth {
     pub allow_connected_scope_operation: bool,
     pub allow_platform_self_operation: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct SdkAuthorizationAuth {
+    pub allow_connected_scope_operation: bool,
+    pub allow_platform_self_operation: bool,
+    pub resource_id: common_utils::types::authentication::ResourceId,
 }
 
 #[cfg(feature = "v1")]
@@ -3235,7 +3330,7 @@ where
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
         // Extract client_secret from decoded SDK authorization
-        let client_secret = Some(sdk_auth.client_secret.clone());
+        let client_secret = sdk_auth.client_secret.clone();
 
         let (initiator_merchant, initiator_merchant_key_store) = match sdk_auth
             .platform_publishable_key
@@ -3284,7 +3379,7 @@ where
         let auth_data = AuthenticationData {
             platform,
             profile: Some(profile),
-            client_secret,
+            client_secret: Some(client_secret),
         };
         Ok((
             auth_data,
@@ -3462,6 +3557,150 @@ where
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for SdkAuthorizationAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        // Get Authorization header
+        let sdk_auth_header =
+            get_header_value_by_key(headers::AUTHORIZATION.into(), request_headers)?
+                .ok_or(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Missing Authorization header")?;
+
+        // Decode SDK authorization
+        let sdk_auth = SdkAuthorization::decode(sdk_auth_header)
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Validate client_secret against database
+        let db_client_secret: diesel_models::ClientSecretType = state
+            .store()
+            .get_client_secret(&sdk_auth.client_secret)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Invalid client_secret in SDK authorization")?;
+
+        // Extract client_secret from decoded SDK authorization
+        let client_secret = sdk_auth.client_secret.clone();
+
+        let (initiator_merchant, initiator_merchant_key_store) = match sdk_auth
+            .platform_publishable_key
+        {
+            Some(ref platform_pub_key) => {
+                let (platform_merchant, platform_key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(platform_pub_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid platform publishable key in SDK authorization")?;
+
+                (platform_merchant, platform_key_store)
+            }
+            None => {
+                let (processor_merchant, processor_key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid processor publishable key in SDK authorization")?;
+
+                (processor_merchant, processor_key_store)
+            }
+        };
+
+        // Validate that merchant_id from client_secret matches merchant from publishable_key
+        if db_client_secret.merchant_id != *initiator_merchant.get_id() {
+            return Err(errors::ApiErrorResponse::Unauthorized).attach_printable(
+                "Merchant ID mismatch between client_secret and publishable_key",
+            );
+        }
+
+        // Validate resource_id from URL path matches DB client_secret resource_id
+        // (similar to V2ClientAuth validation)
+        match (&self.resource_id, &db_client_secret.resource_id) {
+            (
+                common_utils::types::authentication::ResourceId::Payment(url_id),
+                common_utils::types::authentication::ResourceId::Payment(db_id),
+            ) => {
+                fp_utils::when(url_id != db_id, || {
+                    Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Payment ID mismatch in SDK authorization")
+                })?;
+            }
+            (
+                common_utils::types::authentication::ResourceId::Customer(url_customer_id),
+                common_utils::types::authentication::ResourceId::Customer(db_customer_id),
+            ) => {
+                fp_utils::when(url_customer_id != db_customer_id, || {
+                    Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Customer ID mismatch between URL and client_secret")
+                })?;
+
+                // Additional validation: check SDK auth customer_id if present
+                if let Some(ref sdk_customer_id) = sdk_auth.customer_id {
+                    fp_utils::when(url_customer_id != sdk_customer_id, || {
+                        Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable(
+                                "Customer ID mismatch between URL and SDK authorization",
+                            )
+                    })?;
+                }
+            }
+            (
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(url_id),
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(db_id),
+            ) => {
+                fp_utils::when(url_id != db_id, || {
+                    Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Payment Method Session ID mismatch in SDK authorization")
+                })?;
+            }
+            _ => {
+                return Err(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Resource type mismatch in SDK authorization");
+            }
+        }
+
+        let platform = check_sdk_auth_and_resolve_platform(
+            state,
+            &sdk_auth,
+            initiator_merchant.clone(),
+            initiator_merchant_key_store,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
+        )
+        .await?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().get_id(),
+                &sdk_auth.profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth_data = AuthenticationData {
+            platform,
+            profile,
+            client_secret: Some(client_secret),
+        };
+        Ok((
+            auth_data,
+            AuthenticationType::SdkAuthorization {
+                merchant_id: initiator_merchant.get_id().clone(),
             },
         ))
     }
@@ -3888,7 +4127,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
 
         Ok((
             auth,
@@ -4141,7 +4384,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth,
             AuthenticationType::MerchantJwt {
@@ -4450,7 +4697,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
@@ -4634,7 +4885,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth,
             AuthenticationType::MerchantJwt {
@@ -5323,6 +5578,24 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
             .and_then(cookies::get_jwt_from_cookies)
             .is_ok(),
     }
+}
+
+/// Checks if Authorization header contains SDK authorization (base64-encoded)
+/// vs key-value pairs (api-key=, publishable-key=)
+#[cfg(feature = "v2")]
+pub fn is_sdk_authorization(headers: &HeaderMap) -> bool {
+    if let Ok(auth_val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
+        let trimmed = auth_val.trim();
+
+        // Check if it's NOT key-value format (api-key=, publishable-key=)
+        // These are used by V2ClientAuth and V2ApiKeyAuth
+        if !trimmed.starts_with("api-key=") && !trimmed.starts_with("publishable-key=") {
+            // Try to decode using SdkAuthorization::decode - if it succeeds, it's SDK auth
+            // This is scalable and reuses the existing validation logic
+            return SdkAuthorization::decode(trimmed).is_ok();
+        }
+    }
+    false
 }
 
 pub fn is_internal_api_key_merchant_id_profile_id_auth(

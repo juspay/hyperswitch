@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::payment_method_data;
+use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 use josekit::jwe;
 #[cfg(feature = "v1")]
 use masking::Mask;
@@ -1000,9 +1000,12 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    profile: &hyperswitch_domain_models::business_profile::Profile,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
@@ -1025,6 +1028,34 @@ pub fn generate_payment_method_session_response(
         .as_ref()
         .map(|tokenization_service_response| tokenization_service_response.id.clone());
 
+    // Construct SDK authorization for client SDK
+    let sdk_authorization = initiator.and_then(|init| match init {
+        hyperswitch_domain_models::platform::Initiator::Api {
+            merchant_account_type,
+            publishable_key,
+            ..
+        } => {
+            let platform_publishable_key = match merchant_account_type {
+                common_enums::MerchantAccountType::Platform => Some(publishable_key.clone()),
+                common_enums::MerchantAccountType::Standard
+                | common_enums::MerchantAccountType::Connected => None,
+            };
+
+            let sdk_auth_data = SdkAuthorization {
+                profile_id: profile.get_id().clone(),
+                publishable_key: publishable_key.clone(),
+                platform_publishable_key,
+                client_secret: client_secret.clone().expose().to_string(),
+                customer_id: None,
+            };
+
+            sdk_auth_data.encode().ok()
+        }
+        hyperswitch_domain_models::platform::Initiator::Admin
+        | hyperswitch_domain_models::platform::Initiator::Jwt { .. }
+        | hyperswitch_domain_models::platform::Initiator::EmbeddedToken { .. } => None,
+    });
+
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
         customer_id: payment_method_session.customer_id,
@@ -1045,6 +1076,7 @@ pub fn generate_payment_method_session_response(
         storage_type,
         card_cvc_token_storage,
         payment_method_data,
+        sdk_authorization,
     }
 }
 

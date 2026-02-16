@@ -11,7 +11,7 @@ use error_stack::{report, ResultExt};
 /// SDK authorization data for client-side SDK authentication
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdkAuthorization {
-    /// The profile ID associated with this payment
+    /// The profile ID associated with this payment/session
     pub profile_id: id_type::ProfileId,
 
     /// The publishable key of the processor merchant (connected or standard)
@@ -20,11 +20,16 @@ pub struct SdkAuthorization {
     /// Platform publishable key (only for platform-initiated flows)
     pub platform_publishable_key: Option<String>,
 
-    /// Client secret for the payment (required for SDK authorization)
+    /// Client secret for the payment/session (required for SDK authorization)
     pub client_secret: String,
 
-    /// Customer ID for the payment (if available)
+    /// Customer ID for the payment/session (if available)
+    #[cfg(feature = "v1")]
     pub customer_id: Option<id_type::CustomerId>,
+
+    /// Customer ID for the payment/session (if available)
+    #[cfg(feature = "v2")]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 }
 
 impl SdkAuthorization {
@@ -116,6 +121,7 @@ impl SdkAuthorization {
                     })
                 })?
                 .to_string(),
+            #[cfg(feature = "v1")]
             customer_id: parts
                 .get("customer_id")
                 .map(|v| {
@@ -125,6 +131,8 @@ impl SdkAuthorization {
                         })
                 })
                 .transpose()?,
+            #[cfg(feature = "v2")]
+            customer_id: None,
         })
     }
 }

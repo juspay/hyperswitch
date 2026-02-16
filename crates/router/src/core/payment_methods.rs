@@ -4460,6 +4460,8 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 pub async fn payment_methods_session_create(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<&domain::Initiator>,
+    profile: domain::Profile,
     request: payment_methods::PaymentMethodSessionRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
@@ -4545,6 +4547,8 @@ pub async fn payment_methods_session_create(
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         client_secret.secret,
+        initiator,
+        &profile,
         None,
         None,
         None,
@@ -4559,6 +4563,8 @@ pub async fn payment_methods_session_create(
 pub async fn payment_methods_session_update(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<&domain::Initiator>,
+    profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     request: payment_methods::PaymentMethodsSessionUpdateRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
@@ -4612,6 +4618,8 @@ pub async fn payment_methods_session_update(
     let response = transformers::generate_payment_method_session_response(
         update_state_change,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        initiator,
+        &profile,
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
@@ -4625,6 +4633,8 @@ pub async fn payment_methods_session_update(
 pub async fn payment_methods_session_retrieve(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<&domain::Initiator>,
+    profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
@@ -4668,6 +4678,8 @@ pub async fn payment_methods_session_retrieve(
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        initiator,
+        &profile,
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
@@ -4753,6 +4765,8 @@ pub async fn payment_methods_session_update_payment_method(
     let response = transformers::generate_payment_method_session_response(
         updated_payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        platform.get_initiator(),
+        &profile,
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
@@ -5060,6 +5074,8 @@ pub async fn payment_methods_session_confirm(
     let payment_method_session_response = transformers::generate_payment_method_session_response(
         payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        platform.get_initiator(),
+        &profile,
         payments_response,
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
