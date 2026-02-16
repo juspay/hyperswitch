@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.16.1
+
+### Features
+
+- **payload:** Add merchant_secret to connector_webhook_details for all environments ([#11268](https://github.com/juspay/hyperswitch/pull/11268)) ([`1743e2c`](https://github.com/juspay/hyperswitch/commit/1743e2cdfa709ae2f1d082cbd150bb4f1b20ba31))
+
+### Refactors
+
+- **payment_methods:** Refactor PM update API to allow multiple updates in a session ([#11209](https://github.com/juspay/hyperswitch/pull/11209)) ([`373c7d5`](https://github.com/juspay/hyperswitch/commit/373c7d5e232e0be3a9d2b2375e6c2440fae6a1f5))
+
+**Full Changelog:** [`2026.02.16.0...2026.02.16.1`](https://github.com/juspay/hyperswitch/compare/2026.02.16.0...2026.02.16.1)
+
+- - -
+
 ## 2026.02.16.0
 
 ### Features
