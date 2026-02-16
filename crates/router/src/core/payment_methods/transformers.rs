@@ -1670,6 +1670,7 @@ pub async fn retrieve_pm_modular_service_call(
 pub async fn create_payment_method_in_modular_service(
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: common_enums::PaymentMethodType,
@@ -1691,9 +1692,13 @@ pub async fn create_payment_method_in_modular_service(
     };
 
     //Create modular service call
-    let pm_response =
-        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
-            .await?;
+    let pm_response = create_pm_modular_service_call(
+        state,
+        processor_merchant_id,
+        profile_id,
+        payment_method_request,
+    )
+    .await?;
 
     //Convert PMResponse to PaymentMethodWithRawData
     let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;

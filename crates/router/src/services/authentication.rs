@@ -2608,25 +2608,26 @@ where
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-            let merchant = state
+            let initiator_merchant = state
                 .store()
                 .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
             let initiator = Some(domain::Initiator::Api {
-                merchant_id: merchant.get_id().clone(),
-                merchant_account_type: merchant.merchant_account_type,
-                publishable_key: merchant.publishable_key.clone(),
+                merchant_id: initiator_merchant.get_id().clone(),
+                merchant_account_type: initiator_merchant.merchant_account_type,
+                publishable_key: initiator_merchant.publishable_key.clone(),
             });
 
-            let platform = domain::Platform::new(
-                merchant.clone(),
-                key_store.clone(),
-                merchant,
+            let platform = resolve_platform(
+                state,
+                request_headers,
+                initiator_merchant.clone(),
                 key_store,
                 initiator,
-            );
+            )
+            .await?;
 
             let auth = AuthenticationData::construct_authentication_data_for_internal_merchant_id_profile_id_auth(platform, profile);
 
@@ -2974,12 +2975,12 @@ where
             }
         }
 
-        let (merchant_account, key_store) = state
+        let (initiator_merchant, key_store) = state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant_id = merchant_account.get_id().clone();
+        let merchant_id = initiator_merchant.get_id().clone();
 
         if db_client_secret.merchant_id != merchant_id {
             return Err(errors::ApiErrorResponse::Unauthorized.into());
@@ -2991,18 +2992,19 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let initiator = Some(domain::Initiator::Api {
-            merchant_id: merchant_account.get_id().clone(),
-            merchant_account_type: merchant_account.merchant_account_type,
-            publishable_key: merchant_account.publishable_key.clone(),
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
         });
 
-        let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account.clone(),
+        let platform = resolve_platform(
+            state,
+            request_headers,
+            initiator_merchant.clone(),
             key_store,
             initiator,
-        );
+        )
+        .await?;
 
         let auth = AuthenticationData { platform, profile };
 
