@@ -63,7 +63,7 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Retrive Payment");
+    cy.task("cli_log","Retrieve Payment");
     cy.retrievePaymentCallTest({ globalState, data });
   });
 
