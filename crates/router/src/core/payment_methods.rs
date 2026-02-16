@@ -4271,7 +4271,7 @@ pub async fn payment_methods_session_create(
         client_secret.secret,
         None,
         None,
-        request.storage_type,
+        Some(request.storage_type),
         None,
         None,
     );
@@ -4643,6 +4643,11 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
+    let storage_type = get_storage_type_for_payment_method_create(
+        request.storage_type,
+        payment_method_session.storage_type,
+    )?;
+
     let create_payment_method_request = get_payment_method_create_request(
         request
             .payment_method_data
@@ -4654,7 +4659,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_session.customer_id.clone(),
         unified_billing_address.as_ref(),
         Some(&payment_method_session),
-        request.storage_type,
+        storage_type,
     )
     .attach_printable("Failed to create payment method request")?;
 
@@ -4785,6 +4790,19 @@ pub async fn payment_methods_session_confirm(
     Ok(services::ApplicationResponse::Json(
         payment_method_session_response,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub fn get_storage_type_for_payment_method_create(
+    request_storage_type: Option<enums::StorageType>,
+    session_storage_type: enums::StorageType,
+) -> RouterResult<Option<enums::StorageType>> {
+    // If session storage type is volatile, ignore request storage type and always use volatile
+    // If session storage type is persistent, use whatever request storage type is sent
+    match session_storage_type {
+        enums::StorageType::Volatile => Ok(Some(enums::StorageType::Volatile)),
+        enums::StorageType::Persistent => Ok(request_storage_type),
+    }
 }
 
 #[cfg(feature = "v2")]

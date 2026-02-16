@@ -3500,8 +3500,8 @@ pub struct PaymentMethodSessionRequest {
     pub tokenization_data: Option<pii::SecretSerdeValue>,
 
     /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]

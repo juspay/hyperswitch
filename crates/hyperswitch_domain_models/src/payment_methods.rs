@@ -795,7 +795,7 @@ pub struct PaymentMethodSession {
         Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
-    pub storage_type: Option<common_enums::StorageType>,
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]
