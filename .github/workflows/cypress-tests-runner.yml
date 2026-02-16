@@ -16,8 +16,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "braintree mollie"
-  PARALLEL_PAYMENTS_CONNECTORS : "braintree mollie"
+  PAYMENTS_CONNECTORS: "stripe cybersource"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu redsys zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
@@ -590,10 +589,9 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
-          PAYMENTS_CONNECTORS: "${{ env.PARALLEL_PAYMENTS_CONNECTORS }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 2
 
           kill "${{ env.PID }}"
 
