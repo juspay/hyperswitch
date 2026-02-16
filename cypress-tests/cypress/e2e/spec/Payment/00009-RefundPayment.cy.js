@@ -179,7 +179,7 @@ describe("Card - Refund flow - No 3DS", () => {
     cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
 
     if (!utils.should_continue_further(partialRefundData)) return;
-    
+
     cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
     cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
 
@@ -734,7 +734,7 @@ describe("Card - Refund flow - 3DS", () => {
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
-    
+
     cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,

@@ -20,7 +20,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log","Create Payment Intent");
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
@@ -31,19 +31,19 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log","Payment Methods Call");
+    cy.task("cli_log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSAutoCapture"];
 
-    cy.task("cli_log","Confirm Payment");
+    cy.task("cli_log", "Confirm Payment");
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log","Retrieve Payment");
+    cy.task("cli_log", "Retrieve Payment");
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 
@@ -52,7 +52,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       "No3DSAutoCapture"
     ];
 
-    cy.task("cli_log","Create and Confirm Payment");
+    cy.task("cli_log", "Create and Confirm Payment");
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
@@ -63,7 +63,7 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log","Retrive Payment");
+    cy.task("cli_log", "Retrive Payment");
     cy.retrievePaymentCallTest({ globalState, data });
   });
 
@@ -72,7 +72,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       "PaymentIntentWithShippingCost"
     ];
 
-    cy.task("cli_log","Create Payment Intent");
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
@@ -83,19 +83,19 @@ describe("Card - NoThreeDS payment flow test", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log","Payment Methods Call");
+    cy.task("cli_log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["PaymentConfirmWithShippingCost"];
 
-    cy.task("cli_log","Confirm Payment");
+    cy.task("cli_log", "Confirm Payment");
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log","Retrieve Payment");
+    cy.task("cli_log", "Retrieve Payment");
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 });

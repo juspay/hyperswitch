@@ -86,7 +86,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent"); 
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
