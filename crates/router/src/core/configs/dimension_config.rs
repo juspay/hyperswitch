@@ -1,0 +1,92 @@
+use external_services::superposition;
+
+use super::{
+    dimension_state::{Dimensions, HasMerchantId},
+    fetch_db_with_dimensions, DatabaseBackedConfig,
+};
+use crate::{consts::superposition as superposition_consts, db::StorageInterface};
+
+/// Macro to generate config struct and superposition::Config trait implementation
+/// Note: Manually implement `DatabaseBackedConfig` for the config struct:
+/// The `fetch_db` method is provided by the default implementation in DatabaseBackedConfig.
+#[macro_export]
+macro_rules! config {
+    (
+        superposition_key = $superposition_key:ident,
+        output = $output:ty,
+        default = $default:expr,
+        requires = $requirement:ty
+    ) => {
+        paste::paste! {
+            /// Config definition
+            pub struct [<$superposition_key:camel>];
+
+            impl superposition::Config for [<$superposition_key:camel>] {
+                type Output = $output;
+
+                const SUPERPOSITION_KEY: &'static str =
+                    superposition_consts::$superposition_key;
+
+                const DEFAULT_VALUE: $output = $default;
+            }
+
+            /// Get [<$superposition_key:camel>] - ONLY available when Dimensions has required state
+            impl<O, P> Dimensions<$requirement, O, P>
+            where
+                O: Send + Sync,
+                P: Send + Sync,
+            {
+                pub async fn [<get_ $superposition_key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                ) -> $output {
+                    fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
+                        storage,
+                        superposition_client,
+                        self,
+                    )
+                    .await
+                }
+            }
+        }
+    };
+}
+
+config! {
+    superposition_key = REQUIRES_CVV,
+    output = bool,
+    default = true,
+    requires = HasMerchantId
+}
+
+impl DatabaseBackedConfig for RequiresCvv {
+    const KEY: &'static str = "requires_cvv";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
+    }
+}
+
+config! {
+    superposition_key = IMPLICIT_CUSTOMER_UPDATE,
+    output = bool,
+    default = false,
+    requires = HasMerchantId
+}
+
+impl DatabaseBackedConfig for ImplicitCustomerUpdate {
+    const KEY: &'static str = "implicit_customer_update";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", merchant_id, Self::KEY)
+    }
+}

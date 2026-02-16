@@ -903,7 +903,11 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/proxy")
+        let base_path = format!(
+            "/{}/proxy",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        web::scope(&base_path)
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -2023,6 +2027,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
+                        .route(web::post().to(connector_webhook_register)),
                 );
         }
         #[cfg(feature = "oltp")]

@@ -260,6 +260,7 @@ impl Connector {
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
+                | (Self::Santander, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {

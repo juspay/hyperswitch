@@ -68,6 +68,7 @@ mod detached;
 pub struct AuthenticationData {
     pub platform: domain::Platform,
     pub profile: Option<domain::Profile>,
+    pub client_secret: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -86,6 +87,7 @@ impl AuthenticationData {
         Self {
             platform,
             profile: Some(profile),
+            client_secret: None,
         }
     }
 }
@@ -785,7 +787,11 @@ where
             None => None,
         };
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
@@ -822,7 +828,7 @@ where
             allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         };
-        let (auth_data, auth_type) = api_auth
+        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1038,6 +1044,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
         Ok((
@@ -1177,6 +1184,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
         Ok((
@@ -1426,7 +1434,11 @@ where
         None => None,
     };
 
-    let auth = AuthenticationData { platform, profile };
+    let auth = AuthenticationData {
+        platform,
+        profile,
+        client_secret: None,
+    };
 
     Ok(auth)
 }
@@ -1720,6 +1732,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
 
         Ok((
@@ -2005,6 +2018,7 @@ where
             let auth = AuthenticationData {
                 platform,
                 profile: None,
+                client_secret: None,
             };
             return Ok((
                 auth,
@@ -2069,6 +2083,7 @@ where
                 let auth = AuthenticationData {
                     platform,
                     profile: None,
+                    client_secret: None,
                 };
                 return Ok((
                     auth,
@@ -2240,6 +2255,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
         Ok((
             auth,
@@ -2433,6 +2449,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -3108,7 +3125,9 @@ where
         let auth = AuthenticationData {
             platform,
             profile: None,
+            client_secret: None,
         };
+
         Ok((
             auth,
             AuthenticationType::PublishableKey {
@@ -3215,6 +3234,9 @@ where
         let sdk_auth = SdkAuthorization::decode(sdk_auth_header)
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Extract client_secret from decoded SDK authorization
+        let client_secret = Some(sdk_auth.client_secret.clone());
+
         let (initiator_merchant, initiator_merchant_key_store) = match sdk_auth
             .platform_publishable_key
         {
@@ -3259,12 +3281,13 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth = AuthenticationData {
+        let auth_data = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret,
         };
         Ok((
-            auth,
+            auth_data,
             AuthenticationType::SdkAuthorization {
                 merchant_id: initiator_merchant.get_id().clone(),
             },
@@ -3739,6 +3762,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
 
         Ok((
@@ -4041,6 +4065,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -4262,6 +4287,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -4351,6 +4377,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth.clone(),
@@ -4529,6 +4556,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth,
@@ -4683,6 +4711,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             (auth.clone(), payload.user_id.clone()),
@@ -4838,6 +4867,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         Ok((
             auth,
@@ -4939,6 +4969,7 @@ where
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
+            client_secret: None,
         };
         let auth_type = match payload {
             AuthOrEmbeddedClaims::AuthToken(auth_payload) => AuthenticationType::MerchantJwt {
@@ -5005,7 +5036,25 @@ impl ClientSecretFetch for PaymentMethodListRequest {
 
 impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(self.client_secret.peek())
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+impl ClientSecretFetch for payments::PaymentsDynamicTaxCalculationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+impl ClientSecretFetch for payments::PaymentsExternalAuthenticationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 
@@ -5124,6 +5173,29 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Ok((Box::new(HeaderAuth(api_auth)), api::AuthFlow::Merchant))
 }
 
+#[cfg(feature = "v1")]
+/// Wrapper function to check Authorization header and call get_auth_type_and_flow if not present
+pub fn check_authorization_header_or_get_auth<A: SessionStateInfo + Sync + Send>(
+    headers: &HeaderMap,
+    api_auth: ApiKeyAuth,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
+    api::AuthFlow,
+)> {
+    match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
+        // If Authorization header is present, use SdkAuthorizationAuth
+        Some(_) => Ok((
+            Box::new(SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            api::AuthFlow::Client,
+        )),
+        // If Authorization header is not present, use existing flow
+        None => get_auth_type_and_flow(headers, api_auth),
+    }
+}
+
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -5224,16 +5296,7 @@ where
         ))
     } else {
         let payload = payload.get_required_value("ClientSecretFetch")?;
-        let (auth, auth_flow) = {
-            #[cfg(feature = "v1")]
-            {
-                check_sdk_auth_and_get_auth(headers, payload, api_auth)?
-            }
-            #[cfg(feature = "v2")]
-            {
-                check_client_secret_and_get_auth(headers, payload, api_auth)?
-            }
-        };
+        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload, api_auth)?;
         Ok((auth, auth_flow, false))
     }
 }
@@ -5317,7 +5380,7 @@ where
             api::AuthFlow::Merchant,
         ))
     } else {
-        let (auth, auth_flow) = get_auth_type_and_flow(headers, api_auth)?;
+        let (auth, auth_flow) = check_authorization_header_or_get_auth(headers, api_auth)?;
         Ok((auth, auth_flow))
     }
 }

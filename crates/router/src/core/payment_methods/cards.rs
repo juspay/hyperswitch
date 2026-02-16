@@ -78,6 +78,7 @@ use crate::{
     consts as router_consts,
     core::{
         configs,
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -4184,6 +4185,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&id_type::CustomerId>,
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {
@@ -4207,6 +4210,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
+            dimensions,
         ))
         .await
     } else {
@@ -4226,6 +4230,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
+                    dimensions,
                 ))
                 .await
             }
@@ -4247,6 +4252,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
+    dimensions: DimensionsWithMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
@@ -4269,29 +4275,10 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = configs::get_config_bool(
-        state,
-        router_consts::superposition::REQUIRES_CVV, // superposition key
-        &platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_requires_cvv_key(), // database key
-        Some(
-            external_services::superposition::ConfigContext::new().with(
-                "merchant_id",
-                platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .get_string_repr(),
-            ),
-        ), // context
-        true,                                       // default value
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch requires_cvv config")?;
+    // Get requires_cvv using type-safe dimensions config
+    let requires_cvv = dimensions
+        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref())
+        .await;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(

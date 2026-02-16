@@ -429,3 +429,12 @@ pub struct NetworkTokenMetaDataUpdateBody {
 pub struct PanMetadataUpdateBody {
     pub card: NetworkTokenRequestorData,
 }
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodUpdateHandler<'a> {
+    pub platform: &'a hyperswitch_domain_models::platform::Platform,
+    pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
+    pub request: api_models::payment_methods::PaymentMethodUpdate,
+    pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
+    pub state: &'a crate::routes::app::SessionState,
+}

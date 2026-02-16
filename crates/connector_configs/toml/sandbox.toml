@@ -1536,8 +1536,12 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 
-[braintree.metadata.paypal_sdk]
-client_id="Client ID"
+[[braintree.metadata.paypal_sdk]]
+name="client_id"
+label="Client Id"
+placeholder="Enter Client Id"
+required=true
+type="Text"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -2250,6 +2254,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[dlocal.debit]]
 payment_method_type = "UnionPay"
+[[dlocal.voucher]]
+  payment_method_type = "oxxo"
 [dlocal.connector_auth.SignatureKey]
 api_key = "X Login"
 key1 = "X Trans Key"
@@ -4074,8 +4080,12 @@ api_key = "Client Secret"
 key1 = "Client ID"
 [paypal.connector_webhook_details]
 merchant_secret = "Source verification key"
-[paypal.metadata.paypal_sdk]
-client_id = "Client ID"
+[[paypal.metadata.paypal_sdk]]
+name="client_id"
+label="Client Id"
+placeholder="Enter Client Id"
+required=true
+type="Text"
 
 [paypal_payout]
 [[paypal_payout.wallet]]
@@ -6440,6 +6450,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[xendit.debit]]
 payment_method_type = "UnionPay"
+[[xendit.real_time_payment]]
+payment_method_type = "qris"
 [xendit.connector_auth.HeaderKey]
 api_key = "API Key"
 [xendit.connector_webhook_details]
@@ -7028,58 +7040,84 @@ type = "Select"
 options = []
 
 [santander]
-[[santander.voucher]]
-  payment_method_type = "boleto"
 [[santander.bank_transfer]]
-  payment_method_type = "pix"
+payment_method_type = "pix"
+[[santander.voucher]]
+payment_method_type = "boleto"
+[santander.connector_auth.CertificateAuth]
+certificate="Base64 encoded PEM formatted certificate chain"
+private_key="Base64 encoded PEM formatted private key"
+  
+[[santander.metadata.pix]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.pix]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix]]
+name="merchant_city"
+label="Merchant City"
+placeholder="Enter the city the merchant is based in"
+required=true
+type="Text"
+[[santander.metadata.pix]]
+name="merchant_name"
+label="Merchant Name"
+placeholder="Enter the merchant name"
+required=true
+type="Text"
 
-[santander.connector_auth.BodyKey]
-api_key = "Client ID"
-key1 = "Client Secret"
-
-[santander.metadata.pix_key]
-name = "pix_key"
-label = "Chave Key"
-placeholder = "Enter your Chave/Pix Key"
-required = true
-type = "Text"
-
-[santander.metadata.expiration_time]
-name = "expiration_time"
-label = "Expiration Time"
-placeholder = "Enter your Pix QR Code Expiration Time"
-required = true
-type = "Number"
-
-[santander.metadata.cpf]
-name = "cpf"
-label = "Cpf"
-placeholder = "Enter your cpf number"
-required = true
-type = "Text"
-
-[santander.metadata.merchant_city]
-name = "merchant_city"
-label = "Merchant City"
-placeholder = "Enter the city the merchant is based in"
-required = true
-type = "Text"
-
-[santander.metadata.merchant_name]
-name = "merchant_name"
-label = "Merchant Name"
-placeholder = "Enter the merchant name"
-required = true
-type = "Text"
-
-[santander.metadata.workspace_id]
+[[santander.metadata.boleto]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.boleto]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.boleto]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=false
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.boleto]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=false
+type="Text"
+[[santander.metadata.boleto]]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
 required=true
 type="Text"
-
-[santander.metadata.covenant_code]
+[[santander.metadata.boleto]]
 name="covenant_code"
 label="Covenant Code"
 placeholder="Enter the covenant code"
@@ -7120,6 +7158,8 @@ api_key = "API Key"
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
 processing_account_id = "processing_account_id"
 api_key = "API Key"
+[payload.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [silverflow]
 [[silverflow.credit]]
