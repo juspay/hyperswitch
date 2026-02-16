@@ -281,3 +281,14 @@ pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
 }
+
+
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodEligibilityConfig {
+    /// The time-to-live (TTL) for the volatile payment method
+    pub ttl_seconds: Option<u32>,
+    /// Whether to include new payment methods in the eligibility check
+    pub include_new_payment_methods: Option<bool>,
+}

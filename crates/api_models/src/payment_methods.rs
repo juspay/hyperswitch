@@ -3502,6 +3502,10 @@ pub struct PaymentMethodSessionRequest {
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<pii::SecretSerdeValue>,
+
+    /// The payment method eligibility configuration
+    pub payment_method_eligibility:
+        Option<common_types::payment_methods::PaymentMethodEligibilityConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -3655,6 +3659,9 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<PaymentMethodResponseData>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
+
+    /// The payment method eligibility configuration
+    pub payment_method_eligibility: Option<common_types::payment_methods::PaymentMethodEligibilityConfig>,
 }
 
 #[cfg(feature = "v2")]

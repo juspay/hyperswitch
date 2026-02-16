@@ -1527,7 +1527,7 @@ async fn execute_payment_method_create(
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
-                Some(enums::PaymentMethodStatus::Active),
+                Some(enums::PaymentMethodStatus::New),
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -2736,7 +2736,7 @@ pub async fn construct_payment_method_object(
         connector_mandate_details: None,
         customer_acceptance: None,
         client_secret: None,
-        status: enums::PaymentMethodStatus::Inactive,
+        status: enums::PaymentMethodStatus::New,
         network_transaction_id: None,
         created_at: current_time,
         last_modified: current_time,
@@ -4531,6 +4531,7 @@ pub async fn payment_methods_session_create(
             associated_payment_methods: None,
             associated_payment: None,
             associated_token_id: None,
+            payment_method_eligibility: request.payment_method_eligibility,
         };
 
     db.insert_payment_methods_session(

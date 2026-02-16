@@ -1045,6 +1045,7 @@ pub fn generate_payment_method_session_response(
         storage_type,
         card_cvc_token_storage,
         payment_method_data,
+        payment_method_eligibility: payment_method_session.payment_method_eligibility,
     }
 }
 

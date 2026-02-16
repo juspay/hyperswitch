@@ -815,6 +815,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             associated_payment: self.associated_payment,
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
+            payment_method_eligibility: self.payment_method_eligibility,
         })
     }
 
@@ -869,6 +870,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 associated_payment: storage_model.associated_payment,
                 return_url: storage_model.return_url,
                 associated_token_id: storage_model.associated_token_id,
+                payment_method_eligibility: storage_model.payment_method_eligibility,
             })
         }
         .await
@@ -890,6 +892,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             associated_payment: self.associated_payment,
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
+            payment_method_eligibility: self.payment_method_eligibility,
         })
     }
 }
@@ -1082,6 +1085,7 @@ impl PaymentMethodSession {
             associated_payment_methods,
             associated_payment,
             associated_token_id,
+            payment_method_eligibility,
         } = self;
         Self {
             id,
@@ -1097,6 +1101,7 @@ impl PaymentMethodSession {
                 .or(associated_payment_methods),
             associated_payment,
             associated_token_id,
+            payment_method_eligibility,
         }
     }
 }

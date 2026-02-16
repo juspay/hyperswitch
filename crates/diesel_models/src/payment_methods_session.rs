@@ -16,6 +16,7 @@ pub struct PaymentMethodSession {
         Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
     pub associated_token_id: Option<common_utils::id_type::GlobalTokenId>,
+    pub payment_method_eligibility: Option<common_types::payment_methods::PaymentMethodEligibilityConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -33,6 +34,7 @@ impl PaymentMethodSession {
             associated_payment_methods,
             associated_payment,
             associated_token_id,
+            payment_method_eligibility,
         } = self;
 
         Self {
@@ -47,6 +49,7 @@ impl PaymentMethodSession {
             associated_payment_methods,
             associated_payment,
             associated_token_id,
+            payment_method_eligibility,
         }
     }
 }
