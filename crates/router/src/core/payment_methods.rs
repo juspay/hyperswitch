@@ -4648,11 +4648,6 @@ pub async fn payment_methods_session_confirm(
         payment_method_session.storage_type,
     )?;
 
-    println!(
-        ">>>Storage type for payment method create: {:?}",
-        storage_type.clone()
-    );
-
     let create_payment_method_request = get_payment_method_create_request(
         request
             .payment_method_data
