@@ -2183,7 +2183,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-     #[cfg(feature = "v2")]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
         &self,
         key_store: &domain::MerchantKeyStore,
