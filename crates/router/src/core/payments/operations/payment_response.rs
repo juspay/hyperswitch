@@ -25,7 +25,7 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
 #[cfg(feature = "v2")]
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_derive;
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
@@ -1907,6 +1907,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let additional_payment_method_data_intermediate = match payment_data.payment_method_data.clone() {
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)) => {
             payment_data.payment_attempt.payment_method_data.clone()
         }
@@ -1938,13 +1939,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         )
         .await?;
 
-    router_data.payment_method_status.and_then(|status| {
-        payment_data
-            .payment_method_info
-            .as_mut()
-            .map(|info| info.status = status)
-    });
-    payment_data.whole_connector_response = router_data.raw_connector_response.clone();
+    let payment_method_status = router_data.payment_method_status;
 
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]
@@ -2790,7 +2785,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
-    router_data.payment_method_status.and_then(|status| {
+    payment_method_status.and_then(|status| {
         payment_data
             .payment_method_info
             .as_mut()
@@ -3238,6 +3233,27 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let db = &*state.store;
 
         let response_router_data = response;
+
+        // Get updated additional payment method data from connector response
+        let updated_payment_method_data = payment_data
+            .payment_attempt
+            .payment_method_data
+            .as_ref()
+            .map(|existing_payment_method_data| {
+                let additional_payment_data_value =
+                    Some(existing_payment_method_data.clone().expose());
+                update_additional_payment_data_with_connector_response_pm_data(
+                    additional_payment_data_value,
+                    response_router_data.connector_response.as_ref().and_then(
+                        |connector_response| {
+                            connector_response.additional_payment_method_data.clone()
+                        },
+                    ),
+                )
+            })
+            .transpose()?
+            .flatten()
+            .map(common_utils::pii::SecretSerdeValue::new);
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
