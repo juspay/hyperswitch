@@ -21602,6 +21602,12 @@
               }
             ],
             "nullable": true
+          },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "SDK authorization token for client SDK usage\nContains encoded authentication details for subsequent API calls",
+            "example": "cHJvZmlsZV9pZD0uLi4=",
+            "nullable": true
           }
         }
       },
