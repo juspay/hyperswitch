@@ -1914,6 +1914,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[dlocal.debit]]
 payment_method_type = "UnionPay"
+[[dlocal.voucher]]
+  payment_method_type = "oxxo"
 [dlocal.connector_auth.SignatureKey]
 api_key = "X Login"
 key1 = "X Trans Key"
@@ -6022,6 +6024,8 @@ api_key = "API Key"
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
 processing_account_id = "processing_account_id"
 api_key = "API Key"
+[payload.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [silverflow]
 [[silverflow.credit]]
