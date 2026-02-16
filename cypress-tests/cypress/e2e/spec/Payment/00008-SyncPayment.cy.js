@@ -20,6 +20,7 @@ describe("Card - Sync payment flow test", () => {
       "PaymentIntent"
     ];
 
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
@@ -30,16 +31,19 @@ describe("Card - Sync payment flow test", () => {
 
     if (!utils.should_continue_further(data)) return;
 
+    cy.task("cli_log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSAutoCapture"];
 
+    cy.task("cli_log", "Confirm Payment Intent");
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
     if (!utils.should_continue_further(confirmData)) return;
 
+    cy.task("cli_log", "Retrieve Payment after Confirmation");
     cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 });

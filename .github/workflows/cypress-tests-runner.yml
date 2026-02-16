@@ -23,7 +23,7 @@ env:
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "gigadat loonio nmi"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal worldpay authorizedotnet"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "paypal worldpay authorizedotnet"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -682,13 +682,6 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-7",
                   "server_logs_artifact": "server-logs-batch-7"
-                },
-                {
-                  "name": "batch-8",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-8",
-                  "server_logs_artifact": "server-logs-batch-8"
                 }
               ]
             }'

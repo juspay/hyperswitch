@@ -20,6 +20,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["MandateSingleUseNo3DSAutoCapture"];
 
+    cy.task("cli_log", "CIT for Mandate Call");
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
       citData,
@@ -36,6 +37,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["MITAutoCapture"];
 
+    cy.task("cli_log", "MIT for Mandate Call");
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
       mitData,
@@ -51,6 +53,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["MandateSingleUseNo3DSManualCapture"];
 
+    cy.task("cli_log", "CIT for Mandate Call");
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
       citData,
@@ -67,6 +70,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["Capture"];
 
+    cy.task("cli_log", "CIT Capture Call");
     cy.captureCallTest(fixtures.captureBody, citCaptureData, globalState);
 
     if (!utils.should_continue_further(citCaptureData)) return;
@@ -75,6 +79,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["MITManualCapture"];
 
+    cy.task("cli_log", "MIT for Mandate Call");
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
       mitData,
@@ -90,10 +95,12 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["Capture"];
 
+    cy.task("cli_log", "MIT Capture Call");
     cy.captureCallTest(fixtures.captureBody, mitCaptureData, globalState);
 
     if (!utils.should_continue_further(mitCaptureData)) return;
 
+    cy.task("cli_log", "List Mandates Call");
     cy.listMandateCallTest(globalState);
   });
 
@@ -102,6 +109,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["MandateSingleUseNo3DSManualCapture"];
 
+    cy.task("cli_log", "CIT for Mandate Call");
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
       citData,
@@ -118,6 +126,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["Capture"];
 
+    cy.task("cli_log", "CIT Capture Call");
     cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
     if (!utils.should_continue_further(captureData)) return;
@@ -126,6 +135,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       "card_pm"
     ]["MITAutoCapture"];
 
+    cy.task("cli_log", "MIT for Mandate Call");
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
       mitData,
@@ -135,6 +145,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       globalState
     );
 
+    cy.task("cli_log", "List Mandates Call");
     cy.listMandateCallTest(globalState);
   });
 });
