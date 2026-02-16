@@ -132,7 +132,9 @@ impl SdkAuthorization {
                 })
                 .transpose()?,
             #[cfg(feature = "v2")]
-            customer_id: None,
+            customer_id: parts
+                .get("customer_id")
+                .map(|v| id_type::GlobalCustomerId::new_unchecked(v.to_string())),
         })
     }
 }
