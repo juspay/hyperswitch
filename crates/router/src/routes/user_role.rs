@@ -32,8 +32,8 @@ pub async fn get_authorization_info(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -52,8 +52,8 @@ pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -
             role_core::get_role_from_token_with_groups(state, user).await
         },
         &auth::DashboardNoPermissionAuth {
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -75,8 +75,8 @@ pub async fn get_groups_and_resources_for_role_from_token(
             role_core::get_groups_and_resources_for_role_from_token(state, user).await
         },
         &auth::DashboardNoPermissionAuth {
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -98,8 +98,8 @@ pub async fn get_parent_groups_info_for_role_from_token(
             role_core::get_parent_groups_info_for_role_from_token(state, user).await
         },
         &auth::DashboardNoPermissionAuth {
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -121,8 +121,8 @@ pub async fn create_role(
         role_core::create_role,
         &auth::JWTAuth {
             permission: Permission::MerchantUserWrite,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -143,8 +143,8 @@ pub async fn create_role_v2(
         role_core::create_role_v2,
         &auth::JWTAuth {
             permission: Permission::MerchantUserWrite,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -170,8 +170,8 @@ pub async fn get_role(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -197,8 +197,8 @@ pub async fn get_parent_info_for_role(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -222,8 +222,8 @@ pub async fn update_role(
         |state, user, req, _| role_core::update_role(state, user, req, &role_id),
         &auth::JWTAuth {
             permission: Permission::MerchantUserWrite,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -245,8 +245,8 @@ pub async fn update_user_role(
         user_role_core::update_user_role,
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -267,8 +267,8 @@ pub async fn accept_invitations_v2(
         payload,
         |state, user, req_body, _| user_role_core::accept_invitations_v2(state, user, req_body),
         &auth::DashboardNoPermissionAuth {
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -310,8 +310,8 @@ pub async fn delete_user_role(
         user_role_core::delete_user_role,
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -334,8 +334,8 @@ pub async fn get_role_information(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -359,8 +359,8 @@ pub async fn get_parent_group_info(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -383,8 +383,8 @@ pub async fn list_users_in_lineage(
             user_role_core::list_users_in_lineage(state, user_from_token, request)
         },
         &auth::DashboardNoPermissionAuth {
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -408,8 +408,8 @@ pub async fn list_roles_with_info(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -438,8 +438,8 @@ pub async fn list_invitable_roles_at_entity_level(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -468,8 +468,8 @@ pub async fn list_updatable_roles_at_entity_level(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
-            allow_connected_operation: false,
-            allow_platform_operation: false,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

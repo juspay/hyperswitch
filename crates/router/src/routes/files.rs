@@ -55,8 +55,8 @@ pub async fn files_create(
                 allow_platform_self_operation: false,
             }),
             &auth::DashboardNoPermissionAuth {
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -107,8 +107,8 @@ pub async fn files_delete(
                 allow_platform_self_operation: false,
             }),
             &auth::DashboardNoPermissionAuth {
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -161,8 +161,8 @@ pub async fn files_retrieve(
                 allow_platform_self_operation: false,
             }),
             &auth::DashboardNoPermissionAuth {
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

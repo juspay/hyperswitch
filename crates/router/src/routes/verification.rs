@@ -38,8 +38,8 @@ pub async fn apple_pay_merchant_registration(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -78,8 +78,8 @@ pub async fn apple_pay_merchant_registration(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -117,8 +117,8 @@ pub async fn retrieve_apple_pay_verified_domains(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                allow_connected_operation: false,
-                allow_platform_operation: false,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

@@ -501,76 +501,6 @@ impl GetMerchantAccessFlags for V2ApiKeyAuth {
     }
 }
 
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for JWTAuth {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for JWTAuthMerchantFromRoute {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for JWTAuthMerchantFromHeader {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for JWTAuthMerchantAndProfileFromRoute {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for JWTAuthProfileFromRoute {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for JWTAndEmbeddedAuth {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
-#[cfg(feature = "partial-auth")]
-impl GetMerchantAccessFlags for DashboardNoPermissionAuth {
-    fn is_connected_scope_operation_allowed(&self) -> bool {
-        self.allow_connected_operation
-    }
-    fn is_platform_self_operation_allowed(&self) -> bool {
-        self.allow_platform_operation
-    }
-}
-
 //
 // # Header Auth
 //
@@ -3502,8 +3432,8 @@ where
 #[derive(Debug)]
 pub(crate) struct JWTAuth {
     pub permission: Permission,
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 #[async_trait]
@@ -3716,14 +3646,14 @@ where
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 pub struct JWTAuthMerchantFromHeader {
     pub required_permission: Permission,
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 #[async_trait]
@@ -3822,12 +3752,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -3959,12 +3888,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4141,12 +4069,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4228,12 +4155,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4319,8 +4245,8 @@ pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -4381,12 +4307,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4421,8 +4346,8 @@ where
 pub struct JWTAuthProfileFromRoute {
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -4480,12 +4405,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4565,12 +4489,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4676,12 +4599,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4765,12 +4687,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4848,12 +4769,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -4884,8 +4804,8 @@ where
 }
 
 pub struct DashboardNoPermissionAuth {
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 #[cfg(feature = "olap")]
@@ -5014,12 +4934,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = Some(domain::Initiator::Jwt {
@@ -5053,8 +4972,8 @@ where
 pub struct JWTAndEmbeddedAuth {
     pub merchant_id_from_route: Option<id_type::MerchantId>,
     pub permission: Option<Permission>,
-    pub allow_connected_operation: bool,
-    pub allow_platform_operation: bool,
+    pub allow_connected: bool,
+    pub allow_platform: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -5120,12 +5039,11 @@ where
             || Err(report!(errors::ApiErrorResponse::InvalidJwtToken)),
         )?;
 
-        check_merchant_access(
+        check_merchant_access_for_jwt(
             state,
-            request_headers,
             merchant.merchant_account_type,
-            self.allow_connected_operation,
-            self.allow_platform_operation,
+            self.allow_connected,
+            self.allow_platform,
         )?;
 
         let initiator = if let AuthOrEmbeddedClaims::AuthToken(ref auth_payload) = payload {
@@ -5890,6 +5808,52 @@ where
                         )
                 })
             }
+        }
+        MerchantAccountType::Standard => Ok(()),
+    }
+}
+
+/// Validates whether the merchant account type is authorized to access the resource for JWT authentication
+///
+/// # Access Control Logic for JWT:
+/// - **Connected Merchant**: Allowed if `allow_connected` is true
+/// - **Platform Merchant**: Allowed if `allow_platform` is true
+/// - **Standard Merchant**: Always allowed
+pub fn check_merchant_access_for_jwt<A>(
+    state: &A,
+    initiator_merchant_account_type: MerchantAccountType,
+    allow_connected: bool,
+    allow_platform: bool,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>>
+where
+    A: SessionStateInfo + Sync,
+{
+    match initiator_merchant_account_type {
+        MerchantAccountType::Connected => {
+            // Check if platform feature is enabled
+            state.conf().platform.enabled.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                    .attach_printable("Platform feature is not enabled")
+            })?;
+
+            // Connected merchant can perform operation if allow_connected is true
+            allow_connected.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                    .attach_printable("Connected Merchant is not authorized to access the resource")
+            })
+        }
+        MerchantAccountType::Platform => {
+            // Check if platform feature is enabled
+            state.conf().platform.enabled.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
+                    .attach_printable("Platform feature is not enabled")
+            })?;
+
+            // Platform merchant can perform operation if allow_platform is true
+            allow_platform.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
+                    .attach_printable("Platform Merchant is not authorized to access the resource")
+            })
         }
         MerchantAccountType::Standard => Ok(()),
     }
