@@ -10561,6 +10561,28 @@ pub enum StorageType {
     Persistent,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AcknowledgementStatus {
+    Authenticated,
+    Failed,
+    Pending,
+}
+
 /// Represents the type of retry for a payment attempt
 #[derive(
     Clone,

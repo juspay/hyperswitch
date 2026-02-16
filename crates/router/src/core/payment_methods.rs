@@ -4227,6 +4227,21 @@ pub async fn update_payment_method_core(
             (None, None, None)
         };
 
+        let pm_status = match request.acknowledgement_status{
+            Some(common_enums::AcknowledgementStatus::Authenticated) => {
+                Some(common_enums::PaymentMethodStatus::Active)
+            },
+            Some(common_enums::AcknowledgementStatus::Pending) => {
+                None
+            },
+            Some(common_enums::AcknowledgementStatus::Failed) => {
+                Some(common_enums::PaymentMethodStatus::Inactive)
+            },
+            None => {
+                None
+            }
+        };
+
         let pm_update = create_pm_additional_data_update(
             vault_request_data.as_ref(),
             state,
@@ -4240,7 +4255,7 @@ pub async fn update_payment_method_core(
             None,
             None,
             None,
-            None,
+            pm_status,
         )
         .await
         .attach_printable("Unable to create Payment method data")?;

@@ -3578,6 +3578,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                             connector_token_details_for_payment_method_update,
                         ),
                         network_transaction_id: None,
+                        acknowledgement_status: None, //based on the response from the connector we can decide the acknowledgement status to be sent to payment method service
                     };
 
                 Box::pin(payment_methods::update_payment_method_core(
