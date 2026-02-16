@@ -247,6 +247,9 @@ pub struct PaymentMethodMigrate {
     /// Card Details
     pub card: Option<MigrateCardDetail>,
 
+    /// Bank Debit Details (e.g. ACH account_number + routing_number)
+    pub bank_debit: Option<MigrateBankDebitDetail>,
+
     /// Network token details
     pub network_token: Option<MigrateNetworkTokenDetail>,
 
@@ -289,6 +292,9 @@ pub struct PaymentMethodMigrateResponse {
 
     //card data migration status
     pub card_migrated: Option<bool>,
+
+    //bank account data migration status
+    pub bank_account_migrated: Option<bool>,
 
     //network token data migration status
     pub network_token_migrated: Option<bool>,
@@ -453,6 +459,39 @@ impl PaymentMethodCreate {
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
             #[cfg(feature = "payouts")]
             wallet: payment_method_migrate.wallet.clone(),
+            network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
+        }
+    }
+
+    pub fn get_payment_method_create_from_bank_debit_migrate(
+        bank_debit: MigrateBankDebitDetail,
+        payment_method_migrate: &PaymentMethodMigrate,
+    ) -> Self {
+        Self {
+            customer_id: payment_method_migrate.customer_id.clone(),
+            payment_method: Some(api_enums::PaymentMethod::BankDebit),
+            payment_method_type: payment_method_migrate
+                .payment_method_type
+                .or(Some(api_enums::PaymentMethodType::Ach)),
+            payment_method_issuer: payment_method_migrate.payment_method_issuer.clone(),
+            payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
+            metadata: payment_method_migrate.metadata.clone(),
+            payment_method_data: Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
+                account_number: bank_debit.account_number,
+                routing_number: bank_debit.routing_number,
+            })),
+            connector_mandate_details: payment_method_migrate
+                .connector_mandate_details
+                .clone()
+                .map(PaymentsMandateReference::from),
+            client_secret: None,
+            billing: payment_method_migrate.billing.clone(),
+            card: None,
+            card_network: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            wallet: None,
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
     }
@@ -798,6 +837,18 @@ pub struct MigrateCardDetail {
 
     /// Card Type
     pub card_type: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MigrateBankDebitDetail {
+    /// Bank Account Number
+    #[schema(value_type = String)]
+    pub account_number: masking::Secret<String>,
+
+    /// Bank Routing Number
+    #[schema(value_type = String)]
+    pub routing_number: masking::Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -3018,6 +3069,10 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
+    #[serde(default)]
+    pub account_number: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub routing_number: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -3086,6 +3141,7 @@ pub struct PaymentMethodMigrationResponse {
     pub migration_error: Option<String>,
     pub card_number_masked: Option<masking::Secret<String>>,
     pub card_migrated: Option<bool>,
+    pub bank_account_migrated: Option<bool>,
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_id_migrated: Option<bool>,
@@ -3180,18 +3236,19 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 customer_id: res.payment_method_response.customer_id,
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
-                card_number_masked: Some(record.card_number_masked),
+                card_number_masked: Some(record.card_number_masked.clone()),
                 line_number: record.line_number,
                 card_migrated: res.card_migrated,
+                bank_account_migrated: res.bank_account_migrated,
                 network_token_migrated: res.network_token_migrated,
                 connector_mandate_details_migrated: res.connector_mandate_details_migrated,
                 network_transaction_id_migrated: res.network_transaction_id_migrated,
             },
             Err(e) => Self {
-                customer_id: Some(record.customer_id),
+                customer_id: Some(record.customer_id.clone()),
                 migration_status: MigrationStatus::Failed,
                 migration_error: Some(e),
-                card_number_masked: Some(record.card_number_masked),
+                card_number_masked: Some(record.card_number_masked.clone()),
                 line_number: record.line_number,
                 ..Self::default()
             },
@@ -3270,10 +3327,13 @@ impl
             None
         };
 
-        Ok(Self {
-            merchant_id,
-            customer_id: Some(record.customer_id.clone()),
-            card: Some(MigrateCardDetail {
+        // Determine if this is a bank debit record or a card record
+        let is_bank_debit = record.account_number.is_some() && record.routing_number.is_some();
+
+        let card = if is_bank_debit {
+            None
+        } else {
+            Some(MigrateCardDetail {
                 card_number: record
                     .raw_card_number
                     .clone()
@@ -3287,8 +3347,22 @@ impl
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 nick_name: record.nick_name.clone(),
-            }),
-            network_token: Some(MigrateNetworkTokenDetail {
+            })
+        };
+
+        let bank_debit = if is_bank_debit {
+            Some(MigrateBankDebitDetail {
+                account_number: record.account_number.clone().unwrap_or_default(),
+                routing_number: record.routing_number.clone().unwrap_or_default(),
+            })
+        } else {
+            None
+        };
+
+        let network_token = if is_bank_debit {
+            None
+        } else {
+            Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
                     network_token_number: record.network_token_number.clone().unwrap_or_default(),
                     network_token_exp_month: record
@@ -3311,7 +3385,15 @@ impl
                     .network_token_requestor_ref_id
                     .clone()
                     .unwrap_or_default(),
-            }),
+            })
+        };
+
+        Ok(Self {
+            merchant_id,
+            customer_id: Some(record.customer_id.clone()),
+            card,
+            bank_debit,
+            network_token,
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
             payment_method_issuer: None,
