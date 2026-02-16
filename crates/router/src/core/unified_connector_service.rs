@@ -503,12 +503,14 @@ fn build_rollout_keys(
             | common_enums::PaymentMethod::MobilePayment
             | common_enums::PaymentMethod::NetworkToken
             | common_enums::PaymentMethod::OpenBanking => {
-                // For other payment methods, use a generic format without specific payment method details
+                // For other payment methods, use a generic format without specific payment method type details
+                let payment_method_str = payment_method.to_string();
                 format!(
-                    "{}_{}_{}_{}",
+                    "{}_{}_{}_{}_{}",
                     consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
                     merchant_id,
                     connector_name,
+                    payment_method_str,
                     flow_name
                 )
             }
