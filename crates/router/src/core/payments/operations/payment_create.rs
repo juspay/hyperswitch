@@ -493,26 +493,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        let payment_method_data_from_request =
-            request
-                .payment_method_data
-                .as_ref()
-                .and_then(|request_payment_method_data| {
-                    request_payment_method_data.payment_method_data.clone()
-                });
+        let payment_method_data_after_card_bin_call = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|payment_method_data_from_request| {
+                payment_method_data_from_request
+                    .payment_method_data
+                    .as_ref()
+            })
+            .zip(additional_payment_data)
+            .map(|(payment_method_data, additional_payment_data)| {
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
         let payment_method_data = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
-            .or(payment_method_data_from_request.map(Into::into))
-            .or(payment_method_recurring_details.clone())
-            .map(|payment_method_data| {
-                if let Some(additional_pm_data) = additional_payment_data {
-                    payment_method_data.apply_additional_payment_data(additional_pm_data)
-                } else {
-                    payment_method_data
-                }
-            });
+            .as_ref()
+            .and_then(|pm| pm.raw_payment_method_data.clone())
+            .or(payment_method_data_after_card_bin_call.map(Into::into));
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
