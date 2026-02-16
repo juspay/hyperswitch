@@ -21252,6 +21252,14 @@
           },
           "raw_payment_method_data": {
             "$ref": "#/components/schemas/RawPaymentMethodData"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         }
       },

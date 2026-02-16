@@ -1091,8 +1091,9 @@ pub async fn create_persistent_payment_method_core(
         .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id(
+    db.find_customer_by_global_id_merchant_id(
         &customer_id,
+        platform.get_provider().get_account().get_id(),
         platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
     )
@@ -1173,8 +1174,9 @@ pub async fn create_volatile_payment_method_core(
     let key_manager_state = &(state).into();
 
     if let Some(ref customer_id) = customer_id {
-        db.find_customer_by_global_id(
+        db.find_customer_by_global_id_merchant_id(
             customer_id,
+            platform.get_provider().get_account().get_id(),
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
@@ -1308,7 +1310,7 @@ async fn create_or_fetch_payment_method_core(
 
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    let fingerprint_id = vault::get_fingerprint_id_from_vault(
+    let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
         state,
         &payment_method_data,
         customer_id.get_string_repr().to_owned(),
@@ -1401,6 +1403,10 @@ impl PaymentMethodResolver {
                         });
                     existing_cvc_expiry_details
                 };
+                let billing = billing_address
+                    .clone()
+                    .map(|billing| billing.into_inner())
+                    .map(From::from);
 
                 let resp = pm_transforms::generate_payment_method_response(
                     &existing_pm,
@@ -1409,6 +1415,7 @@ impl PaymentMethodResolver {
                     cvc_expiry_details,
                     req.customer_id.clone(),
                     None,
+                    billing,
                 )?;
 
                 Ok((resp, *existing_pm))
@@ -1563,6 +1570,7 @@ async fn execute_payment_method_create(
                 cvc_expiry_details,
                 req.customer_id.clone(),
                 None,
+                payment_method_billing_address.map(|add| add.get_inner().clone().into()),
             )?;
 
             Ok((resp, payment_method))
@@ -1719,6 +1727,7 @@ pub async fn create_volatile_payment_method_card_core(
                 cvc_expiry_details,
                 req.customer_id,
                 None,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1835,6 +1844,7 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
         None,
     )?;
 
@@ -2198,8 +2208,9 @@ pub async fn payment_method_intent_create(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id(
+    db.find_customer_by_global_id_merchant_id(
         &customer_id,
+        provider.get_account().get_id(),
         provider.get_key_store(),
         provider.get_account().storage_scheme,
     )
@@ -2250,6 +2261,7 @@ pub async fn payment_method_intent_create(
         None,
         None,
         Some(customer_id),
+        None,
         None,
     )?;
 
@@ -3721,6 +3733,11 @@ pub async fn retrieve_payment_method(
         .await
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
+    let billing = payment_method
+        .payment_method_billing_address
+        .clone()
+        .map(|billing| billing.into_inner())
+        .map(From::from);
 
     transformers::generate_payment_method_response(
         &payment_method,
@@ -3731,6 +3748,7 @@ pub async fn retrieve_payment_method(
         }),
         payment_method.customer_id.clone(),
         raw_payment_method_data,
+        billing,
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -4092,6 +4110,8 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert encrypted cvc in redis")?;
 
+    let payment_method_billing_address = payment_method.payment_method_billing_address.clone();
+
     // Stage 2: Update payment method if required
     let updated_payment_method = if request.is_payment_method_update_required() {
         let (vault_request_data, vault_id, fingerprint_id) = if request
@@ -4123,7 +4143,7 @@ pub async fn update_payment_method_core(
                 // cannot use async map because of problems related to lifetimes
                 // to overcome this, we will have to use a move closure and add some clones
                 Some(ref vault_request_data_req) => {
-                    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(
+                    let fingerprint_id_from_vault = vault::get_fingerprint_id_for_payment_method(
                         state,
                         vault_request_data_req,
                         payment_method
@@ -4218,6 +4238,7 @@ pub async fn update_payment_method_core(
         card_cvc_token_details,
         updated_payment_method.customer_id.clone(),
         None,
+        payment_method_billing_address.map(|billing| billing.get_inner().clone().into()),
     )?;
 
     // Add a PT task to handle payment_method delete from vault
@@ -4236,7 +4257,10 @@ pub async fn delete_payment_method(
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-    let response = delete_payment_method_core(&state, pm_id, &platform, &profile).await?;
+    let response = Box::pin(delete_payment_method_core(
+        &state, pm_id, &platform, &profile,
+    ))
+    .await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -4270,8 +4294,9 @@ pub async fn delete_payment_method_core(
     )?;
 
     let _customer = db
-        .find_customer_by_global_id(
+        .find_customer_by_global_id_merchant_id(
             customer_id,
+            platform.get_provider().get_account().get_id(),
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
@@ -4279,6 +4304,22 @@ pub async fn delete_payment_method_core(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
+    delete_payment_method_by_record(db, state, platform, profile, payment_method).await?;
+
+    let response = api::PaymentMethodDeleteResponse { id: pm_id };
+
+    Ok(response)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn delete_payment_method_by_record(
+    db: &dyn StorageInterface,
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<()> {
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
@@ -4301,9 +4342,7 @@ pub async fn delete_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
-    let response = api::PaymentMethodDeleteResponse { id: pm_id };
-
-    Ok(response)
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
@@ -4427,13 +4466,15 @@ pub async fn payment_methods_session_create(
     let key_manager_state = &(&state).into();
 
     if let (Some(customer_id)) = &request.customer_id {
-        db.find_customer_by_global_id(
+        db.find_customer_by_global_id_merchant_id(
             customer_id,
+            provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found for the payment method")?;
     }
 
     let payment_methods_session_id =
@@ -4750,9 +4791,14 @@ pub async fn payment_methods_session_delete_payment_method(
                 "Failed to retrieve payment method id from payment method token data",
             )?;
 
-    delete_payment_method_core(&state, payment_method_id, &platform, &profile)
-        .await
-        .attach_printable("Failed to delete saved payment method")?;
+    Box::pin(delete_payment_method_core(
+        &state,
+        payment_method_id,
+        &platform,
+        &profile,
+    ))
+    .await
+    .attach_printable("Failed to delete saved payment method")?;
 
     Ok(services::ApplicationResponse::Json(
         payment_methods::PaymentMethodDeleteSessionResponse {
