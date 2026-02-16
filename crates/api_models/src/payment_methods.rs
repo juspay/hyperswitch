@@ -833,18 +833,6 @@ pub struct MigrateCardDetail {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct MigrateBankDebitDetail {
-    /// Bank Account Number
-    #[schema(value_type = String)]
-    pub account_number: masking::Secret<String>,
-
-    /// Bank Routing Number
-    #[schema(value_type = String)]
-    pub routing_number: masking::Secret<String>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct MigrateNetworkTokenData {
     /// Network Token Number
     #[schema(value_type = String,example = "4111111145551142")]
@@ -3037,9 +3025,12 @@ pub struct PaymentMethodRecord {
     pub nick_name: Option<masking::Secret<String>>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
     pub connector_customer_id: Option<String>,
-    pub card_number_masked: masking::Secret<String>,
-    pub card_expiry_month: masking::Secret<String>,
-    pub card_expiry_year: masking::Secret<String>,
+    #[serde(default)]
+    pub card_number_masked: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub card_expiry_month: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub card_expiry_year: Option<masking::Secret<String>>,
     pub card_scheme: Option<String>,
     pub original_transaction_id: Option<String>,
     pub billing_address_zip: Option<masking::Secret<String>>,
@@ -3065,6 +3056,24 @@ pub struct PaymentMethodRecord {
     pub account_number: Option<masking::Secret<String>>,
     #[serde(default)]
     pub routing_number: Option<masking::Secret<String>>,
+}
+
+impl PaymentMethodRecord {
+    /// Constructs `PaymentMethodCreateData` from the CSV record fields.
+    /// Returns `None` for card records (cards are handled via `MigrateCardDetail`).
+    /// Extend the match arms here to support additional payment method types
+    /// (e.g., SEPA, BACS, wallets) in the future.
+    pub fn get_payment_method_data(&self) -> Option<PaymentMethodCreateData> {
+        match (self.account_number.as_ref(), self.routing_number.as_ref()) {
+            (Some(account_number), Some(routing_number)) => {
+                Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
+                    account_number: account_number.clone(),
+                    routing_number: routing_number.clone(),
+                }))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -3228,7 +3237,7 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 customer_id: res.payment_method_response.customer_id,
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
-                card_number_masked: Some(record.card_number_masked.clone()),
+                card_number_masked: record.card_number_masked.clone(),
                 line_number: record.line_number,
                 card_migrated: res.card_migrated,
                 payment_method_migrated: res.payment_method_migrated,
@@ -3240,7 +3249,7 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 customer_id: Some(record.customer_id.clone()),
                 migration_status: MigrationStatus::Failed,
                 migration_error: Some(e),
-                card_number_masked: Some(record.card_number_masked.clone()),
+                card_number_masked: record.card_number_masked.clone(),
                 line_number: record.line_number,
                 ..Self::default()
             },
@@ -3329,9 +3338,9 @@ impl
                 card_number: record
                     .raw_card_number
                     .clone()
-                    .unwrap_or_else(|| record.card_number_masked.clone()),
-                card_exp_month: record.card_expiry_month.clone(),
-                card_exp_year: record.card_expiry_year.clone(),
+                    .unwrap_or_else(|| record.card_number_masked.clone().unwrap_or_default()),
+                card_exp_month: record.card_expiry_month.clone().unwrap_or_default(),
+                card_exp_year: record.card_expiry_year.clone().unwrap_or_default(),
                 card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                 card_network: None,
                 card_type: None,
@@ -3342,14 +3351,7 @@ impl
             })
         };
 
-        let payment_method_data = if is_bank_debit {
-            Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
-                account_number: record.account_number.clone().unwrap_or_default(),
-                routing_number: record.routing_number.clone().unwrap_or_default(),
-            }))
-        } else {
-            None
-        };
+        let payment_method_data = record.get_payment_method_data();
 
         let network_token = if is_bank_debit {
             None
