@@ -45,12 +45,12 @@ pub async fn migrate_payment_method(
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
-    // If bank debit data is present, use the bank debit migration flow
-    if let Some(bank_debit) = req.bank_debit.clone() {
-        return migrate_bank_debit_payment_method(
+    // If payment_method_data is present, use the payment method data migration flow
+    if let Some(payment_method_data) = req.payment_method_data.clone() {
+        return migrate_payment_method_data(
             state,
             &req,
-            bank_debit,
+            payment_method_data,
             merchant_id,
             platform,
             controller,
@@ -171,7 +171,7 @@ pub async fn migrate_payment_method(
         pm_api::PaymentMethodMigrateResponse {
             payment_method_response,
             card_migrated: migrate_status.card_migrated,
-            bank_account_migrated: None,
+            payment_method_migrated: None,
             network_token_migrated: migrate_status.network_token_migrated,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,
@@ -179,21 +179,21 @@ pub async fn migrate_payment_method(
     ))
 }
 
-/// Migrates a bank debit payment method (e.g., ACH account_number + routing_number).
+/// Migrates a payment method using payment_method_data (e.g., ACH bank debit, wallet, etc.).
 /// This bypasses card-specific logic (BIN lookup, card validation, network token, etc.)
-/// and stores the bank details directly via `controller.add_payment_method()`.
+/// and stores the details directly via `controller.add_payment_method()`.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-async fn migrate_bank_debit_payment_method(
+async fn migrate_payment_method_data(
     _state: &state::PaymentMethodsState,
     req: &pm_api::PaymentMethodMigrate,
-    bank_debit: pm_api::MigrateBankDebitDetail,
+    payment_method_data: pm_api::PaymentMethodCreateData,
     merchant_id: &id_type::MerchantId,
     platform: &platform::Platform,
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
-    logger::debug!("Migrating bank debit payment method");
+    logger::debug!("Migrating payment method via payment_method_data");
 
     if let Some(connector_mandate_details) = &req.connector_mandate_details {
         controller
@@ -209,8 +209,9 @@ async fn migrate_bank_debit_payment_method(
     let mut migration_status = migration::RecordMigrationStatusBuilder::new();
 
     let payment_method_create =
-        pm_api::PaymentMethodCreate::get_payment_method_create_from_bank_debit_migrate(
-            bank_debit, req,
+        pm_api::PaymentMethodCreate::get_payment_method_create_from_payment_method_data_migrate(
+            payment_method_data,
+            req,
         );
 
     let connector_mandate_details = payment_method_create
@@ -226,7 +227,7 @@ async fn migrate_bank_debit_payment_method(
         .add_payment_method(&payment_method_create)
         .await?;
 
-    migration_status.bank_account_migrated(true);
+    migration_status.payment_method_migrated(true);
     migration_status.network_transaction_id_migrated(
         network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
     );
@@ -252,7 +253,7 @@ async fn migrate_bank_debit_payment_method(
         pm_api::PaymentMethodMigrateResponse {
             payment_method_response,
             card_migrated: None,
-            bank_account_migrated: migrate_status.bank_account_migrated,
+            payment_method_migrated: migrate_status.payment_method_migrated,
             network_token_migrated: None,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,

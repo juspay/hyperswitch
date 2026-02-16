@@ -247,9 +247,6 @@ pub struct PaymentMethodMigrate {
     /// Card Details
     pub card: Option<MigrateCardDetail>,
 
-    /// Bank Debit Details (e.g. ACH account_number + routing_number)
-    pub bank_debit: Option<MigrateBankDebitDetail>,
-
     /// Network token details
     pub network_token: Option<MigrateNetworkTokenDetail>,
 
@@ -293,8 +290,8 @@ pub struct PaymentMethodMigrateResponse {
     //card data migration status
     pub card_migrated: Option<bool>,
 
-    //bank account data migration status
-    pub bank_account_migrated: Option<bool>,
+    //payment method data migration status (bank debit, wallet, etc.)
+    pub payment_method_migrated: Option<bool>,
 
     //network token data migration status
     pub network_token_migrated: Option<bool>,
@@ -463,23 +460,18 @@ impl PaymentMethodCreate {
         }
     }
 
-    pub fn get_payment_method_create_from_bank_debit_migrate(
-        bank_debit: MigrateBankDebitDetail,
+    pub fn get_payment_method_create_from_payment_method_data_migrate(
+        payment_method_data: PaymentMethodCreateData,
         payment_method_migrate: &PaymentMethodMigrate,
     ) -> Self {
         Self {
             customer_id: payment_method_migrate.customer_id.clone(),
-            payment_method: Some(api_enums::PaymentMethod::BankDebit),
-            payment_method_type: payment_method_migrate
-                .payment_method_type
-                .or(Some(api_enums::PaymentMethodType::Ach)),
+            payment_method: payment_method_migrate.payment_method,
+            payment_method_type: payment_method_migrate.payment_method_type,
             payment_method_issuer: payment_method_migrate.payment_method_issuer.clone(),
             payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
             metadata: payment_method_migrate.metadata.clone(),
-            payment_method_data: Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
-                account_number: bank_debit.account_number,
-                routing_number: bank_debit.routing_number,
-            })),
+            payment_method_data: Some(payment_method_data),
             connector_mandate_details: payment_method_migrate
                 .connector_mandate_details
                 .clone()
@@ -3141,7 +3133,7 @@ pub struct PaymentMethodMigrationResponse {
     pub migration_error: Option<String>,
     pub card_number_masked: Option<masking::Secret<String>>,
     pub card_migrated: Option<bool>,
-    pub bank_account_migrated: Option<bool>,
+    pub payment_method_migrated: Option<bool>,
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_id_migrated: Option<bool>,
@@ -3239,7 +3231,7 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 card_number_masked: Some(record.card_number_masked.clone()),
                 line_number: record.line_number,
                 card_migrated: res.card_migrated,
-                bank_account_migrated: res.bank_account_migrated,
+                payment_method_migrated: res.payment_method_migrated,
                 network_token_migrated: res.network_token_migrated,
                 connector_mandate_details_migrated: res.connector_mandate_details_migrated,
                 network_transaction_id_migrated: res.network_transaction_id_migrated,
@@ -3350,11 +3342,11 @@ impl
             })
         };
 
-        let bank_debit = if is_bank_debit {
-            Some(MigrateBankDebitDetail {
+        let payment_method_data = if is_bank_debit {
+            Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
                 account_number: record.account_number.clone().unwrap_or_default(),
                 routing_number: record.routing_number.clone().unwrap_or_default(),
-            })
+            }))
         } else {
             None
         };
@@ -3392,7 +3384,6 @@ impl
             merchant_id,
             customer_id: Some(record.customer_id.clone()),
             card,
-            bank_debit,
             network_token,
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
@@ -3410,7 +3401,7 @@ impl
             bank_transfer: None,
             #[cfg(feature = "payouts")]
             wallet: None,
-            payment_method_data: None,
+            payment_method_data,
             network_transaction_id: record.original_transaction_id.clone(),
         })
     }
