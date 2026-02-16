@@ -1527,7 +1527,7 @@ async fn execute_payment_method_create(
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
-                Some(enums::PaymentMethodStatus::Active),
+                Some(enums::PaymentMethodStatus::New),
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -2300,6 +2300,8 @@ pub async fn list_payment_methods_for_session(
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
+    // let fetch_new_payment_methods = payment_method_session.payment_method_eligibility.include_new_payment_methods.unwrap_or(false);
+    let fetch_new_payment_methods = true;
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
@@ -2313,7 +2315,13 @@ pub async fn list_payment_methods_for_session(
 
     let customer_payment_methods = match payment_method_session.customer_id {
         Some(ref customer_id) => {
-            list_customer_payment_methods_core(&state, platform.get_provider(), customer_id).await?
+            list_customer_payment_methods_core(
+                &state,
+                platform.get_provider(),
+                customer_id,
+                fetch_new_payment_methods,
+            )
+            .await?
         }
         None => Vec::new(),
     };
@@ -2363,9 +2371,11 @@ pub async fn list_saved_payment_methods_for_customer(
     state: SessionState,
     provider: domain::Provider,
     customer_id: id_type::GlobalCustomerId,
+    fetch_new_payment_methods: bool,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
     let customer_payment_methods =
-        list_payment_methods_core(&state, &provider, &customer_id).await?;
+        list_payment_methods_core(&state, &provider, &customer_id, fetch_new_payment_methods)
+            .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -2736,7 +2746,7 @@ pub async fn construct_payment_method_object(
         connector_mandate_details: None,
         customer_acceptance: None,
         client_secret: None,
-        status: enums::PaymentMethodStatus::Inactive,
+        status: enums::PaymentMethodStatus::New,
         network_transaction_id: None,
         created_at: current_time,
         last_modified: current_time,
@@ -3561,15 +3571,24 @@ pub async fn list_payment_methods_core(
     state: &SessionState,
     provider: &domain::Provider,
     customer_id: &id_type::GlobalCustomerId,
+    fetch_new_payment_methods: bool,
 ) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
 
+    let statuses = if fetch_new_payment_methods {
+        vec![
+            common_enums::PaymentMethodStatus::Active,
+            common_enums::PaymentMethodStatus::New,
+        ]
+    } else {
+        vec![common_enums::PaymentMethodStatus::Active]
+    };
     let saved_payment_methods = db
-        .find_payment_method_by_global_customer_id_merchant_id_status(
+        .find_payment_method_by_global_customer_id_merchant_id_statuses(
             provider.get_key_store(),
             customer_id,
             provider.get_account().get_id(),
-            common_enums::PaymentMethodStatus::Active,
+            statuses,
             None,
             provider.get_account().storage_scheme,
         )
@@ -3594,15 +3613,23 @@ pub async fn list_customer_payment_methods_core(
     state: &SessionState,
     provider: &domain::Provider,
     customer_id: &id_type::GlobalCustomerId,
+    fetch_new_payment_methods: bool,
 ) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
     let db = &*state.store;
-
+    let statuses = if fetch_new_payment_methods {
+        vec![
+            common_enums::PaymentMethodStatus::Active,
+            common_enums::PaymentMethodStatus::New,
+        ]
+    } else {
+        vec![common_enums::PaymentMethodStatus::Active]
+    };
     let saved_payment_methods = db
-        .find_payment_method_by_global_customer_id_merchant_id_status(
+        .find_payment_method_by_global_customer_id_merchant_id_statuses(
             provider.get_key_store(),
             customer_id,
             provider.get_account().get_id(),
-            common_enums::PaymentMethodStatus::Active,
+            statuses,
             None,
             provider.get_account().storage_scheme,
         )

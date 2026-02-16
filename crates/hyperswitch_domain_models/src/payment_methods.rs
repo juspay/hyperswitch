@@ -972,6 +972,18 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        statuses: Vec<common_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
+
     #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,

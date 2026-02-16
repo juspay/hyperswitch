@@ -2233,6 +2233,8 @@ pub struct ListMethodsForPaymentMethodsRequest {
     /// Indicates the limit of last used payment methods
     #[schema(example = 1)]
     pub limit: Option<i64>,
+
+    pub fetch_new_payment_methods: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2297,6 +2299,13 @@ impl<'de> serde::Deserialize<'de> for ListMethodsForPaymentMethodsRequest {
                         },
                         "limit" => {
                             set_or_reject_duplicate(&mut output.limit, "limit", map.next_value()?)?;
+                        }
+                        "fetch_new_payment_methods" => {
+                            set_or_reject_duplicate(
+                                &mut output.fetch_new_payment_methods,
+                                "fetch_new_payment_methods",
+                                map.next_value()?,
+                            )?;
                         }
                         _ => {}
                     }
