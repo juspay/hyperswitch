@@ -97,7 +97,6 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     }
 }
 
-
 config! {
     superposition_key = BLOCKLIST_GUARD_ENABLED,
     output = bool,
@@ -117,7 +116,6 @@ impl DatabaseBackedConfig for BlocklistGuardEnabled {
         format!("{}_{}", merchant_id, Self::KEY)
     }
 }
-
 
 config! {
     superposition_key = SHOULD_CALL_GSM,

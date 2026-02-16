@@ -24,7 +24,7 @@ use std::{
     vec::IntoIter,
 };
 
-use external_services::{grpc_client,superposition};
+use external_services::{grpc_client, superposition};
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
@@ -1180,15 +1180,15 @@ where
                     )
                     .await?;
 
-                    
-
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
                         let dimension = configs::dimension_state::Dimensions::new()
-                            .with_merchant_id(platform.get_provider().get_account().get_id().clone());
+                            .with_merchant_id(
+                                platform.get_provider().get_account().get_id().clone(),
+                            );
                         let config_bool = retry::config_should_call_gsm(
                             state,
                             &*state.store,
@@ -6512,11 +6512,16 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = processor.get_account().get_id();
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
 
     let blocklist_guard_enabled = dimensions
-        .get_blocklist_guard_enabled(state.store.as_ref(), state.superposition_service.as_deref(), None).await;
+        .get_blocklist_guard_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
+        .await;
     logger::info!("blocklist_guard_enabled {:?}", blocklist_guard_enabled);
     if blocklist_guard_enabled {
         Ok(operation
@@ -9501,8 +9506,8 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = platform.get_processor().get_account().get_id().clone();
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
     // with the connector have to be made using the same connector account.

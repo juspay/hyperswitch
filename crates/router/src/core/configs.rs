@@ -190,7 +190,7 @@ where
             )
         )),
     };
-    
+
     match superposition_result {
         Ok(value) => value,
         Err(_) => {
