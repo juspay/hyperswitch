@@ -5456,7 +5456,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
         let current_vault_id = self.payment_method.locker_id.clone();
 
-        let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(
+        let fingerprint_id_from_vault = vault::get_fingerprint_id_for_payment_method(
             self.state,
             &vault_request_data,
             self.payment_method
