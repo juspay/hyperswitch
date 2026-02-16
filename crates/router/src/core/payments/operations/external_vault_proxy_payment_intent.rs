@@ -381,7 +381,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     billing,
                     psp_tokenization: None,
                     network_tokenization: None,
-                    storage_type: None, //this field is currently not being used in storing payment methods via external vault
+                    storage_type: common_enums::StorageType::Persistent, //this field is currently not being used in storing payment methods via external vault
                 };
 
                 let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(

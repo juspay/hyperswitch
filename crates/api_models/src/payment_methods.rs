@@ -148,8 +148,8 @@ pub struct PaymentMethodCreate {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
     /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]
@@ -1189,8 +1189,8 @@ pub struct PaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
 
     /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 
     /// Card CVC token storage details
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,

@@ -1,4 +1,3 @@
-use common_enums::StorageType;
 use common_utils::pii;
 
 #[cfg(feature = "v2")]
@@ -17,7 +16,7 @@ pub struct PaymentMethodSession {
         Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
     pub associated_token_id: Option<common_utils::id_type::GlobalTokenId>,
-    pub storage_type: StorageType,
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]
