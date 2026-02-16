@@ -169,6 +169,14 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
+type UnifiedConnectorServiceCreateOrderResult = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
@@ -1523,13 +1531,7 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
 pub fn handle_unified_connector_service_response_for_create_order(
     response: payments_grpc::PaymentServiceCreateOrderResponse,
     prev_status: AttemptStatus,
-) -> CustomResult<
-    (
-        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
+) -> UnifiedConnectorServiceCreateOrderResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
