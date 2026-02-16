@@ -3685,8 +3685,8 @@ where
         let profile = state
             .store()
             .find_business_profile_by_merchant_id_profile_id(
-                platform.get_provider().get_key_store(),
-                platform.get_provider().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().get_id(),
                 &sdk_auth.profile_id,
             )
             .await
