@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use crate::platform::Initiator;
 use base64::Engine;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -9,6 +7,9 @@ use common_utils::{
     id_type,
 };
 use error_stack::{report, ResultExt};
+
+#[cfg(feature = "v2")]
+use crate::platform::Initiator;
 /// Input for constructing SdkAuthorization from a Platform context (V2 only)
 #[cfg(feature = "v2")]
 pub struct SdkAuthorizationContext {
