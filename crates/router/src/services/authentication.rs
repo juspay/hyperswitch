@@ -3626,7 +3626,17 @@ where
             }
         };
 
-        if db_client_secret.merchant_id != *initiator_merchant.get_id() {
+        let platform = check_sdk_auth_and_resolve_platform(
+            state,
+            &sdk_auth,
+            initiator_merchant.clone(),
+            initiator_merchant_key_store,
+            self.allow_connected_scope_operation,
+            self.allow_platform_self_operation,
+        )
+        .await?;
+
+        if db_client_secret.merchant_id != *platform.get_provider().get_account().get_id() {
             return Err(errors::ApiErrorResponse::Unauthorized.into());
         }
 
@@ -3659,16 +3669,6 @@ where
                 return Err(errors::ApiErrorResponse::Unauthorized.into());
             }
         }
-
-        let platform = check_sdk_auth_and_resolve_platform(
-            state,
-            &sdk_auth,
-            initiator_merchant.clone(),
-            initiator_merchant_key_store,
-            self.allow_connected_scope_operation,
-            self.allow_platform_self_operation,
-        )
-        .await?;
 
         let profile = state
             .store()

@@ -848,8 +848,8 @@ pub async fn list_customer_payment_method_api(
     let customer_id = customer_id.into_inner();
 
     let api_auth = auth::V2ApiKeyAuth {
-        allow_connected_scope_operation: false,
-        allow_platform_self_operation: false,
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
     };
 
     let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
@@ -907,8 +907,8 @@ pub async fn get_payment_method_token_data(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -941,8 +941,8 @@ pub async fn get_total_payment_method_count(
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
