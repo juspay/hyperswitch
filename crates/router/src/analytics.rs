@@ -2424,12 +2424,13 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_merchant_payment_report(
+    #[cfg(feature = "v1")]
+    pub async fn generate_merchant_authentication_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePaymentReport;
+        let flow = AnalyticsFlow::GenerateAuthenticationReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
@@ -2446,9 +2447,8 @@ pub mod routes {
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
-
                 let lambda_req = GenerateReportRequest {
-                    request: payload.clone(),
+                    request: payload,
                     merchant_id: Some(merchant_id.clone()),
                     auth: AuthInfo::MerchantLevel {
                         org_id: org_id.clone(),
@@ -2457,17 +2457,15 @@ pub mod routes {
                     email: user_email,
                 };
 
-                let json_bytes = serde_json::to_vec(&lambda_req)
-                    .map_err(|_| report!(AnalyticsError::UnknownError))
-                    .attach_printable("Failed to serialize GenerateReportRequest")?;
-
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
                 invoke_lambda(
-                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.authentication_function,
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )
                 .await
-                .map(|_| ApplicationResponse::Json(serde_json::json!({"status": "success"})))
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantReportRead,
@@ -2477,12 +2475,13 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_org_payment_report(
+    #[cfg(feature = "v1")]
+    pub async fn generate_org_authentication_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePaymentReport;
+        let flow = AnalyticsFlow::GenerateAuthenticationReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
@@ -2498,9 +2497,8 @@ pub mod routes {
                     .get_secret();
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
-
                 let lambda_req = GenerateReportRequest {
-                    request: payload.clone(),
+                    request: payload,
                     merchant_id: None,
                     auth: AuthInfo::OrgLevel {
                         org_id: org_id.clone(),
@@ -2508,17 +2506,15 @@ pub mod routes {
                     email: user_email,
                 };
 
-                let json_bytes = serde_json::to_vec(&lambda_req)
-                    .map_err(|_| report!(AnalyticsError::UnknownError))
-                    .attach_printable("Failed to serialize GenerateReportRequest")?;
-
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
                 invoke_lambda(
-                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.authentication_function,
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )
                 .await
-                .map(|_| ApplicationResponse::Json(serde_json::json!({"status": "success"})))
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
