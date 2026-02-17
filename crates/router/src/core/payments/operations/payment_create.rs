@@ -877,19 +877,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
 
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req.customer_id.clone().get_required_value("customer_id")?,
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
+
                     Some(pm_info)
                 } else {
                     None
                 };
-
-                utils::when(
-                    pm_info.payment_method.0.customer_id
-                        != req.customer_id.clone().get_required_value("customer_id")?,
-                    || {
-                        logger::info!("No payment method info found in PM Modular Service for the given token.");
-                        Err(errors::ApiErrorResponse::PaymentMethodNotFound)
-                    },
-                )?;
 
                 Ok(pm_info)
             }

@@ -1268,12 +1268,18 @@ async fn payment_method_resolver(
                     payment_method: Box::new(existing_pm),
                     source_payment_method_data: payment_method_data,
                 }))
-            }
-            _ => {
+            },
+            enums::PaymentMethodStatus::Active => {
                 logger::info!("Payment method is duplicated, returning existing payment method");
                 Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
                     Box::new(existing_pm),
                 )))
+            },
+            enums::PaymentMethodStatus::AwaitingData | enums::PaymentMethodStatus::Processing => {
+                // no payment method entry will be found with finger print id and awaiting data or processing state
+                logger::info!("Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id");
+                Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method is in invalid state, expected New or Inactive"))
             }
         },
         Err(err) => {
@@ -1486,7 +1492,7 @@ impl PaymentMethodResolver {
                 let update_payment_method_data: DomainPaymentMethodUpdate =
                     (req, source_payment_method_data).into();
 
-                let response = Box::pin(update_payment_method_core(
+                let (response, updated_payment_method) = Box::pin(update_payment_method_core(
                     state,
                     platform,
                     profile,
@@ -1496,15 +1502,6 @@ impl PaymentMethodResolver {
                     network_tokenization_resp,
                 ))
                 .await?;
-
-                let updated_payment_method = db
-                    .find_payment_method(
-                        platform.get_provider().get_key_store(),
-                        &payment_method_id,
-                        platform.get_provider().get_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
                 Ok((response, updated_payment_method))
             }
@@ -4171,7 +4168,7 @@ pub async fn update_payment_method(
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let update_request = DomainPaymentMethodUpdate::from(req);
 
-    let response = Box::pin(update_payment_method_core(
+    let (response, _updated_payment_method) = Box::pin(update_payment_method_core(
         &state,
         &platform,
         &profile,
@@ -4195,7 +4192,7 @@ pub async fn update_payment_method_core(
     payment_method_id: &id_type::GlobalPaymentMethodId,
     existing_payment_method: Option<domain::PaymentMethod>,
     network_tokenization_resp: Option<NetworkTokenPaymentMethodDetails>,
-) -> RouterResult<api::PaymentMethodResponse> {
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     let mut handler = match existing_payment_method {
         Some(payment_method) => {
             let handler = pm_types::PaymentMethodUpdateHandler {
@@ -4231,7 +4228,7 @@ pub async fn update_payment_method_core(
 async fn execute_payment_method_update_handler(
     handler: &mut pm_types::PaymentMethodUpdateHandler<'_>,
     network_tokenization_resp: Option<NetworkTokenPaymentMethodDetails>,
-) -> RouterResult<api::PaymentMethodResponse> {
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     let card_cvc_details = handler
         .update_cvc_if_required()
         .await
@@ -4251,7 +4248,7 @@ async fn execute_payment_method_update_handler(
         .generate_response(card_cvc_details)
         .attach_printable("Failed to generate response for payment method update")?;
 
-    Ok(response)
+    Ok((response, handler.payment_method.clone()))
 }
 
 #[cfg(feature = "v2")]
@@ -4780,7 +4777,7 @@ pub async fn payment_methods_session_update_payment_method(
     let update_request =
         DomainPaymentMethodUpdate::from(request.payment_method_update_request.clone());
 
-    let update_response = Box::pin(update_payment_method_core(
+    let (update_response, _updated_payment_method) = Box::pin(update_payment_method_core(
         &state,
         &platform,
         &profile,

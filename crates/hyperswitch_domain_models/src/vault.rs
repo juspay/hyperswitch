@@ -77,7 +77,28 @@ impl PaymentMethodVaultingData {
         payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         match self {
-            Self::Card(card_details) => Ok(self.clone()),
+            Self::Card(card_details) =>{
+                let payment_methods_data = payment_methods_data_optional
+                    .get_required_value("payment methods data")
+                    .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                    .attach_printable("failed to get payment methods data for payment method vaulting data type card number")?;
+
+                let payment_methods_data = payment_methods_data_optional
+                    .get_required_value("payment methods data")
+                    .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                    .attach_printable("failed to get payment methods data for payment method vaulting data type card number")?;
+
+                let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
+                        &card_details.card_number,
+                        payment_methods_data,
+                    )?;
+
+                Ok(Self::Card(card_detail))
+            },
             Self::NetworkToken(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
