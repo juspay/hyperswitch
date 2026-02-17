@@ -2317,7 +2317,7 @@ pub async fn update_payment_method_network_token_data(
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::NetworkTokenDataUpdate {
         network_token_requestor_reference_id,
-        network_token_locker_id: network_token_locker_id,
+        network_token_locker_id,
         network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
         last_modified_by: None,
     };

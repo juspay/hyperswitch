@@ -924,7 +924,7 @@ where
                     business_profile.is_network_tokenization_enabled;
 
                 if is_network_tokenization_enabled {
-                    process_network_tokenization(
+                    generate_network_token_and_update_payment_method(
                         state,
                         platform,
                         &save_payment_method_data.request.get_payment_method_data(),
@@ -2022,7 +2022,9 @@ pub async fn save_card_and_network_token_in_locker(
     }
 }
 
-async fn process_network_tokenization(
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn generate_network_token_and_update_payment_method(
     state: &SessionState,
     platform: &domain::Platform,
     payment_method_data: &domain::PaymentMethodData,
@@ -2046,7 +2048,7 @@ async fn process_network_tokenization(
         // Extract card data and attempt network tokenization
         if let domain::PaymentMethodData::Card(card_data) = &payment_method_data {
             let payment_method_create_request = payment_methods::get_payment_method_create_request(
-                Some(&payment_method_data),
+                Some(payment_method_data),
                 Some(payment_method),
                 payment_method_type,
                 &customer_id.clone(),
