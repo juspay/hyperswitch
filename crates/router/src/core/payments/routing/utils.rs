@@ -1328,7 +1328,6 @@ pub struct RoutingDictionaryRecord {
 }
 impl common_utils::events::ApiEventMetric for RoutingDictionaryRecord {}
 
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RoutingAlgorithmRecord {

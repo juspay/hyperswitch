@@ -1310,8 +1310,7 @@ impl Routing {
                     .route(web::post().to(routing::evaluate_routing_rule)),
             )
             .service(
-                web::resource("/rule/create")
-                    .route(web::post().to(routing::create_routing_rule)),
+                web::resource("/rule/create").route(web::post().to(routing::create_routing_rule)),
             );
         route
     }
