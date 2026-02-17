@@ -2294,7 +2294,6 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &domain::MerchantKeyStore,
