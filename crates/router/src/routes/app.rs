@@ -1308,6 +1308,10 @@ impl Routing {
             .service(
                 web::resource("/rule/evaluate")
                     .route(web::post().to(routing::evaluate_routing_rule)),
+            )
+            .service(
+                web::resource("/rule/create")
+                    .route(web::post().to(routing::create_routing_rule)),
             );
         route
     }

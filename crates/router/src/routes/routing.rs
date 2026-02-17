@@ -19,6 +19,8 @@ use router_env::{
     Flow,
 };
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::core::payments::routing::utils::RoutingRule;
 use crate::{
     core::{
         api_locking, conditional_config,
@@ -1501,6 +1503,7 @@ pub async fn get_dynamic_routing_volume_split(
     ))
     .await
 }
+
 const EUCLID_API_TIMEOUT: u64 = 5;
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -1531,6 +1534,47 @@ pub async fn evaluate_routing_rule(
                 .response
                 .ok_or(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to evaluate routing rule")?;
+
+            Ok(services::ApplicationResponse::Json(euclid_response))
+        },
+        &auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn create_routing_rule(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<RoutingRule>,
+) -> impl Responder {
+    let json_payload = json_payload.into_inner();
+    let flow = Flow::RoutingEvaluateRule;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.clone(),
+        |state, _auth: auth::AuthenticationData, payload, _| async move {
+            let euclid_response: crate::core::payments::routing::utils::RoutingDictionaryRecord =
+                EuclidApiClient::send_decision_engine_request(
+                    &state,
+                    services::Method::Post,
+                    "routing/create",
+                    Some(payload),
+                    Some(EUCLID_API_TIMEOUT),
+                    None,
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)?
+                .response
+                .ok_or(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create routing rule")?;
 
             Ok(services::ApplicationResponse::Json(euclid_response))
         },

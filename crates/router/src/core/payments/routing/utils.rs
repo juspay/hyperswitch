@@ -1243,6 +1243,9 @@ pub struct RoutingRule {
     pub algorithm_for: AlgorithmType,
     pub algorithm: StaticRoutingAlgorithm,
 }
+
+impl common_utils::events::ApiEventMetric for RoutingRule {}
+
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1323,6 +1326,8 @@ pub struct RoutingDictionaryRecord {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
+impl common_utils::events::ApiEventMetric for RoutingDictionaryRecord {}
+
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
