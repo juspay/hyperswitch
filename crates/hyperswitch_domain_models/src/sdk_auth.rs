@@ -42,7 +42,9 @@ impl SdkAuthorization {
             Some(format!("publishable_key={}", self.publishable_key)),
             self.platform_publishable_key
                 .as_ref()
-                .map(|k| format!("platform_publishable_key={}", k)),
+                .map(|platform_publishable_key| {
+                    format!("platform_publishable_key={}", platform_publishable_key)
+                }),
             Some(format!("client_secret={}", self.client_secret)),
             self.customer_id
                 .as_ref()
@@ -80,7 +82,7 @@ impl SdkAuthorization {
             .split(',')
             .map(|part| {
                 part.split_once('=')
-                    .map(|(k, v)| (k.trim(), v.trim()))
+                    .map(|(key, value)| (key.trim(), value.trim()))
                     .ok_or_else(|| {
                         report!(ValidationError::InvalidValue {
                             message: "Invalid SDK authorization format: missing '=' separator"
@@ -112,7 +114,9 @@ impl SdkAuthorization {
                     })
                 })?
                 .to_string(),
-            platform_publishable_key: parts.get("platform_publishable_key").map(|v| v.to_string()),
+            platform_publishable_key: parts
+                .get("platform_publishable_key")
+                .map(|platform_publishable_key| platform_publishable_key.to_string()),
             client_secret: parts
                 .get("client_secret")
                 .ok_or_else(|| {
@@ -124,17 +128,17 @@ impl SdkAuthorization {
             #[cfg(feature = "v1")]
             customer_id: parts
                 .get("customer_id")
-                .map(|v| {
-                    id_type::CustomerId::try_from(std::borrow::Cow::from(v.to_string()))
+                .map(|customer_id| {
+                    id_type::CustomerId::try_from(std::borrow::Cow::from(customer_id.to_string()))
                         .change_context(ValidationError::InvalidValue {
                             message: "Invalid customer_id format".to_string(),
                         })
                 })
                 .transpose()?,
             #[cfg(feature = "v2")]
-            customer_id: parts
-                .get("customer_id")
-                .map(|v| id_type::GlobalCustomerId::new_unchecked(v.to_string())),
+            customer_id: parts.get("customer_id").map(|customer_id| {
+                id_type::GlobalCustomerId::new_unchecked(customer_id.to_string())
+            }),
         })
     }
 }

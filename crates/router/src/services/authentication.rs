@@ -5553,7 +5553,6 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
 }
 
 /// Checks if Authorization header contains SDK authorization (base64-encoded)
-/// vs key-value pairs (api-key=, publishable-key=)
 #[cfg(feature = "v2")]
 pub fn is_sdk_authorization(headers: &HeaderMap) -> bool {
     if let Ok(auth_val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
