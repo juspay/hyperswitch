@@ -1142,7 +1142,7 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
 #[cfg(feature = "v1")]
 pub async fn call_modular_payment_method_update(
     state: &routes::SessionState,
-    merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_id: &str,
     payload: UpdatePaymentMethodV1Payload,
@@ -1154,7 +1154,7 @@ pub async fn call_modular_payment_method_update(
     ));
     parent_headers.insert((
         headers::X_MERCHANT_ID.to_string(),
-        merchant_id.get_string_repr().to_string().into(),
+        processor_merchant_id.get_string_repr().to_string().into(),
     ));
     parent_headers.insert((
         headers::X_INTERNAL_API_KEY.to_string(),
@@ -1591,7 +1591,7 @@ pub async fn fetch_payment_method_from_modular_service(
     //Fetch modular service call
     let pm_response = retrieve_pm_modular_service_call(
         state,
-        platform.get_provider().get_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         profile_id,
         payment_method_fetch_req,
     )
@@ -1630,7 +1630,7 @@ pub async fn fetch_payment_method_from_modular_service(
 #[cfg(feature = "v1")]
 pub async fn retrieve_pm_modular_service_call(
     state: &routes::SessionState,
-    merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
 ) -> CustomResult<RetrievePaymentMethodResponse, errors::ApiErrorResponse> {
@@ -1649,7 +1649,10 @@ pub async fn retrieve_pm_modular_service_call(
     ));
     parent_headers.insert((
         headers::X_MERCHANT_ID.to_string(),
-        merchant_id.get_string_repr().to_string().into_masked(),
+        processor_merchant_id
+            .get_string_repr()
+            .to_string()
+            .into_masked(),
     ));
 
     let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
@@ -1680,7 +1683,8 @@ pub async fn retrieve_pm_modular_service_call(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method_in_modular_service(
     state: &routes::SessionState,
-    merchant_id: &id_type::MerchantId,
+    provider_merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: common_enums::PaymentMethodType,
@@ -1689,7 +1693,7 @@ pub async fn create_payment_method_in_modular_service(
     customer_id: id_type::CustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
-        merchant_id: merchant_id.clone(),
+        merchant_id: provider_merchant_id.clone(),
         payment_method,
         payment_method_type,
         metadata: None,
@@ -1702,9 +1706,13 @@ pub async fn create_payment_method_in_modular_service(
     };
 
     //Create modular service call
-    let pm_response =
-        create_pm_modular_service_call(state, merchant_id, profile_id, payment_method_request)
-            .await?;
+    let pm_response = create_pm_modular_service_call(
+        state,
+        processor_merchant_id,
+        profile_id,
+        payment_method_request,
+    )
+    .await?;
 
     //Convert PMResponse to PaymentMethodWithRawData
     let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
