@@ -1089,6 +1089,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             match pm_transformers::create_payment_method_in_modular_service(
                                 state,
                                 platform.get_provider().get_account().get_id(),
+                                platform.get_processor().get_account().get_id(),
                                 business_profile.get_id(),
                                 payment_method,
                                 payment_method_type,
@@ -1158,7 +1159,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .profile_id
                     .clone()
                     .or(platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .get_default_profile()
                         .clone())

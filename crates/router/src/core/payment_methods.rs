@@ -4330,9 +4330,9 @@ pub async fn payment_methods_session_create(
     if let (Some(customer_id)) = &request.customer_id {
         db.find_customer_by_global_id_merchant_id(
             customer_id,
-            provider.get_account().get_id(),
-            provider.get_key_store(),
-            provider.get_account().storage_scheme,
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -4345,7 +4345,7 @@ pub async fn payment_methods_session_create(
             .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
 
     let encrypted_data = request
-        .encrypt_data(key_manager_state, provider.get_key_store())
+        .encrypt_data(key_manager_state, platform.get_provider().get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt payment methods session data")?;
@@ -4371,7 +4371,7 @@ pub async fn payment_methods_session_create(
 
     let client_secret = payment_helpers::create_client_secret(
         &state,
-        provider.get_account().get_id(),
+        platform.get_provider().get_account().get_id(),
         util_types::authentication::ResourceId::PaymentMethodSession(
             payment_methods_session_id.clone(),
         ),
@@ -4397,7 +4397,7 @@ pub async fn payment_methods_session_create(
         };
 
     db.insert_payment_methods_session(
-        provider.get_key_store(),
+        platform.get_provider().get_key_store(),
         payment_method_session_domain_model.clone(),
         expires_in,
     )
