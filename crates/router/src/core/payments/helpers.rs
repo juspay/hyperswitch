@@ -2949,7 +2949,11 @@ pub async fn fetch_card_details_from_external_vault(
         }
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Network Token not supproted")
+                .attach_printable("Network Token not supported")
+        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Debit not supported")
         }
     }
 }
