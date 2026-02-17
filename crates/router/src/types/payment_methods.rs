@@ -39,7 +39,7 @@ pub struct VaultFingerprintResponse {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
-    pub entity_id: id_type::CustomerId,
+    pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
     pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
@@ -70,7 +70,7 @@ pub struct AddVaultResponse {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InternalAddVaultResponse {
-    pub entity_id: Option<id_type::CustomerId>,
+    pub entity_id: Option<hyperswitch_domain_models::vault::V1VaultEntityId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
@@ -136,11 +136,16 @@ pub struct SavedPMLPaymentsInfo {
     pub is_connector_agnostic_mit_enabled: bool,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
-    #[cfg(feature = "v1")]
-    pub entity_id: id_type::CustomerId,
-    #[cfg(feature = "v2")]
+    pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    pub vault_id: domain::VaultId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieveRequest {
     pub entity_id: id_type::GlobalCustomerId,
     pub vault_id: domain::VaultId,
 }

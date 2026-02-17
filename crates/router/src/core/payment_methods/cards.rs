@@ -680,8 +680,12 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(payment_methods::DataDuplicationCheck::Duplicated),
             ))
         } else {
+            // The merchant_id should belong to the Provider
             let payload = pm_types::AddVaultRequest {
-                entity_id: customer_id.to_owned(),
+                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                    key_store.merchant_id.clone(),
+                    customer_id.to_owned(),
+                ),
                 vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
                 data: pmd,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
@@ -5036,12 +5040,15 @@ pub async fn get_bank_from_vault(
 #[cfg(feature = "v1")]
 pub async fn get_bank_debit_from_hs_locker(
     state: &routes::SessionState,
-    _provider: &domain::Provider,
+    provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
     let vault_request = pm_types::VaultRetrieveRequest {
-        entity_id: customer_id.to_owned(),
+        entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+            provider.get_account().get_id().clone(),
+            customer_id.to_owned(),
+        ),
         vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
             token_ref.to_owned(),
         ),

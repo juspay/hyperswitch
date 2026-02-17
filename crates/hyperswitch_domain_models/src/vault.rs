@@ -204,6 +204,68 @@ pub struct NetworkTokenCustomData {
     pub cryptogram: Option<masking::Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct V1VaultEntityId {
+    merchant_id: common_utils::id_type::MerchantId,
+    customer_id: common_utils::id_type::CustomerId,
+}
+
+#[cfg(feature = "v1")]
+impl V1VaultEntityId {
+    pub fn new(
+        merchant_id: common_utils::id_type::MerchantId,
+        customer_id: common_utils::id_type::CustomerId,
+    ) -> Self {
+        Self {
+            merchant_id,
+            customer_id,
+        }
+    }
+
+    pub fn get_string_repr(&self) -> String {
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.customer_id.get_string_repr()
+        )
+    }
+}
+
+#[cfg(feature = "v1")]
+impl Serialize for V1VaultEntityId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.get_string_repr())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<'de> Deserialize<'de> for V1VaultEntityId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let parts: Vec<&str> = s.splitn(2, '_').collect();
+
+        if parts.len() != 2 {
+            return Err(serde::de::Error::custom(
+                "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
+            ));
+        }
+
+        Ok(Self {
+            merchant_id: common_utils::id_type::MerchantId::wrap(parts[0].to_string())
+                .map_err(serde::de::Error::custom)?,
+            customer_id: common_utils::id_type::CustomerId::wrap(parts[1].to_string())
+                .map_err(serde::de::Error::custom)?,
+        })
+    }
+}
+
 #[cfg(feature = "v2")]
 pub trait VaultingDataInterface {
     fn get_vaulting_data_key(&self) -> String;
