@@ -2038,12 +2038,12 @@ async fn generate_network_token_and_update_payment_method(
     payment_method_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<()> {
     // check if payment method already has a network token associated
-    if let Some(true) = payment_method_info
-        .as_ref()
-        .map(|pm| pm.network_token_requestor_reference_id.is_some())
-    {
+    if let Some(true) = payment_method_info.as_ref().map(|pm| {
+        pm.network_token_requestor_reference_id.is_some()
+            || pm.status != common_enums::PaymentMethodStatus::Active
+    }) {
         logger::info!(
-            "Payment method already has a network token associated, skipping network tokenization"
+            "Payment method already has a network token associated or the payment method is inactive, skipping network tokenization"
         );
         Ok(())
     } else {
