@@ -12,6 +12,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 use crate::{
     address::AddressDetails, payment_address::PaymentAddress, payment_method_data, payments,
@@ -448,7 +449,15 @@ impl PaymentMethodToken {
     pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
         match self {
             Self::Token(secret_token) => Some(secret_token.clone()),
-            _ => None,
+            Self::ApplePayDecrypt(apple_pay_data) => serde_json::to_string(apple_pay_data.as_ref())
+                .ok()
+                .map(Secret::new),
+            Self::GooglePayDecrypt(data) => serde_json::to_string(data.as_ref())
+                .ok()
+                .map(Secret::new),
+            Self::PazeDecrypt(paze_data) => serde_json::to_string(paze_data.as_ref())
+                .ok()
+                .map(Secret::new),
         }
     }
 }
