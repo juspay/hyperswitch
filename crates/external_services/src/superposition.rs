@@ -5,7 +5,7 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
 use masking::ExposeInterface;
 
@@ -116,7 +116,16 @@ impl SuperpositionClient {
                     timeout: config.request_timeout,
                 },
             ),
-            experimentation_options: None,
+            experimentation_options: Some(superposition_provider::types::ExperimentationOptions {
+                refresh_strategy: superposition_provider::RefreshStrategy::Polling(
+                    superposition_provider::PollingStrategy {
+                        interval: config.polling_interval,
+                        timeout: config.request_timeout,
+                    },
+                ),
+                evaluation_cache: None,
+                default_toss: None,
+            }),
         };
 
         // Create provider and set up OpenFeature
@@ -138,6 +147,7 @@ impl SuperpositionClient {
     fn build_evaluation_context(
         &self,
         context: Option<&ConfigContext>,
+        targeting_key: Option<&String>,
     ) -> open_feature::EvaluationContext {
         open_feature::EvaluationContext {
             custom_fields: context.map_or(HashMap::new(), |ctx| {
@@ -151,7 +161,7 @@ impl SuperpositionClient {
                     })
                     .collect()
             }),
-            targeting_key: None,
+            targeting_key: targeting_key.cloned(),
         }
     }
 
@@ -170,11 +180,12 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&ConfigContext>,
+        targeting_key: Option<&String>,
     ) -> CustomResult<T, SuperpositionError>
     where
         open_feature::Client: GetValue<T>,
     {
-        let evaluation_context = self.build_evaluation_context(context);
+        let evaluation_context = self.build_evaluation_context(context, targeting_key);
         let type_name = std::any::type_name::<T>();
 
         self.client
@@ -194,6 +205,9 @@ pub trait Config {
     /// The output type of this configuration
     type Output: Default + Clone;
 
+    /// The type used as the targeting key for experiment traffic splitting
+    type TargetingKey: TargetingKey + Send + Sync;
+
     /// Get the Superposition key for this config
     const SUPERPOSITION_KEY: &'static str;
 
@@ -204,13 +218,19 @@ pub trait Config {
     fn fetch(
         superposition_client: &SuperpositionClient,
         context: Option<ConfigContext>,
+        targeting_key: Option<&Self::TargetingKey>,
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
     {
+        let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
             match superposition_client
-                .get_config_value::<Self::Output>(Self::SUPERPOSITION_KEY, context.as_ref())
+                .get_config_value::<Self::Output>(
+                    Self::SUPERPOSITION_KEY,
+                    context.as_ref(),
+                    targeting_key_str.as_ref(),
+                )
                 .await
             {
                 Ok(value) => {

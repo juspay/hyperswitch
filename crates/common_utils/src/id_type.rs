@@ -246,6 +246,12 @@ pub trait GenerateId {
     fn generate() -> Self;
 }
 
+/// Trait for types that can be used as a targeting key in Superposition experiments.
+pub trait TargetingKey {
+    /// Get the string representation to use as the targeting key value.
+    fn targeting_key_value(&self) -> &str;
+}
+
 #[cfg(test)]
 mod alphanumeric_id_tests {
     use super::*;

@@ -205,6 +205,12 @@ mod id_type {
                     &self.0 .0 .0
                 }
             }
+
+            impl $crate::id_type::TargetingKey for $type {
+                fn targeting_key_value(&self) -> &str {
+                    self.get_string_repr()
+                }
+            }
         };
     }
 
