@@ -4,6 +4,7 @@ class State {
     this.data = data;
     this.data["connectorId"] = Cypress.env("CONNECTOR");
     this.data["baseUrl"] = Cypress.env("BASEURL");
+    this.data["pmServiceUrl"] = Cypress.env("PM_SERVICE_URL");
     this.data["adminApiKey"] = Cypress.env("ADMINAPIKEY");
     this.data["email"] = Cypress.env("HS_EMAIL");
     this.data["password"] = Cypress.env("HS_PASSWORD");
