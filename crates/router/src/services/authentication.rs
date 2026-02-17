@@ -5345,7 +5345,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,

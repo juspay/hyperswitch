@@ -26,7 +26,7 @@ pub mod routes {
         GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
-    use common_utils::{id_type, types::TimeRange};
+    use common_utils::types::TimeRange;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
 
@@ -35,7 +35,7 @@ pub mod routes {
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
-        routes::{AppState, SessionState},
+        routes::AppState,
         services::{
             api,
             authentication::{self as auth, AuthenticationData, UserFromToken},
@@ -3458,7 +3458,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state: SessionState, auth: AuthenticationData, req, _| async move {
+            |state: crate::routes::SessionState, auth: AuthenticationData, req, _| async move {
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
                 let profile_id = auth
