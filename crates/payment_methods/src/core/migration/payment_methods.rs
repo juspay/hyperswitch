@@ -552,6 +552,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 Default::default(),
                 None,
+                None,
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -717,6 +718,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 created_by: None,
                 last_modified_by: None,
                 customer_details: None,
+                locker_fingerprint_id: None,
             },
             provider.get_account().storage_scheme,
         )

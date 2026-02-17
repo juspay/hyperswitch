@@ -94,6 +94,7 @@ pub struct PaymentMethod {
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
     pub customer_details: OptionalEncryptableValue,
+    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -369,6 +370,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 
@@ -509,6 +511,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             customer_details,
+            locker_fingerprint_id: item.locker_fingerprint_id,
         })
     }
 
@@ -560,6 +563,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 }
@@ -1028,7 +1032,6 @@ pub trait PaymentMethodInterface {
         payment_method: PaymentMethod,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -1393,6 +1396,54 @@ impl<'a> PaymentMethodBalanceData<'a> {
 }
 
 #[cfg(feature = "v1")]
+#[derive(Debug)]
+pub struct PaymentMethodResponse {
+    /// Unique identifier for a merchant
+    pub merchant_id: id_type::MerchantId,
+
+    /// The unique identifier of the customer.
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The unique identifier of the Payment method
+    pub payment_method_id: String,
+
+    /// The type of payment method use for the payment.
+    pub payment_method: Option<common_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+
+    /// Card details from card locker
+    pub card: Option<payment_methods::CardDetailFromLocker>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    pub recurring_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    pub installment_payment_enabled: Option<bool>,
+
+    /// Type of payment experience enabled with the connector
+    pub payment_experience: Option<Vec<common_enums::PaymentExperience>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    pub created: Option<PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    pub bank_transfer: Option<api_models::payouts::Bank>,
+
+    pub last_used_at: Option<PrimitiveDateTime>,
+
+    /// For Client based calls
+    pub client_secret: Option<String>,
+
+    pub locker_fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     use id_type::MerchantConnectorAccountId;
@@ -1441,6 +1492,7 @@ mod tests {
             created_by: None,
             last_modified_by: None,
             customer_details: None,
+            locker_fingerprint_id: None,
         };
         payment_method.clone()
     }
