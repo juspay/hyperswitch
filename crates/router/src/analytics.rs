@@ -2262,34 +2262,6 @@ pub mod routes {
         .await
     }
 
-    // Common core function - handles GenerateReportRequest construction and Lambda invocation
-    async fn invoke_payment_report_lambda(
-        state: &SessionState,
-        payload: ReportRequest,
-        merchant_id: Option<id_type::MerchantId>,
-        auth: AuthInfo,
-        user_email: masking::Secret<String, common_utils::pii::EmailStrategy>,
-    ) -> error_stack::Result<ApplicationResponse<serde_json::Value>, AnalyticsError> {
-        let lambda_req = GenerateReportRequest {
-            request: payload.clone(),
-            merchant_id,
-            auth,
-            email: user_email,
-        };
-
-        let json_bytes = serde_json::to_vec(&lambda_req)
-            .map_err(|_| report!(AnalyticsError::UnknownError))
-            .attach_printable("Failed to serialize GenerateReportRequest")?;
-
-        invoke_lambda(
-            &state.conf.report_download_config.payment_function,
-            &state.conf.report_download_config.region,
-            &json_bytes,
-        )
-        .await
-        .map(|_| ApplicationResponse::Json(serde_json::json!({"status": "success"})))
-    }
-
     pub async fn generate_merchant_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2312,18 +2284,25 @@ pub mod routes {
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
-
-                invoke_payment_report_lambda(
-                    &state,
-                    payload,
-                    Some(merchant_id.clone()),
-                    AuthInfo::MerchantLevel {
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
                         org_id: org_id.clone(),
                         merchant_ids: vec![merchant_id.clone()],
                     },
-                    user_email,
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
                 )
                 .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantReportRead,
@@ -2354,17 +2333,24 @@ pub mod routes {
                     .get_secret();
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
-
-                invoke_payment_report_lambda(
-                    &state,
-                    payload,
-                    None,
-                    AuthInfo::OrgLevel {
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
                         org_id: org_id.clone(),
                     },
-                    user_email,
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
                 )
                 .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
@@ -2395,7 +2381,6 @@ pub mod routes {
                     .get_secret();
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
-
                 let profile_id = {
                     #[cfg(feature = "v1")]
                     {
@@ -2410,19 +2395,26 @@ pub mod routes {
                         auth.profile.get_id().clone()
                     }
                 };
-
-                invoke_payment_report_lambda(
-                    &state,
-                    payload,
-                    Some(merchant_id.clone()),
-                    AuthInfo::ProfileLevel {
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
                         org_id: org_id.clone(),
                         merchant_id: merchant_id.clone(),
                         profile_ids: vec![profile_id.clone()],
                     },
-                    user_email,
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
                 )
                 .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
