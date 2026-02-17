@@ -2072,11 +2072,9 @@ async fn generate_network_token_and_update_payment_method(
 
             // Update payment method with network token details if available
             if let (Some(token_resp), Some(pm_info)) = (network_token_resp, payment_method_info) {
-                let network_token_locker_id = if network_token_requestor_ref_id.is_some() {
-                    Some(token_resp.payment_method_id.clone())
-                } else {
-                    None
-                };
+                let network_token_locker_id = network_token_requestor_ref_id
+                    .as_ref()
+                    .map(|_| token_resp.payment_method_id.clone());
 
                 // Create encrypted network token data
                 let key_manager_state = state.into();
