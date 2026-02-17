@@ -1,14 +1,14 @@
 {
-    "payment_method_type": "card",
-    "payment_method_subtype": "credit",
-    "payment_method_data": {
-        "card": {
-            "card_number": "4761360080000093",
-            "card_exp_month": "12",
-            "card_exp_year": "2026",
-            "card_holder_name": "joseph Doe",
-            "card_cvc": "123"
-        }
-    },
-    "storage_type": "persistent"
+  "payment_method_type": "card",
+  "payment_method_subtype": "credit",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4761360080000093",
+      "card_exp_month": "12",
+      "card_exp_year": "2026",
+      "card_holder_name": "joseph Doe",
+      "card_cvc": "123"
+    }
+  },
+  "storage_type": "persistent"
 }
