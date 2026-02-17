@@ -22,14 +22,14 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
-pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn get_active_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         (),
-        |state, user, _, _| user_core::get_user_details(state, user),
+        |state, user, _, _| user_core::get_active_user_details(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -623,7 +623,7 @@ pub async fn update_user_account_details(
 }
 
 #[cfg(feature = "email")]
-pub async fn user_from_email(
+pub async fn active_user_from_email(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<user_api::UserFromEmailRequest>,
@@ -634,7 +634,7 @@ pub async fn user_from_email(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _: (), req_body, _| user_core::user_from_email(state, req_body),
+        |state, _: (), req_body, _| user_core::active_user_from_email(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))

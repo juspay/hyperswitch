@@ -5553,7 +5553,7 @@ where
         let user = state
             .session_state()
             .global_store
-            .find_user_by_id(&user_id)
+            .find_active_user_by_user_id(&user_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch user for the user id")?;

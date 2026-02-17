@@ -164,11 +164,13 @@ pub async fn update_user_role(
             .attach_printable(format!("User role cannot be updated to {}", req.role_id));
     }
 
-    let user_to_be_updated =
-        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleOperation)
-            .attach_printable("User not found in our records".to_string())?;
+    let user_to_be_updated = utils::user::get_active_user_from_db_by_email(
+        &state,
+        domain::UserEmail::try_from(req.email)?,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleOperation)
+    .attach_printable("User not found in our records".to_string())?;
 
     if user_from_token.user_id == user_to_be_updated.get_user_id() {
         return Err(report!(UserErrors::InvalidRoleOperation))
@@ -486,7 +488,7 @@ pub async fn accept_invitations_pre_auth(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(user_token.user_id.as_str())
+        .find_active_user_by_user_id(user_token.user_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -512,7 +514,7 @@ pub async fn delete_user_role(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
+        .find_active_user_by_user_email(&domain::UserEmail::from_pii_email(request.email)?)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -722,8 +724,13 @@ pub async fn delete_user_role(
     // If user has no more role associated with him then deleting user
     if remaining_roles.is_empty() {
         state
+            .store
+            .delete_all_metadata_by_user_id(user_from_db.get_user_id())
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+        state
             .global_store
-            .delete_user_by_user_id(user_from_db.get_user_id())
+            .deactivate_user_by_user_id(user_from_db.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user entry")?;
@@ -867,7 +874,7 @@ pub async fn list_users_in_lineage(
 
     let mut email_map = state
         .global_store
-        .find_users_by_user_ids(
+        .find_active_users_by_user_ids(
             user_roles_set
                 .iter()
                 .map(|user_role| user_role.user_id.clone())

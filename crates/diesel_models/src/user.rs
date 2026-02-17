@@ -52,14 +52,15 @@ pub struct UserNew {
 #[diesel(table_name = users)]
 pub struct UserUpdateInternal {
     name: Option<String>,
-    password: Option<Secret<String>>,
+    password: Option<Option<Secret<String>>>,
     is_verified: Option<bool>,
     last_modified_at: PrimitiveDateTime,
     totp_status: Option<TotpStatus>,
-    totp_secret: Option<Encryption>,
-    totp_recovery_codes: Option<Vec<Secret<String>>>,
-    last_password_modified_at: Option<PrimitiveDateTime>,
-    lineage_context: Option<LineageContext>,
+    totp_secret: Option<Option<Encryption>>,
+    totp_recovery_codes: Option<Option<Vec<Secret<String>>>>,
+    last_password_modified_at: Option<Option<PrimitiveDateTime>>,
+    lineage_context: Option<Option<LineageContext>>,
+    is_active: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -80,6 +81,11 @@ pub enum UserUpdate {
     LineageContextUpdate {
         lineage_context: LineageContext,
     },
+    InActiveUpdate,
+    ActiveUpdate {
+        new_name: Option<String>,
+        new_password: Option<Secret<String>>,
+    },
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
@@ -96,6 +102,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_recovery_codes: None,
                 last_password_modified_at: None,
                 lineage_context: None,
+                is_active: None,
             },
             UserUpdate::AccountUpdate { name, is_verified } => Self {
                 name,
@@ -107,6 +114,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_recovery_codes: None,
                 last_password_modified_at: None,
                 lineage_context: None,
+                is_active: None,
             },
             UserUpdate::TotpUpdate {
                 totp_status,
@@ -118,21 +126,23 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified: None,
                 last_modified_at,
                 totp_status,
-                totp_secret,
-                totp_recovery_codes,
+                totp_secret: Some(totp_secret),
+                totp_recovery_codes: Some(totp_recovery_codes),
                 last_password_modified_at: None,
                 lineage_context: None,
+                is_active: None,
             },
             UserUpdate::PasswordUpdate { password } => Self {
                 name: None,
-                password: Some(password),
+                password: Some(Some(password)),
                 is_verified: None,
                 last_modified_at,
-                last_password_modified_at: Some(last_modified_at),
+                last_password_modified_at: Some(Some(last_modified_at)),
                 totp_status: None,
                 totp_secret: None,
                 totp_recovery_codes: None,
                 lineage_context: None,
+                is_active: None,
             },
             UserUpdate::LineageContextUpdate { lineage_context } => Self {
                 name: None,
@@ -143,7 +153,35 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_status: None,
                 totp_secret: None,
                 totp_recovery_codes: None,
-                lineage_context: Some(lineage_context),
+                lineage_context: Some(Some(lineage_context)),
+                is_active: None,
+            },
+            UserUpdate::InActiveUpdate => Self {
+                name: None,
+                password: Some(None),
+                is_verified: Some(false),
+                last_modified_at,
+                last_password_modified_at: Some(None),
+                totp_status: Some(TotpStatus::NotSet),
+                totp_secret: Some(None),
+                totp_recovery_codes: Some(None),
+                lineage_context: Some(None),
+                is_active: Some(false),
+            },
+            UserUpdate::ActiveUpdate {
+                new_name,
+                new_password,
+            } => Self {
+                name: new_name,
+                password: Some(new_password),
+                is_verified: Some(false),
+                last_modified_at,
+                last_password_modified_at: Some(Some(last_modified_at)),
+                totp_status: Some(TotpStatus::NotSet),
+                totp_secret: Some(None),
+                totp_recovery_codes: Some(None),
+                lineage_context: Some(None),
+                is_active: Some(true),
             },
         }
     }
