@@ -577,7 +577,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
-    storage_type: Option<common_enums::StorageType>,
+    storage_type: common_enums::StorageType,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     customer_id: Option<id_type::GlobalCustomerId>,
     raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
