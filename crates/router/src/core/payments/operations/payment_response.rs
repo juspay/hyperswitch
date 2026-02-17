@@ -178,7 +178,7 @@ where
                         }
                         _ => None,
                     });
-                let acknowledgement_status = if resp.status.should_update_payment_method(){
+                let acknowledgement_status = if resp.status.should_update_payment_method() {
                     Some(common_enums::AcknowledgementStatus::Authenticated)
                 } else {
                     None

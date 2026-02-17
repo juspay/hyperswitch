@@ -39,8 +39,8 @@ pub struct UpdatePaymentMethodV1Payload {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
-    
-     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 /// Modular service update request payload.
