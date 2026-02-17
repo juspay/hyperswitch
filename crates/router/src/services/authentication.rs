@@ -3020,16 +3020,6 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant_id = initiator_merchant.get_id().clone();
 
-        if db_client_secret.merchant_id != merchant_id {
-            return Err(errors::ApiErrorResponse::Unauthorized.into());
-        }
-
-        let initiator = Some(domain::Initiator::Api {
-            merchant_id: initiator_merchant.get_id().clone(),
-            merchant_account_type: initiator_merchant.merchant_account_type,
-            publishable_key: initiator_merchant.publishable_key.clone(),
-        });
-
         let platform = resolve_platform(
             state,
             request_headers,
@@ -3038,6 +3028,16 @@ where
             initiator,
         )
         .await?;
+
+        if db_client_secret.merchant_id != *platform.get_provider().get_account().get_id() {
+            return Err(errors::ApiErrorResponse::Unauthorized.into());
+        }
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
 
         let profile = state
             .store()
