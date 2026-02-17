@@ -58,7 +58,6 @@ pub struct RoutingConfigRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
-
     /// Unique name of the routing configuration.
     ///
     /// This identifier is used to reference the routing config internally.
@@ -170,7 +169,6 @@ impl Deref for RoutingConfigName {
 /// at the profile level.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
-
     /// Unique identifier of the business profile.
     ///
     /// Example:
@@ -199,7 +197,6 @@ pub struct ProfileDefaultRoutingConfig {
 /// Supports pagination and transaction-type filtering.
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveQuery {
-
     /// Maximum number of routing configs to return.
     ///
     /// Example:
@@ -233,7 +230,6 @@ pub struct RoutingRetrieveQuery {
 /// Activation can be scoped by transaction type.
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingActivatePayload {
-
     /// Transaction type for which the routing config should be activated.
     ///
     /// Example:
@@ -248,7 +244,6 @@ pub struct RoutingActivatePayload {
 /// linked to a specific profile.
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveLinkQuery {
-
     /// Profile ID for which routing config should be retrieved.
     ///
     /// Example:
@@ -274,7 +269,6 @@ pub struct RoutingRetrieveLinkQuery {
 /// Used internally for link-based routing retrieval.
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveLinkQueryWrapper {
-
     /// Pagination and filtering parameters.
     pub routing_query: RoutingRetrieveQuery,
 
@@ -292,7 +286,6 @@ pub struct RoutingRetrieveLinkQueryWrapper {
 /// for a merchant account.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingRetrieveResponse {
-
     /// Merchant routing algorithm configuration.
     ///
     /// This may contain:
@@ -328,7 +321,6 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 /// and transaction type.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MerchantRoutingAlgorithm {
-
     /// Unique identifier of the routing configuration.
     ///
     /// Example:
@@ -832,7 +824,6 @@ impl RoutingAlgorithmRef {
 /// Used in routing dictionary listings.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionaryRecord {
-
     /// Unique identifier of the routing configuration.
     ///
     /// Example:
@@ -915,7 +906,6 @@ pub struct RoutingDictionaryRecord {
 /// along with the currently active routing configuration.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
-
     /// Unique merchant identifier.
     ///
     /// Example:
