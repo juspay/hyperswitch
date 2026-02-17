@@ -80,7 +80,8 @@ pub async fn make_payout_method_data(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get redis connection")?;
 
-            // Uses existing API locking Redis helpers
+            // Minimal token-level lock to avoid concurrent GET->persist->DEL races.
+            // Acquire lock first; do not read/deserialize Redis token unless lock is acquired.
             let redis_locking_key = format!("PAYOUT_PM_TOKEN_CONSUME_{}", key);
             let lock_expiry_seconds = i64::from(state.conf.lock_settings.redis_lock_expiry_seconds);
             let lock_result = redis_conn
@@ -90,24 +91,6 @@ pub async fn make_payout_method_data(
                     Some(lock_expiry_seconds),
                 )
                 .await;
-
-            // Proceed with Redis lookup after acquiring lock
-            let hyperswitch_token = redis_conn
-                .get_key::<Option<String>>(&key.clone().into())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch the token from redis")?
-                .ok_or(error_stack::Report::new(
-                    errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "Token is invalid or expired".to_owned(),
-                    },
-                ))?;
-
-            let _payment_token_data: storage::PaymentTokenData = hyperswitch_token
-                .clone()
-                .parse_struct("PaymentTokenData")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to deserialize hyperswitch token data")?;
 
             match lock_result {
                 Ok(SetnxReply::KeySet) => {}
@@ -126,10 +109,10 @@ pub async fn make_payout_method_data(
                 }
             }
 
-            // Ensure we always attempt to release the lock, even on early returns.
+            // Run the whole consume flow and capture the result; always attempt to release lock after.
             let result: RouterResult<Option<String>> = async {
                 let hyperswitch_token = redis_conn
-                    .get_key::<Option<String>>(&key.into())
+                    .get_key::<Option<String>>(&key.clone().into())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?
@@ -139,7 +122,7 @@ pub async fn make_payout_method_data(
                         },
                     ))?;
 
-                let payment_token_data = hyperswitch_token
+                let payment_token_data: storage::PaymentTokenData = hyperswitch_token
                     .clone()
                     .parse_struct("PaymentTokenData")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -157,7 +140,7 @@ pub async fn make_payout_method_data(
                     _ => None,
                 };
 
-                //Delete Redis keys only after the DB update succeeds
+                // Delete Redis keys only after the DB update succeeds
                 if let Some(payout_data) = payout_data.as_mut() {
                     if let Some(durable_token) = payment_token.clone() {
                         // Persist token in DB for downstream flows
@@ -214,6 +197,7 @@ pub async fn make_payout_method_data(
             .await;
 
             // Best-effort lock release: only delete if we still own it (request_id matches).
+            // This runs regardless of whether the consume flow succeeded or failed.
             if let Ok(val) = redis_conn
                 .get_key::<Option<String>>(&redis_locking_key.as_str().into())
                 .await
