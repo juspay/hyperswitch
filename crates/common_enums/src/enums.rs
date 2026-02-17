@@ -10177,6 +10177,8 @@ pub enum ProcessTrackerRunner {
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+    #[strum(serialize = "AchPendingPromotionWorkflow")]
+    PayloadAchPendingPromotionWorkflow,
 }
 
 #[derive(

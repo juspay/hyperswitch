@@ -1241,6 +1241,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     requeue,
                     schedule_time,
                 )
+                .await?;
+
+                helpers::add_ach_pending_promotion_task_if_eligible(
+                    &m_state,
+                    &m_payment_attempt,
+                    requeue,
+                    schedule_time,
+                )
                 .await
             }
             .in_current_span(),
