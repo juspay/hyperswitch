@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::types::domain;
 use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecord, RedisKeyType};
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
@@ -941,6 +942,7 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         retry_algorithm_type: RevenueRecoveryAlgorithmType,
         last_token_used: Option<&str>,
+        profile: &domain::Profile,
     ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         let mut token = None;
         match retry_algorithm_type {
@@ -973,7 +975,15 @@ impl RedisTokenManager {
 
         let token = match token {
             Some(t) => {
-                if t.is_hard_decline.unwrap_or(false) {
+                let is_hard_decline_retry_enabled = profile
+                    .revenue_recovery_retry_algorithm_data
+                    .as_ref()
+                    .map(|data| data.is_hard_decline_payments_enabled())
+                    .unwrap_or(false);
+
+                let is_hard_declined = t.is_hard_decline.unwrap_or(false);
+
+                if is_hard_declined && !is_hard_decline_retry_enabled {
                     // Update the schedule time to None for hard declined tokens
 
                     logger::warn!(

@@ -44,7 +44,14 @@ impl RevenueRecoveryPaymentData {
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
-        if is_hard_decline {
+        let is_hard_decline_retry_enabled = self
+            .profile
+            .revenue_recovery_retry_algorithm_data
+            .as_ref()
+            .map(|data| data.is_hard_decline_payments_enabled())
+            .unwrap_or(false);
+
+        if is_hard_decline && !is_hard_decline_retry_enabled {
             logger::info!("Hard Decline encountered");
             return None;
         }

@@ -488,6 +488,15 @@ fn is_account_updater_enabled_from_profile(profile: &domain::Profile) -> bool {
         .unwrap_or(false) // Default to disabled if not configured
 }
 
+/// Check if hard decline payments retry feature is enabled from profile settings
+fn is_hard_decline_payments_enabled_from_profile(profile: &domain::Profile) -> bool {
+    profile
+        .revenue_recovery_retry_algorithm_data
+        .as_ref()
+        .map(|data| data.is_hard_decline_payments_enabled())
+        .unwrap_or(false) // Default to disabled (current behavior)
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
     SyncPayment(PaymentAttempt),

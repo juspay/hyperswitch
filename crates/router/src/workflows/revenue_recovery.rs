@@ -660,6 +660,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     payment_intent: &PaymentIntent,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
+    profile: &domain::Profile,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
     match retry_algorithm_type {
@@ -740,6 +741,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 state,
                 connector_customer_id,
                 payment_intent,
+                profile,
             )
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
@@ -786,6 +788,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
+    profile: &domain::Profile,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
     let locked_acquired = RedisTokenManager::lock_connector_customer_status(
@@ -824,6 +827,12 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                 .values()
                 .find(|info| info.token_status.scheduled_at.is_some());
 
+            let is_hard_decline_retry_enabled = profile
+                .revenue_recovery_retry_algorithm_data
+                .as_ref()
+                .map(|data| data.is_hard_decline_payments_enabled())
+                .unwrap_or(false);
+
             // Check for hard decline if info is none
             let hard_decline_status = token_details
                 .values()
@@ -831,7 +840,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
 
             let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
 
-            if hard_decline_status {
+            if hard_decline_status && !is_hard_decline_retry_enabled {
                 payment_processor_token_response = PaymentProcessorTokenResponse::HardDecline;
             } else {
                 payment_processor_token_response = match token_info_with_schedule_time

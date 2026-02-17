@@ -291,6 +291,7 @@ pub async fn perform_execute_payment(
                 &connector_customer_id,
                 tracking_data.revenue_recovery_retry,
                 last_token_used.as_deref(),
+                profile
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -620,6 +621,7 @@ pub async fn perform_calculate_workflow(
             payment_intent,
             retry_algorithm_type,
             process.retry_count,
+            profile,
         )
         .await
         {

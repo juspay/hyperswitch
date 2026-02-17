@@ -913,6 +913,9 @@ pub struct RevenueRecoveryFeaturesEnablement {
     /// Enable/disable account update feature
     #[serde(default)]
     pub account_update: bool,
+    /// Enable/disable hard decline payments retry feature
+    #[serde(default)]
+    pub hard_decline_payments: bool,
 }
 
 impl RevenueRecoveryFeaturesEnablement {
@@ -924,6 +927,11 @@ impl RevenueRecoveryFeaturesEnablement {
     /// Check if account update is enabled
     pub fn is_account_update_enabled(&self) -> bool {
         self.account_update
+    }
+
+    /// Check if hard decline payments retry is enabled
+    pub fn is_hard_decline_payments_enabled(&self) -> bool {
+        self.hard_decline_payments
     }
 }
 
@@ -947,6 +955,14 @@ impl RevenueRecoveryAlgorithmData {
         self.smart_features
             .as_ref()
             .map(|features| features.is_account_update_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Check if hard decline payments retry feature is enabled
+    pub fn is_hard_decline_payments_enabled(&self) -> bool {
+        self.smart_features
+            .as_ref()
+            .map(|features| features.is_hard_decline_payments_enabled())
             .unwrap_or(false)
     }
 }
