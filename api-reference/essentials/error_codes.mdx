@@ -93,3 +93,93 @@ The section below contains all the unified error codes and their corresponding e
 | UE_3000            | Connector Error                       | Technical issue with PSP.           | 
 | UE_4000            | Integration Error                     | Issue in the integration.           | 
 | UE_9000            | Others                                | Something went wrong.               |
+
+## Error Details Structure
+
+Hyperswitch returns a structured `error_details` object for failed payments.
+
+This object combines error information from the connector (PSP), the issuer (bank), and Hyperswitch's own interpretation.
+
+**Unified Details**
+
+This section is Hyperswitch's understanding of the failure. It is created by looking at the issuer and connector error signals and mapping them to a standard meaning.
+
+- **Category** - The high-level unified error code (for example `UE_1000` for payment method issues).
+
+- **Message** - High level unified error message that is consistent across different connectors.
+
+- **Standardised Code** - Code that identifies the specific cause for a failure within a broader error category such as `INVALID_EXPIRY_DATE`.
+
+- **Description** - A detailed description of the error intended for debugging, analytics, and support teams.
+
+- **User Guidance Message** - A user-friendly message that can be safely displayed to the customer. This message provides guidance on what the user should do to resolve the issue.
+
+- **Recommended Action** - A field that tells merchants what action to take after a payment failure.
+
+| Action | Description |
+|--------|-------------|
+| `do_not_retry` | Never retry with same card |
+| `retry_later` | Retry after some time |
+| `retry_after_1_hour` | Retry after 1 hour |
+| `retry_after_24_hours` | Retry after 24 hours |
+| `retry_after_2_days` | Retry after 2 days |
+| `retry_after_4_days` | Retry after 4 days |
+| `retry_after_6_days` | Retry after 6 days |
+| `retry_after_8_days` | Retry after 8 days |
+| `retry_after_10_days` | Retry after 10 days |
+| `retry_after_instrument_update` | Retry after updating payment details |
+| `retry_with_different_payment_method_data` | Use different payment method |
+| `stop_recurring` | Stop recurring payments |
+
+## Enhanced Errors
+
+This table provides a standardized mapping that translates granular payment error into consistent standardised codes, customer-facing messages and description. The classification mappings, user guidance message and descriptions are subject to change at any time.
+
+| Standardised Code | Unified Code(Category) | Unified Message(Message) | User Guidance Message | Description |
+|-------------------|--------------|-----------------|----------------------|-------------|
+| **PAYMENT_METHOD_ISSUE** | **UE_1000** | **Issue with payment method details** | **Issue with Payment Method details** | **Issue with Payment Method details** |
+| INVALID_CARD_NUMBER | UE_1000 | Issue with payment method details | The card number doesn't look right. Please check it and try again | The card number is invalid |
+| INVALID_EXPIRY_DATE | UE_1000 | Issue with payment method details | The card's expiry date seems incorrect or has passed. Update it or use another card. | Expiry date is in the past or improperly formatted. |
+| INVALID_CVV | UE_1000 | Issue with payment method details | The security code (CVV) is incorrect. Please re-enter it. | CVV is missing, malformed, or does not match issuer records |
+| PM_ADDRESS_MISMATCH | UE_1000 | Issue with payment method details | The billing address doesn't match what the bank has on file. Update it or use another card. | Address mismatch (AVS failed) |
+| INSUFFICIENT_FUNDS | UE_1000 | Issue with payment method details | There aren't enough funds on this card. Use another card or add funds and try again | The entered card has insufficient funds |
+| CREDIT_LIMIT_EXCEEDED | UE_1000 | Issue with payment method details | This card has reached its credit limit. Use another card or contact your bank. | Transaction exceeds cardholder's credit limit |
+| VELOCITY_LIMIT_EXCEEDED | UE_1000 | Issue with payment method details | This card has hit a usage limit set by your bank. Try another card or contact your bank. | Transaction exceeds allowed frequency or velocity |
+| CARD_LOST_OR_STOLEN | UE_1000 | Issue with payment method details | The bank has blocked this card. Please use a different card. | This card has been reported as lost or stolen |
+| CARD_NOT_SUPPORTED_RESTRICTED | UE_1000 | Issue with payment method details | This card can't be used for this payment. Try another card or payment method. | Card is restricted for this merchant, channel, or use case |
+| ACCOUNT_CLOSED_OR_INVALID | UE_1000 | Issue with payment method details | This account is not active. Use a different payment method. | Account closed or invalid or missing |
+| AUTHORIZATION_MISSING_OR_REVOKED | UE_1000 | Issue with payment method details | This payment can't be completed because the prior authorization was canceled. Try another card or contact your bank. | Customer authorization is missing or was revoked |
+| INCORRECT_AUTHENTICATION_CODE | UE_1000 | Issue with payment method details | The code you entered is incorrect. Request a new code and try again. | Incorrect authentication or verification code provided |
+| PAYMENT_SESSION_TIMEOUT | UE_1000 | Issue with payment method details | Your session expired. Start the payment again. | Payment session expired before completion |
+| AUTHENTICATION_FAILED | UE_1000 | Issue with payment method details | We couldn't verify this payment with your bank. Try again or use a different payment method. | Authentication failed or was declined |
+| PAYMENT_CANCELLED_BY_USER | UE_1000 | Issue with payment method details | The payment was canceled. If this wasn't intended, please start a new payment. | Payment flow was canceled by user or system |
+| TRANSACTION_NOT_PERMITTED | UE_1000 | Issue with payment method details | This payment method can't be used for this type of purchase. Try another payment method. | This type of purchase is not permitted or supported |
+| PM_TOKENISATION_ISSUE | UE_1000 | Issue with payment method details | We couldn't save or use this card securely. Try again or use a different payment method. | Failed to tokenize or validate card credentials |
+| **CONFIGURATION_ISSUE** | **UE_2000** | **Issue with configuration** | **Something went wrong. Try another Payment Method** | **Issue with Configurations** |
+| MERCHANT_INACTIVE | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | Merchant configuration inactive or invalid |
+| CFG_PM_NOT_ENABLED_OR_MISCONFIGURED | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | Payment method not enabled for this merchant |
+| CURRENCY_OR_CORRIDOR_NOT_ENABLED | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | Currency or corridor not enabled |
+| WALLET_OR_TOKEN_CONFIG_ISSUE | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | Wallet or token configuration missing or incorrect |
+| STORED_CREDENTIAL_OR_MIT_NOT_ENABLED | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | Stored credential or MIT not enabled |
+| THREEDS_CONFIGURATION_ISSUE | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | 3DS not enabled or improperly integrated. |
+| SUBSCRIPTION_PLAN_INACTIVE | UE_2000 | Issue with configuration | Something went wrong. Try another Payment Method | Attempted charge on inactive or expired subscription |
+| **DOWNSTREAM_TECHNICAL_ISSUE** | **UE_3000** | **Technical Issue with PSP** | **Something went wrong. Try again or contact your bank** | **Downstream technical issue** |
+| ISSUER_UNAVAILABLE | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | The card issuer's bank is temporarily unavailable |
+| TRANSACTION_TIMEDOUT | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Issuer timeout |
+| DO_NOT_HONOR | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Do not honor |
+| SUSPECTED_FRAUD | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Issuer flagged as suspected fraud. |
+| PSP_FRAUD_ENGINE_DECLINE | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Declined by PSP fraud engine |
+| COMPLIANCE_OR_SANCTIONS_RESTRICTION | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Sanctions or compliance blockage |
+| PSP_ACQUIRER_ERROR | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Temporary acquirer internal error |
+| THREEDS_AUTHENTICATION_SERVICE_ISSUE | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | 3DS Authentication Service Failure |
+| AUTHENTICATION_REQUIRED | UE_3000 | Technical Issue with PSP | Something went wrong. Try again or contact your bank | Authentication is required |
+| **INTEGRATION_ISSUE** | **UE_4000** | **Issue with integration** | **Something went wrong. Try another payment method or contact your bank** | **Issue with Integration** |
+| MISSING_OR_INVALID_PARAM | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | Missing or invalid parameter |
+| INVALID_CREDENTIALS | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | Invalid credentials |
+| OPERATION_NOT_ALLOWED | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | Operation not allowed |
+| DUPLICATE_REQUEST | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | Duplicate or Idempotent request |
+| INVALID_STATE | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | Invalid state of operation |
+| THREEDS_DATA_OR_PROTOCOL_INVALID | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | 3DS payload invalid or inconsistent |
+| RATE_LIMIT | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | API rate limit exceeded |
+| INTEG_CRYPTOGRAPHIC_ISSUE | UE_4000 | Issue with integration | Something went wrong. Try another payment method or contact your bank | Token or cryptographic integration issue |
+| **GEN_UNKNOWN_ERROR** | **UE_9000** | **Something went wrong** | **Something went wrong** | **Something went wrong** |
