@@ -1187,7 +1187,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .profile_id
                     .clone()
                     .or(platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .get_default_profile()
                         .clone())

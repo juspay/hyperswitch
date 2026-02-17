@@ -2985,11 +2985,6 @@ where
         if db_client_secret.merchant_id != merchant_id {
             return Err(errors::ApiErrorResponse::Unauthorized.into());
         }
-        let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let initiator = Some(domain::Initiator::Api {
             merchant_id: initiator_merchant.get_id().clone(),
@@ -3001,10 +2996,20 @@ where
             state,
             request_headers,
             initiator_merchant.clone(),
-            key_store,
+            key_store.clone(),
             initiator,
         )
         .await?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                platform.get_processor().get_account().get_id(),
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData { platform, profile };
 
