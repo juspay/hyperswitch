@@ -865,8 +865,8 @@ pub async fn list_customer_payment_method_api(
         flow,
         state,
         &req,
-        payload.clone(),
-        |state, auth: auth::AuthenticationData, _, _| {
+        payload,
+        |state, auth: auth::AuthenticationData, payload, _| {
             payment_methods_routes::list_saved_payment_methods_for_customer(
                 state,
                 auth.platform.get_provider().clone(),

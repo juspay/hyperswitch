@@ -2386,7 +2386,7 @@ pub async fn list_payment_methods_for_session(
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
-    // let fetch_new_payment_methods = payment_method_session.payment_method_eligibility.include_new_payment_methods.unwrap_or(false);
+
     let fetch_new_payment_methods = true;
 
     let payment_connector_accounts = db
