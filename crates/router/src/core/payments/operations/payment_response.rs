@@ -3586,12 +3586,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         acknowledgement_status: None, //based on the response from the connector we can decide the acknowledgement status to be sent to payment method service
                     };
 
+                let payment_method_update_request =
+                    hyperswitch_domain_models::payment_methods::PaymentMethodUpdate::from(
+                        payment_method_update_request,
+                    );
+
                 Box::pin(payment_methods::update_payment_method_core(
                     state,
                     platform,
                     business_profile,
                     payment_method_update_request,
                     &payment_method_id,
+                    None,
+                    None,
                 ))
                 .await
                 .attach_printable("Failed to update payment method")?;
