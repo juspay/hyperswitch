@@ -3762,6 +3762,12 @@ pub struct PaymentMethodSessionResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
 
+    /// SDK authorization token for client SDK usage
+    /// Contains encoded authentication details for subsequent API calls
+    #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD0uLi4=")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_authorization: Option<String>,
+
     pub keep_alive: bool,
 }
 
