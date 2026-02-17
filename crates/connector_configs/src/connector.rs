@@ -602,7 +602,7 @@ impl ConnectorConfig {
             Connector::Tesouro => Ok(connector_data.tesouro),
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
-            // Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Truelayer => Ok(connector_data.truelayer),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),

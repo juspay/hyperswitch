@@ -178,7 +178,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
-    // Truelayer,
+    Truelayer,
     Trustpay,
     Trustpayments,
     Tsys,
@@ -262,6 +262,7 @@ impl Connector {
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
                 | (Self::Santander, _)
+                | (Self::Truelayer, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -380,7 +381,7 @@ impl Connector {
             | Self::Taxjar
             | Self::Tesouro
             // | Self::Thunes
-            // | Self::Truelayer
+            | Self::Truelayer
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio
