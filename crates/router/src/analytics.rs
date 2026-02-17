@@ -57,10 +57,6 @@ pub mod routes {
                         web::resource("report/payments")
                             .route(web::post().to(generate_profile_payment_report)),
                     ),
-                    web::scope("/profile").service(
-                        web::resource("report/payments")
-                            .route(web::post().to(generate_profile_payment_report)),
-                    ),
                 )
                 .service(
                     web::scope("/merchant").service(
