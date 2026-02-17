@@ -116,7 +116,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
             payment_method_data: value.payload.payment_method_data.clone(),
             connector_token_details: value.payload.connector_token_details.clone(),
             network_transaction_id: value.payload.network_transaction_id.clone(),
-            acknowledgement_status: value.payload.acknowledgement_status.clone(),
+            acknowledgement_status: value.payload.acknowledgement_status,
         })
     }
 }

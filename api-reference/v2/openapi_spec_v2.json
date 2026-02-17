@@ -21485,6 +21485,10 @@
           },
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
+          },
+          "keep_alive": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -21493,7 +21497,8 @@
         "required": [
           "id",
           "expires_at",
-          "client_secret"
+          "client_secret",
+          "keep_alive"
         ],
         "properties": {
           "id": {
@@ -21604,6 +21609,9 @@
               }
             ],
             "nullable": true
+          },
+          "keep_alive": {
+            "type": "boolean"
           }
         }
       },
@@ -21819,6 +21827,14 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "acknowledgement_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_enums.AcknowledgementStatus"
+              }
+            ],
             "nullable": true
           }
         },
