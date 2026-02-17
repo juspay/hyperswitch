@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.11.0-hotfix3
+
+### Bug Fixes
+
+- **payouts:** Change payout_action to retrieve for webhooks ([#11295](https://github.com/juspay/hyperswitch/pull/11295)) ([`a8dec90`](https://github.com/juspay/hyperswitch/commit/a8dec900ad907f5e19c3b0cf34c390cfb5d486e7))
+- **router:** Made payment account reference optional for visa click to pay ([#11294](https://github.com/juspay/hyperswitch/pull/11294)) ([`08e4ef5`](https://github.com/juspay/hyperswitch/commit/08e4ef5112012ea8a5ee27a27f5eed8a6e1b4b7a))
+
+**Full Changelog:** [`2026.02.11.0-hotfix2...2026.02.11.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.02.11.0-hotfix2...2026.02.11.0-hotfix3)
+
+- - -
+
 ## 2026.02.11.0-hotfix2
 
 ### Features
