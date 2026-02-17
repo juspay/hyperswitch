@@ -1991,6 +1991,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .get_implicit_customer_update(
                             state.store.as_ref(),
                             state.superposition_service.as_deref(),
+                            Some(&customer_id),
                         )
                         .await;
 
