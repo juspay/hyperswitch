@@ -790,7 +790,7 @@ pub(crate) fn get_payment_method_create_request(
     customer_id: Option<id_type::GlobalCustomerId>,
     billing_address: Option<&api_models::payments::Address>,
     payment_method_session: Option<&domain::payment_methods::PaymentMethodSession>,
-    storage_type: Option<common_enums::StorageType>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
@@ -1062,10 +1062,10 @@ pub async fn create_payment_method_core(
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     match req.storage_type {
-        Some(common_enums::StorageType::Volatile) => {
+        common_enums::StorageType::Volatile => {
             create_volatile_payment_method_core(state, _request_state, req, platform, profile).await
         }
-        Some(common_enums::StorageType::Persistent) | None => {
+        common_enums::StorageType::Persistent => {
             create_persistent_payment_method_core(state, _request_state, req, platform, profile)
                 .await
         }
@@ -2258,7 +2258,7 @@ pub async fn payment_method_intent_create(
     let resp = pm_transforms::generate_payment_method_response(
         &payment_method,
         &None,
-        None,
+        common_enums::StorageType::Persistent,
         None,
         Some(customer_id),
         None,
@@ -3742,7 +3742,7 @@ pub async fn retrieve_payment_method(
     transformers::generate_payment_method_response(
         &payment_method,
         &single_use_token_in_cache,
-        Some(storage_type),
+        storage_type,
         card_cvc_expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
@@ -4387,6 +4387,7 @@ pub async fn payment_methods_session_create(
             associated_payment_methods: None,
             associated_payment: None,
             associated_token_id: None,
+            storage_type: request.storage_type,
         };
 
     db.insert_payment_methods_session(
@@ -4403,7 +4404,7 @@ pub async fn payment_methods_session_create(
         client_secret.secret,
         None,
         None,
-        None,
+        Some(request.storage_type),
         None,
         None,
     );
@@ -4818,6 +4819,11 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
+    let storage_type = get_storage_type_for_payment_method_create(
+        request.storage_type,
+        payment_method_session.storage_type,
+    )?;
+
     let create_payment_method_request = get_payment_method_create_request(
         request
             .payment_method_data
@@ -4829,7 +4835,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_session.customer_id.clone(),
         unified_billing_address.as_ref(),
         Some(&payment_method_session),
-        request.storage_type,
+        storage_type,
     )
     .attach_printable("Failed to create payment method request")?;
 
@@ -4847,9 +4853,7 @@ pub async fn payment_methods_session_confirm(
     let token_data = get_pm_list_token_data(
         request.payment_method_type,
         &payment_method,
-        create_payment_method_request
-            .storage_type
-            .unwrap_or(enums::StorageType::Persistent),
+        create_payment_method_request.storage_type,
     )?;
 
     // insert the token data into redis
@@ -4953,7 +4957,7 @@ pub async fn payment_methods_session_confirm(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         payments_response,
         (tokenization_response.flatten()),
-        payment_method_response.storage_type,
+        Some(payment_method_response.storage_type),
         payment_method_response.card_cvc_token_storage,
         None,
     );
@@ -4961,6 +4965,25 @@ pub async fn payment_methods_session_confirm(
     Ok(services::ApplicationResponse::Json(
         payment_method_session_response,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub fn get_storage_type_for_payment_method_create(
+    request_storage_type: Option<enums::StorageType>,
+    session_storage_type: enums::StorageType,
+) -> RouterResult<enums::StorageType> {
+    match session_storage_type {
+        // If volatile return Volatile
+        enums::StorageType::Volatile => Ok(enums::StorageType::Volatile),
+
+        // If persistent, validate that request_storage_type exists
+        enums::StorageType::Persistent => request_storage_type.ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "storage_type",
+            }
+            .into(),
+        ),
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -5561,7 +5584,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         let response = pm_transforms::generate_payment_method_response(
             &self.payment_method,
             &None,
-            Some(common_enums::StorageType::Persistent),
+            common_enums::StorageType::Persistent,
             card_cvc_token_details,
             self.payment_method.customer_id.clone(),
             None,

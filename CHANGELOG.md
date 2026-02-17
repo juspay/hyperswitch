@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.17.0
+
+### Features
+
+- **migration:** Add support to migrate ACH tokens ([#11274](https://github.com/juspay/hyperswitch/pull/11274)) ([`a4acc25`](https://github.com/juspay/hyperswitch/commit/a4acc25f5d447b86ed13257d55d8f7954bf8a43a))
+- **payment:** Add storage type to PaymentMethodSession create call ([#11245](https://github.com/juspay/hyperswitch/pull/11245)) ([`30650bf`](https://github.com/juspay/hyperswitch/commit/30650bf1a5ca4205a5235917cf5fa2351791f833))
+
+### Miscellaneous Tasks
+
+- Added modular config key for Paylater and Wallet HS<>UCS ([#11246](https://github.com/juspay/hyperswitch/pull/11246)) ([`68d81ba`](https://github.com/juspay/hyperswitch/commit/68d81ba6c3ffe15420a688de20ba4e9e38f9d11f))
+
+**Full Changelog:** [`2026.02.16.1...2026.02.17.0`](https://github.com/juspay/hyperswitch/compare/2026.02.16.1...2026.02.17.0)
+
+- - -
+
 ## 2026.02.16.1
 
 ### Features

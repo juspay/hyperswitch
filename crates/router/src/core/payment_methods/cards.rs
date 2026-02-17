@@ -4277,7 +4277,11 @@ pub async fn list_customer_payment_method(
 
     // Get requires_cvv using type-safe dimensions config
     let requires_cvv = dimensions
-        .get_requires_cvv(state.store.as_ref(), state.superposition_service.as_deref())
+        .get_requires_cvv(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            Some(customer_id),
+        )
         .await;
 
     let resp = db
