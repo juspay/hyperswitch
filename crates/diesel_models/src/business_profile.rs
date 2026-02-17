@@ -911,11 +911,13 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[serde(rename_all = "snake_case")]
 pub struct RevenueRecoveryFeaturesEnablement {
     /// Enable/disable account update feature
-    #[serde(default)]
     pub account_update: bool,
     /// Enable/disable hard decline payments retry feature
-    #[serde(default)]
     pub hard_decline_payments: bool,
+    /// Enable/disable partial authorization feature
+    pub partial_auth: bool,
+    /// Enable/disable card switching feature
+    pub card_switching: bool,
 }
 
 impl RevenueRecoveryFeaturesEnablement {
@@ -932,6 +934,16 @@ impl RevenueRecoveryFeaturesEnablement {
     /// Check if hard decline payments retry is enabled
     pub fn is_hard_decline_payments_enabled(&self) -> bool {
         self.hard_decline_payments
+    }
+
+    /// Check if partial auth is enabled
+    pub fn is_partial_auth_enabled(&self) -> bool {
+        self.partial_auth
+    }
+
+    /// Check if card switching is enabled
+    pub fn is_card_switching_enabled(&self) -> bool {
+        self.card_switching
     }
 }
 
@@ -963,6 +975,22 @@ impl RevenueRecoveryAlgorithmData {
         self.smart_features
             .as_ref()
             .map(|features| features.is_hard_decline_payments_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Check if partial auth feature is enabled
+    pub fn is_partial_auth_enabled(&self) -> bool {
+        self.smart_features
+            .as_ref()
+            .map(|features| features.is_partial_auth_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Check if card switching feature is enabled
+    pub fn is_card_switching_enabled(&self) -> bool {
+        self.smart_features
+            .as_ref()
+            .map(|features| features.is_card_switching_enabled())
             .unwrap_or(false)
     }
 }

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData, str::FromStr};
 
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
+use common_types::primitive_wrappers::EnablePartialAuthorizationBool;
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     id_type,
@@ -403,8 +404,18 @@ impl RevenueRecoveryInvoice {
         platform: &domain::Platform,
         profile: &domain::Profile,
     ) -> CustomResult<revenue_recovery::RecoveryPaymentIntent, errors::RevenueRecoveryError> {
-        let payload = api_payments::PaymentsCreateIntentRequest::from(&self.0);
+        let mut payload = api_payments::PaymentsCreateIntentRequest::from(&self.0);
         let global_payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
+
+        let is_partial_auth_enabled = profile
+            .revenue_recovery_retry_algorithm_data
+            .as_ref()
+            .map(|data| data.is_partial_auth_enabled())
+            .unwrap_or(false);
+
+        payload.enable_partial_authorization = Some(EnablePartialAuthorizationBool::from(
+            is_partial_auth_enabled,
+        ));
 
         let create_intent_response = Box::pin(payments::payments_intent_core::<
             router_flow_types::payments::PaymentCreateIntent,

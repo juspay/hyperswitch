@@ -945,6 +945,13 @@ impl RedisTokenManager {
         profile: &domain::Profile,
     ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         let mut token = None;
+
+        let is_card_switching_enabled = profile
+            .revenue_recovery_retry_algorithm_data
+            .as_ref()
+            .map(|data| data.is_card_switching_enabled())
+            .unwrap_or(false);
+
         match retry_algorithm_type {
             RevenueRecoveryAlgorithmType::Monitoring => {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
@@ -965,11 +972,27 @@ impl RedisTokenManager {
             }
 
             RevenueRecoveryAlgorithmType::Smart => {
-                token = Self::get_payment_processor_token_with_schedule_time(
-                    state,
-                    connector_customer_id,
-                )
-                .await?;
+                if !is_card_switching_enabled {
+                    logger::info!("Card switching disabled, using same token (Cascading behavior)");
+                    token = match last_token_used {
+                        Some(token_id) => {
+                            Self::get_payment_processor_token_using_token_id(
+                                state,
+                                connector_customer_id,
+                                token_id,
+                            )
+                            .await?
+                        }
+                        None => None,
+                    };
+                } else {
+                    // Card switching enabled: select best available token
+                    token = Self::get_payment_processor_token_with_schedule_time(
+                        state,
+                        connector_customer_id,
+                    )
+                    .await?;
+                }
             }
         }
 

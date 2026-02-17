@@ -653,6 +653,75 @@ pub enum PaymentProcessorTokenResponse {
     None,
 }
 
+async fn get_cascading_token_response(
+    state: &SessionState,
+    connector_customer_id: &str,
+    payment_intent: &PaymentIntent,
+    retry_count: i32,
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+    let time = get_schedule_time_to_retry_mit_payments(
+        state.store.as_ref(),
+        &payment_intent.merchant_id,
+        retry_count,
+    )
+    .await
+    .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+    let payment_processor_token = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery_metadata| {
+            recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone()
+        });
+
+    let payment_processor_tokens_details =
+        RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
+            state,
+            connector_customer_id,
+        )
+        .await
+        .change_context(errors::ProcessTrackerError::ERedisError(
+            errors::RedisError::RedisConnectionError.into(),
+        ))?;
+
+    let payment_processor_tokens_details_with_retry_info = payment_processor_token
+        .as_ref()
+        .and_then(|t| payment_processor_tokens_details.get(t));
+
+    let payment_processor_token_response = match payment_processor_tokens_details_with_retry_info {
+        None => {
+            logger::debug!("No payment processor token found for cascading retry");
+            PaymentProcessorTokenResponse::None
+        }
+        Some(payment_token) => {
+            if payment_token.token_status.is_hard_decline.unwrap_or(false) {
+                PaymentProcessorTokenResponse::HardDecline
+            } else if payment_token.retry_wait_time_hours > 0 {
+                let utc_schedule_time: time::OffsetDateTime = time::OffsetDateTime::now_utc()
+                    + time::Duration::hours(payment_token.retry_wait_time_hours);
+                let next_available_time = time::PrimitiveDateTime::new(
+                    utc_schedule_time.date(),
+                    utc_schedule_time.time(),
+                );
+
+                PaymentProcessorTokenResponse::NextAvailableTime {
+                    next_available_time,
+                }
+            } else {
+                PaymentProcessorTokenResponse::ScheduledTime {
+                    scheduled_time: time,
+                }
+            }
+        }
+    };
+
+    Ok(payment_processor_token_response)
+}
+
 #[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
@@ -663,88 +732,51 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     profile: &domain::Profile,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
+
+    let is_card_switching_enabled = profile
+        .revenue_recovery_retry_algorithm_data
+        .as_ref()
+        .map(|data| data.is_card_switching_enabled())
+        .unwrap_or(false);
+
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
             logger::error!("Monitoring type found for Revenue Recovery retry payment");
         }
 
         RevenueRecoveryAlgorithmType::Cascading => {
-            let time = get_schedule_time_to_retry_mit_payments(
-                state.store.as_ref(),
-                &payment_intent.merchant_id,
-                retry_count,
-            )
-            .await
-            .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-            let payment_processor_token = payment_intent
-                .feature_metadata
-                .as_ref()
-                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-                .map(|recovery_metadata| {
-                    recovery_metadata
-                        .billing_connector_payment_details
-                        .payment_processor_token
-                        .clone()
-                });
-
-            let payment_processor_tokens_details =
-                RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
-                    state,
-                    connector_customer_id,
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::ERedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
-
-            // Get the token info from redis
-            let payment_processor_tokens_details_with_retry_info = payment_processor_token
-                .as_ref()
-                .and_then(|t| payment_processor_tokens_details.get(t));
-
-            // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
-            match payment_processor_tokens_details_with_retry_info {
-                None => {
-                    payment_processor_token_response = PaymentProcessorTokenResponse::None;
-                    logger::debug!("No payment processor token found for cascading retry");
-                }
-                Some(payment_token) => {
-                    if payment_token.token_status.is_hard_decline.unwrap_or(false) {
-                        payment_processor_token_response =
-                            PaymentProcessorTokenResponse::HardDecline;
-                    } else if payment_token.retry_wait_time_hours > 0 {
-                        let utc_schedule_time: time::OffsetDateTime =
-                            time::OffsetDateTime::now_utc()
-                                + time::Duration::hours(payment_token.retry_wait_time_hours);
-                        let next_available_time = time::PrimitiveDateTime::new(
-                            utc_schedule_time.date(),
-                            utc_schedule_time.time(),
-                        );
-
-                        payment_processor_token_response =
-                            PaymentProcessorTokenResponse::NextAvailableTime {
-                                next_available_time,
-                            };
-                    } else {
-                        payment_processor_token_response =
-                            PaymentProcessorTokenResponse::ScheduledTime {
-                                scheduled_time: time,
-                            };
-                    }
-                }
-            }
-        }
-
-        RevenueRecoveryAlgorithmType::Smart => {
-            payment_processor_token_response = get_best_psp_token_available_for_smart_retry(
+            payment_processor_token_response = get_cascading_token_response(
                 state,
                 connector_customer_id,
                 payment_intent,
-                profile,
+                retry_count,
             )
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+        }
+
+        RevenueRecoveryAlgorithmType::Smart => {
+            if !is_card_switching_enabled {
+                logger::info!("Card switching disabled, using same token");
+                payment_processor_token_response = get_cascading_token_response(
+                    state,
+                    connector_customer_id,
+                    payment_intent,
+                    retry_count,
+                )
+                .await
+                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            } else {
+                // Card switching enabled: use Smart algorithm (select best token)
+                payment_processor_token_response = get_best_psp_token_available_for_smart_retry(
+                    state,
+                    connector_customer_id,
+                    payment_intent,
+                    profile,
+                )
+                .await
+                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            }
         }
     }
 
