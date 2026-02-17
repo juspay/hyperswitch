@@ -3387,7 +3387,7 @@ pub async fn check_sdk_auth_and_resolve_platform<A>(
     initiator_merchant: domain::MerchantAccount,
     initiator_merchant_key_store: domain::MerchantKeyStore,
     allow_connected_scope_operation: bool,
-    _allow_platform_self_operation: bool,
+    allow_platform_self_operation: bool,
 ) -> RouterResult<domain::Platform>
 where
     A: SessionStateInfo + Sync,
@@ -3401,17 +3401,7 @@ where
                         .attach_printable("Platform feature is not enabled")
                 })?;
 
-                allow_connected_scope_operation
-                    .then_some(())
-                    .ok_or_else(|| {
-                        report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
-                            .attach_printable(
-                                "Connected Merchant is not authorized to access the resource",
-                            )
-                    })?;
-
-                // Platform account flow
-                // Validate processor publishable key
+                // Look up processor by publishable key from SDK authorization
                 let (processor_merchant, processor_key_store) = state
                     .store()
                     .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
@@ -3419,8 +3409,7 @@ where
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Invalid processor publishable key in SDK authorization")?;
 
-                // Security validations
-                // 1. Check same organization
+                // Validate same organization
                 fp_utils::when(
                     processor_merchant.get_org_id() != initiator_merchant.get_org_id(),
                     || {
@@ -3430,23 +3419,39 @@ where
                     },
                 )?;
 
-                // 2. Check merchant types
-                fp_utils::when(
-                    processor_merchant.merchant_account_type != MerchantAccountType::Connected,
-                    || {
-                        Err(report!(errors::ApiErrorResponse::Unauthorized))
-                            .attach_printable("Invalid merchant account types for platform flow")
-                    },
-                )?;
+                // Check authorization based on processor type
+                let platform_account = match processor_merchant.merchant_account_type {
+                    MerchantAccountType::Connected => {
+                        // Platform acting on behalf of connected merchant
+                        allow_connected_scope_operation.then_some(()).ok_or_else(|| {
+                            report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                                .attach_printable(
+                                    "Connected merchant scope operation not allowed for this resource",
+                                )
+                        })?;
+                        Some(PlatformAccountWithKeyStore {
+                            account: initiator_merchant.clone(),
+                            key_store: initiator_merchant_key_store,
+                        })
+                    }
+                    MerchantAccountType::Platform => {
+                        // Platform acting on its own resources
+                        allow_platform_self_operation.then_some(()).ok_or_else(|| {
+                            report!(errors::ApiErrorResponse::Unauthorized).attach_printable(
+                                "Platform self operation not allowed for this resource",
+                            )
+                        })?;
+                        None
+                    }
+                    MerchantAccountType::Standard => {
+                        return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                            .attach_printable(
+                                "Standard merchant type is not valid as processor in platform flow",
+                            );
+                    }
+                };
 
-                (
-                    processor_merchant,
-                    processor_key_store,
-                    Some(PlatformAccountWithKeyStore {
-                        account: initiator_merchant.clone(),
-                        key_store: initiator_merchant_key_store,
-                    }),
-                )
+                (processor_merchant, processor_key_store, platform_account)
             }
             MerchantAccountType::Connected => {
                 // Check if platform feature is enabled
