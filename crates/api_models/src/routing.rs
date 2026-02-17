@@ -58,12 +58,72 @@ pub struct RoutingConfigRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
-    #[schema(value_type = Option<String>)]
+
+    /// Unique name of the routing configuration.
+    ///
+    /// This identifier is used to reference the routing config internally.
+    ///
+    /// Example:
+    /// ```json
+    /// "default_card_routing"
+    /// ```
+    #[schema(value_type = Option<String>, example = "default_card_routing")]
     pub name: Option<RoutingConfigName>,
+
+    /// Optional human-readable description of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "Primary routing strategy for card payments in India"
+    /// ```
+    #[schema(example = "Primary routing strategy for card payments in Middle east")]
     pub description: Option<String>,
+
+    /// Static routing algorithm configuration.
+    ///
+    /// Defines how connectors should be selected.
+    ///
+    /// Possible structures:
+    /// - Priority routing
+    /// - Volume split routing
+    /// - Advanced routing
+    ///
+    /// Example (Priority):
+    /// ```json
+    /// {
+    ///   "type": "priority",
+    ///   "connectors": [
+    ///     {
+    ///       "connector": "stripe",
+    ///       "mca_id": "mca_ExbsYfO1xFErhNtwY1PX"
+    ///     }
+    ///   ]
+    /// }
+    /// ```
     pub algorithm: Option<StaticRoutingAlgorithm>,
-    #[schema(value_type = Option<String>)]
+
+    /// Profile ID associated with this routing configuration.
+    ///
+    /// Routing configs can be scoped per business profile.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = Option<String>, example = "profile_123")]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// Transaction type for which this routing config applies.
+    ///
+    /// Example values:
+    /// - `payment`
+    /// - `payout`
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
@@ -104,39 +164,154 @@ impl Deref for RoutingConfigName {
     }
 }
 
+/// Default routing configuration associated with a business profile.
+///
+/// This represents the fallback routing connectors configured
+/// at the profile level.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
-    #[schema(value_type = String)]
+
+    /// Unique identifier of the business profile.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// List of connectors configured as default for this profile.
+    ///
+    /// Example:
+    /// ```json
+    /// [
+    ///   {
+    ///     "connector": "stripe",
+    ///     "merchant_connector_id": "mca_ExbsYfO1xFErhNtwY1PX"
+    ///   }
+    /// ]
+    /// ```
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Query parameters used to retrieve routing configurations.
+///
+/// Supports pagination and transaction-type filtering.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveQuery {
+
+    /// Maximum number of routing configs to return.
+    ///
+    /// Example:
+    /// ```json
+    /// 10
+    /// ```
+    #[schema(example = 10)]
     pub limit: Option<u16>,
+
+    /// Offset for pagination.
+    ///
+    /// Example:
+    /// ```json
+    /// 0
+    /// ```
+    #[schema(example = 0)]
     pub offset: Option<u8>,
+
+    /// Filter routing configs by transaction type.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Payload used to activate a routing configuration.
+///
+/// Activation can be scoped by transaction type.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingActivatePayload {
+
+    /// Transaction type for which the routing config should be activated.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Query parameters used to retrieve routing configuration
+/// linked to a specific profile.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveLinkQuery {
+
+    /// Profile ID for which routing config should be retrieved.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// Filter by transaction type.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Wrapper structure combining routing query parameters
+/// with a mandatory profile identifier.
+///
+/// Used internally for link-based routing retrieval.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveLinkQueryWrapper {
+
+    /// Pagination and filtering parameters.
     pub routing_query: RoutingRetrieveQuery,
+
+    /// Mandatory profile ID.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
 }
+
+/// Response returned when retrieving routing configuration
+/// for a merchant account.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-/// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {
+
+    /// Merchant routing algorithm configuration.
+    ///
+    /// This may contain:
+    /// - Priority routing
+    /// - Volume split routing
+    /// - Other merchant-level routing strategies
+    ///
+    /// Example:
+    /// ```json
+    /// {
+    ///   "type": "priority",
+    ///   "connectors": [
+    ///     {
+    ///       "connector": "stripe",
+    ///       "mca_id": "mca_ExbsYfO1xFErhNtwY1PX"
+    ///     }
+    ///   ]
+    /// }
+    /// ```
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
 
@@ -147,18 +322,84 @@ pub enum LinkedRoutingConfigRetrieveResponse {
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
+/// Routing algorithm configuration created for a merchant.
+///
+/// Represents a fully defined routing strategy scoped to a profile
+/// and transaction type.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-/// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
-    #[schema(value_type = String)]
+
+    /// Unique identifier of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "routing_abc123"
+    /// ```
+    #[schema(value_type = String, example = "routing_abc123")]
     pub id: common_utils::id_type::RoutingId,
-    #[schema(value_type = String)]
+
+    /// Profile ID to which this routing configuration belongs.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Human-readable name of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "default_card_routing"
+    /// ```
+    #[schema(example = "default_card_routing")]
     pub name: String,
+
+    /// Description explaining the purpose of this routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "Primary routing strategy for card payments"
+    /// ```
+    #[schema(example = "Primary routing strategy for card payments")]
     pub description: String,
+
+    /// Actual routing algorithm definition.
+    ///
+    /// Can represent:
+    /// - Priority routing
+    /// - Volume split routing
+    /// - Other supported algorithm types
     pub algorithm: RoutingAlgorithmWrapper,
+
+    /// Timestamp (in milliseconds since epoch) when the routing
+    /// configuration was created.
+    ///
+    /// Example:
+    /// ```json
+    /// 1718000000000
+    /// ```
+    #[schema(example = 1718000000000i64)]
     pub created_at: i64,
+
+    /// Timestamp (in milliseconds since epoch) when the routing
+    /// configuration was last modified.
+    ///
+    /// Example:
+    /// ```json
+    /// 1718050000000
+    /// ```
+    #[schema(example = 1718050000000i64)]
     pub modified_at: i64,
+
+    /// Transaction type for which this routing algorithm applies.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub algorithm_for: TransactionType,
 }
 
@@ -586,26 +827,115 @@ impl RoutingAlgorithmRef {
     }
 }
 
+/// Metadata record representing a stored routing configuration.
+///
+/// Used in routing dictionary listings.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionaryRecord {
-    #[schema(value_type = String)]
+
+    /// Unique identifier of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "routing_abc123"
+    /// ```
+    #[schema(value_type = String, example = "routing_abc123")]
     pub id: common_utils::id_type::RoutingId,
-    #[schema(value_type = String)]
+
+    /// Profile ID associated with this routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Name of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "india_card_routing"
+    /// ```
+    #[schema(example = "india_card_routing")]
     pub name: String,
+
+    /// Type/kind of routing algorithm.
+    ///
+    /// Example:
+    /// ```json
+    /// "static"
+    /// ```
+    #[schema(example = "static")]
     pub kind: RoutingAlgorithmKind,
+
+    /// Description of this routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "Volume split routing for domestic transactions"
+    /// ```
+    #[schema(example = "Volume split routing for domestic transactions")]
     pub description: String,
+
+    /// Creation timestamp (milliseconds since epoch).
+    #[schema(example = 1718000000000i64)]
     pub created_at: i64,
+
+    /// Last modification timestamp (milliseconds since epoch).
+    #[schema(example = 1718050000000i64)]
     pub modified_at: i64,
+
+    /// Transaction type for which this routing applies.
+    ///
+    /// May be `null` if not scoped.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub algorithm_for: Option<TransactionType>,
+
+    /// Associated Decision Engine routing identifier (if applicable).
+    ///
+    /// Present when routing is linked to an external decision engine.
+    ///
+    /// Example:
+    /// ```json
+    /// "de_route_456"
+    /// ```
+    #[schema(example = "de_route_456")]
     pub decision_engine_routing_id: Option<String>,
 }
 
+/// Routing dictionary for a merchant.
+///
+/// Contains all routing configurations created by the merchant,
+/// along with the currently active routing configuration.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
-    #[schema(value_type = String)]
+
+    /// Unique merchant identifier.
+    ///
+    /// Example:
+    /// ```json
+    /// "merchant_789"
+    /// ```
+    #[schema(value_type = String, example = "merchant_789")]
     pub merchant_id: common_utils::id_type::MerchantId,
+
+    /// Currently active routing configuration ID.
+    ///
+    /// Example:
+    /// ```json
+    /// "routing_abc123"
+    /// ```
+    #[schema(example = "routing_abc123")]
     pub active_id: Option<String>,
+
+    /// List of all routing configuration records
+    /// associated with this merchant.
     pub records: Vec<RoutingDictionaryRecord>,
 }
 
