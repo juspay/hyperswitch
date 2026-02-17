@@ -116,8 +116,8 @@ pub struct PaymentMethodCreate {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -148,8 +148,8 @@ pub struct PaymentMethodCreate {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
     /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]
@@ -517,7 +517,7 @@ pub struct PaymentMethodUpdate {
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub network_transaction_id: Option<masking::Secret<String>>,
 }
 
@@ -1189,8 +1189,8 @@ pub struct PaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
 
     /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 
     /// Card CVC token storage details
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
@@ -1203,6 +1203,10 @@ pub struct PaymentMethodResponse {
     /// The raw data associated with the payment method
     #[schema(value_type = RawPaymentMethodData)]
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
+
+    /// Billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
 }
 
 #[cfg(feature = "v2")]
@@ -3498,6 +3502,10 @@ pub struct PaymentMethodSessionRequest {
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<pii::SecretSerdeValue>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 }
 
 #[cfg(feature = "v2")]
@@ -3566,8 +3574,8 @@ pub struct PaymentMethodSessionConfirmRequest {
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType, example = "google_pay")]
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
 
     /// The payment instrument data to be used for the payment
     #[schema(value_type = PaymentMethodDataRequest)]

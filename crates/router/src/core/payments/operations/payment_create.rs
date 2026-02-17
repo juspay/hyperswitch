@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
+    payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
@@ -574,22 +575,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_method_data_billing = request
             .payment_method_data
             .as_ref()
-            .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
-                pm.payment_method
-                    .0
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value("payment method billing address")
-                            .ok()
-                    })
-            }));
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|payment_method_data_billing| {
+                payment_method_data_billing.get_billing_address()
+            })
+            .map(From::from);
+        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            pm.payment_method
+                .0
+                .payment_method_billing_address
+                .clone()
+                .map(|decrypted_data| decrypted_data.into_inner().expose())
+                .and_then(|decrypted_value| {
+                    decrypted_value
+                        .parse_value::<hyperswitch_domain_models::address::Address>(
+                            "payment method billing address",
+                        )
+                        .ok()
+                })
+        });
 
-        let unified_address = address
-            .unify_with_payment_method_data_billing(payment_method_data_billing.map(From::from));
+        let add = payment_method_data_billing.or(pm_pmd_billing);
+
+        let unified_address = address.unify_with_payment_method_data_billing(add);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -821,14 +829,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                let pm_info = if let Some(payment_token) = &req.payment_token {
+                let (payment_method_reference, is_off_session_payment) =
+                    if req.off_session == Some(true) {
+                        match req.recurring_details.as_ref() {
+                            Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
+                                (Some(payment_method_id), true)
+                            }
+                            _ => (None, true),
+                        }
+                    } else {
+                        (req.payment_token.as_ref(), false)
+                    };
+
+                let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
                     let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                         state,
-                        platform.get_provider().get_account().get_id(),
+                        platform,
                         &profile_id,
-                        payment_token,
+                        payment_method_ref,
                         None, // CVC token data is not passed in create api
+                        is_off_session_payment,
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");

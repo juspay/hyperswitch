@@ -742,6 +742,15 @@ where
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
 }
 
 #[cfg(feature = "v1")]
