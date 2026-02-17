@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::payment_method_data;
+use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 use josekit::jwe;
 #[cfg(feature = "v1")]
 use masking::Mask;
@@ -1003,9 +1003,11 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
+    sdk_authorization: Option<hyperswitch_domain_models::sdk_auth::SdkAuthorization>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
@@ -1028,6 +1030,8 @@ pub fn generate_payment_method_session_response(
         .as_ref()
         .map(|tokenization_service_response| tokenization_service_response.id.clone());
 
+    let sdk_authorization = sdk_authorization.and_then(|auth| auth.encode().ok());
+
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
         customer_id: payment_method_session.customer_id,
@@ -1048,6 +1052,7 @@ pub fn generate_payment_method_session_response(
         storage_type,
         card_cvc_token_storage,
         payment_method_data,
+        sdk_authorization,
     }
 }
 
