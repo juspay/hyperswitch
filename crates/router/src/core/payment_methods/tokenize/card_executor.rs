@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ::payment_methods::{controller::PaymentMethodsController, core::migration};
+use ::payment_methods::core::migration;
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use common_utils::{
     consts,
@@ -604,11 +604,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
-<<<<<<< HEAD
-=======
             None,
-            None,
->>>>>>> 6ed908f92 (feat(router): Add duplication check support for BankDebit)
         )
         .await
     }
