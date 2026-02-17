@@ -1275,11 +1275,13 @@ pub fn build_unified_connector_service_payment_method(
         },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => {
             match voucher_data {
-                hyperswitch_domain_models::payment_method_data::VoucherData::Boleto(_) => {
+                hyperswitch_domain_models::payment_method_data::VoucherData::Boleto(boleto_data) => {
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::Boleto(
                             payments_grpc::Boleto {
-                                social_security_number: None,
+                                social_security_number: boleto_data
+                                    .social_security_number
+                                    .map(|ssn| ssn.expose().into()),
                             },
                         )),
                     })
@@ -1300,8 +1302,8 @@ pub fn build_unified_connector_service_payment_method(
                 }
                 hyperswitch_domain_models::payment_method_data::VoucherData::Oxxo => {
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::OxxoVoucher(
-                            payments_grpc::OxxoVoucher {},
+                        payment_method: Some(PaymentMethod::Oxxo(
+                            payments_grpc::Oxxo {},
                         )),
                     })
                 }
