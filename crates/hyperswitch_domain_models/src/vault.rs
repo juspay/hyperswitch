@@ -251,16 +251,22 @@ impl<'de> Deserialize<'de> for V1VaultEntityId {
         let s = String::deserialize(deserializer)?;
         let parts: Vec<&str> = s.splitn(2, '_').collect();
 
-        if parts.len() != 2 {
-            return Err(serde::de::Error::custom(
+        let merchant_part = parts.first().ok_or_else(|| {
+            serde::de::Error::custom(
                 "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
-            ));
-        }
+            )
+        })?;
+
+        let customer_part = parts.get(1).ok_or_else(|| {
+            serde::de::Error::custom(
+                "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
+            )
+        })?;
 
         Ok(Self {
-            merchant_id: common_utils::id_type::MerchantId::wrap(parts[0].to_string())
+            merchant_id: common_utils::id_type::MerchantId::wrap((*merchant_part).to_string())
                 .map_err(serde::de::Error::custom)?,
-            customer_id: common_utils::id_type::CustomerId::wrap(parts[1].to_string())
+            customer_id: common_utils::id_type::CustomerId::wrap((*customer_part).to_string())
                 .map_err(serde::de::Error::custom)?,
         })
     }
