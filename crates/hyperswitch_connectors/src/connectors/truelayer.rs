@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -46,7 +47,7 @@ use masking::{ExposeInterface, Mask};
 use transformers as truelayer;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
-
+const TRUELAYER_KEY1: &str = "key1";
 #[derive(Clone)]
 pub struct Truelayer {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -121,10 +122,13 @@ impl ConnectorCommon for Truelayer {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = truelayer::TruelayerAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.api_key.expose().into_masked(),
+            ),
+            (TRUELAYER_KEY1.to_string(), auth.key1.expose().into_masked()),
+        ])
     }
 
     fn build_error_response(
@@ -600,7 +604,23 @@ impl webhooks::IncomingWebhook for Truelayer {
 }
 
 static TRUELAYER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut truelayer_supported_payment_methods = SupportedPaymentMethods::new();
+        truelayer_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::OpenBankingUk,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        truelayer_supported_payment_methods
+    });
 
 static TRUELAYER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Truelayer",

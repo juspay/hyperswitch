@@ -65,14 +65,16 @@ impl TryFrom<&TruelayerRouterData<&PaymentsAuthorizeRouterData>> for TruelayerPa
 // Auth Struct
 pub struct TruelayerAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for TruelayerAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
