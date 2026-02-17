@@ -452,9 +452,9 @@ impl PaymentMethodToken {
             Self::ApplePayDecrypt(apple_pay_data) => serde_json::to_string(apple_pay_data.as_ref())
                 .ok()
                 .map(Secret::new),
-            Self::GooglePayDecrypt(data) => serde_json::to_string(data.as_ref())
-                .ok()
-                .map(Secret::new),
+            Self::GooglePayDecrypt(data) => {
+                serde_json::to_string(data.as_ref()).ok().map(Secret::new)
+            }
             Self::PazeDecrypt(paze_data) => serde_json::to_string(paze_data.as_ref())
                 .ok()
                 .map(Secret::new),
