@@ -796,6 +796,7 @@ pub struct PaymentMethodSession {
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
     pub storage_type: common_enums::StorageType,
+    pub keep_alive: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -817,6 +818,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
             storage_type: self.storage_type,
+            keep_alive: self.keep_alive,
         })
     }
 
@@ -872,6 +874,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 return_url: storage_model.return_url,
                 associated_token_id: storage_model.associated_token_id,
                 storage_type: storage_model.storage_type,
+                keep_alive: storage_model.keep_alive,
             })
         }
         .await
@@ -894,6 +897,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
             storage_type: self.storage_type,
+            keep_alive: self.keep_alive,
         })
     }
 }
@@ -1099,6 +1103,7 @@ impl PaymentMethodSession {
             associated_payment,
             associated_token_id,
             storage_type,
+            keep_alive,
         } = self;
         Self {
             id,
@@ -1115,6 +1120,7 @@ impl PaymentMethodSession {
             associated_payment,
             associated_token_id,
             storage_type,
+            keep_alive,
         }
     }
 }

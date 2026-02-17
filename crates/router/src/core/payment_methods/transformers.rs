@@ -1045,6 +1045,7 @@ pub fn generate_payment_method_session_response(
         storage_type,
         card_cvc_token_storage,
         payment_method_data,
+        keep_alive: payment_method_session.keep_alive,
     }
 }
 

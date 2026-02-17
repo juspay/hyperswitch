@@ -4415,6 +4415,7 @@ pub async fn payment_methods_session_create(
             associated_payment: None,
             associated_token_id: None,
             storage_type: request.storage_type,
+            keep_alive: request.keep_alive.unwrap_or_default(),
         };
 
     db.insert_payment_methods_session(
@@ -5436,10 +5437,10 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
         when(
-            payment_method.status != enums::PaymentMethodStatus::Active,
+            payment_method.status == enums::PaymentMethodStatus::Inactive,
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Only Active Payment Methods can be updated".to_string(),
+                    message: "Inactive Payment Method cannot be updated".to_string(),
                 })
             },
         )?;
@@ -5565,16 +5566,14 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             return Ok(());
         }
 
-        let pm_status = match request.acknowledgement_status{
+        let pm_status = match self.request.acknowledgement_status {
             Some(common_enums::AcknowledgementStatus::Authenticated) => {
                 Some(common_enums::PaymentMethodStatus::Active)
-            },
+            }
             Some(common_enums::AcknowledgementStatus::Failed) => {
                 Some(common_enums::PaymentMethodStatus::Inactive)
-            },
-            None => {
-                None
             }
+            None => None,
         };
 
         let db = self.state.store.as_ref();
@@ -5596,8 +5595,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             None,
             None,
             None,
-            None,
-            Some(pm_status),
+            pm_status,
         )
         .await
         .attach_printable("Unable to create Payment method data")?;

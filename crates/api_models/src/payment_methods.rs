@@ -3597,6 +3597,8 @@ pub struct PaymentMethodSessionRequest {
     /// The storage type for the payment method
     #[schema(value_type = StorageType)]
     pub storage_type: common_enums::StorageType,
+
+    pub keep_alive: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -3750,6 +3752,8 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<PaymentMethodResponseData>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
+
+    pub keep_alive: bool,
 }
 
 #[cfg(feature = "v2")]
