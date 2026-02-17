@@ -1047,6 +1047,7 @@ pub fn generate_payment_method_session_response(
                 platform_publishable_key,
                 client_secret: client_secret.clone().expose().to_string(),
                 customer_id: payment_method_session.customer_id.clone(),
+                payment_method_session_id: Some(payment_method_session.id.clone()),
             };
 
             sdk_auth_data.encode().ok()

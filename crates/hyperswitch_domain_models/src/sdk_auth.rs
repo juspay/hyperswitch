@@ -30,6 +30,9 @@ pub struct SdkAuthorization {
     /// Customer ID for the payment/session (if available)
     #[cfg(feature = "v2")]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    #[cfg(feature = "v2")]
+    pub payment_method_session_id: Option<id_type::GlobalPaymentMethodSessionId>,
 }
 
 impl SdkAuthorization {
@@ -49,6 +52,10 @@ impl SdkAuthorization {
             self.customer_id
                 .as_ref()
                 .map(|id| format!("customer_id={}", id.get_string_repr())),
+            #[cfg(feature = "v2")]
+            self.payment_method_session_id
+                .as_ref()
+                .map(|id| format!("payment_method_session_id={}", id.get_string_repr())),
         ]
         .into_iter()
         .flatten()
@@ -139,6 +146,14 @@ impl SdkAuthorization {
             customer_id: parts.get("customer_id").map(|customer_id| {
                 id_type::GlobalCustomerId::new_unchecked(customer_id.to_string())
             }),
+            #[cfg(feature = "v2")]
+            payment_method_session_id: parts.get("payment_method_session_id").map(
+                |payment_method_session_id| {
+                    id_type::GlobalPaymentMethodSessionId::new_unchecked(
+                        payment_method_session_id.to_string(),
+                    )
+                },
+            ),
         })
     }
 }
