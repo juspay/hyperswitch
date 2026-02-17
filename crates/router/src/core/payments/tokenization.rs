@@ -920,6 +920,8 @@ where
 
                 Some(resp.payment_method_id)
             } else {
+                // generate Network token and update payment method if not already done when
+                // network tokenization is enabled for the profile
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
 
@@ -940,7 +942,7 @@ where
                         logger::error!("Failed to process network tokenization: {:?}", err);
                     })
                     .attach_printable("Failed to process network tokenization")
-                    .ok(); // should we throw error here?
+                    .ok();
                 }
 
                 None
