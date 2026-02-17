@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+use crate::platform::Initiator;
 use base64::Engine;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -7,6 +9,51 @@ use common_utils::{
     id_type,
 };
 use error_stack::{report, ResultExt};
+/// Input for constructing SdkAuthorization from a Platform context (V2 only)
+#[cfg(feature = "v2")]
+pub struct SdkAuthorizationContext {
+    pub platform: crate::platform::Platform,
+    pub profile_id: id_type::ProfileId,
+    pub client_secret: String,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub payment_method_session_id: Option<id_type::GlobalPaymentMethodSessionId>,
+}
+
+#[cfg(feature = "v2")]
+impl From<SdkAuthorizationContext> for Option<SdkAuthorization> {
+    fn from(input: SdkAuthorizationContext) -> Self {
+        match input.platform.get_initiator()? {
+            Initiator::Api {
+                merchant_account_type,
+                publishable_key,
+                ..
+            } => {
+                let platform_publishable_key = if matches!(
+                    merchant_account_type,
+                    common_enums::MerchantAccountType::Platform
+                ) {
+                    Some(publishable_key.clone())
+                } else {
+                    None
+                };
+                Some(SdkAuthorization {
+                    profile_id: input.profile_id,
+                    publishable_key: input
+                        .platform
+                        .get_processor()
+                        .get_account()
+                        .publishable_key
+                        .clone(),
+                    platform_publishable_key,
+                    client_secret: input.client_secret,
+                    customer_id: input.customer_id,
+                    payment_method_session_id: input.payment_method_session_id,
+                })
+            }
+            Initiator::Admin | Initiator::Jwt { .. } | Initiator::EmbeddedToken { .. } => None, // SDK authorization is only applicable for API initiators
+        }
+    }
+}
 
 /// SDK authorization data for client-side SDK authentication
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

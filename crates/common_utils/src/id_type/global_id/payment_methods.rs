@@ -69,7 +69,7 @@ impl GlobalPaymentMethodSessionId {
     pub fn new_unchecked(input_string: String) -> Self {
         let alphanumeric_id = crate::id_type::AlphaNumericId::new_unchecked(input_string);
         let length_id = crate::id_type::LengthId::new_unchecked(alphanumeric_id);
-        Self(super::GlobalId(length_id))
+        Self(GlobalId(length_id))
     }
 }
 

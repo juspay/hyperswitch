@@ -2885,12 +2885,6 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let profile = state
-            .store()
-            .find_business_profile_by_profile_id(&key_store, &profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
         // Validate access based on merchant type and header presence
         check_merchant_access(
             state,
@@ -2914,6 +2908,16 @@ where
             initiator,
         )
         .await?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().get_id(),
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             platform,

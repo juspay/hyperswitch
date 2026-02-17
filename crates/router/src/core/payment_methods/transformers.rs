@@ -1004,8 +1004,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    profile: &hyperswitch_domain_models::business_profile::Profile,
+    sdk_authorization: Option<hyperswitch_domain_models::sdk_auth::SdkAuthorization>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
@@ -1028,34 +1027,7 @@ pub fn generate_payment_method_session_response(
         .as_ref()
         .map(|tokenization_service_response| tokenization_service_response.id.clone());
 
-    // Construct SDK authorization for client SDK
-    let sdk_authorization = initiator.and_then(|init| match init {
-        hyperswitch_domain_models::platform::Initiator::Api {
-            merchant_account_type,
-            publishable_key,
-            ..
-        } => {
-            let platform_publishable_key = match merchant_account_type {
-                common_enums::MerchantAccountType::Platform => Some(publishable_key.clone()),
-                common_enums::MerchantAccountType::Standard
-                | common_enums::MerchantAccountType::Connected => None,
-            };
-
-            let sdk_auth_data = SdkAuthorization {
-                profile_id: profile.get_id().clone(),
-                publishable_key: publishable_key.clone(),
-                platform_publishable_key,
-                client_secret: client_secret.clone().expose().to_string(),
-                customer_id: payment_method_session.customer_id.clone(),
-                payment_method_session_id: Some(payment_method_session.id.clone()),
-            };
-
-            sdk_auth_data.encode().ok()
-        }
-        hyperswitch_domain_models::platform::Initiator::Admin
-        | hyperswitch_domain_models::platform::Initiator::Jwt { .. }
-        | hyperswitch_domain_models::platform::Initiator::EmbeddedToken { .. } => None,
-    });
+    let sdk_authorization = sdk_authorization.and_then(|auth| auth.encode().ok());
 
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
