@@ -4785,10 +4785,7 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData {
-            platform,
-            profile, // V2 doesn't use Option<Profile>, it's just Profile
-        };
+        let auth = AuthenticationData { platform, profile };
 
         Ok((
             (auth.clone(), payload.user_id.clone()),
