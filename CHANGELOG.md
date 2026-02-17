@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix6
+
+### Features
+
+- **payment-methods:** Payment method stable release ([#11279](https://github.com/juspay/hyperswitch/pull/11279)) ([`8282113`](https://github.com/juspay/hyperswitch/commit/82821136090eb48dafe5fdbc16d6223dea22d26b))
+
+**Full Changelog:** [`2026.02.04.1-hotfix5...2026.02.04.1-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix5...2026.02.04.1-hotfix6)
+
+- - -
+
 ## 2026.02.04.1-hotfix5
 
 ### Bug Fixes
