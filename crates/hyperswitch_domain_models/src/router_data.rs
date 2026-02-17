@@ -458,6 +458,7 @@ impl PaymentMethodToken {
             Self::PazeDecrypt(paze_data) => serde_json::to_string(paze_data.as_ref())
                 .ok()
                 .map(Secret::new),
+            _ => None,
         }
     }
 }
