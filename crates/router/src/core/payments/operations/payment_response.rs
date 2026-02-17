@@ -178,19 +178,24 @@ where
                         }
                         _ => None,
                     });
-
-                // #4 - Build connector token details only when a mandate reference is available.
+                let acknowledgement_status = if resp.status.should_update_payment_method(){
+                    Some(common_enums::AcknowledgementStatus::Authenticated)
+                } else {
+                    None
+                };
 
                 let payload = UpdatePaymentMethodV1Payload {
                     payment_method_data,
                     connector_token_details,
                     network_transaction_id: network_transaction_id.map(masking::Secret::new),
+                    acknowledgement_status,
                 };
 
                 // #5 - Execute the modular payment-method update call if there is something to be updated
                 if payload.payment_method_data.is_some()
                     || payload.connector_token_details.is_some()
                     || payload.network_transaction_id.is_some()
+                    || payload.acknowledgement_status.is_some()
                 {
                     match call_modular_payment_method_update(
                         state,
