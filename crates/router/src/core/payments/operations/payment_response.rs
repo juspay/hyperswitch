@@ -1939,6 +1939,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         )
         .await?;
 
+    payment_data.whole_connector_response = router_data.raw_connector_response.clone();
+
     let payment_method_status = router_data.payment_method_status;
 
     // TODO: refactor of gsm_error_category with respective feature flag
