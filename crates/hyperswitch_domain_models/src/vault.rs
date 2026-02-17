@@ -77,7 +77,7 @@ impl PaymentMethodVaultingData {
         payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         match self {
-            Self::Card(card_details) =>{
+            Self::Card(card_details) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
                     .change_context(
@@ -98,7 +98,7 @@ impl PaymentMethodVaultingData {
                     )?;
 
                 Ok(Self::Card(card_detail))
-            },
+            }
             Self::NetworkToken(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional

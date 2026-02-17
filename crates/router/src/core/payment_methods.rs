@@ -1268,18 +1268,21 @@ async fn payment_method_resolver(
                     payment_method: Box::new(existing_pm),
                     source_payment_method_data: payment_method_data,
                 }))
-            },
+            }
             enums::PaymentMethodStatus::Active => {
                 logger::info!("Payment method is duplicated, returning existing payment method");
                 Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
                     Box::new(existing_pm),
                 )))
-            },
+            }
             enums::PaymentMethodStatus::AwaitingData | enums::PaymentMethodStatus::Processing => {
                 // no payment method entry will be found with finger print id and awaiting data or processing state
                 logger::info!("Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id");
-                Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Payment method is in invalid state, expected New or Inactive"))
+                Err(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "Payment method is in invalid state, expected New or Inactive",
+                    ),
+                )
             }
         },
         Err(err) => {
