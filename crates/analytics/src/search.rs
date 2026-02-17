@@ -4,6 +4,7 @@ use api_models::analytics::search::{
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use masking::ExposeInterface;
 use router_env::tracing;
 use serde_json::Value;
@@ -21,6 +22,7 @@ pub fn convert_to_strings<T: ToString>(items: Vec<T>) -> Vec<String> {
     items.into_iter().map(|item| item.to_string()).collect()
 }
 
+#[cfg(feature = "v1")]
 pub fn get_search_filters(
     constraints: &api_models::payments::PaymentListFilterConstraints,
 ) -> api_models::analytics::search::SearchFilters {
