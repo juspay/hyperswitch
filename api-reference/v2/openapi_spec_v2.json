@@ -17805,6 +17805,56 @@
           }
         }
       },
+      "NetworkTransactionIdAndDecryptedWalletTokenDetails": {
+        "type": "object",
+        "description": "Network Transaction ID and Decrypted Wallet Token Details",
+        "required": [
+          "decrypted_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "decrypted_token": {
+            "type": "string",
+            "description": "The Decrypted Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "eci": {
+            "type": "string",
+            "description": "ECI indicator of the card",
+            "nullable": true
+          },
+          "token_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TokenSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndNetworkTokenDetails": {
         "type": "object",
         "required": [
@@ -20355,7 +20405,8 @@
         "required": [
           "payment_method_type",
           "customer_id",
-          "payment_method_data"
+          "payment_method_data",
+          "storage_type"
         ],
         "properties": {
           "payment_method_type": {
@@ -20409,12 +20460,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           }
         },
         "additionalProperties": false
@@ -21104,6 +21150,7 @@
           "merchant_id",
           "customer_id",
           "payment_method_type",
+          "storage_type",
           "network_transaction_id",
           "raw_payment_method_data"
         ],
@@ -21181,12 +21228,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           },
           "card_cvc_token_storage": {
             "allOf": [
@@ -21202,6 +21244,14 @@
           },
           "raw_payment_method_data": {
             "$ref": "#/components/schemas/RawPaymentMethodData"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21377,6 +21427,9 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
+        "required": [
+          "storage_type"
+        ],
         "properties": {
           "customer_id": {
             "type": "string",
@@ -21425,6 +21478,9 @@
           "tokenization_data": {
             "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
             "nullable": true
+          },
+          "storage_type": {
+            "$ref": "#/components/schemas/StorageType"
           }
         }
       },
@@ -26375,6 +26431,24 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "network_transaction_id_and_decrypted_wallet_token_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "card_with_limited_data"
                 ]
               },
@@ -29384,6 +29458,15 @@
             "$ref": "#/components/schemas/NetworkTokenDetailsResponse"
           }
         ]
+      },
+      "TokenSource": {
+        "type": "string",
+        "description": "Source of the token",
+        "enum": [
+          "google_pay",
+          "apple_pay"
+        ],
+        "example": "google_pay, apple_pay"
       },
       "TokenStatus": {
         "type": "string",
