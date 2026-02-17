@@ -9846,6 +9846,8 @@ pub struct ConnectorMetadata {
     pub adyen: Option<AdyenConnectorMetadata>,
     #[smithy(value_type = "Option<PeachpaymentsData>")]
     pub peachpayments: Option<PeachpaymentsData>,
+    #[smithy(value_type = "Option<SantanderData>")]
+    pub santander: Option<SantanderData>,
 }
 
 impl ConnectorMetadata {
@@ -12913,4 +12915,198 @@ impl PaymentsUpdateMetadataRequest {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderData {
+    #[smithy(value_type = "Option<SantanderBoletoData>")]
+    pub boleto: Option<SantanderBoletoData>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderBoletoData {
+    // Rules for applying discounts
+    #[smithy(value_type = "Option<SantanderPaymentDiscountRules>")]
+    #[schema(value_type = Option<SantanderPaymentDiscountRules>)]
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    #[smithy(value_type = "Option<PenaltyRules>")]
+    #[schema(value_type = Option<PenaltyRules>)]
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    #[smithy(value_type = "Option<CollectionActions>")]
+    #[schema(value_type = Option<CollectionActions>)]
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    #[smithy(value_type = "Option<PaymentConstraints>")]
+    #[schema(value_type = Option<PaymentConstraints>)]
+    pub payment_constraints: Option<PaymentConstraints>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PenaltyRules {
+    /// Fixed fee applied once after the due date (Fine)
+    #[smithy(value_type = "Option<PenaltyDetail>")]
+    #[schema(value_type = Option<PenaltyDetail>)]
+    pub fixed_penalty: Option<PenaltyDetail>,
+    /// Recurring cost applied over time (Interest)
+    #[smithy(value_type = "Option<PenaltyDetail>")]
+    #[schema(value_type = Option<PenaltyDetail>)]
+    pub recurring_interest: Option<PenaltyDetail>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PenaltyDetail {
+    /// Calculation logic: "percentage" or "flat_amount"
+    #[smithy(value_type = "CalculationType")]
+    #[schema(value_type = CalculationType, example = "percentage")]
+    pub calculation_type: CalculationType,
+    /// The numeric value (as a string to preserve decimal precision)
+    #[schema(value_type = String, example = "2.00")]
+    #[smithy(value_type = "String")]
+    pub value: StringMajorUnit,
+    /// Grace period: Days after due date before this applies
+    #[schema(example = 1)]
+    #[smithy(value_type = "Option<u32>")]
+    pub grace_period_days: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CollectionActions {
+    /// Logic for legal protest (official debt registration)
+    #[schema(value_type = Option<ProtestRules>)]
+    #[smithy(value_type = "Option<ProtestRules>")]
+    pub legal_protest: Option<ProtestRules>,
+    /// Days after which the bill is automatically cancelled/written off
+    #[schema(value_type = Option<u32>, example = 60)]
+    #[smithy(value_type = "Option<u32>")]
+    pub auto_write_off_days: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaymentConstraints {
+    /// Defines if the user can pay an amount different from the total
+    #[schema(value_type = PaymentAllowanceType, example = "partial")]
+    #[smithy(value_type = "PaymentAllowanceType")]
+    pub allowance_type: PaymentAllowanceType,
+    /// Minimum value allowed (if partial)
+    #[schema(value_type = Option<String>, example = "10.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub min_value: Option<StringMajorUnit>,
+    /// Maximum value allowed (if overpayment is supported)
+    #[schema(value_type = Option<String>, example = "5000.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub max_value: Option<StringMajorUnit>,
+    /// Max number of partial payments allowed
+    #[schema(value_type = Option<u32>, example = 2)]
+    #[smithy(value_type = "Option<u32>")]
+    pub max_installments: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationType {
+    /// The value is treated as a percentage (e.g., "2.00" represents 2%).
+    /// In financial contexts, this is often used for late fees (fines) or 
+    /// monthly interest rates.
+    Percentage,
+    /// The value is treated as a fixed monetary amount in the currency's major 
+    /// or minor unit (e.g., "10.00" represents $10.00).
+    /// Typically used for flat-fee penalties or specific rebate amounts.
+    FlatAmount,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentAllowanceType {
+    /// Only the exact amount is accepted
+    Exact,
+    /// Any amount between min and max
+    Partial,
+    /// Overpayment allowed (common in some B2B contexts)
+    Flexible,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum ProtestType {
+/// No legal protest will be initiated
+    Disabled,
+    /// Count is based on calendar days (Standard)
+    CalendarDays,
+    /// Count is based on business days (Mon-Fri, excluding bank holidays)
+    BusinessDays,
+    /// Protest logic is handled based on the merchant's pre-signed contract/agreement with the bank
+    ContractDefault,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPaymentDiscountRules {
+    /// Generic label for the logic (e.g., "tier_based", "early_bird")
+    #[schema(value_type = Option<DiscountType>, example = "fixed_date")]
+    #[smithy(value_type = "Option<DiscountType>")]
+    pub discount_type: Option<DiscountType>,
+    /// A generic vector of discount tiers
+    #[schema(value_type = Vec<DiscountTier>)]
+    #[smithy(value_type = "Option<DiscountType>")]
+    pub tiers: Vec<DiscountTier>,
+}
+
+#[derive(
+    Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, Display, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum DiscountType {
+    /// No discount logic will be applied. The payment amount remains at the base value.
+    #[default]
+    Standard,
+    /// A fixed amount reduction if paid on or before a specific date.
+    FixedDate,
+    /// A sliding discount calculated per calendar day until the due date.
+    DailyCalendar,
+    /// A sliding discount calculated per business day until the due date.
+    DailyBusiness,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DiscountTier {
+    /// The discount value (e.g., "5.50"). 
+    #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
+    pub amount: StringMajorUnit,
+    /// The ISO-8601 date until which this discount is valid
+    #[schema(value_type = Option<String>, example="2027-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    #[smithy(value_type = "String")]
+    pub end_date: Option<PrimitiveDateTime>,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct ProtestRules {
+    /// The timing logic for when the protest should occur
+    #[schema(value_type = ProtestType, example = "calendar_days")]
+    #[smithy(value_type = "ProtestType")]
+    pub protest_type: ProtestType,
+    /// Number of days after the due date to initiate the protest
+    #[schema(value_type = u32, example = 30)]
+    #[smithy(value_type = "u32")]
+    pub days_after_due_date: u32,
 }

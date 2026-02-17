@@ -29,7 +29,7 @@ pub enum SantanderDocumentKind {
 #[serde(rename_all = "camelCase")]
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
-    pub document_type: Option<String>,
+    pub document_type: Option<SantanderDocumentKind>,
     pub document_number: Option<Secret<String>>,
 }
 
