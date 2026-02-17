@@ -1,24 +1,24 @@
-use common_utils::{hashing::HashedString, id_type, types::TimeRange};
+use common_utils::{hashing::HashedString, types::TimeRange};
 use masking::WithType;
 use serde_json::Value;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
-    pub payment_method: Option<Vec<common_enums::PaymentMethod>>,
-    pub currency: Option<Vec<common_enums::Currency>>,
-    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method: Option<Vec<String>>,
+    pub currency: Option<Vec<String>>,
+    pub status: Option<Vec<String>>,
     pub customer_email: Option<Vec<HashedString<common_utils::pii::EmailStrategy>>>,
     pub search_tags: Option<Vec<HashedString<WithType>>>,
-    pub connector: Option<Vec<common_enums::connector_enums::Connector>>,
-    pub payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
-    pub card_network: Option<Vec<common_enums::CardNetwork>>,
+    pub connector: Option<Vec<String>>,
+    pub payment_method_type: Option<Vec<String>>,
+    pub card_network: Option<Vec<String>>,
     pub card_last_4: Option<Vec<String>>,
-    pub payment_id: Option<Vec<id_type::PaymentId>>,
+    pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
     pub amount_filter: Option<super::super::payments::AmountFilter>,
-    pub customer_id: Option<Vec<id_type::CustomerId>>,
-    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
-    pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
+    pub customer_id: Option<Vec<String>>,
+    pub authentication_type: Option<Vec<String>>,
+    pub card_discovery: Option<Vec<String>>,
     pub merchant_order_reference_id: Option<Vec<String>>,
 }
 impl SearchFilters {

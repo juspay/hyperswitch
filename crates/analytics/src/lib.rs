@@ -73,7 +73,6 @@ use self::{
     active_payments::metrics::{ActivePaymentsMetric, ActivePaymentsMetricRow},
     auth_events::metrics::{AuthEventMetric, AuthEventMetricRow},
     frm::metrics::{FrmMetric, FrmMetricRow},
-    opensearch::{OpenSearchClient, OpenSearchConfig},
     payment_intents::metrics::{PaymentIntentMetric, PaymentIntentMetricRow},
     payments::{
         distribution::{PaymentDistribution, PaymentDistributionRow},
@@ -93,21 +92,7 @@ pub enum AnalyticsProvider {
     CombinedSqlx(SqlxClient, ClickhouseClient),
 }
 
-#[derive(Clone, Debug)]
-pub enum SearchProvider {
-    Sqlx(SqlxClient),
-    Opensearch(OpenSearchClient),
-    CombinedOpensearch(SqlxClient, OpenSearchClient),
-    CombinedSqlx(SqlxClient, OpenSearchClient),
-}
-
 impl Default for AnalyticsProvider {
-    fn default() -> Self {
-        Self::Sqlx(SqlxClient::default())
-    }
-}
-
-impl Default for SearchProvider {
     fn default() -> Self {
         Self::Sqlx(SqlxClient::default())
     }
@@ -1050,67 +1035,6 @@ impl AnalyticsConfig {
             | Self::CombinedCkh { forex_enabled, .. }
             | Self::CombinedSqlx { forex_enabled, .. } => *forex_enabled,
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum SearchConfig {
-    Sqlx {
-        sqlx: Database,
-    },
-    Opensearch {
-        opensearch: OpenSearchConfig,
-    },
-    CombinedOpensearch {
-        sqlx: Database,
-        opensearch: OpenSearchConfig,
-    },
-    CombinedSqlx {
-        sqlx: Database,
-        opensearch: OpenSearchConfig,
-    },
-}
-
-impl SearchProvider {
-    pub async fn search_results(
-        &self,
-        req: api_models::analytics::search::GetSearchRequestWithIndex,
-        auth: Vec<AuthInfo>,
-    ) -> CustomResult<api_models::analytics::search::GetSearchResponse, opensearch::OpenSearchError>
-    {
-        match self {
-            Self::Opensearch(client) => search::search_results(client, req, auth).await,
-            Self::Sqlx(_) => Err(error_stack::report!(
-                opensearch::OpenSearchError::NotEnabled
-            )),
-            Self::CombinedOpensearch(_sqlx_client, opensearch_client) => {
-                search::search_results(opensearch_client, req, auth).await
-            }
-            Self::CombinedSqlx(_sqlx_client, opensearch_client) => {
-                search::search_results(opensearch_client, req, auth).await
-            }
-        }
-    }
-
-    pub async fn msearch_results(
-        &self,
-        req: api_models::analytics::search::GetGlobalSearchRequest,
-        auth: Vec<AuthInfo>,
-        indexes: Vec<api_models::analytics::search::SearchIndex>,
-    ) -> CustomResult<
-        Vec<api_models::analytics::search::GetSearchResponse>,
-        opensearch::OpenSearchError,
-    > {
-        match self {
-            Self::Opensearch(client) => search::msearch_results(client, req, auth, indexes).await,
-            Self::Sqlx(_) | Self::CombinedOpensearch(_, _) | Self::CombinedSqlx(_, _) => Err(
-                error_stack::report!(opensearch::OpenSearchError::NotEnabled),
-            ),
-        }
-    }
-
-    pub fn is_opensearch_enabled(&self) -> bool {
-        !matches!(self, Self::Sqlx(_))
     }
 }
 
