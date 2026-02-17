@@ -880,6 +880,7 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
+    if: ${{ github.event_name == 'pull_request' && needs.resolve-s-test-ready.outputs.s_test_ready == 'true' }}
     needs: [resolve-s-test-ready, build-hyperswitch-runners]
     runs-on: hyperswitch-runners
     env:
