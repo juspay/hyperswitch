@@ -920,6 +920,29 @@ where
 
                 Some(resp.payment_method_id)
             } else {
+                let is_network_tokenization_enabled =
+                    business_profile.is_network_tokenization_enabled;
+
+                if is_network_tokenization_enabled {
+                    process_network_tokenization(
+                        state,
+                        platform,
+                        &save_payment_method_data.request.get_payment_method_data(),
+                        save_payment_method_data.payment_method,
+                        payment_method_type,
+                        customer_id,
+                        billing_name,
+                        payment_method_billing_address,
+                        payment_method_info,
+                    )
+                    .await
+                    .inspect_err(|err| {
+                        logger::error!("Failed to process network tokenization: {:?}", err);
+                    })
+                    .attach_printable("Failed to process network tokenization")
+                    .ok(); // should we throw error here?
+                }
+
                 None
             };
             // check if there needs to be a config if yes then remove it to a different place
@@ -1996,5 +2019,120 @@ pub async fn save_card_and_network_token_in_locker(
                 Ok(((res, dc, None), None))
             }
         }
+    }
+}
+
+async fn process_network_tokenization(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    customer_id: Option<id_type::CustomerId>,
+    billing_name: Option<Secret<String>>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    payment_method_info: Option<domain::PaymentMethod>,
+) -> RouterResult<()> {
+    // check if payment method already has a network token associated
+    if let Some(true) = payment_method_info
+        .as_ref()
+        .map(|pm| pm.network_token_requestor_reference_id.is_some())
+    {
+        logger::info!(
+            "Payment method already has a network token associated, skipping network tokenization"
+        );
+        Ok(())
+    } else {
+        // Extract card data and attempt network tokenization
+        if let domain::PaymentMethodData::Card(card_data) = &payment_method_data {
+            let payment_method_create_request = payment_methods::get_payment_method_create_request(
+                Some(&payment_method_data),
+                Some(payment_method),
+                payment_method_type,
+                &customer_id.clone(),
+                billing_name,
+                payment_method_billing_address,
+            )
+            .await?;
+
+            // Call save_network_token_in_locker - it will handle tokenization if network_token_data is None
+            let (network_token_resp, _dc, network_token_requestor_ref_id) =
+                Box::pin(save_network_token_in_locker(
+                    state,
+                    platform,
+                    card_data,
+                    None,
+                    payment_method_create_request.clone(),
+                ))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Add Network Token In Locker Failed")?;
+
+            // Update payment method with network token details if available
+            if let (Some(token_resp), Some(pm_info)) = (network_token_resp, payment_method_info) {
+                let network_token_locker_id = if network_token_requestor_ref_id.is_some() {
+                    Some(token_resp.payment_method_id.clone())
+                } else {
+                    None
+                };
+
+                // Create encrypted network token data
+                let key_manager_state = state.into();
+                let pm_network_token_data_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = {
+                    let pm_token_details = token_resp.card.as_ref().map(|card| {
+                        domain::PaymentMethodsData::Card(domain::CardDetailsPaymentMethod::from((
+                            card.clone(),
+                            None,
+                        )))
+                    });
+
+                    pm_token_details
+                        .async_map(|pm_card| {
+                            create_encrypted_data(
+                                &key_manager_state,
+                                platform.get_provider().get_key_store(),
+                                pm_card,
+                            )
+                        })
+                        .await
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt payment method data")?
+                };
+
+                // Update the payment method with network token details
+                let db = &*state.store;
+                payment_methods::cards::update_payment_method_network_token_data(
+                    platform.get_provider().get_key_store(),
+                    db,
+                    pm_info.clone(),
+                    network_token_requestor_ref_id.clone(),
+                    network_token_locker_id,
+                    pm_network_token_data_encrypted,
+                    platform.get_provider().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method with network token details")?;
+
+                // Save network token details in NT mapper table if network_token_requestor_ref_id is present
+                if let (Some(nt_ref_id), Some(cust_id)) =
+                    (network_token_requestor_ref_id, customer_id.clone())
+                {
+                    save_network_token_details_in_nt_mapper(
+                        state,
+                        platform,
+                        &cust_id,
+                        pm_info.payment_method_id.clone(),
+                        nt_ref_id,
+                    )
+                    .await
+                    .attach_printable("Failed to save network token details in NT mapper table")?;
+                }
+            }
+        }
+        Ok(())
     }
 }

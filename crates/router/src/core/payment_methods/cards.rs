@@ -2304,6 +2304,30 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn update_payment_method_network_token_data(
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    network_token_requestor_reference_id: Option<String>,
+    network_token_locker_id: Option<String>,
+    pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::NetworkTokenDataUpdate {
+        network_token_requestor_reference_id,
+        network_token_locker_id: network_token_locker_id,
+        network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
+        last_modified_by: None,
+    };
+
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
+    Ok(())
+}
+
 pub async fn update_payment_method_and_last_used(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
