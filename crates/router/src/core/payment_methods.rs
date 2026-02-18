@@ -1445,6 +1445,7 @@ impl PaymentMethodResolver {
                     req.customer_id.clone(),
                     None,
                     billing,
+                    None,
                 )?;
 
                 Ok((resp, *existing_pm))
@@ -1656,6 +1657,7 @@ async fn execute_payment_method_create(
                 req.customer_id.clone(),
                 None,
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
+                None,
             )?;
 
             Ok((resp, payment_method))
@@ -1813,6 +1815,7 @@ pub async fn create_volatile_payment_method_card_core(
                 req.customer_id,
                 None,
                 None,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1929,6 +1932,7 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
         None,
         None,
     )?;
@@ -2348,6 +2352,7 @@ pub async fn payment_method_intent_create(
         Some(customer_id),
         None,
         None,
+        None
     )?;
 
     Ok(services::ApplicationResponse::Json(resp))
@@ -2386,8 +2391,6 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
-    let fetch_new_payment_methods = true;
-
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
             profile.get_id(),
@@ -2404,7 +2407,7 @@ pub async fn list_payment_methods_for_session(
                 &state,
                 platform.get_provider(),
                 customer_id,
-                fetch_new_payment_methods,
+                payment_method_session.keep_alive,
             )
             .await?
         }
@@ -2456,10 +2459,10 @@ pub async fn list_saved_payment_methods_for_customer(
     state: SessionState,
     provider: domain::Provider,
     customer_id: id_type::GlobalCustomerId,
-    fetch_new_payment_methods: bool,
+    include_new: bool,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
     let customer_payment_methods =
-        list_payment_methods_core(&state, &provider, &customer_id, fetch_new_payment_methods)
+        list_payment_methods_core(&state, &provider, &customer_id, include_new)
             .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -3661,11 +3664,11 @@ pub async fn list_payment_methods_core(
     state: &SessionState,
     provider: &domain::Provider,
     customer_id: &id_type::GlobalCustomerId,
-    fetch_new_payment_methods: bool,
+    include_new: bool,
 ) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
 
-    let statuses = if fetch_new_payment_methods {
+    let statuses = if include_new {
         vec![
             common_enums::PaymentMethodStatus::Active,
             common_enums::PaymentMethodStatus::New,
@@ -3703,10 +3706,10 @@ pub async fn list_customer_payment_methods_core(
     state: &SessionState,
     provider: &domain::Provider,
     customer_id: &id_type::GlobalCustomerId,
-    fetch_new_payment_methods: bool,
+    include_new: bool,
 ) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
     let db = &*state.store;
-    let statuses = if fetch_new_payment_methods {
+    let statuses = if include_new {
         vec![
             common_enums::PaymentMethodStatus::Active,
             common_enums::PaymentMethodStatus::New,
@@ -3819,6 +3822,10 @@ pub async fn retrieve_payment_method(
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("Failed to fetch payment method by storage")?;
+    when(
+        payment_method.status == common_enums::PaymentMethodStatus::Inactive,
+        || Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound).attach_printable("Payment method is inactive")),
+    )?;
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         db,
@@ -3866,6 +3873,7 @@ pub async fn retrieve_payment_method(
         payment_method.customer_id.clone(),
         raw_payment_method_data,
         billing,
+        None
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -4248,7 +4256,7 @@ async fn execute_payment_method_update_handler(
         .generate_response(card_cvc_details)
         .attach_printable("Failed to generate response for payment method update")?;
 
-    Ok((response, handler.payment_method.clone()))
+    Ok((response, handler.payment_method.clone(),))
 }
 
 #[cfg(feature = "v2")]
@@ -5803,6 +5811,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .payment_method_billing_address
                 .clone()
                 .map(|billing| billing.get_inner().clone().into()),
+            self.request.acknowledgement_status,
         )?;
 
         Ok(response)

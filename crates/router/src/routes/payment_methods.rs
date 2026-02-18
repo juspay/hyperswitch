@@ -871,7 +871,7 @@ pub async fn list_customer_payment_method_api(
                 state,
                 auth.platform.get_provider().clone(),
                 customer_id.clone(),
-                payload.fetch_new_payment_methods.unwrap_or(false),
+                payload.include_new.unwrap_or(false),
             )
         },
         &*auth_type,

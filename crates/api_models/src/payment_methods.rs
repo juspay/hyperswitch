@@ -551,6 +551,7 @@ pub struct PaymentMethodUpdate {
     #[schema(value_type = Option<String>)]
     pub network_transaction_id: Option<masking::Secret<String>>,
 
+    /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
@@ -1250,6 +1251,9 @@ pub struct PaymentMethodResponse {
     /// Billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+
+    /// The acknowledgement status of the payment method update
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -2277,7 +2281,7 @@ pub struct ListMethodsForPaymentMethodsRequest {
     #[schema(example = 1)]
     pub limit: Option<i64>,
 
-    pub fetch_new_payment_methods: Option<bool>,
+    pub include_new: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2343,10 +2347,10 @@ impl<'de> serde::Deserialize<'de> for ListMethodsForPaymentMethodsRequest {
                         "limit" => {
                             set_or_reject_duplicate(&mut output.limit, "limit", map.next_value()?)?;
                         }
-                        "fetch_new_payment_methods" => {
+                        "include_new" => {
                             set_or_reject_duplicate(
-                                &mut output.fetch_new_payment_methods,
-                                "fetch_new_payment_methods",
+                                &mut output.include_new,
+                                "include_new",
                                 map.next_value()?,
                             )?;
                         }
