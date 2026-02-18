@@ -18,7 +18,9 @@ use common_utils::{
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
 };
-pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
+pub use diesel_models::{
+    enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v1")]
@@ -134,8 +136,7 @@ pub struct PaymentMethod {
     pub network_token_payment_method_data:
         Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
     #[encrypt(ty = Value)]
-    pub external_vault_token_data:
-        Option<Encryptable<api_models::payment_methods::ExternalVaultTokenData>>,
+    pub external_vault_token_data: Option<Encryptable<payment_methods::ExternalVaultTokenData>>,
     pub vault_type: Option<storage_enums::VaultType>,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
@@ -311,6 +312,95 @@ impl PaymentMethod {
         payment_method_subtype: common_enums::PaymentMethodType,
     ) {
         self.payment_method_subtype = Some(payment_method_subtype);
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct PaymentMethodUpdate {
+    pub payment_method_data: Option<payment_methods::PaymentMethodUpdateData>,
+    pub connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
+    pub network_transaction_id: Option<Secret<String>>,
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+    pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
+}
+
+#[cfg(feature = "v2")]
+impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
+    fn from(value: payment_methods::PaymentMethodUpdate) -> Self {
+        Self {
+            payment_method_data: value.payment_method_data,
+            connector_token_details: value.connector_token_details,
+            network_transaction_id: value.network_transaction_id,
+            acknowledgement_status: value.acknowledgement_status,
+            network_tokenization: None,
+            source_payment_method_data: None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodUpdate {
+    pub fn fetch_card_cvc_update(&self) -> Option<Secret<String>> {
+        match &self.payment_method_data {
+            Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
+                card_update.card_cvc.clone()
+            }
+            _ => None,
+        }
+    }
+
+    pub fn is_payment_method_metadata_update(&self) -> bool {
+        match &self.payment_method_data {
+            Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
+                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_payment_method_update_required(&self) -> bool {
+        self.is_payment_method_metadata_update()
+            || self.connector_token_details.is_some()
+            || self.network_transaction_id.is_some()
+            || self.acknowledgement_status.is_some()
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    From<(
+        &payment_methods::PaymentMethodCreate,
+        crate::vault::PaymentMethodVaultingData,
+    )> for PaymentMethodUpdate
+{
+    fn from(
+        value: (
+            &payment_methods::PaymentMethodCreate,
+            crate::vault::PaymentMethodVaultingData,
+        ),
+    ) -> Self {
+        let (req, source_payment_method_data) = value;
+        let payment_method_data = match &req.payment_method_data {
+            payment_methods::PaymentMethodCreateData::Card(card_data) => Some(
+                payment_methods::PaymentMethodUpdateData::Card(payment_methods::CardDetailUpdate {
+                    card_holder_name: card_data.card_holder_name.clone(),
+                    nick_name: card_data.nick_name.clone(),
+                    card_cvc: card_data.card_cvc.clone(),
+                }),
+            ),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
+        };
+
+        Self {
+            payment_method_data,
+            connector_token_details: None,
+            network_transaction_id: None,
+            acknowledgement_status: None,
+            network_tokenization: req.network_tokenization.clone(),
+            source_payment_method_data: Some(source_payment_method_data),
+        }
     }
 }
 
@@ -762,6 +852,7 @@ pub struct PaymentMethodSession {
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
     pub storage_type: common_enums::StorageType,
+    pub keep_alive: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -783,6 +874,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
             storage_type: self.storage_type,
+            keep_alive: self.keep_alive,
         })
     }
 
@@ -838,6 +930,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 return_url: storage_model.return_url,
                 associated_token_id: storage_model.associated_token_id,
                 storage_type: storage_model.storage_type,
+                keep_alive: storage_model.keep_alive,
             })
         }
         .await
@@ -860,6 +953,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
             storage_type: self.storage_type,
+            keep_alive: self.keep_alive,
         })
     }
 }
@@ -942,6 +1036,18 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        statuses: Vec<common_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
+
     #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
@@ -967,7 +1073,7 @@ pub trait PaymentMethodInterface {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method_update: StoragePaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
@@ -1052,6 +1158,7 @@ impl PaymentMethodSession {
             associated_payment,
             associated_token_id,
             storage_type,
+            keep_alive,
         } = self;
         Self {
             id,
@@ -1068,6 +1175,7 @@ impl PaymentMethodSession {
             associated_payment,
             associated_token_id,
             storage_type,
+            keep_alive,
         }
     }
 }

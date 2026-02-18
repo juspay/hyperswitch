@@ -5364,6 +5364,13 @@
           }
         }
       },
+      "AcknowledgementStatus": {
+        "type": "string",
+        "enum": [
+          "authenticated",
+          "failed"
+        ]
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -15593,6 +15600,10 @@
             "description": "Indicates the limit of last used payment methods",
             "example": 1,
             "nullable": true
+          },
+          "include_new": {
+            "type": "boolean",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21000,6 +21011,14 @@
               }
             ],
             "nullable": true
+          },
+          "acknowledgement_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcknowledgementStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21229,6 +21248,11 @@
           },
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
+          },
+          "keep_alive": {
+            "type": "boolean",
+            "description": "Whether the card with new status should be listed in the session",
+            "nullable": true
           }
         }
       },
@@ -21237,7 +21261,8 @@
         "required": [
           "id",
           "expires_at",
-          "client_secret"
+          "client_secret",
+          "keep_alive"
         ],
         "properties": {
           "id": {
@@ -21354,6 +21379,10 @@
             "description": "SDK authorization token for client SDK usage\nContains encoded authentication details for subsequent API calls",
             "example": "cHJvZmlsZV9pZD0uLi4=",
             "nullable": true
+          },
+          "keep_alive": {
+            "type": "boolean",
+            "description": "Whether the card with new status should be listed in the session"
           }
         }
       },
@@ -21391,7 +21420,8 @@
           "active",
           "inactive",
           "processing",
-          "awaiting_data"
+          "awaiting_data",
+          "new"
         ]
       },
       "PaymentMethodSubtypeSpecificData": {
@@ -21568,6 +21598,14 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "acknowledgement_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcknowledgementStatus"
+              }
+            ],
             "nullable": true
           }
         },
