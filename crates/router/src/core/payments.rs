@@ -9033,17 +9033,6 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("euclid: failed to fetch fallback config")?;
 
-    // let transaction_d = &TransactionData::Payment(transaction_data.clone());
-
-    // let backend_input = match transaction_d {
-    //     TransactionData::Payment(payment_data) => routing::make_dsl_input(payment_data)
-    //         .change_context(errors::ApiErrorResponse""),
-    //     #[cfg(feature = "payouts")]
-    //     TransactionData::Payout(payout_data) => {
-    //         routing::make_dsl_input_for_payouts(payout_data).unwrap()
-    //     }
-    // };
-
     let backend_input = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
         logger::error!(
             error=?err,
@@ -9370,7 +9359,6 @@ where
         .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.set_connector_in_payment_attempt(routing_data.routed_through);
-
     payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
     payment_data.set_straight_through_algorithm_in_payment_attempt(encoded_info);
 
@@ -9598,6 +9586,7 @@ where
     if let Some(connector) = pre_decided_connector {
         return Ok(connector);
     }
+
     let transaction_data = core_routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
         payment_data.get_payment_attempt(),
@@ -10381,7 +10370,7 @@ where
                 message: "Active mca_ids not found".to_string(),
             })?;
 
-    let input = routing::SessionRoutingInput {
+    let session_input = routing::SessionRoutingInput {
         state: &state,
         business_profile,
         key_store: platform.get_processor().get_key_store(),
@@ -10403,14 +10392,14 @@ where
             .unwrap_or_default()
     };
 
-    let stage = routing::SessionRoutingStage {
+    let session_routing_stage = routing::SessionRoutingStage {
         ctx: routing::SessionRoutingContext {
             routing_algorithm: routing_algorithm.into(),
         },
     };
 
-    let outcome = stage
-        .route(input)
+    let outcome = session_routing_stage
+        .route(session_input)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session routing stage")?;

@@ -714,6 +714,7 @@ impl RoutingStage for SessionRoutingStage {
                 api_enums::PaymentMethodType,
                 Vec<routing_types::SessionRoutingChoice>,
             > = FxHashMap::default();
+
             for (pm_type, allowed_connectors) in pm_type_map {
                 let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
                 let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
@@ -741,7 +742,6 @@ impl RoutingStage for SessionRoutingStage {
                     })
                     .await;
 
-                // let transaction_data = &routing::TransactionData::Payment(payment_input);
                 let static_input = StaticRoutingInput {
                     backend_input: input.backend_input,
                 };
@@ -761,7 +761,7 @@ impl RoutingStage for SessionRoutingStage {
                             .inspect_err(|err| {
                                 logger::error!(
                                     error=?err,
-                                    "euclid: static routing failed"
+                                    "euclid: session routing failed"
                                 );
                             })
                             .ok()
@@ -781,8 +781,8 @@ impl RoutingStage for SessionRoutingStage {
                         common_enums::RoutingApproach::DefaultFallback,
                     );
 
-                let mut final_selection = perform_cgraph_filtering(
-                    &input.state.clone(),
+                let primary = perform_cgraph_filtering(
+                    input.state,
                     input.key_store,
                     chosen_connectors,
                     input.backend_input.clone(),
@@ -793,25 +793,26 @@ impl RoutingStage for SessionRoutingStage {
                 )
                 .await?;
 
-                if final_selection.is_empty() {
-                    final_selection = perform_cgraph_filtering(
-                        &input.state.clone(),
+                let final_selection = if primary.is_empty() {
+                    perform_cgraph_filtering(
+                        input.state,
                         input.key_store,
-                        input.default_config.to_vec(),
+                        input.default_config.clone(),
                         input.backend_input.clone(),
                         None,
                         profile_id,
                         input.transaction_type,
                         input.active_mca_ids,
                     )
-                    .await?;
-                }
-
-                let routable_connector_choice_option = if final_selection.is_empty() {
-                    (None, static_approach)
+                    .await?
                 } else {
-                    (Some(final_selection), static_approach)
+                    primary
                 };
+
+                let routable_connector_choice_option = final_selection
+                    .is_empty()
+                    .then(|| (None, static_approach.clone()))
+                    .unwrap_or((Some(final_selection), static_approach));
 
                 final_routing_approach = routable_connector_choice_option.1;
 
