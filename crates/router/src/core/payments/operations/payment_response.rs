@@ -194,7 +194,7 @@ where
                 {
                     match call_modular_payment_method_update(
                         state,
-                        &payment_data.payment_attempt.merchant_id,
+                        &payment_data.payment_attempt.processor_merchant_id,
                         &payment_data.payment_attempt.profile_id,
                         &payment_method_id,
                         payload,
