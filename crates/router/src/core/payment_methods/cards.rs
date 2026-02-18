@@ -632,7 +632,11 @@ impl PaymentMethodsController for PmCards<'_> {
             .attach_printable("Failed to encode Vaulting data to string")?;
 
         let payload = pm_types::VaultFingerprintRequest {
-            key: customer_id.get_string_repr().to_owned(),
+            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                // The merchant_id should belong to the Provider
+                key_store.merchant_id.clone(),
+                customer_id.to_owned(),
+            ),
             data,
         }
         .encode_to_vec()

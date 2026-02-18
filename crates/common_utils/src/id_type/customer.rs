@@ -26,7 +26,7 @@ impl crate::events::ApiEventMetric for CustomerId {
 }
 
 impl CustomerId {
-    /// Get a merchant id from String
+    /// Get a customer id from String
     pub fn wrap(customer_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(customer_id))
     }
