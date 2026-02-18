@@ -2343,10 +2343,7 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_ucs_enabled(
-    dimensions: &DimensionsWithMerchantId,
-    state: &SessionState,
-) -> bool {
+pub async fn is_ucs_enabled(dimensions: &DimensionsWithMerchantId, state: &SessionState) -> bool {
     dimensions
         .get_ucs_enabled(
             state.store.as_ref(),

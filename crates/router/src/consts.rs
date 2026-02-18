@@ -359,14 +359,14 @@ pub mod superposition {
     /// extended card bin enabled configuration key
     pub const EXTENDED_CARD_BIN_ENABLED: &str = "extended_card_bin_enabled";
     /// should call gsm configuration
-    pub const SHOULD_CALL_GSM : &str = "should_call_gsm_";
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm_";
     /// payment update enabled for client auth configuration key
-    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str = "payment_update_enabled_for_client_auth";
+    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
+        "payment_update_enabled_for_client_auth";
     /// UCS enabled configuration key
     pub const UCS_ENABLED: &str = "ucs_enabled";
     /// Authentication service eligibility configuration key
     pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
-
 }
 
 #[cfg(test)]
