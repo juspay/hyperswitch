@@ -10912,6 +10912,7 @@ default_impl_connector_access_token!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Revolv3,
     connectors::Shift4,
     connectors::Silverflow,
     connectors::Square,
