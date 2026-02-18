@@ -866,11 +866,12 @@ pub async fn list_customer_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, _, _| {
+        |state, auth: auth::AuthenticationData, payload, _| {
             payment_methods_routes::list_saved_payment_methods_for_customer(
                 state,
                 auth.platform.get_provider().clone(),
                 customer_id.clone(),
+                payload.include_new.unwrap_or(false),
             )
         },
         &*auth_type,

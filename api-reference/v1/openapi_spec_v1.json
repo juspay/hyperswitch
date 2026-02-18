@@ -27123,7 +27123,8 @@
           "active",
           "inactive",
           "processing",
-          "awaiting_data"
+          "awaiting_data",
+          "new"
         ]
       },
       "PaymentMethodTokenizationDetails": {

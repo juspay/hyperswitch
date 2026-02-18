@@ -178,19 +178,24 @@ where
                         }
                         _ => None,
                     });
-
-                // #4 - Build connector token details only when a mandate reference is available.
+                let acknowledgement_status = if resp.status.should_update_payment_method() {
+                    Some(common_enums::AcknowledgementStatus::Authenticated)
+                } else {
+                    None
+                };
 
                 let payload = UpdatePaymentMethodV1Payload {
                     payment_method_data,
                     connector_token_details,
                     network_transaction_id: network_transaction_id.map(masking::Secret::new),
+                    acknowledgement_status,
                 };
 
                 // #5 - Execute the modular payment-method update call if there is something to be updated
                 if payload.payment_method_data.is_some()
                     || payload.connector_token_details.is_some()
                     || payload.network_transaction_id.is_some()
+                    || payload.acknowledgement_status.is_some()
                 {
                     match call_modular_payment_method_update(
                         state,
@@ -3580,7 +3585,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                             connector_token_details_for_payment_method_update,
                         ),
                         network_transaction_id: None,
+                        acknowledgement_status: None, //based on the response from the connector we can decide the acknowledgement status to be sent to payment method service
                     };
+
+                let payment_method_update_request =
+                    hyperswitch_domain_models::payment_methods::PaymentMethodUpdate::from(
+                        payment_method_update_request,
+                    );
 
                 Box::pin(payment_methods::update_payment_method_core(
                     state,
@@ -3588,6 +3599,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                     business_profile,
                     payment_method_update_request,
                     &payment_method_id,
+                    None,
+                    None,
                 ))
                 .await
                 .attach_printable("Failed to update payment method")?;

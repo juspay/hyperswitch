@@ -577,6 +577,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
@@ -585,6 +586,7 @@ pub fn generate_payment_method_response(
     customer_id: Option<id_type::GlobalCustomerId>,
     raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
     billing: Option<api::Address>,
+    acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -654,6 +656,7 @@ pub fn generate_payment_method_response(
             .map(Secret::new),
         raw_payment_method_data,
         billing,
+        acknowledgement_status,
     };
 
     Ok(resp)
@@ -1053,6 +1056,7 @@ pub fn generate_payment_method_session_response(
         card_cvc_token_storage,
         payment_method_data,
         sdk_authorization,
+        keep_alive: payment_method_session.keep_alive,
     }
 }
 
