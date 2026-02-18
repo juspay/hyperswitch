@@ -62,7 +62,7 @@ where
     actix_web::dev::forward_ready!(service);
 
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
-        let start_time = Instant::now();
+        let middleware_start_time = Instant::now();
         let user_agent = req
                 .headers()
                 .get(headers::USER_AGENT)
@@ -73,7 +73,8 @@ where
         let event_handler_opt = req
             .app_data::<Data<EventsHandler>>()
             .map(|data| data.get_ref().clone());
-        
+
+        let start_time = Instant::now();
         let response_fut = self.service.call(req);
         
         Box::pin(async move {
@@ -146,6 +147,9 @@ where
                 logger::debug!("NewApiEvent details:\n{}", api_event_json);
             }
 
+            let middleware_latency = middleware_start_time.elapsed().as_millis() - latency;
+            logger::info!("Middleware processing latency: {} ms", middleware_latency);
+            
             let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
             Ok(response)
         })

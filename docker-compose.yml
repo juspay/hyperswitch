@@ -438,6 +438,8 @@ services:
       - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     environment:
       - TZ=Asia/Kolkata
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=Clickhouse@123
     profiles:
       - olap
     ulimits:

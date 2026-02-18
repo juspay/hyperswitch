@@ -373,7 +373,20 @@ where
     logger::info!("Added API event to request extensions for access in middleware");
     state.event_handler().log_event(&api_event);
 
-    request.extensions_mut().insert(session_state.observability.clone());
+    let collector = if session_state.store.get_key_manager_state().is_some() {
+        logger::info!("Using existing observability collector from session state store for request extensions");
+        session_state
+            .store
+            .get_key_manager_state()
+            .unwrap()
+            .observability
+            .clone()
+    } else {
+        logger::info!("Creating new observability collector for request extensions as session state store does not have it");
+        Arc::new(Mutex::new(ExternalServiceCallCollector::default()))
+    };
+
+    request.extensions_mut().insert(collector);
     logger::info!("Added observability collector to request extensions for access in middleware");
 
     output

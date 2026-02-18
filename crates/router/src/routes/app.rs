@@ -28,7 +28,7 @@ use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
     types as interfaces_types,
 };
-use router_env::RequestId;
+use router_env::{RequestId, logger};
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
@@ -143,7 +143,6 @@ pub struct SessionState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Option<Arc<SuperpositionClient>>,
-    pub observability: Arc<Mutex<ExternalServiceCallCollector>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -580,6 +579,7 @@ impl AppState {
             )),
             created_from: "get_store_interface".to_string(),
         };
+        logger::info!("Creating store interface for tenant");
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
@@ -675,7 +675,6 @@ impl AppState {
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
-            observability: key_manager_state.observability.clone(),
         })
     }
 

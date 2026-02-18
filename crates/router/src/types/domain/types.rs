@@ -39,6 +39,7 @@ impl From<&app::SessionState> for KeyManagerState {
     fn from(state: &app::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
         logger::info!("Creating key manager state from session state from impl");
+        let store_km_state = state.store.get_key_manager_state();
         Self {
             global_tenant_id: state.conf.multitenancy.global_tenant.tenant_id.clone(),
             tenant_id: state.tenant.tenant_id.clone(),
@@ -53,7 +54,13 @@ impl From<&app::SessionState> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
-            observability: state.observability.clone(),
+            observability: if store_km_state.is_some() {
+                logger::info!("Using existing observability collector from store for key manager state");
+                store_km_state.unwrap().observability.clone()
+            } else {
+                logger::info!("Creating new observability collector for key manager state as store does not have it");
+                Arc::new(Mutex::new(ExternalServiceCallCollector::default()))
+            },
             created_from: "from_session_state".to_string(),
         }
     }

@@ -612,7 +612,7 @@ credit = { country = "US,CA", currency = "USD" }
 debit = { country = "US,CA", currency = "USD" }
 
 [pm_filters.volt]
-open_banking = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "GBP,EUR,DKK,NOK,PLN,SEK" }
+# open_banking = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "GBP,EUR,DKK,NOK,PLN,SEK" }
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "GBP" }
 
 [pm_filters.razorpay]
@@ -1137,12 +1137,12 @@ routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 
 [analytics]
-source = "sqlx"
+source = "clickhouse"
 forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
 username = "default"
-# password = ""
+password = "Clickhouse@123"
 host = "http://localhost:8123"
 database_name = "default"
 
@@ -1170,7 +1170,7 @@ partner_id = ""
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 
 [file_storage]
 file_storage_backend = "file_system"
