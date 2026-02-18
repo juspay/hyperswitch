@@ -3362,13 +3362,6 @@ impl UserInterface for KafkaStore {
             .await
     }
 
-    async fn deactivate_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.deactivate_user_by_user_id(user_id).await
-    }
-
     async fn find_active_users_by_user_ids(
         &self,
         user_ids: Vec<String>,

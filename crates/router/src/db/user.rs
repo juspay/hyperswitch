@@ -46,11 +46,6 @@ pub trait UserInterface {
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
-    async fn deactivate_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError>;
-
     async fn find_active_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
@@ -134,16 +129,6 @@ impl UserInterface for Store {
         storage::User::update_active_by_user_email(&conn, user_email.get_inner(), user_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn deactivate_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        self.update_active_user_by_user_id(user_id, storage::UserUpdate::DeactivateUpdate)
-            .await
-            .map(|_| true)
     }
 
     async fn find_active_users_by_user_ids(
@@ -401,15 +386,6 @@ impl UserInterface for MockDb {
         };
 
         Ok(user.to_owned())
-    }
-
-    async fn deactivate_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        self.update_active_user_by_user_id(user_id, storage::UserUpdate::DeactivateUpdate)
-            .await
-            .map(|_| true)
     }
 
     async fn find_active_users_by_user_ids(

@@ -10,6 +10,7 @@ use api_models::{
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     organization::OrganizationBridge,
+    user::UserUpdate,
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
@@ -730,7 +731,7 @@ pub async fn delete_user_role(
             .change_context(UserErrors::InternalServerError)?;
         state
             .global_store
-            .deactivate_user_by_user_id(user_from_db.get_user_id())
+            .update_active_user_by_user_id(user_from_db.get_user_id(), UserUpdate::DeactivateUpdate)
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user entry")?;

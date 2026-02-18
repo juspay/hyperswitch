@@ -754,7 +754,7 @@ async fn handle_invitation(
         .err()
         .unwrap_or(false)
     {
-        handle_new_user_invitation(
+        handle_new_or_inactive_user_invitation(
             state,
             user_from_token,
             request,
@@ -996,7 +996,7 @@ async fn handle_existing_user_invitation(
 }
 
 #[allow(unused_variables)]
-async fn handle_new_user_invitation(
+async fn handle_new_or_inactive_user_invitation(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
