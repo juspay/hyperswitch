@@ -76,6 +76,12 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
+      Response: {
+            status: 200,
+            body: {
+              status: "requires_customer_action",
+            },
+          },
     }),
     "3DSAutoCapture": {
       Request: {
@@ -217,14 +223,14 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Worldpayxml is not implemented",
-            code: "IR_00",
-          },
+          status: "failed",
         },
       },
     },
@@ -243,6 +249,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -254,13 +263,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Worldpayxml is not implemented",
-            code: "IR_00",
-          },
+          status: "failed",
         },
       },
     },
@@ -463,6 +468,26 @@ export const connectorDetails = {
         },
       },
     },
+     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     MITAutoCapture: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
@@ -471,18 +496,79 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     }),
-    Response: {
-      status: 200,
-      body: {
-        status: "processing",
+     MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
       },
     },
-  },
-  SaveCardUseNo3DSAutoCaptureOffSession: {
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+      TRIGGER_SKIP: true,
+    },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
     Configs: {
       TRIGGER_SKIP: true,
     },
@@ -495,6 +581,13 @@ export const connectorDetails = {
       setup_future_usage: "off_session",
       customer_acceptance: customerAcceptance,
     },
+    Response: {
+      status: 200,
+      body: {
+        status: "processing",
+      },
+    },
+  },
     Response: {
       status: 200,
       body: {
