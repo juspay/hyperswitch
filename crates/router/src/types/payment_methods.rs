@@ -25,6 +25,14 @@ pub trait VaultingInterface {
     fn get_vaulting_flow_name() -> &'static str;
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultFingerprintRequest {
+    pub data: String,
+    pub key: hyperswitch_domain_models::vault::V1VaultEntityId,
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequest {
     pub data: String,
