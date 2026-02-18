@@ -58,8 +58,8 @@ api_secret = "API Secret Key"
 api_key = "API Key"
 
 [dlocal]
-key1 = "key1"
-api_key = "api_key"
+key1 = "x trans key"
+api_key = "x login"
 api_secret = "secret"
 
 [bambora]

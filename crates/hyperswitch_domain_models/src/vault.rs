@@ -5,18 +5,39 @@ use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::Option
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::errors;
-use crate::payment_method_data;
+use crate::{errors, payment_method_data};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
+    #[cfg(feature = "v1")]
+    BankDebit(payment_methods::BankDebitDetail),
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum FingerprintData {
+    Card(FingerprintCardData),
+    NetworkToken(FingerprintNetworkTokenData),
+    CardNumber(cards::CardNumber),
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintCardData {
+    card_number: cards::CardNumber,
+    card_exp_month: masking::Secret<String>,
+    card_exp_year: masking::Secret<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintNetworkTokenData {
+    network_token: cards::NetworkToken,
+    network_token_exp_month: masking::Secret<String>,
+    network_token_exp_year: masking::Secret<String>,
 }
 
 impl PaymentMethodVaultingData {
+    #[cfg(feature = "v2")]
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
@@ -25,6 +46,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
+    #[cfg(feature = "v2")]
     pub fn set_card_cvc(&mut self, card_cvc: masking::Secret<String>) {
         match self {
             Self::Card(card_details) => {
@@ -101,6 +123,7 @@ impl PaymentMethodVaultingData {
             )
     }
 
+    #[cfg(feature = "v2")]
     pub fn get_payment_methods_data(&self) -> payment_method_data::PaymentMethodsData {
         match self {
             Self::Card(card) => payment_method_data::PaymentMethodsData::Card(
@@ -134,6 +157,23 @@ impl PaymentMethodVaultingData {
             ),
         }
     }
+
+    #[cfg(feature = "v2")]
+    pub fn to_fingerprint_data(&self) -> FingerprintData {
+        match self {
+            Self::Card(card) => FingerprintData::Card(FingerprintCardData {
+                card_number: card.card_number.clone(),
+                card_exp_month: card.card_exp_month.clone(),
+                card_exp_year: card.card_exp_year.clone(),
+            }),
+            Self::NetworkToken(nt) => FingerprintData::NetworkToken(FingerprintNetworkTokenData {
+                network_token: nt.network_token.clone(),
+                network_token_exp_month: nt.network_token_exp_month.clone(),
+                network_token_exp_year: nt.network_token_exp_year.clone(),
+            }),
+            Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -164,13 +204,93 @@ pub struct NetworkTokenCustomData {
     pub cryptogram: Option<masking::Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct V1VaultEntityId {
+    merchant_id: common_utils::id_type::MerchantId,
+    customer_id: common_utils::id_type::CustomerId,
+}
+
+#[cfg(feature = "v1")]
+impl V1VaultEntityId {
+    pub fn new(
+        merchant_id: common_utils::id_type::MerchantId,
+        customer_id: common_utils::id_type::CustomerId,
+    ) -> Self {
+        Self {
+            merchant_id,
+            customer_id,
+        }
+    }
+
+    pub fn get_string_repr(&self) -> String {
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.customer_id.get_string_repr()
+        )
+    }
+}
+
+#[cfg(feature = "v1")]
+impl Serialize for V1VaultEntityId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.get_string_repr())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<'de> Deserialize<'de> for V1VaultEntityId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let parts: Vec<&str> = s.splitn(2, '_').collect();
+
+        let merchant_part = parts.first().ok_or_else(|| {
+            serde::de::Error::custom(
+                "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
+            )
+        })?;
+
+        let customer_part = parts.get(1).ok_or_else(|| {
+            serde::de::Error::custom(
+                "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
+            )
+        })?;
+
+        Ok(Self {
+            merchant_id: common_utils::id_type::MerchantId::wrap((*merchant_part).to_string())
+                .map_err(serde::de::Error::custom)?,
+            customer_id: common_utils::id_type::CustomerId::wrap((*customer_part).to_string())
+                .map_err(serde::de::Error::custom)?,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
 pub trait VaultingDataInterface {
     fn get_vaulting_data_key(&self) -> String;
 }
 
+#[cfg(feature = "v2")]
 impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
+            Self::Card(card) => card.card_number.to_string(),
+            Self::NetworkToken(network_token) => network_token.network_token.to_string(),
+            Self::CardNumber(card_number) => card_number.to_string(),
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl VaultingDataInterface for FingerprintData {
+    fn get_vaulting_data_key(&self) -> String {
+        match self {
             Self::Card(card) => card.card_number.to_string(),
             Self::NetworkToken(network_token) => network_token.network_token.to_string(),
             Self::CardNumber(card_number) => card_number.to_string(),
@@ -199,31 +319,58 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
     }
 }
 
-impl From<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
-    fn from(item: PaymentMethodVaultingData) -> Self {
+#[cfg(feature = "v1")]
+impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
+    fn from(item: payment_methods::PaymentMethodCreateData) -> Self {
         match item {
-            PaymentMethodVaultingData::Card(card_data) => Self::CardData(CardCustomData {
+            payment_methods::PaymentMethodCreateData::Card(card) => {
+                Self::Card(payment_methods::CardDetail {
+                    card_cvc: None, // card cvc should not be used for vaulting
+                    ..card
+                })
+            }
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
+                Self::BankDebit(bank_debit_detail)
+            }
+        }
+    }
+}
+
+impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+
+    fn try_from(item: PaymentMethodVaultingData) -> Result<Self, Self::Error> {
+        match item {
+            PaymentMethodVaultingData::Card(card_data) => Ok(Self::CardData(CardCustomData {
                 card_number: Some(card_data.card_number),
                 card_exp_month: Some(card_data.card_exp_month),
                 card_exp_year: Some(card_data.card_exp_year),
                 card_cvc: card_data.card_cvc,
-            }),
+            })),
             PaymentMethodVaultingData::NetworkToken(network_token_data) => {
-                Self::NetworkTokenData(NetworkTokenCustomData {
+                Ok(Self::NetworkTokenData(NetworkTokenCustomData {
                     network_token: Some(network_token_data.network_token),
                     network_token_exp_month: Some(network_token_data.network_token_exp_month),
                     network_token_exp_year: Some(network_token_data.network_token_exp_year),
                     cryptogram: network_token_data.cryptogram,
-                })
+                }))
             }
             PaymentMethodVaultingData::CardNumber(card_number_data) => {
-                Self::CardData(CardCustomData {
+                Ok(Self::CardData(CardCustomData {
                     card_number: Some(card_number_data),
                     card_exp_month: None,
                     card_exp_year: None,
                     card_cvc: None,
-                })
+                }))
             }
+            #[cfg(feature = "v1")]
+            PaymentMethodVaultingData::BankDebit(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for BankDebit".to_string(),
+                    ),
+                },
+            )?,
         }
     }
 }
