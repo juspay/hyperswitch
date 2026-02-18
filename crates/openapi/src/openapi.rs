@@ -539,6 +539,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
+        api_models::payments::PeachpaymentsData,
         api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::WalletData,
@@ -712,6 +713,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::relay::RelayRefundRequestData,
         api_models::relay::RelayCaptureRequestData,
         api_models::relay::RelayIncrementalAuthorizationRequestData,
+        api_models::relay::RelayVoidRequestData,
         api_models::enums::RelayStatus,
         api_models::relay::RelayError,
         api_models::payments::AmountFilter,
@@ -1027,6 +1029,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::CustomTerms,
         common_types::payments::PaymentMethodConfig,
         common_types::payments::PaymentMethodsConfig,
+        common_types::payments::TokenSource,
+        common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     )),
     modifiers(&SecurityAddon)
 )]
