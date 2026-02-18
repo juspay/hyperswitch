@@ -852,37 +852,34 @@ impl NewUser {
         }
 
         match existing_user {
-            Some(user_from_db) => db
-                .reactivate_user_by_user_id(
+            Some(user_from_db) => {
+                let hashed_password = self
+                    .get_password()
+                    .map(|user_password| {
+                        password::generate_password_hash(user_password.get_secret())
+                    })
+                    .transpose()?;
+                db.reactivate_user_by_user_id(
                     &user_from_db.user_id,
-                    diesel_models::user::ReactivateUserUpdate {
+                    storage_user::ReactivateUserUpdate {
                         new_name: Some(self.get_name().expose()),
-                        new_password: self
-                            .get_password()
-                            .map(|user_password| user_password.get_secret()),
+                        new_password: hashed_password,
                     },
                 )
                 .await
                 .map(|user| user.into())
+                .change_context(UserErrors::InternalServerError)
+            }
+            None => db
+                .insert_user(self.clone().try_into()?)
+                .await
+                .map(UserFromStorage::from)
                 .change_context(UserErrors::InternalServerError),
-            None => match db.insert_user(self.clone().try_into()?).await {
-                Ok(user) => Ok(user.into()),
-                Err(e) => {
-                    if e.current_context().is_db_unique_violation() {
-                        Err(e.change_context(UserErrors::UserExists))
-                    } else {
-                        Err(e.change_context(UserErrors::InternalServerError))
-                    }
-                }
-            },
         }
         .attach_printable("Error while inserting user")
     }
 
-    pub async fn check_if_active_already_exists_in_db(
-        &self,
-        state: SessionState,
-    ) -> UserResult<()> {
+    pub async fn check_if_user_is_active_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .global_store
             .find_active_user_by_user_email(&self.get_email())
@@ -898,8 +895,7 @@ impl NewUser {
         &self,
         state: SessionState,
     ) -> UserResult<UserFromStorage> {
-        self.check_if_active_already_exists_in_db(state.clone())
-            .await?;
+        self.check_if_user_is_active_in_db(state.clone()).await?;
         let db = state.global_store.as_ref();
         let merchant_id = self.get_new_merchant().get_merchant_id();
         self.new_merchant

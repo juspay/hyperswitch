@@ -623,7 +623,7 @@ pub async fn update_user_account_details(
 }
 
 #[cfg(feature = "email")]
-pub async fn active_user_from_email(
+pub async fn user_from_email(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<user_api::UserFromEmailRequest>,
@@ -634,7 +634,7 @@ pub async fn active_user_from_email(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _: (), req_body, _| user_core::active_user_from_email(state, req_body),
+        |state, _: (), req_body, _| user_core::user_from_email(state, req_body),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))

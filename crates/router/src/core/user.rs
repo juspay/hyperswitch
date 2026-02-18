@@ -2214,7 +2214,7 @@ pub async fn update_user_details(
 }
 
 #[cfg(feature = "email")]
-pub async fn active_user_from_email(
+pub async fn user_from_email(
     state: SessionState,
     req: user_api::UserFromEmailRequest,
 ) -> UserResponse<user_api::TokenResponse> {
