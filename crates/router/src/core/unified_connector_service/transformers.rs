@@ -4200,13 +4200,19 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceCreateOrderResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCreateOrderResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceCreateOrderResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4215,7 +4221,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
-                    AttemptStatus::Started,
+                    prev_status,
                 ))?),
             };
 
@@ -4246,8 +4252,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                 })
                 .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
 
-            let status =
-                AttemptStatus::foreign_try_from((response.status(), AttemptStatus::Started))?;
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
             let session_token = response
                 .session_token

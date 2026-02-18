@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, ExecutionPath};
+use common_enums::{AttemptStatus, CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
@@ -130,6 +130,7 @@ where
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_create_order(
                         create_order_response.clone(),
+                        AttemptStatus::Started,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
