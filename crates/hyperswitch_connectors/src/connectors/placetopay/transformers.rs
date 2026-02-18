@@ -79,8 +79,8 @@ pub struct PlacetopayPayment {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
-    currency: Currency,
-    total: MinorUnit,
+    pub currency: Currency,
+    pub total: MinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -258,6 +258,7 @@ pub struct PlacetopayPaymentsResponse {
     status: PlacetopayStatusResponse,
     internal_reference: u64,
     authorization: Option<String>,
+    pub amount: PlacetopayAmount,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>>
@@ -267,6 +268,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, Payments
     fn try_from(
         item: ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_metadata = {
+            let amount_json = serde_json::json!({
+                "currency": item.response.amount.currency,
+                "total": item.response.amount.total,
+            });
+            item.response.authorization.clone().map(|authorization| {
+                serde_json::json!({
+                    "authorization": authorization,
+                    "amount": amount_json,
+                })
+            })
+        };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -275,11 +288,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, Payments
                 ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: item
-                    .response
-                    .authorization
-                    .clone()
-                    .map(|authorization| serde_json::json!(authorization)),
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
@@ -382,6 +391,7 @@ pub struct PlacetopayRefundStatusResponse {
 pub struct PlacetopayRefundResponse {
     status: PlacetopayRefundStatusResponse,
     internal_reference: u64,
+    pub amount: PlacetopayAmount,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, PlacetopayRefundResponse>>
@@ -391,10 +401,18 @@ impl TryFrom<RefundsResponseRouterData<Execute, PlacetopayRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, PlacetopayRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_metadata = Some(serde_json::json!({
+            "amount": {
+                "currency": item.response.amount.currency,
+                "total": item.response.amount.total,
+            }
+        }));
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status.status),
+                #[allow(non_snake_case)]
+                connector_metadata,
             }),
             ..item.data
         })
@@ -431,10 +449,18 @@ impl TryFrom<RefundsResponseRouterData<RSync, PlacetopayRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, PlacetopayRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_metadata = Some(serde_json::json!({
+            "amount": {
+                "currency": item.response.amount.currency,
+                "total": item.response.amount.total,
+            }
+        }));
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status.status),
+                #[allow(non_snake_case)]
+                connector_metadata,
             }),
             ..item.data
         })
