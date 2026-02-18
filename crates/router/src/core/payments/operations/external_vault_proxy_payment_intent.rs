@@ -234,7 +234,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                     cell_id,
                     storage_scheme,
                     request,
-                    encrypted_data
+                    encrypted_data,
+                    platform.get_initiator(),
                 )
                 .await?;
                 db.insert_payment_attempt(
@@ -435,6 +436,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 platform.get_processor().get_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
                 payment_method.get_id(),
+                platform.get_initiator(),
             )
             .await
             .map_err(|err| router_env::logger::error!(err=?err));
@@ -584,6 +586,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>

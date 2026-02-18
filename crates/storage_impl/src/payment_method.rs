@@ -15,6 +15,8 @@ use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInte
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::behaviour::ReverseConversion;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
     behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
@@ -376,9 +378,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
+        initiator: Option<&Initiator>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         self.router_store
-            .delete_payment_method(key_store, payment_method)
+            .delete_payment_method(key_store, payment_method, initiator)
             .await
     }
 
@@ -670,6 +673,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
+        initiator: Option<&Initiator>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
             .await
@@ -677,7 +681,9 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         self.call_database(
             key_store,
@@ -956,10 +962,13 @@ impl PaymentMethodInterface for MockDb {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
+        initiator: Option<&Initiator>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)
             .apply_changeset(

@@ -933,7 +933,7 @@ impl PaymentIntent {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-            created_by: None,
+            created_by: platform.get_initiator().and_then(|i| i.to_created_by()),
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
             enable_partial_authorization: request

@@ -426,6 +426,7 @@ where
         payments::decide_unified_connector_service_call(
             state,
             platform.get_processor(),
+            platform.get_initiator(),
             connector.clone(),
             operation,
             payment_data,

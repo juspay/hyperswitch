@@ -56,6 +56,7 @@ pub async fn create_payment_method_api(
                 &state,
                 req,
                 auth.platform.get_provider(),
+                auth.platform.get_initiator(),
             ))
             .await
         },
@@ -167,6 +168,7 @@ pub async fn create_payment_method_intent_api(
                 &state,
                 req,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator(),
             ))
             .await
         },
@@ -642,6 +644,7 @@ pub async fn save_payment_method_api(
                 state,
                 req,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 pm_id.clone(),
             ))
         },
@@ -1055,6 +1058,7 @@ pub async fn payment_method_update_api(
             cards::update_customer_payment_method(
                 state,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 req,
                 &payment_method_id,
                 None,
@@ -1097,7 +1101,7 @@ pub async fn payment_method_delete_api(
                 state: &state,
                 provider: auth.platform.get_provider(),
             }
-            .delete_payment_method(req)
+            .delete_payment_method(req, auth.platform.get_initiator())
             .await
         },
         &*ephemeral_auth,
@@ -1229,6 +1233,7 @@ pub async fn default_payment_method_set_api(
                 auth.platform.get_provider().get_account().get_id(),
                 customer_id,
                 default_payment_method.payment_method_id,
+                auth.platform.get_initiator(),
             )
             .await
         },
@@ -1401,6 +1406,7 @@ pub async fn tokenize_card_api(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
                 platform.get_provider(),
+                platform.get_initiator(),
             ))
             .await?;
             Ok(services::ApplicationResponse::Json(res))
@@ -1451,6 +1457,7 @@ pub async fn tokenize_card_using_pm_api(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
                 platform.get_provider(),
+                platform.get_initiator(),
             ))
             .await?;
             Ok(services::ApplicationResponse::Json(res))
@@ -1495,6 +1502,7 @@ pub async fn tokenize_card_batch_api(
                     &state,
                     req,
                     platform.get_provider(),
+                    platform.get_initiator(),
                 ))
                 .await
             }

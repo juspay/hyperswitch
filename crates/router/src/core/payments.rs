@@ -335,7 +335,13 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(state, platform.get_processor(), payment_data, router_data)
+                .update_tracker(
+                    state,
+                    platform.get_processor(),
+                    platform.get_initiator(),
+                    payment_data,
+                    router_data,
+                )
                 .await?;
 
             (payment_data, connector_response_data)
@@ -432,7 +438,13 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(state, platform.get_processor(), payment_data, router_data)
+                .update_tracker(
+                    state,
+                    platform.get_processor(),
+                    platform.get_initiator(),
+                    payment_data,
+                    router_data,
+                )
                 .await?;
 
             (payment_data, connector_response_data)
@@ -582,7 +594,13 @@ where
 
     let payment_data = payments_response_operation
         .to_post_update_tracker()?
-        .update_tracker(state, platform.get_processor(), payment_data, router_data)
+        .update_tracker(
+            state,
+            platform.get_processor(),
+            platform.get_initiator(),
+            payment_data,
+            router_data,
+        )
         .await?;
 
     Ok((
@@ -703,6 +721,7 @@ where
             &mut payment_data,
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
+            platform.get_initiator(),
             dimensions,
         )
         .await
@@ -961,6 +980,7 @@ where
                         decide_unified_connector_service_call(
                             state,
                             platform.get_processor(),
+                            platform.get_initiator(),
                             connector.connector_data.clone(),
                             &operation,
                             &mut payment_data,
@@ -1052,6 +1072,7 @@ where
                         .update_pm_and_mandate(
                             state,
                             platform.get_provider(),
+                            platform.get_initiator(),
                             &payment_data,
                             &router_data_for_pm_mandate,
                             &feature_config,
@@ -1132,6 +1153,7 @@ where
                         decide_unified_connector_service_call(
                             state,
                             platform.get_processor(),
+                            platform.get_initiator(),
                             connector_data.clone(),
                             &operation,
                             &mut payment_data,
@@ -1258,6 +1280,7 @@ where
                         .update_pm_and_mandate(
                             state,
                             platform.get_provider(),
+                            platform.get_initiator(),
                             &payment_data,
                             &router_data_for_pm_mandate,
                             &feature_config,
@@ -1551,6 +1574,7 @@ where
             &mut payment_data,
             customer_details,
             platform.get_provider(),
+            platform.get_initiator(),
             dimensions,
         )
         .await
@@ -1609,6 +1633,7 @@ where
         .update_pm_and_mandate(
             state,
             platform.get_provider(),
+            platform.get_initiator(),
             &payment_data,
             &router_data_for_pm_mandate,
             &feature_config,
@@ -1716,7 +1741,13 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(state, platform.get_processor(), payment_data, router_data)
+                .update_tracker(
+                    state,
+                    platform.get_processor(),
+                    platform.get_initiator(),
+                    payment_data,
+                    router_data,
+                )
                 .await?
         }
         ConnectorCallType::Retryable(vec) => todo!(),
@@ -1849,7 +1880,13 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(state, platform.get_processor(), payment_data, router_data)
+                .update_tracker(
+                    state,
+                    platform.get_processor(),
+                    platform.get_initiator(),
+                    payment_data,
+                    router_data,
+                )
                 .await?
         }
         ConnectorCallType::Retryable(_) => todo!(),
@@ -4309,6 +4346,7 @@ pub struct ConnectorServiceIntermediateState<F, RouterDReq> {
 pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
@@ -4402,6 +4440,7 @@ where
         state,
         connector_customer_map,
         processor,
+        initiator,
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
@@ -4754,6 +4793,7 @@ where
 pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest, D>(
     state: &'a SessionState,
     processor: &'a domain::Processor,
+    initiator: Option<&'a domain::Initiator>,
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
@@ -4825,6 +4865,7 @@ where
     let (updated_customer, call_connector_service_response) = call_connector_service(
         &updated_state,
         processor,
+        initiator,
         connector,
         operation,
         payment_data,
@@ -5113,6 +5154,7 @@ where
         platform.get_processor(),
         &merchant_connector_account_type_details,
         payment_data,
+        platform.get_initiator(),
     )
     .await?;
 
@@ -7032,10 +7074,12 @@ pub fn validate_customer_details_for_click_to_pay(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     connector_customer_map: Option<&pii::SecretSerdeValue>,
     processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
     access_token: Option<&AccessToken>,
@@ -7127,6 +7171,7 @@ where
                     &label,
                     connector_customer_map,
                     connector_customer_id.clone(),
+                    initiator,
                 )
                 .await;
 
@@ -7151,6 +7196,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     processor: &domain::Processor,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -7214,6 +7260,7 @@ where
                     merchant_connector_account,
                     customer.as_ref(),
                     connector_customer_id.clone(),
+                    initiator,
                 )
                 .await;
 

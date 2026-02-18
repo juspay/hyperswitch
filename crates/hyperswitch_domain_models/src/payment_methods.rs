@@ -29,10 +29,10 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
-#[cfg(feature = "v2")]
-use crate::address::Address;
 #[cfg(feature = "v1")]
 use crate::type_encryption::AsyncLift;
+#[cfg(feature = "v2")]
+use crate::{address::Address, platform::Initiator};
 use crate::{
     mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
@@ -1006,6 +1006,7 @@ pub trait PaymentMethodInterface {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
+        initiator: Option<&Initiator>,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v2")]

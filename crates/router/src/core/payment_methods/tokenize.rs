@@ -97,6 +97,7 @@ pub async fn tokenize_cards(
     state: &SessionState,
     records: Vec<payment_methods_api::CardNetworkTokenizeRequest>,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::RouterResponse<Vec<payment_methods_api::CardNetworkTokenizeResponse>> {
     use futures::stream::StreamExt;
 
@@ -109,6 +110,7 @@ pub async fn tokenize_cards(
                 state,
                 domain::CardNetworkTokenizeRequest::foreign_from(record),
                 provider,
+                initiator,
             ))
             .await
             .unwrap_or_else(|e| {

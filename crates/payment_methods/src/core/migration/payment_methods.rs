@@ -96,6 +96,7 @@ pub async fn migrate_payment_method(
                 platform.get_provider(),
                 &mut migration_status,
                 controller,
+                platform.get_initiator(),
             )
             .await?
         }
@@ -106,6 +107,7 @@ pub async fn migrate_payment_method(
                 &req,
                 merchant_id.to_owned(),
                 platform.get_provider(),
+                platform.get_initiator(),
                 card_bin_details.clone(),
                 should_require_connector_mandate_details,
                 &mut migration_status,
@@ -138,6 +140,7 @@ pub async fn migrate_payment_method(
                         network_token_data,
                         network_token_requestor_ref_id,
                         pm_id,
+                        platform.get_initiator(),
                     )
                     .await
                     .map_err(|err| logger::error!(?err, "Failed to save network token"))
@@ -393,6 +396,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
     provider: &platform::Provider,
     migration_status: &mut migration::RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
+    initiator: Option<&platform::Initiator>,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
     let merchant_id = provider.get_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -426,6 +430,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
             req,
             migration_status,
             controller,
+            initiator,
         ))
         .await
     } else {
@@ -451,6 +456,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 Default::default(),
                 None,
+                initiator,
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -473,6 +479,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                     enums::PaymentMethodStatus::AwaitingData,
                     enums::PaymentMethodStatus::Inactive,
                     merchant_id,
+                    initiator,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -493,6 +500,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     req: &pm_api::PaymentMethodMigrate,
     merchant_id: id_type::MerchantId,
     provider: &platform::Provider,
+    initiator: Option<&platform::Initiator>,
     card: pm_api::CardDetailFromLocker,
     should_require_connector_mandate_details: bool,
     migration_status: &mut migration::RecordMigrationStatusBuilder,
@@ -613,8 +621,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 vault_source_details: Default::default(),
-                created_by: None,
-                last_modified_by: None,
+                created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
             },
             provider.get_account().storage_scheme,
@@ -643,7 +651,12 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = controller
-            .set_default_payment_method(&merchant_id, &customer_id, payment_method_id.to_owned())
+            .set_default_payment_method(
+                &merchant_id,
+                &customer_id,
+                payment_method_id.to_owned(),
+                initiator,
+            )
             .await
             .map_err(|error| logger::error!(?error, "Failed to set the payment method as default"));
     }
@@ -688,6 +701,7 @@ pub async fn save_migration_payment_method(
     req: pm_api::PaymentMethodCreate,
     migration_status: &mut migration::RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
+    initiator: Option<&platform::Initiator>,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
     let connector_mandate_details = req
         .connector_mandate_details
@@ -698,7 +712,7 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    let res = controller.add_payment_method(&req).await?;
+    let res = controller.add_payment_method(&req, initiator).await?;
 
     migration_status.card_migrated(true);
     migration_status.network_transaction_id_migrated(
