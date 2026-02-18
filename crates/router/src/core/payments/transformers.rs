@@ -3930,7 +3930,10 @@ where
                 | domain::Initiator::Jwt { .. }
                 | domain::Initiator::EmbeddedToken { .. } => None,
             }),
-            client_secret: payment_intent.client_secret.clone(),
+            client_secret: payment_intent
+                .client_secret
+                .clone()
+                .get_required_value("client_secret")?,
             customer_id: payment_intent.customer_id.clone(),
         };
 
