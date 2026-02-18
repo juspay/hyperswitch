@@ -730,8 +730,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err =
-                    crate::diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
+                let error_msg = format!("{:?}", er);
+                self.db_store.handle_query_error(&error_msg);
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -765,8 +766,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .update(&conn, diesel_payment_intent_update)
             .await
             .map_err(|er| {
-                let new_err =
-                    crate::diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
+                let error_msg = format!("{:?}", er);
+                self.db_store.handle_query_error(&error_msg);
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -800,8 +802,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .update(&conn, diesel_payment_intent_update)
             .await
             .map_err(|er| {
-                let new_err =
-                    crate::diesel_error_to_data_error_with_error_handling(&self.db_store, &er);
+                let error_msg = format!("{:?}", er);
+                self.db_store.handle_query_error(&error_msg);
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 

@@ -18,15 +18,10 @@ use crate::{
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
-/// Trait for database store implementations.
-///
-/// This trait provides access to PostgreSQL connection pools and pool managers.
-/// The pool managers provide automatic retry and failover recovery capabilities.
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
 
-    /// Creates a new database store with the given configuration.
     async fn new(
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
@@ -34,64 +29,44 @@ pub trait DatabaseStore: Clone + Send + Sync {
         key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self>;
 
-    /// Returns a reference to the master pool.
-    ///
-    /// Note: This pool reference may become stale during failover recovery.
-    /// For production use with failover support, prefer using `get_master_pool_manager()`
-    /// and calling `get_pool()` on it for each connection request.
     fn get_master_pool(&self) -> &PgPool;
 
-    /// Returns a reference to the replica pool.
-    ///
-    /// Note: This pool reference may become stale during failover recovery.
-    /// For production use with failover support, prefer using `get_replica_pool_manager()`
-    /// and calling `get_pool()` on it for each connection request.
     fn get_replica_pool(&self) -> &PgPool;
 
-    /// Returns a reference to the accounts master pool.
     fn get_accounts_master_pool(&self) -> &PgPool;
 
-    /// Returns a reference to the accounts replica pool.
     fn get_accounts_replica_pool(&self) -> &PgPool;
 
-    /// Gets the pool manager for the master database.
-    ///
-    /// The pool manager provides:
-    /// - Lock-free atomic pool access via `get_pool()`
-    /// - Failure tracking and automatic pool recreation on failover
-    ///
-    /// Use this for code paths that need failover resilience.
     fn get_master_pool_manager(&self) -> &PgPoolManager;
 
-    /// Gets the pool manager for the replica database.
     fn get_replica_pool_manager(&self) -> &PgPoolManager;
 
-    /// Gets the pool manager for the accounts master database.
     fn get_accounts_master_pool_manager(&self) -> &PgPoolManager;
 
-    /// Gets the pool manager for the accounts replica database.
     fn get_accounts_replica_pool_manager(&self) -> &PgPoolManager;
 
-    /// Handles database query errors and takes appropriate recovery actions.
-    ///
-    /// This should be called when a database query fails. Currently handles:
-    /// - Failover detection (e.g., "read-only transaction") - triggers pool recreation
-    ///
-    /// Returns `true` if any recovery action was triggered.
     fn handle_query_error(&self, error_message: &str) -> bool {
         let master_triggered = self
             .get_master_pool_manager()
             .check_and_handle_failover_error(error_message);
 
+        if master_triggered {
+            self.get_replica_pool_manager().trigger_pool_recreation();
+        }
+
         let accounts_triggered = self
             .get_accounts_master_pool_manager()
             .check_and_handle_failover_error(error_message);
+
+        if accounts_triggered {
+            self.get_accounts_replica_pool_manager()
+                .trigger_pool_recreation();
+        }
 
         master_triggered || accounts_triggered
     }
 }
 
-/// Store with a single database (master only, used for both reads and writes).
 #[derive(Clone)]
 pub struct Store {
     master_pool: Arc<PgPool>,
@@ -125,6 +100,7 @@ impl DatabaseStore for Store {
             config.clone(),
             tenant_config.get_schema().to_string(),
             test_transaction,
+            true,
             Some(recovery_config.clone()),
         )
         .await
@@ -134,6 +110,7 @@ impl DatabaseStore for Store {
             config,
             tenant_config.get_accounts_schema().to_string(),
             test_transaction,
+            true,
             Some(recovery_config),
         )
         .await
@@ -183,7 +160,6 @@ impl DatabaseStore for Store {
     }
 }
 
-/// Store with separate master and replica databases.
 #[derive(Clone)]
 pub struct ReplicaStore {
     master_pool: Arc<PgPool>,
@@ -230,6 +206,7 @@ impl DatabaseStore for ReplicaStore {
             master_config.clone(),
             tenant_config.get_schema().to_string(),
             test_transaction,
+            true,
             Some(recovery_config.clone()),
         )
         .await
@@ -239,6 +216,7 @@ impl DatabaseStore for ReplicaStore {
             master_config,
             tenant_config.get_accounts_schema().to_string(),
             test_transaction,
+            true,
             Some(recovery_config.clone()),
         )
         .await
@@ -248,6 +226,7 @@ impl DatabaseStore for ReplicaStore {
             replica_config.clone(),
             tenant_config.get_schema().to_string(),
             test_transaction,
+            false,
             Some(recovery_config.clone()),
         )
         .await
@@ -257,6 +236,7 @@ impl DatabaseStore for ReplicaStore {
             replica_config,
             tenant_config.get_accounts_schema().to_string(),
             test_transaction,
+            false,
             Some(recovery_config),
         )
         .await
@@ -312,8 +292,6 @@ impl DatabaseStore for ReplicaStore {
     }
 }
 
-/// Creates a PostgreSQL connection pool directly (without PgPoolManager wrapper).
-/// This is used internally by PgPoolManager.
 pub async fn diesel_make_pg_pool(
     database: &Database,
     schema: &str,
