@@ -2984,7 +2984,7 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let (result, routing_approach) = routing::perform_session_flow_routing_for_cards(
+        let (result, routing_approach) = routing::perform_session_flow_routing(
             sfr,
             &business_profile,
             &enums::TransactionType::Payment,
