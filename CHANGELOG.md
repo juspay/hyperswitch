@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.16.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Populate whole connector response in payment response ([#11313](https://github.com/juspay/hyperswitch/pull/11313)) ([`6391af4`](https://github.com/juspay/hyperswitch/commit/6391af43bcf1519b9686409a3f94ede33a39f098))
+
+**Full Changelog:** [`2026.02.16.0...2026.02.16.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.02.16.0...2026.02.16.0-hotfix1)
+
+- - -
+
 ## 2026.02.16.0
 
 ### Features
