@@ -94,6 +94,7 @@ impl PaymentMethodVaultingData {
 
                 let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
                         &card_details.card_number,
+                        card_details.card_cvc,
                         payment_methods_data,
                     )?;
 
@@ -110,6 +111,7 @@ impl PaymentMethodVaultingData {
 
                 let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
                         card_number,
+                        None,
                         payment_methods_data,
                     )?;
 
@@ -121,6 +123,7 @@ impl PaymentMethodVaultingData {
     #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
         card_number: &cards::CardNumber,
+        card_cvc: Option<masking::Secret<String>>,
         payment_methods_data: &Encryptable<payment_methods::PaymentMethodsData>,
     ) -> CustomResult<payment_methods::CardDetail, errors::api_error_response::ApiErrorResponse>
     {
