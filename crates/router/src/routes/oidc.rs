@@ -56,8 +56,8 @@ pub async fn oidc_authorize(
         auth::auth_type(
             &auth::NoAuth,
             &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),

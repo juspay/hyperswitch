@@ -23,7 +23,7 @@ pub async fn get_action_url(
         core::get_action_url,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -46,7 +46,7 @@ pub async fn sync_onboarding_status(
         core::sync_onboarding_status,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -69,7 +69,7 @@ pub async fn reset_tracking_id(
         core::reset_tracking_id,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,

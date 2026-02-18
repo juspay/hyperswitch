@@ -364,7 +364,7 @@ pub async fn payouts_list_by_filter(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -441,7 +441,7 @@ pub async fn payouts_list_available_filters_for_merchant(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -606,7 +606,7 @@ pub async fn get_payouts_aggregates(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPayoutRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,

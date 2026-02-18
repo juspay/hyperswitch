@@ -48,7 +48,7 @@ pub async fn list_initial_webhook_delivery_attempts(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantWebhookEventRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -92,7 +92,7 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileWebhookEventRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -131,7 +131,7 @@ pub async fn list_webhook_delivery_attempts(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantWebhookEventRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -173,7 +173,7 @@ pub async fn retry_webhook_delivery_attempt(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantWebhookEventWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),

@@ -114,7 +114,7 @@ pub async fn profile_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -203,8 +203,8 @@ pub async fn profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountRead,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -336,7 +336,7 @@ pub async fn profile_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -398,7 +398,7 @@ pub async fn profiles_list(
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -430,8 +430,8 @@ pub async fn profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -467,8 +467,8 @@ pub async fn profiles_list_at_profile_level(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileAccountRead,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -567,7 +567,7 @@ pub async fn payment_connector_list_profile(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileConnectorRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),

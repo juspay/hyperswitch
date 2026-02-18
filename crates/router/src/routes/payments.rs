@@ -2095,7 +2095,7 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -3197,7 +3197,7 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,

@@ -152,7 +152,7 @@ pub async fn retrieve_disputes_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -255,7 +255,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -588,7 +588,7 @@ pub async fn get_disputes_aggregate(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),

@@ -350,8 +350,8 @@ pub async fn retrieve_merchant_account(
                 // this API call for profile level users.
                 // TODO: Convert this to MerchantAccountRead once FE changes are done.
                 required_permission: Permission::ProfileAccountRead,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -383,8 +383,8 @@ pub async fn merchant_account_list(
             &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -415,8 +415,8 @@ pub async fn merchant_account_list(
             },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -449,8 +449,8 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
-                allow_connected: false,
-                allow_platform: false,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -606,7 +606,7 @@ pub async fn connector_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -692,7 +692,7 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -728,7 +728,7 @@ pub async fn connector_list(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -887,7 +887,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -928,7 +928,7 @@ pub async fn connector_delete(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -963,7 +963,7 @@ pub async fn connector_delete(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1153,7 +1153,7 @@ pub async fn connector_webhook_register(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),

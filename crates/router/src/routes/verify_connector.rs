@@ -30,7 +30,7 @@ pub async fn payment_connector_verify(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantConnectorWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,

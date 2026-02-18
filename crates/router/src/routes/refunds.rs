@@ -428,7 +428,7 @@ pub async fn refunds_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -575,7 +575,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -648,7 +648,7 @@ pub async fn get_refunds_aggregates(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
