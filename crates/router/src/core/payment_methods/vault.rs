@@ -1985,7 +1985,7 @@ pub async fn retrieve_payment_method_data_from_storage(
     let card_cvc = retrieve_and_delete_cvc_from_payment_token(
         state,
         &pm.id.get_string_repr().to_string(),
-        platform.get_processor().get_key_store(),
+        platform.get_provider().get_key_store(),
     )
     .await
     .inspect_err(|err| {

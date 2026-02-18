@@ -655,10 +655,10 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let payload = pm_types::VaultFingerprintRequest {
             key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                // The merchant_id should belong to the Provider
                 key_store.merchant_id.clone(),
                 customer_id.to_owned(),
-            )
-            .get_string_repr(),
+            ),
             data,
         }
         .encode_to_vec()
