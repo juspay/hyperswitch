@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::payment_method_data;
+use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 use josekit::jwe;
 #[cfg(feature = "v1")]
 use masking::Mask;
@@ -291,7 +291,6 @@ pub async fn get_decrypted_vault_response_payload(
         .attach_printable("Jws Decryption failed for JwsBody for vault")
 }
 
-#[cfg(feature = "v2")]
 pub async fn create_jwe_body_for_vault(
     jwekey: &settings::Jwekey,
     jws: &str,
@@ -432,8 +431,8 @@ pub fn mk_add_bank_response_hs(
     bank_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> api::PaymentMethodResponse {
-    api::PaymentMethodResponse {
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
         payment_method_id: bank_reference,
@@ -448,6 +447,7 @@ pub fn mk_add_bank_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        locker_fingerprint_id: None,
     }
 }
 
@@ -456,8 +456,9 @@ pub fn mk_add_bank_debit_response_hs(
     bank_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> api::PaymentMethodResponse {
-    api::PaymentMethodResponse {
+    locker_fingerprint_id: String,
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id.to_owned(),
         payment_method_id: bank_reference,
@@ -472,6 +473,7 @@ pub fn mk_add_bank_debit_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        locker_fingerprint_id: Some(locker_fingerprint_id),
     }
 }
 
@@ -491,7 +493,7 @@ pub fn mk_add_card_response_hs(
     card_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> api::PaymentMethodResponse {
+) -> domain::PaymentMethodResponse {
     let card_number = card.card_number.clone();
     let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
@@ -517,7 +519,7 @@ pub fn mk_add_card_response_hs(
         card_type: card.card_type,
         saved_to_locker: true,
     };
-    api::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
         payment_method_id: card_reference,
@@ -533,6 +535,7 @@ pub fn mk_add_card_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
+        locker_fingerprint_id: None,
     }
 }
 
@@ -1000,9 +1003,11 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
+    sdk_authorization: Option<hyperswitch_domain_models::sdk_auth::SdkAuthorization>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
@@ -1025,6 +1030,8 @@ pub fn generate_payment_method_session_response(
         .as_ref()
         .map(|tokenization_service_response| tokenization_service_response.id.clone());
 
+    let sdk_authorization = sdk_authorization.and_then(|auth| auth.encode().ok());
+
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
         customer_id: payment_method_session.customer_id,
@@ -1045,6 +1052,7 @@ pub fn generate_payment_method_session_response(
         storage_type,
         card_cvc_token_storage,
         payment_method_data,
+        sdk_authorization,
         keep_alive: payment_method_session.keep_alive,
     }
 }
@@ -1325,6 +1333,7 @@ impl DomainPaymentMethodWrapper {
             created_by: None,
             last_modified_by: None,
             customer_details: None,
+            locker_fingerprint_id: None,
         }))
     }
 
@@ -1452,6 +1461,7 @@ impl DomainPaymentMethodWrapper {
             created_by: None,
             last_modified_by: None,
             customer_details: None,
+            locker_fingerprint_id: None,
         }))
     }
 }
@@ -1556,6 +1566,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             created_by: None,
             last_modified_by: None,
             customer_details: None,
+            locker_fingerprint_id: None,
         }))
     }
 }

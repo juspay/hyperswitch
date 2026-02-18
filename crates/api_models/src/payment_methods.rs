@@ -557,32 +557,6 @@ pub struct PaymentMethodUpdate {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentMethodUpdate {
-    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
-        match &self.payment_method_data {
-            Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn is_payment_method_metadata_update(&self) -> bool {
-        match &self.payment_method_data {
-            Some(PaymentMethodUpdateData::Card(card_update)) => {
-                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
-            }
-            _ => false,
-        }
-    }
-
-    pub fn is_payment_method_update_required(&self) -> bool {
-        self.is_payment_method_metadata_update()
-            || self.connector_token_details.is_some()
-            || self.network_transaction_id.is_some()
-            || self.acknowledgement_status.is_some()
-    }
-}
-
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -621,7 +595,6 @@ pub enum PaymentMethodCreateData {
     BankDebit(BankDebitDetail),
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -632,6 +605,42 @@ pub enum BankDebitDetail {
         #[schema(value_type = String)]
         routing_number: masking::Secret<String>,
     },
+}
+
+impl BankDebitDetail {
+    pub fn get_masked_account_number(&self) -> String {
+        match self {
+            Self::Ach {
+                account_number,
+                routing_number: _,
+            } => account_number
+                .peek()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        }
+    }
+
+    pub fn get_masked_routing_number(&self) -> String {
+        match self {
+            Self::Ach {
+                account_number: _,
+                routing_number,
+            } => routing_number
+                .peek()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -3755,6 +3764,12 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<PaymentMethodResponseData>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
+
+    /// SDK authorization token for client SDK usage
+    /// Contains encoded authentication details for subsequent API calls
+    #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD0uLi4=")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_authorization: Option<String>,
 
     /// Whether the card with new status should be listed in the session
     pub keep_alive: bool,
