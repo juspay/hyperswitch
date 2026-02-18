@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
@@ -844,6 +844,7 @@ impl IncomingWebhook for Wise {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {

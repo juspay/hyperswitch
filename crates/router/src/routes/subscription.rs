@@ -214,18 +214,37 @@ pub async fn confirm_subscription(
 
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
-        };
+    let (auth_type, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+    };
 
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, payload, _| {
+        |state, auth, mut payload, _| {
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
+            }
+
             subscriptions::confirm_subscription(
                 state.into(),
                 auth.platform,
@@ -261,17 +280,36 @@ pub async fn get_subscription_items(
         Err(response) => return response,
     };
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
-        };
+    let (auth_type, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => {
+                    return oss_api::log_and_return_error_response(error_stack::report!(err))
+                }
+            }
+        }
+    };
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, query, _| {
+        |state, auth, mut query, _| {
+            if let Some(client_secret) = auth.client_secret {
+                query.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
+            }
+
             subscriptions::get_subscription_items(
                 state.into(),
                 auth.platform,
@@ -388,16 +426,17 @@ pub async fn get_estimate(
         allow_connected_scope_operation: false,
         allow_platform_self_operation: false,
     };
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return oss_api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, _auth_flow) =
+        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return oss_api::log_and_return_error_response(report!(err)),
+        };
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
         query.into_inner(),
-        |state, auth: auth::AuthenticationData, query, _| {
+        |state, auth, query, _| {
             subscriptions::get_estimate(state.into(), auth.platform, profile_id.clone(), query)
         },
         &*auth_type,

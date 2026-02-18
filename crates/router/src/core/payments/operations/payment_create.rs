@@ -18,6 +18,7 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
+    payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -30,9 +31,11 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
+        payment_methods::transformers as pm_transformers,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
@@ -72,6 +75,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -146,6 +150,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
+        let m_pm_wrapper = payment_method_with_raw_data.clone();
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -161,6 +166,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             None,
+            m_pm_wrapper.map(|pm| pm.payment_method.0),
         )
         .await?;
 
@@ -198,13 +204,27 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
+                pm.payment_method
+                    .0
+                    .payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value("payment method billing address")
+                            .ok()
+                    })
+            }));
+
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
                 state,
-                request
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|pmd| pmd.billing.as_ref()),
+                payment_method_data_billing.as_ref(),
                 None,
                 platform.get_processor().get_account().get_id(),
                 customer_details.customer_id.as_ref(),
@@ -294,6 +314,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let (mandate_reference_id_from_recurring_details, payment_method_recurring_details) =
+            match recurring_details
+                .clone()
+                .map(domain_recurring_details::from)
+                .and_then(|details| {
+                    details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+                }) {
+                Some((mandate_reference_id, payment_method_recurring_details)) => (
+                    Some(mandate_reference_id),
+                    Some(payment_method_recurring_details),
+                ),
+                None => (None, None),
+            };
+
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             platform,
@@ -307,8 +341,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
-            profile_id,
+            profile_id.clone(),
             &customer_acceptance,
+            payment_method_recurring_details.clone(),
         )
         .await?;
 
@@ -438,11 +473,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             ),
                         })
                     }
-                    _ => None,
+                    RecurringDetails::CardWithLimitedData(_)
+                    | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                        Some(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id: mandate_reference_id_from_recurring_details,
+                        })
+                    }
+                    RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_) => None,
                 })
         } else {
             mandate_id
         };
+
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
@@ -474,21 +519,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        let payment_method_data_after_card_bin_call = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|payment_method_data_from_request| {
-                payment_method_data_from_request
-                    .payment_method_data
-                    .as_ref()
-            })
-            .zip(additional_payment_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+        let payment_method_data_from_request =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|request_payment_method_data| {
+                    request_payment_method_data.payment_method_data.clone()
+                });
+
+        let payment_method_data = payment_method_with_raw_data
+            .clone()
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(payment_method_data_from_request.map(Into::into))
+            .or(payment_method_recurring_details.clone())
+            .map(|payment_method_data| {
+                if let Some(additional_pm_data) = additional_payment_data {
+                    payment_method_data.apply_additional_payment_data(additional_pm_data)
+                } else {
+                    payment_method_data
+                }
+            });
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
@@ -556,9 +606,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
+        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            pm.payment_method
+                .0
+                .payment_method_billing_address
+                .clone()
+                .map(|decrypted_data| decrypted_data.into_inner().expose())
+                .and_then(|decrypted_value| {
+                    decrypted_value
+                        .parse_value::<hyperswitch_domain_models::address::Address>(
+                            "payment method billing address",
+                        )
+                        .ok()
+                })
+        });
 
-        let unified_address =
-            address.unify_with_payment_method_data_billing(payment_method_data_billing);
+        let add = payment_method_data_billing.or(pm_pmd_billing);
+
+        let unified_address = address.unify_with_payment_method_data_billing(add);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -566,7 +631,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt,
             currency,
             amount,
-            email: request.email.clone(),
             mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
@@ -575,7 +639,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             address: unified_address,
             token_data: None,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             refunds: vec![],
@@ -632,6 +696,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -642,6 +707,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    dimensions,
                 )
                 .await
             }
@@ -655,10 +721,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .await?
                 .inspect(|cust| {
                     payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
                 });
 
                 Ok((Box::new(self), customer))
@@ -765,6 +827,76 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Ok(())
         } else {
             Ok(())
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentsRequest,
+        platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<Option<pm_transformers::PaymentMethodWithRawData>> {
+        match feature_config.is_payment_method_modular_allowed {
+            true => {
+                logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
+
+                let profile_id = req
+                    .profile_id
+                    .clone()
+                    .or(platform
+                        .get_processor()
+                        .get_account()
+                        .get_default_profile()
+                        .clone())
+                    .get_required_value("profile_id")?;
+
+                let (payment_method_reference, is_off_session_payment) =
+                    if req.off_session == Some(true) {
+                        match req.recurring_details.as_ref() {
+                            Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
+                                (Some(payment_method_id), true)
+                            }
+                            _ => (None, true),
+                        }
+                    } else {
+                        (req.payment_token.as_ref(), false)
+                    };
+
+                let pm_info = if let Some(payment_method_ref) = payment_method_reference {
+                    // Fetch payment method using PM Modular Service
+                    let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        &profile_id,
+                        payment_method_ref,
+                        None, // CVC token data is not passed in create api
+                        is_off_session_payment,
+                    )
+                    .await?;
+                    logger::info!("Payment method fetched from PM Modular Service.");
+
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req.customer_id.clone().get_required_value("customer_id")?,
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
+
+                    Some(pm_info)
+                } else {
+                    None
+                };
+
+                Ok(pm_info)
+            }
+            false => {
+                logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                Ok(None)
+            }
         }
     }
 
@@ -1044,8 +1176,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
+                    .and_then(|customer| customer.id.as_ref())),
             )?;
         }
 
@@ -1125,6 +1256,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
+        payment_method_recurring_details: Option<domain::PaymentMethodData>,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1147,9 +1279,12 @@ impl PaymentCreate {
             .and_then(|payment_method_data_request| {
                 payment_method_data_request.payment_method_data.clone()
             })
-            .async_map(|payment_method_data| async {
+            .map(domain::PaymentMethodData::from)
+            .or(payment_method_recurring_details)
+            .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
+            .async_map(|(payment_method_data, profile_id)| async move {
                 helpers::get_additional_payment_data(
-                    &payment_method_data.into(),
+                    &payment_method_data,
                     &*state.store,
                     &profile_id,
                     None,
@@ -1481,7 +1616,6 @@ impl PaymentCreate {
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details =
             helpers::get_customer_details_from_request(request).get_customer_data();
-
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),

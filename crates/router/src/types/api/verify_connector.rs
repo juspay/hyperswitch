@@ -74,6 +74,8 @@ impl VerifyConnectorData {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            rrn: None,
+            feature_metadata: None,
         }
     }
 
@@ -143,6 +145,7 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }

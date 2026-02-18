@@ -73,7 +73,7 @@ use hyperswitch_interfaces::{
         PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
         SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
@@ -2179,6 +2179,7 @@ impl IncomingWebhook for Paypal {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let payload: paypal::PaypalWebooksEventType = request
             .body
@@ -2260,6 +2261,7 @@ impl IncomingWebhook for Paypal {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let webhook_payload: paypal::PaypalWebhooksBody = request
             .body
