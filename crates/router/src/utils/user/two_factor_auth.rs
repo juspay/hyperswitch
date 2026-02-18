@@ -160,7 +160,8 @@ pub async fn insert_totp_attempts_in_redis(
     redis_conn
         .set_key_with_expiry(
             &get_totp_attempts_key(user_id).into(),
-            user_totp_attempts,
+            // FIXME: This is only required because `fred` does not have a From<u8> impl for Value
+            u16::from(user_totp_attempts),
             consts::user::REDIS_TOTP_ATTEMPTS_TTL_IN_SECS,
         )
         .await
@@ -169,10 +170,11 @@ pub async fn insert_totp_attempts_in_redis(
 pub async fn get_totp_attempts_from_redis(state: &SessionState, user_id: &str) -> UserResult<u8> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .get_key::<Option<u8>>(&get_totp_attempts_key(user_id).into())
+        .get_key::<Option<u16>>(&get_totp_attempts_key(user_id).into())
         .await
         .change_context(UserErrors::InternalServerError)
-        .map(|v| v.unwrap_or(0))
+        // FIXME: This is only required because `fred` does not have a From<u8> impl for Value
+        .map(|v| u8::from(v.unwrap_or(0)))
 }
 
 pub async fn insert_recovery_code_attempts_in_redis(
@@ -184,7 +186,8 @@ pub async fn insert_recovery_code_attempts_in_redis(
     redis_conn
         .set_key_with_expiry(
             &get_recovery_code_attempts_key(user_id).into(),
-            user_recovery_code_attempts,
+            // FIXME: This is only required because `fred` does not have a From<u8> impl for Value
+            u16::from(user_recovery_code_attempts),
             consts::user::REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS,
         )
         .await
@@ -197,10 +200,11 @@ pub async fn get_recovery_code_attempts_from_redis(
 ) -> UserResult<u8> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .get_key::<Option<u8>>(&get_recovery_code_attempts_key(user_id).into())
+        .get_key::<Option<u16>>(&get_recovery_code_attempts_key(user_id).into())
         .await
         .change_context(UserErrors::InternalServerError)
-        .map(|v| v.unwrap_or(0))
+        // FIXME: This is only required because `fred` does not have a From<u8> impl for Value
+        .map(|v| u8::from(v.unwrap_or(0)))
 }
 
 pub async fn delete_totp_attempts_from_redis(
