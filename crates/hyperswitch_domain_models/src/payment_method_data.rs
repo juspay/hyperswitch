@@ -10,7 +10,6 @@ use api_models::{
 };
 use common_enums::{enums as api_enums, GooglePayCardFundingSource};
 use common_utils::{
-    errors::CustomResult,
     ext_traits::{OptionExt, StringExt},
     id_type,
     new_type::{
@@ -23,7 +22,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
-use crate::{errors::api_error_response::ApiErrorResponse, router_data::PaymentMethodToken};
+use crate::router_data::PaymentMethodToken;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -33,6 +32,9 @@ pub enum PaymentMethodData {
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
+    DecryptedWalletTokenDetailsForNetworkTransactionId(
+        DecryptedWalletTokenDetailsForNetworkTransactionId,
+    ),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -71,6 +73,13 @@ pub enum RecurringDetails {
     /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
     /// is not stored in the application
     NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+
+    /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
+    /// is not stored in the application
+    /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    NetworkTransactionIdAndDecryptedWalletTokenDetails(
+        Box<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
+    ),
 
     CardWithLimitedData(Box<CardWithLimitedData>),
 }
@@ -186,12 +195,42 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    pub fn apply_additional_payment_data(
+        &self,
+        additional_payment_data: api_models::payments::AdditionalPaymentData,
+    ) -> Self {
+        if let api_models::payments::AdditionalPaymentData::Card(additional_card_info) =
+            additional_payment_data
+        {
+            match self {
+                Self::Card(card) => {
+                    Self::Card(card.apply_additional_card_info(*additional_card_info))
+                }
+                Self::CardWithLimitedDetails(card_with_limited_details) => {
+                    Self::CardWithLimitedDetails(
+                        card_with_limited_details.apply_additional_card_info(*additional_card_info),
+                    )
+                }
+                Self::CardDetailsForNetworkTransactionId(card_with_network_transaction_id) => {
+                    Self::CardDetailsForNetworkTransactionId(
+                        card_with_network_transaction_id
+                            .apply_additional_card_info(*additional_card_info),
+                    )
+                }
+                _ => self.to_owned(),
+            }
+        } else {
+            self.to_owned()
+        }
+    }
+
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
             Self::Card(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
+            | Self::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | Self::CardWithLimitedDetails(_) => Some(common_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
@@ -269,6 +308,41 @@ pub struct Card {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
+impl Card {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_cvc: self.card_cvc.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+            co_badged_card_data: self.co_badged_card_data.clone(),
+        }
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ExternalVaultCard {
     pub card_number: Secret<String>,
@@ -308,6 +382,39 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+impl CardDetailsForNetworkTransactionId {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NetworkTokenDetailsForNetworkTransactionId {
     pub network_token: cards::NetworkToken,
@@ -321,6 +428,16 @@ pub struct NetworkTokenDetailsForNetworkTransactionId {
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
     pub eci: Option<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
+    pub decrypted_token: cards::NetworkToken,
+    pub token_exp_month: Secret<String>,
+    pub token_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub token_source: Option<common_types::payments::TokenSource>,
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -356,6 +473,38 @@ pub struct CardWithLimitedDetails {
 }
 
 impl CardWithLimitedDetails {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+            eci: self.eci.clone(),
+        }
+    }
+
     pub fn get_card_details_for_mit_flow(
         card_with_limited_data: CardWithLimitedData,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
@@ -401,6 +550,26 @@ impl NetworkTokenDetailsForNetworkTransactionId {
             mandate_reference_id,
             PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
                 network_transaction_id_and_network_token_details.into(),
+            ),
+        )
+    }
+}
+
+impl DecryptedWalletTokenDetailsForNetworkTransactionId {
+    pub fn get_nti_and_decrypted_wallet_token_details_for_mit_flow(
+        network_transaction_id_and_decrypted_wallet_token_details: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+    ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_decrypted_wallet_token_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        (
+            mandate_reference_id,
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                network_transaction_id_and_decrypted_wallet_token_details.into(),
             ),
         )
     }
@@ -497,6 +666,23 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             bank_code: network_token_details_for_nti.bank_code,
             nick_name: network_token_details_for_nti.nick_name,
             eci: network_token_details_for_nti.eci,
+        }
+    }
+}
+
+impl From<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>
+    for DecryptedWalletTokenDetailsForNetworkTransactionId
+{
+    fn from(
+        decrypted_token_details_for_nti: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+    ) -> Self {
+        Self {
+            decrypted_token: decrypted_token_details_for_nti.decrypted_token,
+            token_exp_month: decrypted_token_details_for_nti.token_exp_month,
+            token_exp_year: decrypted_token_details_for_nti.token_exp_year,
+            card_holder_name: decrypted_token_details_for_nti.card_holder_name,
+            token_source: decrypted_token_details_for_nti.token_source,
+            eci: decrypted_token_details_for_nti.eci,
         }
     }
 }
@@ -894,6 +1080,8 @@ pub enum UpiSource {
     UpiCl,      // UPI Credit Line
     UpiAccount, // UPI Bank Account (Savings)
     UpiCcCl,    // UPI Credit Card + Credit Line
+    UpiPpi,     // UPI Prepaid Payment Instrument
+    UpiVoucher, // UPI Voucher
 }
 
 impl From<api_models::payments::UpiSource> for UpiSource {
@@ -903,6 +1091,8 @@ impl From<api_models::payments::UpiSource> for UpiSource {
             api_models::payments::UpiSource::UpiCl => Self::UpiCl,
             api_models::payments::UpiSource::UpiAccount => Self::UpiAccount,
             api_models::payments::UpiSource::UpiCcCl => Self::UpiCcCl,
+            api_models::payments::UpiSource::UpiPpi => Self::UpiPpi,
+            api_models::payments::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }
@@ -914,6 +1104,8 @@ impl From<UpiSource> for api_models::payments::UpiSource {
             UpiSource::UpiCl => Self::UpiCl,
             UpiSource::UpiAccount => Self::UpiAccount,
             UpiSource::UpiCcCl => Self::UpiCcCl,
+            UpiSource::UpiPpi => Self::UpiPpi,
+            UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }
@@ -928,6 +1120,7 @@ pub struct UpiCollectData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UpiIntentData {
     pub upi_source: Option<UpiSource>,
+    pub app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1863,6 +2056,7 @@ impl From<api_models::payments::UpiData> for UpiData {
             }),
             api_models::payments::UpiData::UpiIntent(upi) => Self::UpiIntent(UpiIntentData {
                 upi_source: upi.upi_source.map(UpiSource::from),
+                app_name: upi.app_name,
             }),
             api_models::payments::UpiData::UpiQr(upi) => Self::UpiQr(UpiQrData {
                 upi_source: upi.upi_source.map(UpiSource::from),
@@ -1883,6 +2077,7 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiIntent(upi) => {
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {
                     upi_source: upi.upi_source.map(api_models::payments::UpiSource::from),
+                    app_name: upi.app_name,
                 }))
             }
             UpiData::UpiQr(upi) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {
@@ -2914,14 +3109,20 @@ pub struct CardDetailsPaymentMethod {
 #[cfg(feature = "v2")]
 pub struct CardNumberWithStoredDetails {
     pub card_number: cards::CardNumber,
+    pub card_cvc: Option<Secret<String>>,
     pub card_details: CardDetailsPaymentMethod,
 }
 
 #[cfg(feature = "v2")]
 impl CardNumberWithStoredDetails {
-    pub fn new(card_number: cards::CardNumber, card_details: CardDetailsPaymentMethod) -> Self {
+    pub fn new(
+        card_number: cards::CardNumber,
+        card_cvc: Option<Secret<String>>,
+        card_details: CardDetailsPaymentMethod,
+    ) -> Self {
         Self {
             card_number,
+            card_cvc,
             card_details,
         }
     }
@@ -2933,6 +3134,7 @@ impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
 
     fn try_from(testing: CardNumberWithStoredDetails) -> Result<Self, Self::Error> {
         let card_number = testing.card_number;
+        let card_cvc = testing.card_cvc;
         let item = testing.card_details;
         Ok(Self {
             card_number,
@@ -2955,7 +3157,7 @@ impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
             card_type: item
                 .card_type
                 .and_then(|card_type| payment_methods::CardType::from_str(&card_type).ok()),
-            card_cvc: None,
+            card_cvc,
         })
     }
 }
@@ -3253,6 +3455,28 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
     }
 }
 
+impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetworkTokenInfo {
+    fn from(network_token_with_ntid: DecryptedWalletTokenDetailsForNetworkTransactionId) -> Self {
+        Self {
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            token_exp_month: Some(network_token_with_ntid.token_exp_month.clone()),
+            token_exp_year: Some(network_token_with_ntid.token_exp_year.clone()),
+            card_holder_name: network_token_with_ntid.card_holder_name.clone(),
+            last4: Some(network_token_with_ntid.decrypted_token.get_last4().clone()),
+            token_isin: Some(
+                network_token_with_ntid
+                    .decrypted_token
+                    .get_card_isin()
+                    .clone(),
+            ),
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl
     From<(
@@ -3382,33 +3606,37 @@ impl
     }
 }
 
-impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
-    type Error = error_stack::Report<ApiErrorResponse>;
-    fn try_from(value: mandates::RecurringDetails) -> CustomResult<Self, ApiErrorResponse> {
+impl From<mandates::RecurringDetails> for RecurringDetails {
+    fn from(value: mandates::RecurringDetails) -> Self {
         match value {
-            mandates::RecurringDetails::MandateId(mandate_id) => Ok(Self::MandateId(mandate_id)),
+            mandates::RecurringDetails::MandateId(mandate_id) => Self::MandateId(mandate_id),
             mandates::RecurringDetails::PaymentMethodId(payment_method_id) => {
-                Ok(Self::PaymentMethodId(payment_method_id))
+                Self::PaymentMethodId(payment_method_id)
             }
             mandates::RecurringDetails::ProcessorPaymentToken(token) => {
-                Ok(Self::ProcessorPaymentToken(ProcessorPaymentToken {
+                Self::ProcessorPaymentToken(ProcessorPaymentToken {
                     processor_payment_token: token.processor_payment_token,
                     merchant_connector_id: token.merchant_connector_id,
-                }))
+                })
             }
             mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
                 network_transaction_id_and_card_details,
-            ) => Ok(Self::NetworkTransactionIdAndCardDetails(Box::new(
+            ) => Self::NetworkTransactionIdAndCardDetails(Box::new(
                 (*network_transaction_id_and_card_details).into(),
-            ))),
+            )),
             mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
                 network_transaction_id_and_network_token_details,
-            ) => Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
+            ) => Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
                 (*network_transaction_id_and_network_token_details).into(),
-            ))),
-            mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => Ok(
-                Self::CardWithLimitedData(Box::new((*card_with_limited_data).into())),
-            ),
+            )),
+            mandates::RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(
+                network_transaction_id_and_decrypted_wallet_token_details,
+            ) => Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(Box::new(
+                *network_transaction_id_and_decrypted_wallet_token_details,
+            )),
+            mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
+                Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
+            }
         }
     }
 }
@@ -3468,21 +3696,23 @@ impl From<mandates::CardWithLimitedData> for CardWithLimitedData {
 impl RecurringDetails {
     pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
-    ) -> CustomResult<(api_models::payments::MandateReferenceId, PaymentMethodData), ApiErrorResponse>
-    {
+    ) -> Option<(api_models::payments::MandateReferenceId, PaymentMethodData)> {
         match self.clone() {
             Self::NetworkTransactionIdAndCardDetails(network_transaction_id_and_card_details) => {
-                Ok(CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(*network_transaction_id_and_card_details))
+                Some(CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(*network_transaction_id_and_card_details))
             }
             Self::NetworkTransactionIdAndNetworkTokenDetails(network_transaction_id_and_network_token_details) => {
-                Ok(NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(*network_transaction_id_and_network_token_details))
+                Some(NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(*network_transaction_id_and_network_token_details))
             }
             Self::CardWithLimitedData(card_with_limited_data) => {
-                Ok(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
+                Some(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
+            }
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
+                Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
             Self::PaymentMethodId(_)
             | Self::MandateId(_)
-            | Self::ProcessorPaymentToken(_) => Err(ApiErrorResponse::NotSupported { message: "Recurring Flow via Proxy not Supported".to_string() }.into()),
+            | Self::ProcessorPaymentToken(_) => None,
         }
     }
 }

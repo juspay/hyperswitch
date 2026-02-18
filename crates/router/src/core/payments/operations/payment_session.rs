@@ -10,6 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -76,7 +77,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             "create a session token for",
         )?;
 
-        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -327,6 +328,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
+        dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -339,6 +341,7 @@ where
                     payment_data,
                     request,
                     provider,
+                    dimensions,
                 )
                 .await
             }
